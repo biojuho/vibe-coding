@@ -217,6 +217,30 @@ def _release_authorization_packet_from_inputs(root: Path, readiness: dict[str, A
     }
 
 
+def _code_review_gate_from_inputs(root: Path, timeout: int) -> dict[str, Any]:
+    commands = [[sys.executable, "execution/code_review_gate.py", "--base", "HEAD~1", "--json"]]
+    if sys.platform == "win32":
+        commands.append(["py", "-3.13", "execution/code_review_gate.py", "--base", "HEAD~1", "--json"])
+
+    last_result: dict[str, Any] | None = None
+    for command in commands:
+        result = _run_json(root, command, timeout)
+        last_result = result
+        data = result.get("data") if isinstance(result.get("data"), dict) else {}
+        error = str(data.get("error") or result.get("stderr") or "")
+        if data.get("status") == "error" and "not importable" in error:
+            continue
+        return result
+
+    return last_result or {
+        "available": False,
+        "returncode": None,
+        "stdout": "",
+        "stderr": "code_review_gate.py could not run",
+        "data": {},
+    }
+
+
 def _item(
     requirement: str,
     artifacts: list[str],
@@ -797,7 +821,12 @@ def _dependency_prerelease_channel_evidence(dependency_inventory: dict[str, Any]
     return "Current prerelease-channel packages: none."
 
 
-def _dependency_item(dependency_inventory: dict[str, Any]) -> dict[str, Any]:
+def _dependency_item(
+    dependency_inventory: dict[str, Any],
+    *,
+    session_orientation: dict[str, Any] | None = None,
+    code_review_gate: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     summary = dependency_inventory.get("summary") if isinstance(dependency_inventory.get("summary"), dict) else {}
     recommendations = dependency_inventory.get("recommendations")
     if not isinstance(recommendations, list):
@@ -812,10 +841,43 @@ def _dependency_item(dependency_inventory: dict[str, Any]) -> dict[str, Any]:
         blockers.append(f"{candidate_count} direct patch/minor dependency candidate(s) remain.")
     if unavailable_count:
         blockers.append(f"{unavailable_count} package project(s) had unavailable npm freshness inventory.")
+    extra_artifacts: list[str] = []
+    extra_evidence: list[str] = []
+
+    if session_orientation is not None:
+        extra_artifacts.append("execution/session_orient.py")
+        graph = session_orientation.get("graph") if isinstance(session_orientation.get("graph"), dict) else {}
+        freshness = graph.get("freshness") or "unavailable"
+        built_at_commit = graph.get("built_at_commit") or "unknown"
+        current_head = graph.get("current_head") or "unknown"
+        extra_evidence.append(
+            f"code_review_graph freshness={freshness}, built_at_commit={built_at_commit}, current_head={current_head}."
+        )
+        if freshness != "current":
+            complete = False
+            blockers.append(f"code_review_graph freshness is {freshness}; expected current.")
+
+    if code_review_gate is not None:
+        extra_artifacts.append("execution/code_review_gate.py")
+        status = code_review_gate.get("status") or "unavailable"
+        risk_score = code_review_gate.get("risk_score")
+        changed_files = (
+            code_review_gate.get("changed_files") if isinstance(code_review_gate.get("changed_files"), list) else []
+        )
+        test_gaps = code_review_gate.get("test_gaps") if isinstance(code_review_gate.get("test_gaps"), list) else []
+        extra_evidence.append(
+            "code_review_gate "
+            f"status={status}, risk_score={risk_score}, changed_files={len(changed_files)}, test_gaps={len(test_gaps)}."
+        )
+        if status not in {"pass", "warn"}:
+            complete = False
+            blockers.append(f"code_review_gate status={status}; expected pass or warn.")
+
     return _item(
         "Research current dependency/code freshness and adopt only safe, evidence-backed improvements.",
         [
             ".agents/skills/auto-research/scripts/dependency_freshness_inventory.py",
+            *extra_artifacts,
             "package.json",
             "pnpm-lock.yaml",
             "projects",
@@ -830,6 +892,7 @@ def _dependency_item(dependency_inventory: dict[str, Any]) -> dict[str, Any]:
             "Recommendations: " + "; ".join(str(item) for item in recommendations)
             if recommendations
             else "Recommendations: none.",
+            *extra_evidence,
         ],
         complete=complete,
         blockers=blockers,
@@ -1184,13 +1247,19 @@ def build_manifest(
     dependency_inventory: dict[str, Any] | None = None,
     next_experiment_selection: dict[str, Any] | None = None,
     release_authorization_packet: dict[str, Any] | None = None,
+    session_orientation: dict[str, Any] | None = None,
+    code_review_gate: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     root = root.resolve()
     items = [
         _skill_item(root),
         _github_item(github_inventory or {}),
         _browser_item(browser_inventory or {}),
-        _dependency_item(dependency_inventory or {}),
+        _dependency_item(
+            dependency_inventory or {},
+            session_orientation=session_orientation,
+            code_review_gate=code_review_gate,
+        ),
         _readiness_item(readiness or {}),
     ]
     if release_authorization_packet is not None:
@@ -1223,6 +1292,7 @@ def build_manifest(
 def collect_current_inputs(root: Path, timeout: int) -> dict[str, dict[str, Any]]:
     python = sys.executable
     commands = {
+        "session_orientation": [python, "execution/session_orient.py", "--json"],
         "readiness": [python, "execution/product_readiness_score.py", "--json"],
         "github_inventory": [
             python,
@@ -1248,6 +1318,7 @@ def collect_current_inputs(root: Path, timeout: int) -> dict[str, dict[str, Any]
         ],
     }
     collected = {name: _run_json(root, command, timeout) for name, command in commands.items()}
+    collected["code_review_gate"] = _code_review_gate_from_inputs(root, timeout)
     readiness_data = collected.get("readiness", {}).get("data")
     collected["release_authorization_packet"] = _release_authorization_packet_from_inputs(
         root,
@@ -1281,6 +1352,8 @@ def main(argv: list[str] | None = None) -> int:
         dependency_inventory=collected["dependency_inventory"]["data"],
         next_experiment_selection=selector_result.get("data") if selector_result else None,
         release_authorization_packet=release_packet_result.get("data") if release_packet_result else None,
+        session_orientation=(collected.get("session_orientation") or {}).get("data"),
+        code_review_gate=(collected.get("code_review_gate") or {}).get("data"),
     )
     manifest["evidence_commands"] = {
         name: {

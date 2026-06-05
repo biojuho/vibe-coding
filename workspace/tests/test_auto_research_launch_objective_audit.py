@@ -395,6 +395,26 @@ def _dependency_inventory(
     return inventory
 
 
+def _session_orientation(*, freshness: str = "current") -> dict[str, object]:
+    return {
+        "graph": {
+            "freshness": freshness,
+            "built_at_commit": "abcdef123456",
+            "current_head": "abcdef12",
+            "stale": freshness != "current",
+        }
+    }
+
+
+def _code_review_gate(*, status: str = "pass", risk_score: float = 0.0) -> dict[str, object]:
+    return {
+        "status": status,
+        "risk_score": risk_score,
+        "changed_files": [".ai/HANDOFF.md"],
+        "test_gaps": [] if status == "pass" else ["missing direct test"],
+    }
+
+
 def _selector_selection(
     status: str = "blocked_external_only",
     *,
@@ -1340,6 +1360,71 @@ def test_current_prerelease_channel_dependency_evidence_explains_outdated_count(
         "projects/hanwoo-dashboard/next-auth beta=5.0.0-beta.31 current=5.0.0-beta.31 stable_latest=4.24.14" in evidence
         for evidence in dependency_item["evidence"]
     )
+
+
+def test_current_code_triage_includes_graph_and_gate_evidence(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+        session_orientation=_session_orientation(),
+        code_review_gate=_code_review_gate(),
+    )
+    dependency_item = next(item for item in manifest["items"] if item["requirement"].startswith("Research"))
+
+    assert dependency_item["coverage"] == "complete"
+    assert dependency_item["blockers"] == []
+    assert "execution/session_orient.py" in dependency_item["artifacts"]
+    assert "execution/code_review_gate.py" in dependency_item["artifacts"]
+    assert any("code_review_graph freshness=current" in evidence for evidence in dependency_item["evidence"])
+    assert any("code_review_gate status=pass, risk_score=0.0" in evidence for evidence in dependency_item["evidence"])
+
+
+def test_current_code_triage_allows_advisory_warn_gate(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+        session_orientation=_session_orientation(),
+        code_review_gate=_code_review_gate(status="warn", risk_score=0.4),
+    )
+    dependency_item = next(item for item in manifest["items"] if item["requirement"].startswith("Research"))
+
+    assert dependency_item["coverage"] == "complete"
+    assert dependency_item["blockers"] == []
+    assert any("code_review_gate status=warn, risk_score=0.4" in evidence for evidence in dependency_item["evidence"])
+
+
+def test_current_code_triage_blocks_stale_graph_or_failing_gate(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+        session_orientation=_session_orientation(freshness="stale"),
+        code_review_gate=_code_review_gate(status="fail", risk_score=0.8),
+    )
+    result = completion_audit.audit_manifest(manifest)
+    dependency_item = next(item for item in manifest["items"] if item["requirement"].startswith("Research"))
+
+    assert result["status"] == "incomplete"
+    assert dependency_item["coverage"] == "partial"
+    assert "code_review_graph freshness is stale; expected current." in dependency_item["blockers"]
+    assert "code_review_gate status=fail; expected pass or warn." in dependency_item["blockers"]
 
 
 def test_relay_item_rejects_stale_completed_goal(tmp_path: Path) -> None:
