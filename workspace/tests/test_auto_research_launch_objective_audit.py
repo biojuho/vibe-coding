@@ -41,6 +41,7 @@ def _write_required_skill(root: Path) -> None:
                 "github_project_inventory.py",
                 "launch_objective_audit.py",
                 "next_experiment_selector.py",
+                "release_authorization_packet.py",
             ]
         ),
         encoding="utf-8",
@@ -53,6 +54,7 @@ def _write_required_skill(root: Path) -> None:
         "github_project_inventory.py",
         "launch_objective_audit.py",
         "next_experiment_selector.py",
+        "release_authorization_packet.py",
     ):
         (scripts / name).write_text("# helper\n", encoding="utf-8")
 
@@ -153,12 +155,20 @@ def _clean_readiness(
     shorts_qc_failed: int = 0,
     shorts_qc_stale: bool = False,
     shorts_env_ok: bool = True,
+    hanwoo_score: int | None = None,
+    hanwoo_state: str | None = None,
+    hanwoo_qc_status: str = "PASS",
+    hanwoo_qc_failed: int = 0,
+    hanwoo_qc_stale: bool = False,
+    hanwoo_env_ok: bool = True,
 ) -> dict[str, object]:
     task = {
         "id": "T-251",
         "owner": user_task_owner,
         "task": "Supabase password reset required",
     }
+    resolved_hanwoo_score = hanwoo_score if hanwoo_score is not None else (86 if external_blockers else 100)
+    resolved_hanwoo_state = hanwoo_state if hanwoo_state is not None else ("blocked" if external_blockers else "ready")
     return {
         "overall": {
             "score": 100 if external_blockers == 0 else 96,
@@ -244,7 +254,33 @@ def _clean_readiness(
             },
             {
                 "name": "hanwoo-dashboard",
+                "path": "projects/hanwoo-dashboard",
+                "score": resolved_hanwoo_score,
+                "state": resolved_hanwoo_state,
+                "qc": {
+                    "available": True,
+                    "status": hanwoo_qc_status,
+                    "passed": 500,
+                    "failed": hanwoo_qc_failed,
+                    "skipped": 0,
+                    "stale": hanwoo_qc_stale,
+                },
+                "docs": [
+                    {"path": "projects/hanwoo-dashboard/README.md", "present": True},
+                    {"path": "projects/hanwoo-dashboard/API_SPEC.md", "present": True},
+                    {"path": "projects/hanwoo-dashboard/package.json", "present": True},
+                    {"path": "projects/hanwoo-dashboard/.env.example", "present": True},
+                ],
+                "env": {
+                    "checks": [
+                        {
+                            "name": "Supabase DATABASE_URL",
+                            "ok": hanwoo_env_ok,
+                        },
+                    ]
+                },
                 "tasks": [task] if external_blockers and include_user_task else [],
+                "dirty_paths": [],
             },
         ],
     }
@@ -520,7 +556,7 @@ def test_collect_current_inputs_uses_one_snapshot_for_selector(monkeypatch, tmp_
     assert all("next_experiment_selector.py" not in " ".join(command) for command in calls)
     assert collected["github_inventory"]["data"] == github_inventory
     selection = collected["next_experiment_selection"]["data"]
-    assert selection["status"] == "blocked"
+    assert selection["status"] == "blocked_publish_only"
     assert selection["selected"]["kind"] == "current_head_release_checks_unproven"
     assert any("github dirty_count=0" in evidence for evidence in selection["selected"]["evidence"])
 
@@ -545,16 +581,15 @@ def test_selector_external_only_state_is_evidence_not_duplicate_blocker(tmp_path
     assert selector_item["coverage"] == "complete"
     assert selector_item["blockers"] == []
     assert any("status=blocked_external_only" in item for item in selector_item["evidence"])
-    assert result["summary"]["issue_count"] == 1
-    assert result["issues"] == [
-        {
-            "index": 7,
-            "code": "blocked",
-            "message": "Requirement has unresolved blocker(s): 1 external/user-owned blocker(s) remain: T-251",
-            "requirement": "Separate externally blocked live checks from local product-polish completion.",
-            "blockers": ["1 external/user-owned blocker(s) remain: T-251"],
-        }
-    ]
+    assert result["summary"]["issue_count"] == 2
+    assert result["summary"]["blocked_count"] == 2
+    assert {issue["requirement"] for issue in result["issues"] if issue["code"] == "blocked"} == {
+        "Separate externally blocked live checks from local product-polish completion.",
+        "Prove hanwoo-dashboard target product launch readiness with direct project evidence.",
+    }
+    assert not any(
+        issue["requirement"].startswith("Run the deterministic next-experiment") for issue in result["issues"]
+    )
 
 
 def test_target_blind_to_x_item_includes_direct_release_evidence(tmp_path: Path) -> None:
@@ -683,6 +718,54 @@ def test_target_shorts_maker_v2_item_rejects_open_feature_checklist(tmp_path: Pa
     )
 
 
+def test_target_hanwoo_dashboard_item_includes_direct_release_evidence(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+    )
+    target_item = next(item for item in manifest["items"] if item["requirement"].startswith("Prove hanwoo-dashboard"))
+
+    assert target_item["coverage"] == "complete"
+    assert target_item["blockers"] == []
+    assert "projects/hanwoo-dashboard/API_SPEC.md" in target_item["artifacts"]
+    assert "hanwoo-dashboard readiness score=100, state=ready." in target_item["evidence"]
+    assert any("hanwoo-dashboard QC status=PASS" in evidence for evidence in target_item["evidence"])
+    assert any("hanwoo-dashboard env checks ok 1/1" in evidence for evidence in target_item["evidence"])
+    assert "hanwoo-dashboard tasks=0 (none), dirty_paths=0." in target_item["evidence"]
+
+
+def test_target_hanwoo_dashboard_item_keeps_t251_as_direct_blocker_not_coverage_gap(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(external_blockers=1),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+    )
+    result = completion_audit.audit_manifest(manifest)
+    target_item = next(item for item in manifest["items"] if item["requirement"].startswith("Prove hanwoo-dashboard"))
+
+    assert result["status"] == "incomplete"
+    assert target_item["coverage"] == "complete"
+    assert "hanwoo-dashboard readiness score=86, state=blocked." in target_item["evidence"]
+    assert "hanwoo-dashboard tasks=1 (T-251), dirty_paths=0." in target_item["evidence"]
+    assert (
+        "hanwoo-dashboard readiness is score=86, state=blocked; expected score>=100 and ready."
+        in target_item["blockers"]
+    )
+    assert "hanwoo-dashboard has 1 unresolved readiness task(s): T-251." in target_item["blockers"]
+    assert not any(issue["code"] == "incomplete_coverage" for issue in result["issues"])
+
+
 def test_selector_local_candidate_prevents_complete_claim(tmp_path: Path) -> None:
     _write_required_skill(tmp_path)
     _write_ai_relay(tmp_path)
@@ -726,7 +809,7 @@ def test_selector_current_head_publish_boundary_has_complete_coverage_with_block
         browser_inventory=_browser_inventory(),
         dependency_inventory=_dependency_inventory(),
         next_experiment_selection=_selector_selection(
-            status="blocked",
+            status="blocked_publish_only",
             kind="current_head_release_checks_unproven",
             blocked=True,
             project="workspace",
@@ -742,7 +825,7 @@ def test_selector_current_head_publish_boundary_has_complete_coverage_with_block
     assert selector_item["coverage"] == "complete"
     assert selector_item["blockers"] == [
         "next_experiment_selector selected unresolved publish boundary: "
-        "status=blocked, kind=current_head_release_checks_unproven, project=workspace"
+        "status=blocked_publish_only, kind=current_head_release_checks_unproven, project=workspace"
     ]
     assert any("publish-boundary check" in evidence for evidence in selector_item["evidence"])
     assert result["status"] == "incomplete"
@@ -946,11 +1029,15 @@ def test_external_user_blocker_prevents_completion(tmp_path: Path) -> None:
     external_item = next(item for item in manifest["items"] if item["requirement"].startswith("Separate"))
 
     assert result["status"] == "incomplete"
-    assert result["summary"]["blocked_count"] == 1
-    assert result["summary"]["issue_count"] == 1
+    assert result["summary"]["blocked_count"] == 2
+    assert result["summary"]["issue_count"] == 2
     assert external_item["coverage"] == "complete"
     assert any("T-251" in blocker for item in manifest["items"] for blocker in item["blockers"])
-    blocked_issue = next(issue for issue in result["issues"] if issue["code"] == "blocked")
+    blocked_issue = next(
+        issue
+        for issue in result["issues"]
+        if issue["code"] == "blocked" and issue["requirement"].startswith("Separate")
+    )
     assert blocked_issue["blockers"] == ["1 external/user-owned blocker(s) remain: T-251"]
     assert "T-251" in blocked_issue["message"]
 
@@ -970,8 +1057,8 @@ def test_external_blocker_without_task_id_is_not_claimed_fully_covered(tmp_path:
     external_item = next(item for item in manifest["items"] if item["requirement"].startswith("Separate"))
 
     assert result["status"] == "incomplete"
-    assert result["summary"]["blocked_count"] == 1
-    assert result["summary"]["issue_count"] == 2
+    assert result["summary"]["blocked_count"] == 2
+    assert result["summary"]["issue_count"] == 3
     assert external_item["coverage"] == "partial"
     assert external_item["blockers"] == ["1 external/user-owned blocker(s) remain: unknown"]
 
@@ -991,7 +1078,7 @@ def test_external_user_blocker_owner_matching_is_case_insensitive(tmp_path: Path
     external_item = next(item for item in manifest["items"] if item["requirement"].startswith("Separate"))
 
     assert result["status"] == "incomplete"
-    assert result["summary"]["issue_count"] == 1
+    assert result["summary"]["issue_count"] == 2
     assert external_item["coverage"] == "complete"
     assert external_item["blockers"] == ["1 external/user-owned blocker(s) remain: T-251"]
 

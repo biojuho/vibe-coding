@@ -64,6 +64,7 @@ jobs:
           workspace/tests/test_auto_research_dependency_freshness_inventory.py
           workspace/tests/test_auto_research_launch_objective_audit.py
           workspace/tests/test_auto_research_next_experiment_selector.py
+          workspace/tests/test_auto_research_release_authorization_packet.py
           workspace/tests/test_github_project_inventory.py
           workspace/tests/test_github_workflow_hygiene.py
           workspace/tests/test_next_task_id.py
@@ -94,6 +95,7 @@ jobs:
           workspace/tests/test_auto_research_dependency_freshness_inventory.py
           workspace/tests/test_auto_research_launch_objective_audit.py
           workspace/tests/test_auto_research_next_experiment_selector.py
+          workspace/tests/test_auto_research_release_authorization_packet.py
           workspace/tests/test_github_project_inventory.py
           workspace/tests/test_github_workflow_hygiene.py
           workspace/tests/test_next_task_id.py
@@ -107,6 +109,7 @@ jobs:
           .agents/skills/auto-research/scripts/dependency_freshness_inventory.py
           .agents/skills/auto-research/scripts/launch_objective_audit.py
           .agents/skills/auto-research/scripts/next_experiment_selector.py
+          .agents/skills/auto-research/scripts/release_authorization_packet.py
 
   blind-to-x-tests:
     runs-on: ubuntu-latest

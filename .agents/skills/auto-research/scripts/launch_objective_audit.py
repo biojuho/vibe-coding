@@ -27,6 +27,7 @@ SKILL_ARTIFACTS = (
     ".agents/skills/auto-research/scripts/github_project_inventory.py",
     ".agents/skills/auto-research/scripts/launch_objective_audit.py",
     ".agents/skills/auto-research/scripts/next_experiment_selector.py",
+    ".agents/skills/auto-research/scripts/release_authorization_packet.py",
 )
 AI_RELAY_ARTIFACTS = (
     ".ai/HANDOFF.md",
@@ -254,13 +255,14 @@ def _skill_item(root: Path) -> dict[str, Any]:
         "github_project_inventory.py",
         "launch_objective_audit.py",
         "next_experiment_selector.py",
+        "release_authorization_packet.py",
     )
     missing_terms = [term for term in required_terms if term not in skill_text]
     complete = not missing and not missing_terms
     evidence = [
         f"{len(SKILL_ARTIFACTS) - len(missing)}/{len(SKILL_ARTIFACTS)} required auto-research artifacts exist.",
         "SKILL.md documents A/B, completion audit, next experiment selector, launch objective audit, "
-        "GitHub inventory, browser QA inventory, and dependency freshness commands."
+        "GitHub inventory, browser QA inventory, dependency freshness, and release authorization packet commands."
         if not missing_terms
         else "SKILL.md is missing documented command reference(s): " + ", ".join(missing_terms),
     ]
@@ -529,6 +531,117 @@ def _target_shorts_maker_v2_item(root: Path, readiness: dict[str, Any]) -> dict[
         complete=complete,
         blockers=blockers,
         verified=bool(readiness),
+    )
+
+
+def _target_hanwoo_dashboard_item(readiness: dict[str, Any]) -> dict[str, Any]:
+    projects = readiness.get("projects") if isinstance(readiness.get("projects"), list) else []
+    target: dict[str, Any] | None = None
+    for project in projects:
+        if not isinstance(project, dict):
+            continue
+        if (
+            project.get("name") == "hanwoo-dashboard"
+            or str(project.get("path") or "").replace("\\", "/") == "projects/hanwoo-dashboard"
+        ):
+            target = project
+            break
+
+    artifacts = [
+        "projects/hanwoo-dashboard",
+        "projects/hanwoo-dashboard/README.md",
+        "projects/hanwoo-dashboard/API_SPEC.md",
+        "projects/hanwoo-dashboard/package.json",
+        "projects/hanwoo-dashboard/.env.example",
+        "execution/product_readiness_score.py",
+        ".tmp/project_qc_runner_latest.json",
+    ]
+    if target is None:
+        return _item(
+            "Prove hanwoo-dashboard target product launch readiness with direct project evidence.",
+            artifacts,
+            ["product_readiness_score did not include a hanwoo-dashboard project entry."],
+            complete=False,
+            blockers=["hanwoo-dashboard readiness evidence is missing from product_readiness_score output."],
+            verified=bool(readiness),
+        )
+
+    qc = target.get("qc") if isinstance(target.get("qc"), dict) else {}
+    docs = target.get("docs") if isinstance(target.get("docs"), list) else []
+    env = target.get("env") if isinstance(target.get("env"), dict) else {}
+    env_checks = env.get("checks") if isinstance(env.get("checks"), list) else []
+    tasks = target.get("tasks") if isinstance(target.get("tasks"), list) else []
+    dirty_paths = target.get("dirty_paths") if isinstance(target.get("dirty_paths"), list) else []
+
+    score = int(target.get("score") or 0)
+    state = str(target.get("state") or "unknown")
+    qc_status = str(qc.get("status") or "unknown")
+    qc_failed = int(qc.get("failed") or 0)
+    qc_stale = qc.get("stale") is True
+    present_docs = [str(doc.get("path") or "unknown") for doc in docs if isinstance(doc, dict) and doc.get("present")]
+    missing_docs = [
+        str(doc.get("path") or "unknown") for doc in docs if isinstance(doc, dict) and not doc.get("present")
+    ]
+    env_ok_count = sum(1 for check in env_checks if isinstance(check, dict) and check.get("ok") is True)
+    env_check_count = len([check for check in env_checks if isinstance(check, dict)])
+    env_names = [
+        str(check.get("name") or "unknown")
+        for check in env_checks
+        if isinstance(check, dict) and check.get("ok") is True
+    ]
+    task_ids = [str(task.get("id") or "unknown") for task in tasks if isinstance(task, dict)]
+
+    complete = (
+        score >= 100
+        and state == "ready"
+        and qc_status == "PASS"
+        and qc_failed == 0
+        and not qc_stale
+        and not missing_docs
+        and bool(present_docs)
+        and env_check_count > 0
+        and env_ok_count == env_check_count
+        and not tasks
+        and not dirty_paths
+    )
+    blockers: list[str] = []
+    if score < 100 or state != "ready":
+        blockers.append(f"hanwoo-dashboard readiness is score={score}, state={state}; expected score>=100 and ready.")
+    if qc_status != "PASS" or qc_failed or qc_stale:
+        blockers.append(f"hanwoo-dashboard QC is status={qc_status}, failed={qc_failed}, stale={qc_stale}.")
+    if missing_docs:
+        blockers.append("Missing hanwoo-dashboard launch doc artifact(s): " + ", ".join(missing_docs))
+    if not present_docs:
+        blockers.append("No hanwoo-dashboard launch doc artifacts were reported present.")
+    if env_check_count == 0 or env_ok_count != env_check_count:
+        blockers.append(f"hanwoo-dashboard env checks ok {env_ok_count}/{env_check_count}.")
+    if tasks:
+        blockers.append(
+            f"hanwoo-dashboard has {len(tasks)} unresolved readiness task(s): {', '.join(task_ids) or 'unknown'}."
+        )
+    if dirty_paths:
+        blockers.append(f"hanwoo-dashboard has {len(dirty_paths)} dirty path(s).")
+
+    task_ids_are_known = not tasks or all(task_id != "unknown" for task_id in task_ids)
+    coverage_complete = (
+        bool(readiness) and bool(present_docs) and not missing_docs and env_check_count > 0 and task_ids_are_known
+    )
+
+    return _item(
+        "Prove hanwoo-dashboard target product launch readiness with direct project evidence.",
+        artifacts,
+        [
+            f"hanwoo-dashboard readiness score={score}, state={state}.",
+            f"hanwoo-dashboard QC status={qc_status}, passed={qc.get('passed')}, failed={qc_failed}, "
+            f"skipped={qc.get('skipped')}, stale={qc_stale}.",
+            f"hanwoo-dashboard docs present {len(present_docs)}/{len(docs)}: {', '.join(present_docs) or 'none'}.",
+            f"hanwoo-dashboard env checks ok {env_ok_count}/{env_check_count}: {', '.join(env_names) or 'none'}.",
+            f"hanwoo-dashboard tasks={len(tasks)} ({', '.join(task_ids) or 'none'}), dirty_paths={len(dirty_paths)}.",
+        ],
+        complete=complete,
+        blockers=blockers,
+        verified=bool(readiness),
+        coverage="complete" if coverage_complete else "partial",
     )
 
 
@@ -989,6 +1102,7 @@ def build_manifest(
             _external_blocker_item(readiness or {}),
             _ab_loop_item(root, ab_manifest_path=ab_manifest_path),
             _relay_item(root),
+            _target_hanwoo_dashboard_item(readiness or {}),
             _target_blind_to_x_item(readiness or {}),
             _target_shorts_maker_v2_item(root, readiness or {}),
         ]

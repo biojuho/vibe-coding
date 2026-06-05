@@ -39,7 +39,7 @@ Choose the next cycle from the user's goal, active tasks, GitHub PRs, product re
 python .agents/skills/auto-research/scripts/next_experiment_selector.py --root . --output .tmp/next-experiment.json --json
 ```
 
-If it reports `blocked_external_only`, do not retry the blocked live check. Record the blocker and continue only with a distinct local maintenance experiment that has its own hypothesis and gates. Write a compact hypothesis:
+If it reports `blocked_external_only`, do not retry the blocked live check. If it reports `blocked_publish_only`, the current clean local HEAD needs explicit push authorization or a user push before current-head Actions can prove the launch evidence. Record the blocker and continue only with a distinct local maintenance experiment that has its own hypothesis and gates. Write a compact hypothesis:
 
 ```text
 If we change <surface>, then <metric or user workflow> improves because <reason>.
@@ -158,7 +158,17 @@ Run the selector after readiness, GitHub, browser, and dependency inventories wh
 python .agents/skills/auto-research/scripts/next_experiment_selector.py --root . --json
 ```
 
-It ranks input evidence availability, local readiness blockers, GitHub/PR follow-ups, browser QA refreshes, dependency candidates, stale QC refreshes, and external/user-owned blockers. A `candidate` status is safe to scope as the next bounded experiment. If the selected kind is `input_evidence_unavailable`, regenerate the listed helper artifacts before claiming readiness. If the selected kind is `current_head_release_checks_unproven`, the clean local branch is ahead of origin and current-HEAD Actions cannot exist yet; do not push unless the user explicitly authorized it, and wait for required Actions after the push. A `blocked_external_only` status means local launch evidence is already green and the selected blocker requires user action, so do not retry it until the prerequisite is complete.
+It ranks input evidence availability, local readiness blockers, GitHub/PR follow-ups, browser QA refreshes, dependency candidates, stale QC refreshes, and external/user-owned blockers. A `candidate` status is safe to scope as the next bounded experiment. If the selected kind is `input_evidence_unavailable`, regenerate the listed helper artifacts before claiming readiness. A `blocked_publish_only` status with selected kind `current_head_release_checks_unproven` means the clean local branch is ahead of origin and current-HEAD Actions cannot exist yet; do not push unless the user explicitly authorized it, generate the release authorization packet, and wait for required Actions after the push. A `blocked_external_only` status means local launch evidence is already green and the selected blocker requires user action, so do not retry it until the prerequisite is complete.
+
+## Release Authorization Packet
+
+When the branch is clean but ahead of origin, generate a user-reviewable packet before asking for push authorization:
+
+```bash
+python .agents/skills/auto-research/scripts/release_authorization_packet.py --root . --output .tmp/release-authorization-packet.json --json
+```
+
+The packet lists the exact current HEAD, ahead commit subjects, dirty count, required workflows, post-push gates, and guardrails. It must never push by itself.
 
 ## A/B Decision Helper
 

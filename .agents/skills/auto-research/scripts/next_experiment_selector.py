@@ -234,10 +234,12 @@ def _current_head_release_candidate(
     readiness: dict[str, Any], github_inventory: dict[str, Any]
 ) -> dict[str, Any] | None:
     missing_workflows = _unproven_required_workflows(readiness)
+    git = _as_dict(github_inventory.get("git"))
+    if _count(git.get("dirty_count")):
+        return None
     if not missing_workflows or not _branch_is_ahead(github_inventory):
         return None
 
-    git = _as_dict(github_inventory.get("git"))
     return _candidate(
         kind="current_head_release_checks_unproven",
         priority=10,
@@ -251,8 +253,10 @@ def _current_head_release_candidate(
             f"git status: {_github_status_text(github_inventory).strip() or 'unknown'}",
             "unproven required workflows: " + ", ".join(missing_workflows),
             f"github dirty_count={_count(git.get('dirty_count'))}",
+            "release authorization packet required before push authorization.",
         ],
         required_gates=[
+            "release_authorization_packet.py --json",
             "explicit push authorization or user push",
             "current-head root-quality-gate success",
             "current-head active-project-matrix success",
@@ -280,6 +284,9 @@ def _local_readiness_candidate(readiness: dict[str, Any], github_inventory: dict
     }
     total = sum(blocker_counts.values())
     if total == 0:
+        return None
+    git = _as_dict(github_inventory.get("git"))
+    if _count(git.get("dirty_count")):
         return None
     release_candidate = _current_head_release_candidate(readiness, github_inventory)
     if release_candidate is not None:
@@ -471,7 +478,12 @@ def select_next_experiment(
         status = "candidate"
     elif ranked:
         selected = ranked[0]
-        status = "blocked_external_only" if selected["kind"] == "external_user_blocker" else "blocked"
+        if selected["kind"] == "external_user_blocker":
+            status = "blocked_external_only"
+        elif selected["kind"] == "current_head_release_checks_unproven":
+            status = "blocked_publish_only"
+        else:
+            status = "blocked"
     else:
         selected = _ready_candidate(readiness)
         ranked = [selected]

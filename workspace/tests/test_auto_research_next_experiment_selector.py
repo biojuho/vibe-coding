@@ -172,12 +172,25 @@ def test_ahead_current_head_actions_are_push_authorization_boundary() -> None:
         github_inventory=_github(ahead=1),
     )
 
-    assert result["status"] == "blocked"
+    assert result["status"] == "blocked_publish_only"
     assert result["selected"]["kind"] == "current_head_release_checks_unproven"
     assert result["selected"]["blocked"] is True
+    assert "release_authorization_packet.py --json" in result["selected"]["required_gates"]
     assert "explicit push authorization or user push" in result["selected"]["required_gates"]
+    assert any("release authorization packet" in item for item in result["selected"]["evidence"])
     assert any("Do not push without explicit user authorization" in item for item in result["selected"]["guardrails"])
     assert any("root-quality-gate" in item for item in result["selected"]["evidence"])
+
+
+def test_dirty_ahead_branch_routes_to_github_followup_before_publish_authorization() -> None:
+    result = _select(
+        readiness=_readiness(workspace=1, local=1, external=1, missing_actions=True),
+        github_inventory=_github(dirty=2, ahead=1),
+    )
+
+    assert result["status"] == "candidate"
+    assert result["selected"]["kind"] == "github_inventory_followup"
+    assert all(candidate["kind"] != "current_head_release_checks_unproven" for candidate in result["ranked_candidates"])
 
 
 def test_ready_workspace_routes_to_completion_audit() -> None:
