@@ -522,9 +522,10 @@
 
 - Audited the active thread goal `complete` against current workspace evidence before making any completion claim.
 - Rehydration: read `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/GOAL.md`, `.ai/CONTEXT.md`, `.ai/DECISIONS.md`, `.ai/TOOL_MATRIX.md`, and ran `python execution/session_orient.py --json`.
-- Live state: git worktree clean, `main` at `b036e6a27473c6384adb6ad2fcae22f6751ff87d`, open PRs `0`, required current-HEAD Actions green.
+- Live state at audit time: git worktree clean, `main` at `b036e6a27473c6384adb6ad2fcae22f6751ff87d`, open PRs `0`, required Actions green on that head. Rerun `session_orient.py --json` for exact current head/ahead/CI state after context-recording commits.
 - Readiness: `python execution/product_readiness_score.py --json` returned score `96`, state `blocked`, workspace/local/agent blockers `0/0/0`, external blocker count `1`, and next action waiting on T-251.
 - Selector: `python .agents/skills/auto-research/scripts/next_experiment_selector.py --root . --output .tmp/next-experiment-completion-check.json --json` returned `blocked_external_only`, selected external/user-owned T-251, and required gates `Supabase credential reset by user` plus `Hanwoo live Prisma CRUD E2E after reset`.
 - Launch audit: `python .agents/skills/auto-research/scripts/launch_objective_audit.py --root . --output .tmp/launch-objective-audit-completion-check.json --json` generated a 9-item manifest with local/GitHub/browser/dependency/A/B/relay evidence complete and T-251 as the only blocker.
 - Completion audit: `python .agents/skills/auto-research/scripts/completion_audit.py .tmp/launch-objective-audit-completion-check.json --json --allow-incomplete` returned `status=incomplete`, `complete_count=8/9`, `issue_count=1`, `blocked_count=1`, only because requirement 7 has unresolved external/user-owned blocker T-251.
-- Boundary: no local auto-research candidate remains and T-251 was not retried; do not mark the product launch goal complete until Supabase credentials are reset and Hanwoo live Prisma CRUD E2E passes.
+- Post-recording boundary: context-only commits can move HEAD ahead of `origin/main`, which makes current-HEAD GitHub Actions unproven until push/CI. Push was not performed because this workspace says not to push without explicit user authorization.
+- T-251 boundary: no Supabase live retry was run; do not mark the product launch goal complete until Supabase credentials are reset and Hanwoo live Prisma CRUD E2E passes.
