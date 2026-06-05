@@ -570,3 +570,13 @@
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1308.json --json` returned `adopt_candidate` with `score_delta=0.9942122861956799`.
 - Commit closeout: `925e7bf1 fix(auto-research): T-1308 require shorts feature checklist evidence` is local only.
 - Boundary: product launch remains incomplete until explicit push authorization/user push plus current-head Actions, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
+
+## 2026-06-05 - Codex
+
+- Closed T-1309 as a bounded `$auto-research` session-orientation reliability cycle for clean-but-unpushed relay closeouts.
+- Changed `execution/session_orient.py`: expanded closeout detection for relay/clean-state/audit wording and added `latest_next_priority_note` when the latest HANDOFF asks to commit a relay update, the worktree is already clean, and git is ahead rather than synced.
+- Changed `workspace/tests/test_session_orient.py`: added regressions proving clean-ahead committed relay closeouts surface the note while dirty worktrees do not.
+- Verification: focused session-orient pytest passed `30/30`; broader session/readiness/launch pytest passed `85/85`; ruff, ruff format check, `py_compile`, and `git diff --check` passed.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1309.json --json` returned `adopt_candidate` with `score_delta=0.9919743726016979`.
+- Commit closeout: `dc815257 fix(session): T-1309 note clean-ahead relay closeout` is local only.
+- Boundary: product launch remains incomplete until explicit push authorization/user push plus current-head Actions, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
