@@ -161,6 +161,12 @@ def _clean_readiness(
     hanwoo_qc_failed: int = 0,
     hanwoo_qc_stale: bool = False,
     hanwoo_env_ok: bool = True,
+    knowledge_score: int = 100,
+    knowledge_state: str = "ready",
+    knowledge_qc_status: str = "PASS",
+    knowledge_qc_failed: int = 0,
+    knowledge_qc_stale: bool = False,
+    knowledge_env_ok: bool = True,
 ) -> dict[str, object]:
     task = {
         "id": "T-251",
@@ -280,6 +286,39 @@ def _clean_readiness(
                     ]
                 },
                 "tasks": [task] if external_blockers and include_user_task else [],
+                "dirty_paths": [],
+            },
+            {
+                "name": "knowledge-dashboard",
+                "path": "projects/knowledge-dashboard",
+                "score": knowledge_score,
+                "state": knowledge_state,
+                "qc": {
+                    "available": True,
+                    "status": knowledge_qc_status,
+                    "passed": 61,
+                    "failed": knowledge_qc_failed,
+                    "skipped": 0,
+                    "stale": knowledge_qc_stale,
+                },
+                "docs": [
+                    {"path": "projects/knowledge-dashboard/README.md", "present": True},
+                    {"path": "projects/knowledge-dashboard/package.json", "present": True},
+                    {"path": "projects/knowledge-dashboard/src/app/page.tsx", "present": True},
+                ],
+                "env": {
+                    "checks": [
+                        {
+                            "name": "Dashboard API key",
+                            "ok": knowledge_env_ok,
+                        },
+                        {
+                            "name": "Dashboard session signing secret",
+                            "ok": knowledge_env_ok,
+                        },
+                    ]
+                },
+                "tasks": [],
                 "dirty_paths": [],
             },
         ],
@@ -927,6 +966,63 @@ def test_target_hanwoo_dashboard_item_keeps_t251_as_direct_blocker_not_coverage_
     )
     assert "hanwoo-dashboard has 1 unresolved readiness task(s): T-251." in target_item["blockers"]
     assert not any(issue["code"] == "incomplete_coverage" for issue in result["issues"])
+
+
+def test_target_knowledge_dashboard_item_includes_direct_release_evidence(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+    )
+    target_item = next(
+        item for item in manifest["items"] if item["requirement"].startswith("Prove knowledge-dashboard")
+    )
+
+    assert target_item["coverage"] == "complete"
+    assert target_item["blockers"] == []
+    assert "projects/knowledge-dashboard/src/app/page.tsx" in target_item["artifacts"]
+    assert "knowledge-dashboard readiness score=100, state=ready." in target_item["evidence"]
+    assert any("knowledge-dashboard QC status=PASS" in evidence for evidence in target_item["evidence"])
+    assert any("knowledge-dashboard env checks ok 2/2" in evidence for evidence in target_item["evidence"])
+    assert "knowledge-dashboard tasks=0, dirty_paths=0." in target_item["evidence"]
+
+
+def test_target_knowledge_dashboard_item_rejects_stale_or_failing_release_evidence(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(
+            knowledge_score=88,
+            knowledge_state="blocked",
+            knowledge_qc_status="FAIL",
+            knowledge_qc_failed=1,
+            knowledge_qc_stale=True,
+            knowledge_env_ok=False,
+        ),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+    )
+    result = completion_audit.audit_manifest(manifest)
+    target_item = next(
+        item for item in manifest["items"] if item["requirement"].startswith("Prove knowledge-dashboard")
+    )
+
+    assert result["status"] == "incomplete"
+    assert target_item["coverage"] == "partial"
+    assert (
+        "knowledge-dashboard readiness is score=88, state=blocked; expected score>=100 and ready."
+        in target_item["blockers"]
+    )
+    assert "knowledge-dashboard QC is status=FAIL, failed=1, stale=True." in target_item["blockers"]
+    assert "knowledge-dashboard env checks ok 0/2." in target_item["blockers"]
 
 
 def test_selector_local_candidate_prevents_complete_claim(tmp_path: Path) -> None:

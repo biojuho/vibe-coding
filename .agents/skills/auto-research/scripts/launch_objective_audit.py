@@ -762,6 +762,109 @@ def _target_hanwoo_dashboard_item(readiness: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+def _target_knowledge_dashboard_item(readiness: dict[str, Any]) -> dict[str, Any]:
+    projects = readiness.get("projects") if isinstance(readiness.get("projects"), list) else []
+    target: dict[str, Any] | None = None
+    for project in projects:
+        if not isinstance(project, dict):
+            continue
+        if (
+            project.get("name") == "knowledge-dashboard"
+            or str(project.get("path") or "").replace("\\", "/") == "projects/knowledge-dashboard"
+        ):
+            target = project
+            break
+
+    artifacts = [
+        "projects/knowledge-dashboard",
+        "projects/knowledge-dashboard/README.md",
+        "projects/knowledge-dashboard/package.json",
+        "projects/knowledge-dashboard/src/app/page.tsx",
+        "execution/product_readiness_score.py",
+        ".tmp/project_qc_runner_latest.json",
+    ]
+    if target is None:
+        return _item(
+            "Prove knowledge-dashboard target product launch readiness with direct project evidence.",
+            artifacts,
+            ["product_readiness_score did not include a knowledge-dashboard project entry."],
+            complete=False,
+            blockers=["knowledge-dashboard readiness evidence is missing from product_readiness_score output."],
+            verified=bool(readiness),
+        )
+
+    qc = target.get("qc") if isinstance(target.get("qc"), dict) else {}
+    docs = target.get("docs") if isinstance(target.get("docs"), list) else []
+    env = target.get("env") if isinstance(target.get("env"), dict) else {}
+    env_checks = env.get("checks") if isinstance(env.get("checks"), list) else []
+    tasks = target.get("tasks") if isinstance(target.get("tasks"), list) else []
+    dirty_paths = target.get("dirty_paths") if isinstance(target.get("dirty_paths"), list) else []
+
+    score = int(target.get("score") or 0)
+    state = str(target.get("state") or "unknown")
+    qc_status = str(qc.get("status") or "unknown")
+    qc_failed = int(qc.get("failed") or 0)
+    qc_stale = qc.get("stale") is True
+    present_docs = [str(doc.get("path") or "unknown") for doc in docs if isinstance(doc, dict) and doc.get("present")]
+    missing_docs = [
+        str(doc.get("path") or "unknown") for doc in docs if isinstance(doc, dict) and not doc.get("present")
+    ]
+    env_ok_count = sum(1 for check in env_checks if isinstance(check, dict) and check.get("ok") is True)
+    env_check_count = len([check for check in env_checks if isinstance(check, dict)])
+    env_names = [
+        str(check.get("name") or "unknown")
+        for check in env_checks
+        if isinstance(check, dict) and check.get("ok") is True
+    ]
+
+    complete = (
+        score >= 100
+        and state == "ready"
+        and qc_status == "PASS"
+        and qc_failed == 0
+        and not qc_stale
+        and not missing_docs
+        and bool(present_docs)
+        and env_check_count > 0
+        and env_ok_count == env_check_count
+        and not tasks
+        and not dirty_paths
+    )
+    blockers: list[str] = []
+    if score < 100 or state != "ready":
+        blockers.append(
+            f"knowledge-dashboard readiness is score={score}, state={state}; expected score>=100 and ready."
+        )
+    if qc_status != "PASS" or qc_failed or qc_stale:
+        blockers.append(f"knowledge-dashboard QC is status={qc_status}, failed={qc_failed}, stale={qc_stale}.")
+    if missing_docs:
+        blockers.append("Missing knowledge-dashboard launch doc artifact(s): " + ", ".join(missing_docs))
+    if not present_docs:
+        blockers.append("No knowledge-dashboard launch doc artifacts were reported present.")
+    if env_check_count == 0 or env_ok_count != env_check_count:
+        blockers.append(f"knowledge-dashboard env checks ok {env_ok_count}/{env_check_count}.")
+    if tasks:
+        blockers.append(f"knowledge-dashboard has {len(tasks)} unresolved readiness task(s).")
+    if dirty_paths:
+        blockers.append(f"knowledge-dashboard has {len(dirty_paths)} dirty path(s).")
+
+    return _item(
+        "Prove knowledge-dashboard target product launch readiness with direct project evidence.",
+        artifacts,
+        [
+            f"knowledge-dashboard readiness score={score}, state={state}.",
+            f"knowledge-dashboard QC status={qc_status}, passed={qc.get('passed')}, failed={qc_failed}, "
+            f"skipped={qc.get('skipped')}, stale={qc_stale}.",
+            f"knowledge-dashboard docs present {len(present_docs)}/{len(docs)}: {', '.join(present_docs) or 'none'}.",
+            f"knowledge-dashboard env checks ok {env_ok_count}/{env_check_count}: {', '.join(env_names) or 'none'}.",
+            f"knowledge-dashboard tasks={len(tasks)}, dirty_paths={len(dirty_paths)}.",
+        ],
+        complete=complete,
+        blockers=blockers,
+        verified=bool(readiness),
+    )
+
+
 def _browser_item(browser_inventory: dict[str, Any]) -> dict[str, Any]:
     summary = browser_inventory.get("summary") if isinstance(browser_inventory.get("summary"), dict) else {}
     recommendations = browser_inventory.get("recommendations")
@@ -1350,6 +1453,7 @@ def build_manifest(
             _target_hanwoo_dashboard_item(readiness or {}),
             _target_blind_to_x_item(readiness or {}),
             _target_shorts_maker_v2_item(root, readiness or {}),
+            _target_knowledge_dashboard_item(readiness or {}),
         ]
     )
     return {
