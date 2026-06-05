@@ -109,6 +109,93 @@ class DraftValidationMixin:
                 return mapped
         return {}
 
+    @staticmethod
+    def _strip_thinking_tags(response_text: str) -> str:
+        return re.sub(r"<thinking>.*?</thinking>", "", response_text, flags=re.DOTALL).strip()
+
+    @staticmethod
+    def _tag_match(response_text: str, tag: str) -> re.Match[str] | None:
+        return re.search(rf"<{tag}>(.*?)</{tag}>", response_text, re.DOTALL)
+
+    @classmethod
+    def _tag_text(cls, response_text: str, tag: str) -> str | None:
+        match = cls._tag_match(response_text, tag)
+        return match.group(1).strip() if match else None
+
+    @classmethod
+    def _apply_json_payload(cls, drafts_dict: dict[str, str], response_text: str) -> str | None:
+        json_payload = cls._extract_json_payload(response_text)
+        image_prompt = json_payload.pop("image_prompt", None) if json_payload else None
+        if json_payload:
+            drafts_dict.update(json_payload)
+        return image_prompt
+
+    @classmethod
+    def _apply_thread_tag(cls, drafts_dict: dict[str, str], response_text: str, output_formats: list[str]) -> None:
+        thread_text = cls._tag_text(response_text, "twitter_thread")
+        if not thread_text:
+            return
+        drafts_dict["twitter_thread"] = thread_text
+        if "twitter" in output_formats:
+            drafts_dict["twitter"] = thread_text
+
+    @classmethod
+    def _apply_platform_tags(cls, drafts_dict: dict[str, str], response_text: str, output_formats: list[str]) -> None:
+        twitter_text = cls._tag_text(response_text, "twitter")
+        if twitter_text is not None and "twitter" not in drafts_dict:
+            drafts_dict["twitter"] = twitter_text
+
+        for tag in ("newsletter", "threads", "naver_blog"):
+            tag_text = cls._tag_text(response_text, tag)
+            if tag_text is not None:
+                drafts_dict[tag] = tag_text
+
+    @classmethod
+    def _apply_reply_tag(cls, drafts_dict: dict[str, str], response_text: str, output_formats: list[str]) -> None:
+        reply_text = cls._tag_text(response_text, "reply")
+        if reply_text is not None:
+            drafts_dict["reply_text"] = reply_text
+        elif "twitter" in output_formats:
+            drafts_dict.setdefault("reply_text", "")
+
+    @classmethod
+    def _apply_auxiliary_tags(cls, drafts_dict: dict[str, str], response_text: str) -> None:
+        regulation_text = cls._tag_text(response_text, "regulation_check")
+        if regulation_text is not None:
+            drafts_dict["_regulation_check"] = regulation_text
+
+        creator_take = cls._tag_text(response_text, "creator_take")
+        if creator_take is not None:
+            drafts_dict["creator_take"] = creator_take
+
+    @classmethod
+    def _apply_twitter_fallback(
+        cls,
+        drafts_dict: dict[str, str],
+        response_text: str,
+        output_formats: list[str],
+        prompt_match: re.Match[str] | None,
+    ) -> None:
+        if "twitter" not in output_formats or "twitter" in drafts_dict:
+            return
+        if prompt_match:
+            drafts_dict["twitter"] = response_text.replace(prompt_match.group(0), "").strip()
+        else:
+            drafts_dict["twitter"] = response_text.strip()
+
+    @staticmethod
+    def _apply_single_format_fallback(
+        drafts_dict: dict[str, str], response_text: str, output_formats: list[str]
+    ) -> None:
+        if len(output_formats) != 1:
+            return
+        only_platform = output_formats[0]
+        if only_platform in drafts_dict:
+            return
+        cleaned = response_text.strip()
+        if cleaned:
+            drafts_dict[only_platform] = cleaned
+
     # ------------------------------------------------------------------
     # Validation
     # ------------------------------------------------------------------
@@ -158,75 +245,18 @@ class DraftValidationMixin:
     ) -> tuple[dict[str, str], str | None]:
         drafts_dict: dict[str, str] = {"_provider_used": provider_used}
 
-        # ── P0-2: <thinking> 태그 제거 (사고 과정은 출력에 포함하지 않음) ──
-        response_text = re.sub(r"<thinking>.*?</thinking>", "", response_text, flags=re.DOTALL).strip()
-        json_payload = self._extract_json_payload(response_text)
-        image_prompt = json_payload.pop("image_prompt", None) if json_payload else None
-        if json_payload:
-            drafts_dict.update(json_payload)
+        response_text = self._strip_thinking_tags(response_text)
+        image_prompt = self._apply_json_payload(drafts_dict, response_text)
+        self._apply_thread_tag(drafts_dict, response_text, output_formats)
+        self._apply_platform_tags(drafts_dict, response_text, output_formats)
+        self._apply_reply_tag(drafts_dict, response_text, output_formats)
 
-        # ── 스레드형 파싱 (P0-A1) ──────────────────────────────────────
-        thread_match = re.search(r"<twitter_thread>(.*?)</twitter_thread>", response_text, re.DOTALL)
-        if thread_match:
-            drafts_dict["twitter_thread"] = thread_match.group(1).strip()
-            # 스레드 내용을 twitter 키에도 넣어 호환성 유지
-            if "twitter" in output_formats:
-                drafts_dict["twitter"] = thread_match.group(1).strip()
-
-        # ── 기존 트위터 파싱 ───────────────────────────────────────────
-        twitter_match = re.search(r"<twitter>(.*?)</twitter>", response_text, re.DOTALL)
-        if twitter_match and "twitter" not in drafts_dict:
-            drafts_dict["twitter"] = twitter_match.group(1).strip()
-        elif "twitter" in output_formats and "twitter" not in drafts_dict:
-            drafts_dict["twitter"] = response_text.strip()
-
-        newsletter_match = re.search(r"<newsletter>(.*?)</newsletter>", response_text, re.DOTALL)
-        if newsletter_match:
-            drafts_dict["newsletter"] = newsletter_match.group(1).strip()
-
-        # ── Threads 파싱 ──────────────────────────────────────────────
-        threads_match = re.search(r"<threads>(.*?)</threads>", response_text, re.DOTALL)
-        if threads_match:
-            drafts_dict["threads"] = threads_match.group(1).strip()
-
-        # ── 네이버 블로그 파싱 ────────────────────────────────────────
-        naver_blog_match = re.search(r"<naver_blog>(.*?)</naver_blog>", response_text, re.DOTALL)
-        if naver_blog_match:
-            drafts_dict["naver_blog"] = naver_blog_match.group(1).strip()
-
-        # ── 답글(Reply) 파싱 — 링크-인-리플라이 전략 ─────────────────
-        reply_match = re.search(r"<reply>(.*?)</reply>", response_text, re.DOTALL)
-        if reply_match:
-            drafts_dict["reply_text"] = reply_match.group(1).strip()
-        elif "twitter" in output_formats:
-            # reply 태그가 없으면 placeholder — process.py에서 원문 URL 주입
-            drafts_dict.setdefault("reply_text", "")
-
-        prompt_match = re.search(r"<image_prompt>(.*?)</image_prompt>", response_text, re.DOTALL)
+        prompt_match = self._tag_match(response_text, "image_prompt")
         if prompt_match:
             image_prompt = prompt_match.group(1).strip()
 
-        # ── P7: 규제 검증 리포트 파싱 ─────────────────────────────────
-        regulation_match = re.search(r"<regulation_check>(.*?)</regulation_check>", response_text, re.DOTALL)
-        if regulation_match:
-            drafts_dict["_regulation_check"] = regulation_match.group(1).strip()
-
-        # ── creator_take 파싱 (피벗: 운영자 해석 1문장) ──────────────────
-        creator_take_match = re.search(r"<creator_take>(.*?)</creator_take>", response_text, re.DOTALL)
-        if creator_take_match:
-            drafts_dict["creator_take"] = creator_take_match.group(1).strip()
-
-        if "twitter" in output_formats and "twitter" not in drafts_dict:
-            if prompt_match:
-                drafts_dict["twitter"] = response_text.replace(prompt_match.group(0), "").strip()
-            else:
-                drafts_dict["twitter"] = response_text.strip()
-
-        if len(output_formats) == 1:
-            only_platform = output_formats[0]
-            if only_platform not in drafts_dict:
-                cleaned = response_text.strip()
-                if cleaned:
-                    drafts_dict[only_platform] = cleaned
+        self._apply_auxiliary_tags(drafts_dict, response_text)
+        self._apply_twitter_fallback(drafts_dict, response_text, output_formats, prompt_match)
+        self._apply_single_format_fallback(drafts_dict, response_text, output_formats)
 
         return drafts_dict, image_prompt
