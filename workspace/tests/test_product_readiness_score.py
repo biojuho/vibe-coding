@@ -277,6 +277,49 @@ def test_user_owned_project_task_reports_external_blocker_without_local_blocker(
     assert report["next_actions"][0]["action"] == message
 
 
+def test_mixed_project_tasks_prioritize_agent_blocker_before_user_wait(tmp_path: Path):
+    _write_project_files(tmp_path)
+    _write_required_env(tmp_path)
+    qaqc_path = _write_qaqc(tmp_path)
+    _write_tasks(
+        tmp_path,
+        "# TASKS\n\n"
+        "## TODO\n\n"
+        "| ID | Task | Owner | Priority | Auto | Created |\n"
+        "|---|---|---|---|---|---|\n"
+        "| T-1287 | `[hanwoo-dashboard]` Refresh readiness copy. | Codex | Medium | auto | today |\n"
+        "| T-251 | `[hanwoo-dashboard]` Run live Supabase CRUD check. | User | High | approval | today |\n",
+    )
+
+    report = readiness.build_report(
+        tmp_path,
+        qaqc_path=qaqc_path,
+        git_status_text="",
+        github_status=_passing_github_status(),
+        now=datetime(2026, 5, 13, tzinfo=timezone.utc),
+    )
+
+    hanwoo = next(project for project in report["projects"] if project["name"] == "hanwoo-dashboard")
+    message = "Resolve 1 agent-owned task blocker(s), then wait for 1 user-owned task blocker(s): T-251."
+    assert report["overall"]["state"] == "blocked"
+    assert report["overall"]["blocker_breakdown"] == {
+        "external": 1,
+        "local": 0,
+        "user_owned_tasks": 1,
+        "agent_owned_tasks": 1,
+        "environment": 0,
+        "workspace_gate": 0,
+    }
+    assert hanwoo["blocker_breakdown"] == {
+        "task_count": 2,
+        "user_task_count": 1,
+        "agent_task_count": 1,
+        "environment_count": 0,
+    }
+    assert hanwoo["recommendations"][0] == message
+    assert report["next_actions"][0]["action"] == message
+
+
 def test_missing_hanwoo_env_reports_missing_file_instead_of_configured(tmp_path: Path):
     _write_project_files(tmp_path)
     _write_required_env(tmp_path)
