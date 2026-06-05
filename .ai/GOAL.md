@@ -8,10 +8,12 @@
 - Goal: Product launch-ready workspace through the auto-research self-improvement loop across GitHub projects, browser-click QA, A/B adoption, current dependency/code triage, and local readiness gates.
 - Owner: Codex, with user-owned T-251 external Supabase credential reset
 - Started: 2026-06-05
-- Latest: 2026-06-05 T-1302 feature commit `ae9d9e59` is pushed and required Actions passed. `launch_objective_audit.py` now carries selector guardrails into launch evidence and normalizes selector action punctuation, so the T-251 retry boundary is visible directly in launch audits.
+- Latest: 2026-06-05 T-1303 feature commit `dc0d11e8` is pushed. `launch_objective_audit.py` now carries selector required gates into launch evidence, so the exact T-251 resume conditions are visible directly in launch audits alongside selector guardrails.
 - Success: All launch-audit requirements are complete after user-owned Hanwoo T-251 Supabase credential reset and live Prisma CRUD E2E pass; until then keep local launch evidence green and do not retry T-251.
 
 ## Progress Notes
+
+- 2026-06-05: T-1303 exposed next-experiment selector required gates in launch-objective audit evidence. The candidate passed focused pytest `21/21`, broader auto-research launch/completion/selector pytest `34/34`, ruff, format check, `py_compile`, diff-check, runtime selector required-gate evidence, A/B `adopt_candidate`, completion audit `3/3`, and code-review gate exit `0` with advisory WARN `risk_score=0.4` covered by direct tests. Full product launch remains blocked only by external/user-owned Hanwoo T-251.
 
 - 2026-06-05: T-1302 exposed next-experiment selector guardrails in launch-objective audit evidence and normalized selector action punctuation. The candidate passed focused pytest `21/21`, broader auto-research launch/completion/selector pytest `34/34`, ruff, format check, `py_compile`, diff-check, runtime launch audit guardrail evidence, A/B `adopt_candidate`, completion audit `3/3`, code-review gate exit `0` with advisory WARN `risk_score=0.4` covered by direct tests, and required Actions on `ae9d9e59`. Full product launch remains blocked only by external/user-owned Hanwoo T-251.
 
