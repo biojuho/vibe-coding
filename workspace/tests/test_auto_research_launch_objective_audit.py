@@ -88,6 +88,7 @@ def _write_ai_relay(
         ),
         encoding="utf-8",
     )
+    _write_shorts_feature_checklist(root)
 
 
 def _write_ab_manifest(
@@ -114,6 +115,25 @@ def _write_ab_manifest(
     path = tmp / name
     path.write_text(json.dumps(manifest), encoding=encoding)
     return path
+
+
+def _write_shorts_feature_checklist(root: Path, *, complete: bool = True) -> None:
+    feature = root / "projects" / "shorts-maker-v2" / "FEATURE.md"
+    feature.parent.mkdir(parents=True, exist_ok=True)
+    marker = "x" if complete else " "
+    feature.write_text(
+        "\n".join(
+            [
+                "# FEATURE",
+                "",
+                "## Acceptance criteria",
+                "",
+                f"- [{marker}] ProjectSettings exposes qc_strictness and scene_qc_max_retries.",
+                f"- [{marker}] QCStep supports strict, lenient, and off strictness modes.",
+            ]
+        ),
+        encoding="utf-8",
+    )
 
 
 def _clean_readiness(
@@ -580,6 +600,7 @@ def test_target_shorts_maker_v2_item_includes_direct_release_evidence(tmp_path: 
     assert "shorts-maker-v2 readiness score=100, state=ready." in target_item["evidence"]
     assert any("shorts-maker-v2 QC status=PASS" in evidence for evidence in target_item["evidence"])
     assert any("shorts-maker-v2 env checks ok 1/1" in evidence for evidence in target_item["evidence"])
+    assert "shorts-maker-v2 FEATURE checklist complete 2/2, open=0." in target_item["evidence"]
 
 
 def test_target_shorts_maker_v2_item_rejects_stale_or_failing_release_evidence(tmp_path: Path) -> None:
@@ -611,6 +632,30 @@ def test_target_shorts_maker_v2_item_rejects_stale_or_failing_release_evidence(t
     )
     assert "shorts-maker-v2 QC is status=FAIL, failed=1, stale=True." in target_item["blockers"]
     assert "shorts-maker-v2 env checks ok 0/1." in target_item["blockers"]
+
+
+def test_target_shorts_maker_v2_item_rejects_open_feature_checklist(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+    _write_shorts_feature_checklist(tmp_path, complete=False)
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+    )
+    result = completion_audit.audit_manifest(manifest)
+    target_item = next(item for item in manifest["items"] if item["requirement"].startswith("Prove shorts-maker-v2"))
+
+    assert result["status"] == "incomplete"
+    assert target_item["coverage"] == "partial"
+    assert "shorts-maker-v2 FEATURE checklist complete 0/2, open=2." in target_item["evidence"]
+    assert any(
+        blocker.startswith("shorts-maker-v2 FEATURE.md has 2 open acceptance checklist item(s)")
+        for blocker in target_item["blockers"]
+    )
 
 
 def test_selector_local_candidate_prevents_complete_claim(tmp_path: Path) -> None:

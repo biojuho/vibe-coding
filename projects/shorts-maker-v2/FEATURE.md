@@ -7,6 +7,13 @@ orchestrator 자동 재생성 루프, `SceneQCResult` 모델, role-based duratio
 이미 출하되어 있다. 하지만 운영자가 QC를 "엄격하게" 또는 "느슨하게" 조정할 수
 없고, 재시도 한도가 코드(`MAX_SCENE_RETRIES = 2`)에 박혀 있다.
 
+## Status
+
+Implemented. Evidence is in `config.py`, `pipeline/qc_step.py`, `pipeline/orchestrator.py`,
+`tests/unit/test_config.py`, `tests/unit/test_qc_step.py`, and
+`tests/unit/test_orchestrator_unit.py`. Launch audits also verify that this checklist is
+closed before treating the target product evidence as complete.
+
 ## Scope (좁은 갭만)
 
 이 변경의 **유일한** 목적은:
@@ -30,20 +37,20 @@ orchestrator 자동 재생성 루프, `SceneQCResult` 모델, role-based duratio
 
 ## Acceptance criteria
 
-- [ ] `ProjectSettings`에 `qc_strictness: str = "strict"` 와 `scene_qc_max_retries: int = 2` 추가.
-- [ ] `load_config()` 가 `config.yaml.project.qc_strictness` / `scene_qc_max_retries` 를 읽고,
+- [x] `ProjectSettings`에 `qc_strictness: str = "strict"` 와 `scene_qc_max_retries: int = 2` 추가.
+- [x] `load_config()` 가 `config.yaml.project.qc_strictness` / `scene_qc_max_retries` 를 읽고,
       `qc_strictness` 가 허용값(`strict`/`lenient`/`off`) 외이면 `ConfigError` 발생.
-- [ ] `QCStep.gate_scene_qc(plan, asset, prev, next, *, strictness="strict")` 시그니처.
+- [x] `QCStep.gate_scene_qc(plan, asset, prev, next, *, strictness="strict")` 시그니처.
       - `strictness="strict"`: 현재 동작 그대로(기존 테스트 100% 통과).
       - `strictness="lenient"`: essential check(`audio_ok`/`visual_ok`) 모두 True 면 `verdict="pass"`,
         이슈가 있어도 통과. essential 실패면 기존대로 `fail_retry`.
       - `strictness="off"`: 모든 check 스킵하고 `verdict="pass"`, `checks={}`, `issues=[]` 반환.
-- [ ] `Orchestrator` 가 `scene_qc_max_retries` 와 `qc_strictness` 를 사용하여 루프를 돌고,
+- [x] `Orchestrator` 가 `scene_qc_max_retries` 와 `qc_strictness` 를 사용하여 루프를 돌고,
       `qc_strictness="off"` 면 scene_qc 블록을 진입하지 않는다.
-- [ ] `test_qc_step.py` 에 strictness 동작 회귀 테스트 추가(strict/lenient/off 각 1개 이상,
+- [x] `test_qc_step.py` 에 strictness 동작 회귀 테스트 추가(strict/lenient/off 각 1개 이상,
       essential vs non-essential 분기 포함).
-- [ ] `test_config.py`(또는 기존 config 테스트 모듈) 에 새 필드 파싱/검증 테스트 추가.
-- [ ] `python -m ruff check .` clean, `python -m pytest --no-cov tests/unit -q` 그대로 통과.
+- [x] `test_config.py`(또는 기존 config 테스트 모듈) 에 새 필드 파싱/검증 테스트 추가.
+- [x] `python -m ruff check .` clean, `python -m pytest --no-cov tests/unit -q` 그대로 통과.
 
 ## Rollback
 

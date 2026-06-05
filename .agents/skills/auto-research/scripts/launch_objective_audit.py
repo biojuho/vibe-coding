@@ -38,6 +38,7 @@ AI_RELAY_ARTIFACTS = (
 AB_MANIFEST_GLOB = "ab-manifest-*.json"
 TASK_ID_RE = re.compile(r"\b[Tt][-_]?(\d{3,6})\b")
 GOAL_STATUS_RE = re.compile(r"^-\s*Status:\s*(.*?)\s*$", re.IGNORECASE | re.MULTILINE)
+MARKDOWN_CHECKBOX_RE = re.compile(r"^\s*-\s*\[([ xX])\]\s+(.*)$")
 GOAL_ACTIVE_STATUSES = {"active", "enabled", "in_progress", "in-progress", "blocked", "waiting"}
 GOAL_OBJECTIVE_TERMS = (
     "auto-research",
@@ -219,6 +220,29 @@ def _sentence_list(values: Any) -> list[str]:
     return sentences
 
 
+def _markdown_checkbox_summary(root: Path, rel_path: str) -> dict[str, Any]:
+    total = 0
+    completed = 0
+    open_items: list[str] = []
+    for line in _read_text(root, rel_path).splitlines():
+        match = MARKDOWN_CHECKBOX_RE.match(line)
+        if not match:
+            continue
+        total += 1
+        marker = match.group(1).lower()
+        text = match.group(2).strip()
+        if marker == "x":
+            completed += 1
+        else:
+            open_items.append(text)
+    return {
+        "total": total,
+        "completed": completed,
+        "open": total - completed,
+        "open_items": open_items,
+    }
+
+
 def _skill_item(root: Path) -> dict[str, Any]:
     missing = [path for path in SKILL_ARTIFACTS if not _exists(root, path)]
     skill_text = _read_text(root, ".agents/skills/auto-research/SKILL.md").lower()
@@ -391,7 +415,7 @@ def _target_blind_to_x_item(readiness: dict[str, Any]) -> dict[str, Any]:
     )
 
 
-def _target_shorts_maker_v2_item(readiness: dict[str, Any]) -> dict[str, Any]:
+def _target_shorts_maker_v2_item(root: Path, readiness: dict[str, Any]) -> dict[str, Any]:
     projects = readiness.get("projects") if isinstance(readiness.get("projects"), list) else []
     target: dict[str, Any] | None = None
     for project in projects:
@@ -447,6 +471,11 @@ def _target_shorts_maker_v2_item(readiness: dict[str, Any]) -> dict[str, Any]:
         for check in env_checks
         if isinstance(check, dict) and check.get("ok") is True
     ]
+    feature_checklist = _markdown_checkbox_summary(root, "projects/shorts-maker-v2/FEATURE.md")
+    feature_total = int(feature_checklist["total"])
+    feature_completed = int(feature_checklist["completed"])
+    feature_open = int(feature_checklist["open"])
+    feature_open_items = [str(item) for item in feature_checklist["open_items"]]
 
     complete = (
         score >= 100
@@ -460,6 +489,8 @@ def _target_shorts_maker_v2_item(readiness: dict[str, Any]) -> dict[str, Any]:
         and env_ok_count == env_check_count
         and not tasks
         and not dirty_paths
+        and feature_total > 0
+        and feature_open == 0
     )
     blockers: list[str] = []
     if score < 100 or state != "ready":
@@ -476,6 +507,12 @@ def _target_shorts_maker_v2_item(readiness: dict[str, Any]) -> dict[str, Any]:
         blockers.append(f"shorts-maker-v2 has {len(tasks)} unresolved readiness task(s).")
     if dirty_paths:
         blockers.append(f"shorts-maker-v2 has {len(dirty_paths)} dirty path(s).")
+    if feature_total == 0:
+        blockers.append("shorts-maker-v2 FEATURE.md has no acceptance checklist evidence.")
+    elif feature_open:
+        sample = "; ".join(feature_open_items[:3])
+        suffix = f": {sample}" if sample else "."
+        blockers.append(f"shorts-maker-v2 FEATURE.md has {feature_open} open acceptance checklist item(s){suffix}")
 
     return _item(
         "Prove shorts-maker-v2 target product launch readiness with direct project evidence.",
@@ -487,6 +524,7 @@ def _target_shorts_maker_v2_item(readiness: dict[str, Any]) -> dict[str, Any]:
             f"shorts-maker-v2 docs present {len(present_docs)}/{len(docs)}: {', '.join(present_docs) or 'none'}.",
             f"shorts-maker-v2 env checks ok {env_ok_count}/{env_check_count}: {', '.join(env_names) or 'none'}.",
             f"shorts-maker-v2 tasks={len(tasks)}, dirty_paths={len(dirty_paths)}.",
+            f"shorts-maker-v2 FEATURE checklist complete {feature_completed}/{feature_total}, open={feature_open}.",
         ],
         complete=complete,
         blockers=blockers,
@@ -939,7 +977,7 @@ def build_manifest(
             _ab_loop_item(root, ab_manifest_path=ab_manifest_path),
             _relay_item(root),
             _target_blind_to_x_item(readiness or {}),
-            _target_shorts_maker_v2_item(readiness or {}),
+            _target_shorts_maker_v2_item(root, readiness or {}),
         ]
     )
     return {
