@@ -543,3 +543,29 @@
 - Post-context clean-state proof: `session_orient.py --json` reports a clean worktree with `main` ahead of `origin/main`; `product_readiness_score.py --json` reports score `96`, `workspace_blocker_count=1`, `local_blocker_count=0`, `publish_blocker_count=1`, and `external_blocker_count=1`.
 - Selector/completion proof: `next_experiment_selector.py --json` selected `current_head_release_checks_unproven`; launch objective audit wrote `.tmp/launch-objective-audit-t1306-postcommit.json`; completion audit returned `incomplete` with `8/11` complete because current-head Actions require push authorization and T-251 remains user-owned.
 - Boundary: no push was performed. Do not retry T-251 until the user resets Supabase credentials; after explicit push authorization or user push, wait for current-head `root-quality-gate` and `active-project-matrix`.
+
+## 2026-06-05 - Codex
+
+- Closed T-1307 as a bounded `$auto-research` launch hardening cycle for Hanwoo credential exposure and launch selector snapshot consistency.
+- Changed `projects/hanwoo-dashboard/prisma/seed.js`: admin seed now requires configured `ADMIN_PASSWORD` with length `>= 12` and no longer seeds the public `admin/admin123` default.
+- Changed `projects/hanwoo-dashboard/src/app/login/page.js`: removed the visible demo credential card and replaced it with operator credential guidance.
+- Changed `projects/hanwoo-dashboard/src/lib/error-pages-wiring.test.mjs`: added source coverage for the no-demo-login copy contract and configured admin seed password requirement.
+- Changed `.agents/skills/auto-research/scripts/launch_objective_audit.py`: `collect_current_inputs()` now calls the next-experiment selector in-process from the already-collected readiness/GitHub/browser/dependency snapshot instead of launching a second snapshot subprocess.
+- Changed `workspace/tests/test_auto_research_launch_objective_audit.py`: added regression coverage proving selector output is derived from the same collected snapshot.
+- Verification: Hanwoo Node tests passed `500/500`; Hanwoo project QC passed test/lint/build/smoke; focused auto-research pytest passed `37/37`; ruff, ruff format check, `py_compile`, and `git diff --check` passed.
+- Browser QA: `/login` showed operator credential guidance, no visible demo `admin/admin123` credentials, wrong-password submit produced the expected Korean auth error, and browser console errors/warnings were `0/0`; screenshot retained at `output/playwright/hanwoo-t1307-login-no-demo-credentials.png` when available.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1307.json` returned `adopt_candidate` with `score_delta=1.124169`.
+- Commit closeout: `30ed0791 fix(launch): harden Hanwoo login seed credentials` is local only; no push was performed.
+- Boundary: product launch remains incomplete until explicit push authorization/user push plus current-head Actions, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
+
+## 2026-06-05 - Codex
+
+- Closed T-1308 as a bounded `$auto-research` launch-audit evidence cycle for `shorts-maker-v2` feature acceptance status.
+- Changed `.agents/skills/auto-research/scripts/launch_objective_audit.py`: added Markdown checkbox parsing and required the direct `shorts-maker-v2` target readiness item to have a non-empty, fully closed `projects/shorts-maker-v2/FEATURE.md` checklist.
+- Changed `projects/shorts-maker-v2/FEATURE.md`: added implemented status and marked all seven acceptance criteria complete.
+- Changed `workspace/tests/test_auto_research_launch_objective_audit.py`: added fixture checklist creation, evidence assertions, and a regression proving open feature checklist items block target readiness completion.
+- Runtime launch-audit proof during the dirty candidate state showed `shorts-maker-v2 FEATURE checklist complete 7/7, open=0`; the same dirty audit remained incomplete because uncommitted files were correctly treated as local blockers.
+- Verification: focused launch-audit pytest passed `28/28`; related auto-research pytest passed `42/42`; full auto-research pytest passed `67/67`; ruff, ruff format check, `py_compile`, and `git diff --check` passed.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1308.json --json` returned `adopt_candidate` with `score_delta=0.9942131721455777`.
+- Commit closeout: `925e7bf1 fix(auto-research): T-1308 require shorts feature checklist evidence` is local only. Pre-commit code-review gate returned advisory WARN `risk=0.50`; direct focused and broad tests above cover the changed behavior.
+- Boundary: product launch remains incomplete until explicit push authorization/user push plus current-head Actions, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
