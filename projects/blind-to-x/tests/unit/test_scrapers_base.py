@@ -1,5 +1,9 @@
-import pytest
+import sys
+import types
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
 from scrapers.base import BaseScraper, FeedCandidate
 
 
@@ -186,6 +190,60 @@ async def test_scraper_open_close(mock_pw, mock_config):
         pw_instance.stop = AsyncMock()
 
         await scraper.close()
+        context_mock.close.assert_called_once()
+        browser_mock.close.assert_called_once()
+        pw_instance.stop.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch("scrapers.base.async_playwright")
+async def test_scraper_open_discards_failed_camoufox_before_chromium_close(mock_pw, mock_config):
+    config = {**mock_config, "browser.engine": "auto"}
+
+    class FailingCamoufox:
+        def __init__(self, **_kwargs):
+            pass
+
+        async def __aenter__(self):
+            raise RuntimeError("camoufox launch failed")
+
+        async def __aexit__(self, *_exc):
+            raise AssertionError("failed Camoufox context should not be closed")
+
+    camoufox_pkg = types.ModuleType("camoufox")
+    camoufox_async_api = types.ModuleType("camoufox.async_api")
+    camoufox_async_api.AsyncCamoufox = FailingCamoufox
+    camoufox_pkg.async_api = camoufox_async_api
+
+    pw_instance = MagicMock()
+    mock_pw.return_value.start = AsyncMock(return_value=pw_instance)
+    pw_instance.devices = {"iPhone 14 Pro": {}}
+
+    browser_mock = MagicMock()
+    pw_instance.chromium.launch = AsyncMock(return_value=browser_mock)
+    context_mock = MagicMock()
+    browser_mock.new_context = AsyncMock(return_value=context_mock)
+
+    with (
+        patch.dict(sys.modules, {"camoufox": camoufox_pkg, "camoufox.async_api": camoufox_async_api}),
+        patch("scrapers.base.Stealth") as MockStealth,
+    ):
+        stealth_instance = MagicMock()
+        stealth_instance.apply_stealth_async = AsyncMock()
+        MockStealth.return_value = stealth_instance
+
+        scraper = DummyScraper(config)
+        await scraper.open()
+
+        assert scraper._camo_ctx is None
+        assert scraper._context is context_mock
+
+        context_mock.close = AsyncMock()
+        browser_mock.close = AsyncMock()
+        pw_instance.stop = AsyncMock()
+
+        await scraper.close()
+
         context_mock.close.assert_called_once()
         browser_mock.close.assert_called_once()
         pw_instance.stop.assert_called_once()

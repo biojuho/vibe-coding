@@ -118,61 +118,81 @@ class BaseScraper:
     # ── Browser lifecycle ────────────────────────────────────────────
     async def open(self):
         """Launch shared browser. Uses context pool when pool_size > 1."""
-        # Pool mode
         if self._pool_size > 1:
-            if self._pool is not None:
-                return
-            try:
-                from scrapers.browser_pool import BrowserContextPool
-            except ImportError:
-                from browser_pool import BrowserContextPool
-            self._pool = BrowserContextPool(self.config, size=self._pool_size)
-            try:
-                await self._pool.open()
-            except Exception as exc:
-                self._pool = None
-                self._browser_launch_error = exc
-                logger.warning(
-                    "Browser pool unavailable; continuing with non-browser fallbacks where possible: %s",
-                    exc,
-                )
-                return
-            self._browser_launch_error = None
-            logger.info("Browser opened (pool mode, size=%d).", self._pool_size)
+            await self._open_pool_browser()
             return
 
-        # Single-context mode (original behaviour)
-        if self._browser or self._context:
-            return
-        if self._browser_launch_error is not None:
+        if self._single_browser_is_open_or_failed():
             return
 
+        proxy_config = self._browser_proxy_config()
+        if await self._open_camoufox_browser(proxy_config):
+            return
+
+        await self._open_chromium_browser(proxy_config)
+
+    async def _open_pool_browser(self) -> None:
+        """Launch the configured context pool, if not already open."""
+        if self._pool is not None:
+            return
+        try:
+            from scrapers.browser_pool import BrowserContextPool
+        except ImportError:
+            from browser_pool import BrowserContextPool
+        self._pool = BrowserContextPool(self.config, size=self._pool_size)
+        try:
+            await self._pool.open()
+        except Exception as exc:
+            self._pool = None
+            self._browser_launch_error = exc
+            logger.warning(
+                "Browser pool unavailable; continuing with non-browser fallbacks where possible: %s",
+                exc,
+            )
+            return
+        self._browser_launch_error = None
+        logger.info("Browser opened (pool mode, size=%d).", self._pool_size)
+
+    def _single_browser_is_open_or_failed(self) -> bool:
+        """Return True when single-context launch work should be skipped."""
+        return bool(self._browser or self._context or self._browser_launch_error is not None)
+
+    def _browser_proxy_config(self) -> dict[str, str] | None:
+        """Return a Playwright-compatible proxy config, if one is configured."""
         proxy_url = self.proxy_manager.get_random_proxy()
-        proxy_config = {"server": proxy_url} if proxy_url else None
+        return {"server": proxy_url} if proxy_url else None
 
-        # ── Camoufox 우선 시도 (C++ 레벨 핑거프린트 스푸핑) ──────────
-        use_camoufox = self.config.get("browser.engine", "auto") != "chromium"
-        if use_camoufox:
-            try:
-                from camoufox.async_api import AsyncCamoufox
+    async def _open_camoufox_browser(self, proxy_config: dict[str, str] | None) -> bool:
+        """Try Camoufox first unless Chromium is explicitly configured."""
+        if self.config.get("browser.engine", "auto") == "chromium":
+            return False
 
-                camo_kwargs = {
-                    "headless": self.headless,
-                    "geoip": True,
-                    "locale": "ko-KR",
-                }
-                if proxy_config:
-                    camo_kwargs["proxy"] = proxy_config
-                self._camo_ctx = AsyncCamoufox(**camo_kwargs)
-                self._browser = await self._camo_ctx.__aenter__()
-                self._context = self._browser  # Camoufox context = browser
-                self._browser_launch_error = None
-                logger.info("Browser opened (Camoufox stealth Firefox).")
-                return
-            except Exception as exc:
-                logger.info("Camoufox unavailable (%s), falling back to Chromium.", exc)
+        try:
+            from camoufox.async_api import AsyncCamoufox
 
-        # ── Patchright/Playwright Chromium 폴백 ──────────────────────
+            camo_kwargs = {
+                "headless": self.headless,
+                "geoip": True,
+                "locale": "ko-KR",
+            }
+            if proxy_config:
+                camo_kwargs["proxy"] = proxy_config
+            camo_ctx = AsyncCamoufox(**camo_kwargs)
+            browser = await camo_ctx.__aenter__()
+        except Exception as exc:
+            self._camo_ctx = None
+            logger.info("Camoufox unavailable (%s), falling back to Chromium.", exc)
+            return False
+
+        self._camo_ctx = camo_ctx
+        self._browser = browser
+        self._context = browser  # Camoufox context = browser
+        self._browser_launch_error = None
+        logger.info("Browser opened (Camoufox stealth Firefox).")
+        return True
+
+    async def _open_chromium_browser(self, proxy_config: dict[str, str] | None) -> None:
+        """Launch Patchright/Playwright Chromium fallback."""
         try:
             self._pw = await async_playwright().start()
             iphone_14_pro = self._pw.devices["iPhone 14 Pro"]
@@ -193,24 +213,28 @@ class BaseScraper:
                 "Playwright browser unavailable; continuing with non-browser fallbacks where possible: %s",
                 exc,
             )
-            if self._context:
-                try:
-                    await self._context.close()
-                except Exception:
-                    pass
-            self._context = None
-            if self._browser:
-                try:
-                    await self._browser.close()
-                except Exception:
-                    pass
-            self._browser = None
-            if self._pw:
-                try:
-                    await self._pw.stop()
-                except Exception:
-                    pass
-            self._pw = None
+            await self._cleanup_partial_chromium_launch()
+
+    async def _cleanup_partial_chromium_launch(self) -> None:
+        """Best-effort cleanup after a failed Chromium launch."""
+        if self._context:
+            try:
+                await self._context.close()
+            except Exception:
+                pass
+        self._context = None
+        if self._browser:
+            try:
+                await self._browser.close()
+            except Exception:
+                pass
+        self._browser = None
+        if self._pw:
+            try:
+                await self._pw.stop()
+            except Exception:
+                pass
+        self._pw = None
 
     async def close(self):
         """Shut down the shared browser and context (or pool)."""
