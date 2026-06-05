@@ -618,6 +618,7 @@ def _readiness_item(readiness: dict[str, Any]) -> dict[str, Any]:
     workflows = github_gate.get("required_workflows") if isinstance(github_gate.get("required_workflows"), list) else []
     local_blockers = int(overall.get("local_blocker_count") or 0)
     workspace_blockers = int(overall.get("workspace_blocker_count") or 0)
+    publish_blockers = int(overall.get("publish_blocker_count") or 0)
     agent_tasks = int(overall.get("agent_task_count") or 0)
     complete = local_blockers == 0 and workspace_blockers == 0 and agent_tasks == 0
     blockers = []
@@ -632,7 +633,7 @@ def _readiness_item(readiness: dict[str, Any]) -> dict[str, Any]:
         ["execution/product_readiness_score.py", ".tmp/project_qc_runner_latest.json", ".github/workflows"],
         [
             f"product_readiness_score overall score={overall.get('score')}, state={overall.get('state')}.",
-            f"workspace/local/agent blockers={workspace_blockers}/{local_blockers}/{agent_tasks}.",
+            f"workspace/local/publish/agent blockers={workspace_blockers}/{local_blockers}/{publish_blockers}/{agent_tasks}.",
             "Required workflows: "
             + ", ".join(
                 f"{workflow.get('name')}={workflow.get('conclusion') or workflow.get('status')}"

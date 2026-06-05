@@ -145,6 +145,7 @@ def _clean_readiness(
             "state": "ready" if external_blockers == 0 else "blocked",
             "workspace_blocker_count": 0,
             "local_blocker_count": 0,
+            "publish_blocker_count": 0,
             "agent_task_count": 0,
             "external_blocker_count": external_blockers,
         },
@@ -392,6 +393,46 @@ def test_manifest_is_complete_when_all_requirements_have_current_evidence(tmp_pa
     assert result["summary"]["complete_count"] == len(manifest["items"])
     assert any("launch objective audit" in evidence for evidence in skill_item["evidence"])
     assert any("next experiment selector" in evidence for evidence in skill_item["evidence"])
+
+
+def test_readiness_item_includes_publish_blocker_count(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+    readiness = _clean_readiness()
+    assert isinstance(readiness["overall"], dict)
+    readiness["overall"]["state"] = "blocked"
+    readiness["overall"]["workspace_blocker_count"] = 1
+    readiness["overall"]["publish_blocker_count"] = 1
+    assert isinstance(readiness["workspace_gates"], dict)
+    readiness["workspace_gates"]["github_release"] = {
+        "required_workflows": [
+            {"name": "root-quality-gate", "status": "missing", "conclusion": None},
+            {"name": "active-project-matrix", "status": "missing", "conclusion": None},
+        ],
+        "blockers": [
+            {
+                "name": "Required GitHub Actions",
+                "severity": "blocker",
+                "blocker_type": "publish",
+                "message": "Push only with explicit authorization.",
+            }
+        ],
+    }
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=readiness,
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+    )
+    readiness_item = next(
+        item for item in manifest["items"] if item["requirement"].startswith("Verify local product-readiness")
+    )
+
+    assert readiness_item["coverage"] == "partial"
+    assert readiness_item["blockers"] == ["workspace_blocker_count=1"]
+    assert any("workspace/local/publish/agent blockers=1/0/1/0" in item for item in readiness_item["evidence"])
 
 
 def test_selector_external_only_state_is_evidence_not_duplicate_blocker(tmp_path: Path) -> None:

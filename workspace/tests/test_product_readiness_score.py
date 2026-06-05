@@ -158,6 +158,9 @@ def _passing_github_status() -> dict:
     return {
         "available": True,
         "head_sha": "abc123",
+        "branch_status": "## main...origin/main",
+        "ahead_count": 0,
+        "publish_required": False,
         "open_pr_count": 0,
         "open_prs": [],
         "required_workflows": [
@@ -192,6 +195,44 @@ def _passing_github_status() -> dict:
         ],
         "blockers": [],
     }
+
+
+def _unpublished_head_github_status() -> dict:
+    status = _passing_github_status()
+    status["branch_status"] = "## main...origin/main [ahead 2]"
+    status["ahead_count"] = 2
+    status["publish_required"] = True
+    status["required_workflows"] = [
+        {
+            "name": "root-quality-gate",
+            "status": "missing",
+            "conclusion": None,
+            "databaseId": None,
+            "url": None,
+        },
+        {
+            "name": "active-project-matrix",
+            "status": "missing",
+            "conclusion": None,
+            "databaseId": None,
+            "url": None,
+        },
+    ]
+    status["checks"][1] = {
+        "name": "Required GitHub Actions",
+        "ok": False,
+        "severity": "blocker",
+        "message": (
+            "Required GitHub Actions are unavailable for current local HEAD because main is ahead of origin "
+            "by 2 commit(s): root-quality-gate, active-project-matrix. Push only with explicit authorization, "
+            "then wait for Actions."
+        ),
+        "blocker_type": "publish",
+        "ahead_count": 2,
+        "requires_publish": True,
+    }
+    status["blockers"] = [status["checks"][1]]
+    return status
 
 
 def test_hanwoo_placeholder_marks_project_blocked(tmp_path: Path):
@@ -264,6 +305,7 @@ def test_user_owned_project_task_reports_external_blocker_without_local_blocker(
         "user_owned_tasks": 1,
         "agent_owned_tasks": 0,
         "environment": 0,
+        "publish": 0,
         "workspace_gate": 0,
     }
     assert hanwoo["blocker_breakdown"] == {
@@ -308,6 +350,7 @@ def test_mixed_project_tasks_prioritize_agent_blocker_before_user_wait(tmp_path:
         "user_owned_tasks": 1,
         "agent_owned_tasks": 1,
         "environment": 0,
+        "publish": 0,
         "workspace_gate": 0,
     }
     assert hanwoo["blocker_breakdown"] == {
@@ -532,6 +575,64 @@ def test_github_release_gate_blocks_missing_required_actions(tmp_path: Path):
     assert report["overall"]["local_blocker_count"] == 1
     assert report["workspace_gates"]["github_release"]["required_workflows"][1]["status"] == "in_progress"
     assert "Required GitHub Actions" in report["next_actions"][-1]["action"]
+
+
+def test_github_release_status_marks_unpublished_head_actions_as_publish_blocker(tmp_path: Path, monkeypatch):
+    (tmp_path / ".git").mkdir()
+
+    def fake_text_command(_repo_root: Path, command: list[str], timeout: int = 10) -> str:
+        if command == ["git", "rev-parse", "HEAD"]:
+            return "abc123"
+        if command == ["git", "status", "--short", "--branch"]:
+            return "## main...origin/main [ahead 2]"
+        return ""
+
+    def fake_json_command(_repo_root: Path, command: list[str], timeout: int = 15):
+        if command[:3] == ["gh", "pr", "list"]:
+            return []
+        if command[:3] == ["gh", "run", "list"]:
+            return []
+        return None
+
+    monkeypatch.setattr(readiness, "_run_text_command", fake_text_command)
+    monkeypatch.setattr(readiness, "_run_json_command", fake_json_command)
+
+    status = readiness._github_release_status(tmp_path)
+
+    assert status["available"] is True
+    assert status["ahead_count"] == 2
+    assert status["publish_required"] is True
+    assert status["required_workflows"][0]["status"] == "missing"
+    assert status["blockers"][0]["blocker_type"] == "publish"
+    assert status["blockers"][0]["requires_publish"] is True
+    assert "Push only with explicit authorization" in status["blockers"][0]["message"]
+
+
+def test_github_release_gate_separates_unpublished_head_from_local_blockers(tmp_path: Path):
+    _write_project_files(tmp_path)
+    qaqc_path = _write_qaqc(tmp_path)
+    _write_tasks(
+        tmp_path, "# TASKS\n\n## TODO\n\n| ID | Task | Owner | Priority | Auto | Created |\n|---|---|---|---|---|---|\n"
+    )
+    _write_required_env(tmp_path)
+
+    report = readiness.build_report(
+        tmp_path,
+        qaqc_path=qaqc_path,
+        git_status_text="",
+        github_status=_unpublished_head_github_status(),
+        now=datetime(2026, 5, 13, tzinfo=timezone.utc),
+    )
+
+    assert report["overall"]["state"] == "blocked"
+    assert report["overall"]["workspace_blocker_count"] == 1
+    assert report["overall"]["external_blocker_count"] == 0
+    assert report["overall"]["local_blocker_count"] == 0
+    assert report["overall"]["publish_blocker_count"] == 1
+    assert report["overall"]["blocker_breakdown"]["publish"] == 1
+    assert report["workspace_gates"]["github_release"]["publish_required"] is True
+    assert report["workspace_gates"]["github_release"]["blockers"][0]["blocker_type"] == "publish"
+    assert "explicit authorization" in report["next_actions"][-1]["action"]
 
 
 def test_github_release_gate_is_unavailable_for_non_git_roots(tmp_path: Path):

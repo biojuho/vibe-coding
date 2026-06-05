@@ -273,6 +273,9 @@ def _unavailable_github_release_status(head_sha: str | None = None) -> dict[str,
     return {
         "available": False,
         "head_sha": head_sha or None,
+        "branch_status": "",
+        "ahead_count": 0,
+        "publish_required": False,
         "open_pr_count": None,
         "open_prs": [],
         "required_workflows": [],
@@ -288,11 +291,20 @@ def _unavailable_github_release_status(head_sha: str | None = None) -> dict[str,
     }
 
 
+def _git_ahead_count(branch_status: str) -> int:
+    match = re.search(r"\bahead\s+(\d+)", branch_status)
+    if not match:
+        return 0
+    return int(match.group(1))
+
+
 def _github_release_status(repo_root: Path) -> dict[str, Any]:
     if not (repo_root / ".git").exists():
         return _unavailable_github_release_status()
 
     head_sha = _run_text_command(repo_root, ["git", "rev-parse", "HEAD"])
+    branch_status = _run_text_command(repo_root, ["git", "status", "--short", "--branch"])
+    ahead_count = _git_ahead_count(branch_status)
     open_prs = _run_json_command(
         repo_root,
         ["gh", "pr", "list", "--state", "open", "--json", "number,title,url,headRefName"],
@@ -316,7 +328,11 @@ def _github_release_status(repo_root: Path) -> dict[str, Any]:
     checks: list[dict[str, Any]] = []
     available = isinstance(open_prs, list) and isinstance(runs, list) and bool(head_sha)
     if not available:
-        return _unavailable_github_release_status(head_sha)
+        status = _unavailable_github_release_status(head_sha)
+        status["branch_status"] = branch_status
+        status["ahead_count"] = ahead_count
+        status["publish_required"] = ahead_count > 0
+        return status
 
     open_pr_items = [
         {
@@ -376,18 +392,33 @@ def _github_release_status(repo_root: Path) -> dict[str, Any]:
     failing_workflows = [
         item for item in required_workflows if item["status"] != "completed" or item["conclusion"] != "success"
     ]
+    publish_required = (
+        bool(failing_workflows) and ahead_count > 0 and all(item["status"] == "missing" for item in failing_workflows)
+    )
+    if publish_required and failing_workflows:
+        workflow_message = (
+            "Required GitHub Actions are unavailable for current local HEAD because main is ahead of origin by "
+            f"{ahead_count} commit(s): "
+            + ", ".join(item["name"] for item in failing_workflows)
+            + ". Push only with explicit authorization, then wait for Actions."
+        )
+    else:
+        workflow_message = (
+            "Required GitHub Actions are not green for current HEAD: "
+            + ", ".join(item["name"] for item in failing_workflows)
+            + "."
+            if failing_workflows
+            else "Required GitHub Actions are green for current HEAD."
+        )
     checks.append(
         {
             "name": "Required GitHub Actions",
             "ok": not failing_workflows,
             "severity": "blocker" if failing_workflows else "ok",
-            "message": (
-                "Required GitHub Actions are not green for current HEAD: "
-                + ", ".join(item["name"] for item in failing_workflows)
-                + "."
-                if failing_workflows
-                else "Required GitHub Actions are green for current HEAD."
-            ),
+            "message": workflow_message,
+            "blocker_type": "publish" if publish_required else "local",
+            "ahead_count": ahead_count,
+            "requires_publish": publish_required,
         }
     )
 
@@ -395,6 +426,9 @@ def _github_release_status(repo_root: Path) -> dict[str, Any]:
     return {
         "available": True,
         "head_sha": head_sha,
+        "branch_status": branch_status,
+        "ahead_count": ahead_count,
+        "publish_required": publish_required,
         "open_pr_count": open_pr_count,
         "open_prs": open_pr_items[:10],
         "required_workflows": required_workflows,
@@ -927,6 +961,10 @@ def build_report(
     worktree_blockers = list(worktree_release.get("blockers") or [])
     github_blockers = list(github_release.get("blockers") or [])
     workspace_gate_blockers = worktree_blockers + github_blockers
+    publish_gate_blockers = [blocker for blocker in github_blockers if blocker.get("blocker_type") == "publish"]
+    local_gate_blockers = worktree_blockers + [
+        blocker for blocker in github_blockers if blocker.get("blocker_type") != "publish"
+    ]
     if blocked_projects or workspace_gate_blockers:
         overall_state = "blocked"
     elif overall_score >= 85:
@@ -945,7 +983,8 @@ def build_report(
     user_blocker_count = project_user_task_count + len(workspace_user_task_blockers)
     agent_task_count = project_agent_task_count + len(workspace_agent_task_blockers)
     workspace_gate_blocker_count = len(workspace_gate_blockers)
-    local_blocker_count = project_environment_blocker_count + workspace_gate_blocker_count
+    publish_blocker_count = len(publish_gate_blockers)
+    local_blocker_count = project_environment_blocker_count + len(local_gate_blockers)
     next_actions = []
     for project in sorted(projects, key=lambda item: item["score"]):
         next_actions.append(
@@ -987,11 +1026,13 @@ def build_report(
             "workspace_blocker_count": len(workspace_blockers) + len(workspace_gate_blockers),
             "external_blocker_count": user_blocker_count,
             "local_blocker_count": local_blocker_count,
+            "publish_blocker_count": publish_blocker_count,
             "agent_task_count": agent_task_count,
             "environment_blocker_count": project_environment_blocker_count,
             "blocker_breakdown": {
                 "external": user_blocker_count,
                 "local": local_blocker_count,
+                "publish": publish_blocker_count,
                 "user_owned_tasks": user_blocker_count,
                 "agent_owned_tasks": agent_task_count,
                 "environment": project_environment_blocker_count,
