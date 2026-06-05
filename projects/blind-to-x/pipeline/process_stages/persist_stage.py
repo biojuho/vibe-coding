@@ -23,6 +23,182 @@ def _config_bool(config, key: str, default: bool) -> bool:
     return bool(value)
 
 
+def _fail_missing_notion_uploader(ctx: ProcessRunContext) -> bool:
+    ctx.result["error"] = "Notion uploader not configured"
+    ctx.result["error_code"] = ERROR_NOTION_UPLOAD_FAILED
+    ctx.result["failure_stage"] = "upload"
+    ctx.result["failure_reason"] = "missing_notion_uploader"
+    mark_stage(ctx, "persist", "failed", "missing_notion_uploader")
+    return False
+
+
+def _start_notebooklm_task(ctx: ProcessRunContext, image_uploader):
+    if notebooklm_enricher is None or os.environ.get("NOTEBOOKLM_ENABLED") != "true":
+        return None
+    nlm_topic = ctx.profile.get("topic_cluster") or ctx.post_data.get("title", "")
+    return asyncio.ensure_future(notebooklm_enricher(nlm_topic, image_uploader=image_uploader))
+
+
+def _build_blind_image_prompt(post_data: dict, profile: dict) -> str:
+    from pipeline.image_generator import ImageGenerator
+
+    image_prompt = ImageGenerator.build_image_prompt(
+        topic_cluster=profile.get("topic_cluster", ""),
+        emotion_axis=profile.get("emotion_axis", ""),
+        title=post_data.get("title", ""),
+        source="blind",
+    )
+    logger.info("[blind] Anime image prompt: %s", image_prompt[:80])
+    post_data["image_prompt"] = image_prompt
+    return image_prompt
+
+
+def _inject_image_ab_variant(config, post_data: dict, topic_cluster: str, emotion_axis: str) -> None:
+    try:
+        ab_active = config.get("image_ab_testing.enabled", False) if config else False
+        if not ab_active:
+            return
+
+        import random
+
+        from pipeline.image_ab_tester import ImageABTester
+
+        tester = ImageABTester(config)
+        title = post_data.get("title", "")
+        variants = tester.generate_variants(topic_cluster, emotion_axis, title=title, max_variants=3)
+        if not variants:
+            return
+
+        chosen_variant = random.choice(variants)
+        post_data["image_variant_id"] = chosen_variant.variant_id
+        post_data["image_variant_type"] = chosen_variant.variant_type
+        logger.info(
+            "A/B Testing active: Selected variant %s (%s), keeping anime prompt style.",
+            chosen_variant.variant_id,
+            chosen_variant.variant_type,
+        )
+    except Exception as exc:
+        logger.warning("Failed to inject A/B variants: %s", exc)
+
+
+def _schedule_ai_image_generation(image_generator, image_prompt: str, profile: dict):
+    return asyncio.ensure_future(
+        image_generator.generate_image(
+            image_prompt,
+            topic_cluster=profile.get("topic_cluster", ""),
+            emotion_axis=profile.get("emotion_axis", ""),
+        )
+    )
+
+
+async def _await_screenshot_url(ctx: ProcessRunContext, errors: list[str]) -> str | None:
+    if not ctx.screenshot_task:
+        return None
+    try:
+        screenshot_url = await ctx.screenshot_task
+        if not screenshot_url:
+            errors.append("Screenshot upload failed")
+        return screenshot_url
+    except Exception as exc:
+        errors.append(f"Screenshot upload error: {exc}")
+        logger.exception("Screenshot upload failed for %s: %s", ctx.url, exc)
+        return None
+
+
+async def _await_ai_image_url(
+    ctx: ProcessRunContext,
+    ai_image_task,
+    image_uploader,
+    errors: list[str],
+) -> tuple[str | None, str | None]:
+    if not ai_image_task:
+        return None, None
+    try:
+        ai_temp_url = await ai_image_task
+        if not ai_temp_url:
+            errors.append("AI image generation failed")
+            logger.warning("Failed to generate AI image. %s", ctx.url)
+            return None, None
+
+        ai_image_url = None
+        if os.path.exists(ai_temp_url):
+            ai_image_url = await image_uploader.upload(ai_temp_url)
+        elif hasattr(image_uploader, "upload_from_url"):
+            ai_image_url = await image_uploader.upload_from_url(ai_temp_url)
+        if not ai_image_url:
+            errors.append("AI image CDN upload failed")
+            logger.warning("Failed to upload AI image to CDN. %s", ctx.url)
+        return ai_image_url, ai_temp_url
+    except Exception as exc:
+        errors.append(f"AI image error: {exc}")
+        logger.exception("AI image generation/upload failed for %s: %s", ctx.url, exc)
+        return None, None
+
+
+async def _upload_to_notion(
+    ctx: ProcessRunContext,
+    notion_uploader,
+    post_data: dict,
+    image_url: str | None,
+    drafts,
+    profile: dict,
+    screenshot_url: str | None,
+    errors: list[str],
+) -> bool:
+    notion_result = await notion_uploader.upload(
+        post_data,
+        image_url,
+        drafts,
+        analysis=profile,
+        screenshot_url=screenshot_url,
+    )
+    if notion_result:
+        ctx.notion_url, ctx.notion_page_id = notion_result
+        ctx.result["success"] = True
+        logger.info("[%s] Uploaded to Notion: %s", ctx.trace_id, ctx.notion_url)
+        if errors:
+            ctx.result["error"] = "Partial Success: " + "; ".join(errors)
+        return True
+
+    ctx.result["error"] = "Notion upload failed"
+    ctx.result["error_code"] = notion_uploader.last_error_code or ERROR_NOTION_UPLOAD_FAILED
+    ctx.result["failure_stage"] = "upload"
+    ctx.result["failure_reason"] = "notion_upload_failed"
+    logger.error("[%s] Notion upload failed for %s", ctx.trace_id, ctx.url)
+    mark_stage(ctx, "persist", "failed", "notion_upload_failed")
+    return False
+
+
+def _record_persisted_draft_event(
+    ctx: ProcessRunContext,
+    post_data: dict,
+    profile: dict,
+    drafts,
+    chosen_draft_type: str | None,
+) -> None:
+    if not ctx.notion_page_id:
+        return
+
+    provider_used = drafts.get("_provider_used", "") if isinstance(drafts, dict) else ""
+    record_draft_event(
+        source=post_data.get("source", ""),
+        topic_cluster=profile.get("topic_cluster", ""),
+        hook_type=profile.get("hook_type", ""),
+        emotion_axis=profile.get("emotion_axis", ""),
+        draft_style=chosen_draft_type or "",
+        provider_used=provider_used,
+        final_rank_score=float(profile.get("final_rank_score", 0.0) or 0.0),
+        published=bool(ctx.twitter_url),
+        content_url=ctx.url,
+        notion_page_id=ctx.notion_page_id,
+        hook_score=float(drafts.get("_hook_score", 0.0) if isinstance(drafts, dict) else 0.0),
+        virality_score=float(drafts.get("_virality_score", 0.0) if isinstance(drafts, dict) else 0.0),
+        fit_score=float(drafts.get("_fit_score", 0.0) if isinstance(drafts, dict) else 0.0),
+        comment_trigger_avg=float(drafts.get("_comment_trigger_avg", 0.0) if isinstance(drafts, dict) else 0.0),
+    )
+    refresh_ml_scorer_if_needed()
+
+
 async def run_persist_stage(
     ctx: ProcessRunContext,
     image_uploader,
@@ -35,22 +211,14 @@ async def run_persist_stage(
     mark_stage(ctx, "persist", "running")
 
     if notion_uploader is None:
-        ctx.result["error"] = "Notion uploader not configured"
-        ctx.result["error_code"] = ERROR_NOTION_UPLOAD_FAILED
-        ctx.result["failure_stage"] = "upload"
-        ctx.result["failure_reason"] = "missing_notion_uploader"
-        mark_stage(ctx, "persist", "failed", "missing_notion_uploader")
-        return False
+        return _fail_missing_notion_uploader(ctx)
 
     post_data = ctx.post_data
     profile = ctx.profile
     drafts = ctx.drafts
     image_prompt = ctx.image_prompt
 
-    nlm_task = None
-    if notebooklm_enricher is not None and os.environ.get("NOTEBOOKLM_ENABLED") == "true":
-        nlm_topic = profile.get("topic_cluster") or post_data.get("title", "")
-        nlm_task = asyncio.ensure_future(notebooklm_enricher(nlm_topic, image_uploader=image_uploader))
+    nlm_task = _start_notebooklm_task(ctx, image_uploader)
 
     if regulation_checker and isinstance(drafts, dict):
         try:
@@ -93,90 +261,18 @@ async def run_persist_stage(
         topic_cluster = profile.get("topic_cluster", "")
         emotion_axis = profile.get("emotion_axis", "")
 
-        from pipeline.image_generator import ImageGenerator
-
-        image_prompt = ImageGenerator.build_image_prompt(
-            topic_cluster=topic_cluster,
-            emotion_axis=emotion_axis,
-            title=post_data.get("title", ""),
-            source="blind",
-        )
-        logger.info("[blind] Anime image prompt: %s", image_prompt[:80])
-        post_data["image_prompt"] = image_prompt
-
-        try:
-            ab_active = config.get("image_ab_testing.enabled", False) if config else False
-            if ab_active:
-                import random
-
-                from pipeline.image_ab_tester import ImageABTester
-
-                tester = ImageABTester(config)
-                title = post_data.get("title", "")
-                variants = tester.generate_variants(topic_cluster, emotion_axis, title=title, max_variants=3)
-                if variants:
-                    chosen_variant = random.choice(variants)
-                    post_data["image_variant_id"] = chosen_variant.variant_id
-                    post_data["image_variant_type"] = chosen_variant.variant_type
-                    logger.info(
-                        "A/B Testing active: Selected variant %s (%s), keeping anime prompt style.",
-                        chosen_variant.variant_id,
-                        chosen_variant.variant_type,
-                    )
-        except Exception as exc:
-            logger.warning("Failed to inject A/B variants: %s", exc)
-
-        ai_image_task = asyncio.ensure_future(
-            image_generator.generate_image(
-                image_prompt,
-                topic_cluster=topic_cluster,
-                emotion_axis=emotion_axis,
-            )
-        )
+        image_prompt = _build_blind_image_prompt(post_data, profile)
+        _inject_image_ab_variant(config, post_data, topic_cluster, emotion_axis)
+        ai_image_task = _schedule_ai_image_generation(image_generator, image_prompt, profile)
     elif image_urls and isinstance(image_urls, list):
         original_image_url = image_urls[0]
         logger.info("Found original image URL: %s", original_image_url)
     elif image_prompt and allow_ai_image:
-        topic_cluster = profile.get("topic_cluster", "")
-        emotion_axis = profile.get("emotion_axis", "")
-        ai_image_task = asyncio.ensure_future(
-            image_generator.generate_image(
-                image_prompt,
-                topic_cluster=topic_cluster,
-                emotion_axis=emotion_axis,
-            )
-        )
+        ai_image_task = _schedule_ai_image_generation(image_generator, image_prompt, profile)
 
-    screenshot_url = None
     errors: list[str] = []
-    if ctx.screenshot_task:
-        try:
-            screenshot_url = await ctx.screenshot_task
-            if not screenshot_url:
-                errors.append("Screenshot upload failed")
-        except Exception as exc:
-            errors.append(f"Screenshot upload error: {exc}")
-            logger.exception("Screenshot upload failed for %s: %s", ctx.url, exc)
-
-    ai_image_url = None
-    ai_temp_url = None
-    if ai_image_task:
-        try:
-            ai_temp_url = await ai_image_task
-            if ai_temp_url:
-                if os.path.exists(ai_temp_url):
-                    ai_image_url = await image_uploader.upload(ai_temp_url)
-                elif hasattr(image_uploader, "upload_from_url"):
-                    ai_image_url = await image_uploader.upload_from_url(ai_temp_url)
-                if not ai_image_url:
-                    errors.append("AI image CDN upload failed")
-                    logger.warning("Failed to upload AI image to CDN. %s", ctx.url)
-            else:
-                errors.append("AI image generation failed")
-                logger.warning("Failed to generate AI image. %s", ctx.url)
-        except Exception as exc:
-            errors.append(f"AI image error: {exc}")
-            logger.exception("AI image generation/upload failed for %s: %s", ctx.url, exc)
+    screenshot_url = await _await_screenshot_url(ctx, errors)
+    ai_image_url, ai_temp_url = await _await_ai_image_url(ctx, ai_image_task, image_uploader, errors)
 
     image_url = original_image_url or ai_image_url
 
@@ -193,26 +289,7 @@ async def run_persist_stage(
         except Exception as exc:
             logger.warning("[NLM] 자산 수집 실패 (파이프라인 계속): %s", exc)
 
-    notion_result = await notion_uploader.upload(
-        post_data,
-        image_url,
-        drafts,
-        analysis=profile,
-        screenshot_url=screenshot_url,
-    )
-    if notion_result:
-        ctx.notion_url, ctx.notion_page_id = notion_result
-        ctx.result["success"] = True
-        logger.info("[%s] Uploaded to Notion: %s", ctx.trace_id, ctx.notion_url)
-        if errors:
-            ctx.result["error"] = "Partial Success: " + "; ".join(errors)
-    else:
-        ctx.result["error"] = "Notion upload failed"
-        ctx.result["error_code"] = notion_uploader.last_error_code or ERROR_NOTION_UPLOAD_FAILED
-        ctx.result["failure_stage"] = "upload"
-        ctx.result["failure_reason"] = "notion_upload_failed"
-        logger.error("[%s] Notion upload failed for %s", ctx.trace_id, ctx.url)
-        mark_stage(ctx, "persist", "failed", "notion_upload_failed")
+    if not await _upload_to_notion(ctx, notion_uploader, post_data, image_url, drafts, profile, screenshot_url, errors):
         return False
 
     require_human_approval = True if config is None else config.get("content_strategy.require_human_approval", True)
@@ -246,25 +323,7 @@ async def run_persist_stage(
             },
         )
 
-    if ctx.notion_page_id:
-        provider_used = drafts.get("_provider_used", "") if isinstance(drafts, dict) else ""
-        record_draft_event(
-            source=post_data.get("source", ""),
-            topic_cluster=profile.get("topic_cluster", ""),
-            hook_type=profile.get("hook_type", ""),
-            emotion_axis=profile.get("emotion_axis", ""),
-            draft_style=chosen_draft_type or "",
-            provider_used=provider_used,
-            final_rank_score=float(profile.get("final_rank_score", 0.0) or 0.0),
-            published=bool(ctx.twitter_url),
-            content_url=ctx.url,
-            notion_page_id=ctx.notion_page_id,
-            hook_score=float(drafts.get("_hook_score", 0.0) if isinstance(drafts, dict) else 0.0),
-            virality_score=float(drafts.get("_virality_score", 0.0) if isinstance(drafts, dict) else 0.0),
-            fit_score=float(drafts.get("_fit_score", 0.0) if isinstance(drafts, dict) else 0.0),
-            comment_trigger_avg=float(drafts.get("_comment_trigger_avg", 0.0) if isinstance(drafts, dict) else 0.0),
-        )
-        refresh_ml_scorer_if_needed()
+    _record_persisted_draft_event(ctx, post_data, profile, drafts, chosen_draft_type)
 
     ctx.result["notion_url"] = ctx.notion_url
     ctx.result["title"] = post_data.get("title", "")
