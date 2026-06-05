@@ -156,6 +156,7 @@ def test_handoff_snapshot_flags_stale_closeout_next_priority_when_clean_synced(t
         today=date(2026, 5, 12),
         current_head="def5678",
         git_clean_synced=True,
+        release_checks_green=True,
     )
 
     assert snap["latest_next_priorities"].startswith("Commit/push this post-push")
@@ -183,6 +184,34 @@ def test_handoff_snapshot_keeps_closeout_next_priority_when_not_clean_synced(tmp
         today=date(2026, 5, 12),
         current_head="def5678",
         git_clean_synced=False,
+        release_checks_green=True,
+    )
+
+    assert snap["latest_next_priority_status"] == "ok"
+    assert snap["stale_next_priority_reason"] is None
+
+
+def test_handoff_snapshot_keeps_closeout_next_priority_until_release_checks_green(tmp_path):
+    ai = tmp_path / ".ai"
+    ai.mkdir(parents=True)
+    (ai / "HANDOFF.md").write_text(
+        "# HANDOFF - AI Context Relay\n\n"
+        "## Current Addendum\n\n"
+        "| Field | Value |\n"
+        "|---|---|\n"
+        "| Date | 2026-05-12 |\n"
+        "| Tool | Test |\n"
+        "| Work | Context closeout is pushed, but CI is still running. |\n"
+        "| Next Priorities | Commit/push this post-push `.ai` closeout and rerun final live checks from the new context head. |\n",
+        encoding="utf-8",
+    )
+
+    snap = orient.handoff_snapshot(
+        tmp_path,
+        today=date(2026, 5, 12),
+        current_head="def5678",
+        git_clean_synced=True,
+        release_checks_green=False,
     )
 
     assert snap["latest_next_priority_status"] == "ok"
@@ -340,6 +369,56 @@ def test_render_handoff_section_surfaces_stale_next_priority():
     )
 
     assert any("stale latest next priority: git clean/synced" in line for line in lines)
+
+
+def test_required_release_checks_green_for_current_head():
+    ci = {
+        "available": True,
+        "recent_runs": [
+            {
+                "name": "root-quality-gate",
+                "headSha": "def567812345",
+                "status": "completed",
+                "conclusion": "success",
+            },
+            {
+                "name": "active-project-matrix",
+                "headSha": "def567812345",
+                "status": "completed",
+                "conclusion": "success",
+            },
+            {
+                "name": "root-quality-gate",
+                "headSha": "abc1234",
+                "status": "completed",
+                "conclusion": "failure",
+            },
+        ],
+    }
+
+    assert orient._required_release_checks_green(ci, "def5678") is True
+
+
+def test_required_release_checks_green_waits_for_in_progress_current_head():
+    ci = {
+        "available": True,
+        "recent_runs": [
+            {
+                "name": "root-quality-gate",
+                "headSha": "def567812345",
+                "status": "completed",
+                "conclusion": "success",
+            },
+            {
+                "name": "active-project-matrix",
+                "headSha": "def567812345",
+                "status": "in_progress",
+                "conclusion": "",
+            },
+        ],
+    }
+
+    assert orient._required_release_checks_green(ci, "def5678") is False
 
 
 # ----- workspace_db_snapshot ------------------------------------------------

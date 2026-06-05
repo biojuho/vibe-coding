@@ -59,6 +59,7 @@ NEXT_PRIORITY_CLOSEOUT_CONTEXT_RE = re.compile(
     r"\b(closeout|context head|new context head|final live checks|release[- ]gates?)\b|\bpost[- ]push\b",
     re.IGNORECASE,
 )
+REQUIRED_RELEASE_WORKFLOWS = frozenset({"root-quality-gate", "active-project-matrix"})
 IS_WINDOWS = sys.platform == "win32"
 
 # Windows-safe symbols (Unicode-safe for CP949 console)
@@ -184,10 +185,20 @@ def _is_closeout_next_priority(next_priorities: str) -> bool:
     )
 
 
-def _stale_next_priority_reason(next_priorities: str, git_clean_synced: bool | None) -> str | None:
-    if git_clean_synced is not True or not _is_closeout_next_priority(next_priorities):
+def _stale_next_priority_reason(
+    next_priorities: str,
+    git_clean_synced: bool | None,
+    release_checks_green: bool | None,
+) -> str | None:
+    if (
+        git_clean_synced is not True
+        or release_checks_green is not True
+        or not _is_closeout_next_priority(next_priorities)
+    ):
         return None
-    return "git clean/synced but latest Next Priorities still asks for post-push closeout work"
+    return (
+        "git clean/synced with green release checks but latest Next Priorities still asks for post-push closeout work"
+    )
 
 
 def _git_clean_synced(git: dict[str, Any]) -> bool | None:
@@ -200,6 +211,31 @@ def _git_clean_synced(git: dict[str, Any]) -> bool | None:
     if ahead is None or behind is None:
         return None
     return ahead == 0 and behind == 0
+
+
+def _head_matches_run(current_head: str, run_head: str) -> bool:
+    current_norm = current_head.lower()
+    run_norm = run_head.lower()
+    return run_norm.startswith(current_norm) or current_norm.startswith(run_norm)
+
+
+def _required_release_checks_green(ci: dict[str, Any], current_head: str | None) -> bool | None:
+    if not current_head or not ci.get("available"):
+        return None
+
+    matching: dict[str, dict[str, Any]] = {}
+    for run in ci.get("recent_runs", []):
+        if not isinstance(run, dict):
+            continue
+        name = str(run.get("name") or "")
+        head_sha = str(run.get("headSha") or "")
+        if name in REQUIRED_RELEASE_WORKFLOWS and head_sha and _head_matches_run(current_head, head_sha):
+            matching[name] = run
+
+    if not REQUIRED_RELEASE_WORKFLOWS.issubset(matching):
+        return None
+
+    return all(run.get("status") == "completed" and run.get("conclusion") == "success" for run in matching.values())
 
 
 def git_snapshot(repo_root: Path) -> dict[str, Any]:
@@ -266,6 +302,7 @@ def handoff_snapshot(
     today: date | None = None,
     current_head: str | None = None,
     git_clean_synced: bool | None = None,
+    release_checks_green: bool | None = None,
 ) -> dict[str, Any]:
     """HANDOFF.md size, Current Addendum date range, rotation suggestion."""
     today = today or date.today()
@@ -324,14 +361,14 @@ def handoff_snapshot(
         snap["head_claim_status"] = "unavailable" if head_claims else "none"
 
     next_priorities = _extract_next_priorities(latest_addendum)
-    stale_next_priority_reason = _stale_next_priority_reason(next_priorities, git_clean_synced)
+    stale_next_priority_reason = _stale_next_priority_reason(next_priorities, git_clean_synced, release_checks_green)
     snap["latest_next_priorities"] = next_priorities
     snap["stale_next_priority_reason"] = stale_next_priority_reason
     if not next_priorities:
         snap["latest_next_priority_status"] = "none"
     elif stale_next_priority_reason:
         snap["latest_next_priority_status"] = "stale"
-    elif git_clean_synced is None and _is_closeout_next_priority(next_priorities):
+    elif (git_clean_synced is None or release_checks_green is None) and _is_closeout_next_priority(next_priorities):
         snap["latest_next_priority_status"] = "unavailable"
     else:
         snap["latest_next_priority_status"] = "ok"
@@ -492,6 +529,7 @@ def collect_snapshot(repo_root: Path, today: date | None = None) -> dict[str, An
     current_head = None
     if git.get("available") and git.get("recent_commits"):
         current_head = git["recent_commits"][0].get("sha")
+    ci = ci_snapshot(repo_root)
     return {
         "repo_root": str(repo_root),
         "git": git,
@@ -501,12 +539,13 @@ def collect_snapshot(repo_root: Path, today: date | None = None) -> dict[str, An
             today=today,
             current_head=current_head,
             git_clean_synced=_git_clean_synced(git),
+            release_checks_green=_required_release_checks_green(ci, current_head),
         ),
         "tasks": tasks_snapshot(repo_root),
         "goal": goal_snapshot(repo_root),
         "workspace_db": workspace_db_snapshot(repo_root),
         "graph": graph_snapshot(repo_root),
-        "ci": ci_snapshot(repo_root),
+        "ci": ci,
     }
 
 
