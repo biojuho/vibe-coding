@@ -31,6 +31,7 @@ AI_RELAY_ARTIFACTS = (
     ".ai/SESSION_LOG.md",
     ".ai/CONTEXT.md",
 )
+AB_MANIFEST_GLOB = "ab-manifest-*.json"
 
 
 def _exists(root: Path, rel_path: str) -> bool:
@@ -42,6 +43,21 @@ def _read_text(root: Path, rel_path: str) -> str:
         return (root / rel_path).read_text(encoding="utf-8", errors="replace")
     except FileNotFoundError:
         return ""
+
+
+def _rel(root: Path, path: Path) -> str:
+    try:
+        return path.relative_to(root).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
+def _load_json_object(path: Path) -> dict[str, Any] | None:
+    try:
+        parsed = json.loads(path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, OSError, json.JSONDecodeError):
+        return None
+    return parsed if isinstance(parsed, dict) else None
 
 
 def _run_json(root: Path, args: list[str], timeout: int) -> dict[str, Any]:
@@ -347,13 +363,63 @@ def _external_blocker_item(readiness: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+def _latest_ab_manifest(root: Path) -> tuple[str | None, dict[str, Any] | None, list[str]]:
+    tmp_dir = root / ".tmp"
+    if not tmp_dir.exists():
+        return None, None, []
+
+    errors: list[str] = []
+    candidates = sorted(
+        tmp_dir.glob(AB_MANIFEST_GLOB),
+        key=lambda path: (path.stat().st_mtime_ns, path.name),
+        reverse=True,
+    )
+    for path in candidates:
+        data = _load_json_object(path)
+        if data is None:
+            errors.append(f"Ignored invalid A/B manifest artifact: {_rel(root, path)}")
+            continue
+        return _rel(root, path), data, errors
+    return None, None, errors
+
+
+def _ab_manifest_evidence(root: Path) -> tuple[list[str], list[str], list[str]]:
+    manifest_path, manifest, errors = _latest_ab_manifest(root)
+    evidence = list(errors)
+    blockers: list[str] = []
+    artifacts: list[str] = []
+    if manifest_path is None or manifest is None:
+        evidence.append("No local A/B manifest artifact found; relying on .ai relay evidence.")
+        return artifacts, evidence, blockers
+
+    artifacts.append(manifest_path)
+    experiment = str(manifest.get("experiment") or manifest_path)
+    candidate = manifest.get("candidate") if isinstance(manifest.get("candidate"), dict) else {}
+    metrics = candidate.get("metrics") if isinstance(candidate.get("metrics"), dict) else {}
+    gates = candidate.get("gates") if isinstance(candidate.get("gates"), dict) else {}
+    required_gates = manifest.get("required_gates") if isinstance(manifest.get("required_gates"), list) else []
+    failed_gates = [str(gate) for gate in required_gates if not gates.get(str(gate), False)]
+    passed_gate_count = len(required_gates) - len(failed_gates)
+
+    evidence.append(f"Latest A/B manifest artifact: {manifest_path} ({experiment}).")
+    evidence.append(
+        f"Latest A/B candidate metrics={len(metrics)}, required gates passed {passed_gate_count}/{len(required_gates)}."
+    )
+    if not metrics:
+        blockers.append(f"Latest A/B manifest has no candidate metrics: {manifest_path}")
+    if failed_gates:
+        blockers.append(f"Latest A/B manifest failed required gate(s): {', '.join(failed_gates)}")
+    return artifacts, evidence, blockers
+
+
 def _ab_loop_item(root: Path) -> dict[str, Any]:
     tasks_text = _read_text(root, ".ai/TASKS.md").lower()
     handoff_text = _read_text(root, ".ai/HANDOFF.md").lower()
     has_ab_script = _exists(root, ".agents/skills/auto-research/scripts/ab_decision.py")
     has_completion_script = _exists(root, ".agents/skills/auto-research/scripts/completion_audit.py")
     has_recent_ab_evidence = "a/b `adopt_candidate`" in tasks_text or "a/b `adopt_candidate`" in handoff_text
-    complete = has_ab_script and has_completion_script and has_recent_ab_evidence
+    ab_artifacts, ab_evidence, ab_blockers = _ab_manifest_evidence(root)
+    complete = has_ab_script and has_completion_script and has_recent_ab_evidence and not ab_blockers
     blockers = []
     if not has_ab_script:
         blockers.append("Missing ab_decision.py.")
@@ -361,11 +427,18 @@ def _ab_loop_item(root: Path) -> dict[str, Any]:
         blockers.append("Missing completion_audit.py.")
     if not has_recent_ab_evidence:
         blockers.append("No recent A/B adoption evidence found in .ai relay files.")
+    blockers.extend(ab_blockers)
     return _item(
         "Run bounded A/B experiments and adopt only candidates that improve verified metrics.",
-        [".agents/skills/auto-research/scripts/ab_decision.py", ".ai/TASKS.md", ".ai/HANDOFF.md"],
+        [
+            ".agents/skills/auto-research/scripts/ab_decision.py",
+            ".ai/TASKS.md",
+            ".ai/HANDOFF.md",
+            *ab_artifacts,
+        ],
         [
             "A/B decision helper exists." if has_ab_script else "A/B decision helper is missing.",
+            *ab_evidence,
             "Recent .ai relay includes adopt_candidate evidence."
             if has_recent_ab_evidence
             else "No recent relay A/B evidence found.",
