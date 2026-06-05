@@ -25,6 +25,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_TAIL_CHARS = 4000
 PROJECT_QC_RUN_ID = f"{os.getpid()}-{time.time_ns()}"
 DEFAULT_ARTIFACT_PATH = REPO_ROOT / ".tmp" / "project_qc_runner_latest.json"
+DEFAULT_PARTIAL_ARTIFACT_PATH = REPO_ROOT / ".tmp" / "project_qc_runner_partial_latest.json"
 READINESS_ARTIFACT_SCHEMA_VERSION = 2
 
 if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
@@ -444,11 +445,38 @@ def build_readiness_artifact(results: list[dict[str, object]], *, timestamp: str
     }
 
 
-def write_readiness_artifact(results: list[dict[str, object]], path: Path) -> dict[str, object]:
+def artifact_has_full_workspace_coverage(artifact: dict[str, object]) -> bool:
+    projects = artifact.get("projects")
+    if not isinstance(projects, dict):
+        return False
+    if set(projects) != set(PROJECTS):
+        return False
+    return all(isinstance(project, dict) and project.get("coverage") == "complete" for project in projects.values())
+
+
+def _same_path(left: Path, right: Path) -> bool:
+    try:
+        return left.resolve() == right.resolve()
+    except OSError:
+        return False
+
+
+def _select_artifact_write_path(path: Path, artifact: dict[str, object]) -> tuple[Path, bool, str]:
+    if _same_path(path, DEFAULT_ARTIFACT_PATH) and not artifact_has_full_workspace_coverage(artifact):
+        return (
+            DEFAULT_PARTIAL_ARTIFACT_PATH,
+            False,
+            "partial project-QC run did not overwrite canonical full-workspace latest artifact",
+        )
+    return path, _same_path(path, DEFAULT_ARTIFACT_PATH), ""
+
+
+def write_readiness_artifact(results: list[dict[str, object]], path: Path) -> tuple[dict[str, object], Path, bool, str]:
     artifact = build_readiness_artifact(results)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(artifact, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    return artifact
+    write_path, canonical_latest_written, note = _select_artifact_write_path(path, artifact)
+    write_path.parent.mkdir(parents=True, exist_ok=True)
+    write_path.write_text(json.dumps(artifact, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return artifact, write_path, canonical_latest_written, note
 
 
 def print_human_plan(plan: list[PlanItem]) -> None:
@@ -559,9 +587,16 @@ def main(argv: list[str] | None = None) -> int:
     payload = {"status": "passed" if exit_code_for_results(results) == 0 else "failed", "results": results}
     if not args.no_artifact:
         try:
-            artifact = write_readiness_artifact(results, args.artifact)
-            payload["artifact_path"] = str(args.artifact)
+            artifact, artifact_path, canonical_latest_written, artifact_note = write_readiness_artifact(
+                results,
+                args.artifact,
+            )
+            payload["artifact_path"] = str(artifact_path)
             payload["artifact_status"] = artifact["status"]
+            payload["artifact_full_workspace_coverage"] = artifact_has_full_workspace_coverage(artifact)
+            payload["artifact_canonical_latest_written"] = canonical_latest_written
+            if artifact_note:
+                payload["artifact_note"] = artifact_note
         except OSError as exc:
             payload["artifact_error"] = str(exc)
     if args.json:

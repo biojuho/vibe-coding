@@ -24,6 +24,28 @@ def run_main(args: list[str]) -> tuple[int, str]:
     return code, stdout.getvalue()
 
 
+def _passed_result(project: str, check: str, *, passed: int = 2) -> dict[str, object]:
+    return {
+        "project": project,
+        "check": check,
+        "status": "passed",
+        "returncode": 0,
+        "duration_seconds": 1.0,
+        "command": f"{project} {check}",
+        "resolved_command": f"{project} {check}",
+        "stdout_tail": f"{passed} passed in 1.0s",
+        "stderr_tail": "",
+    }
+
+
+def _full_workspace_results() -> list[dict[str, object]]:
+    return [
+        _passed_result(project, check.id)
+        for project, project_config in MODULE.PROJECTS.items()
+        for check in project_config.checks
+    ]
+
+
 def test_default_projects_follow_workspace_active_order() -> None:
     assert MODULE.normalize_project_names(None) == [
         "blind-to-x",
@@ -280,6 +302,48 @@ def test_main_writes_project_qc_artifact(monkeypatch, tmp_path: Path) -> None:
     assert persisted["projects"]["blind-to-x"]["coverage"] == "partial"
     assert persisted["projects"]["blind-to-x"]["missing_checks"] == ["lint"]
     assert persisted["projects"]["blind-to-x"]["passed"] == 2
+
+
+def test_default_partial_run_does_not_overwrite_canonical_latest(monkeypatch, tmp_path: Path) -> None:
+    fake_results = [_passed_result("blind-to-x", "test")]
+    latest_path = tmp_path / "project_qc_runner_latest.json"
+    partial_path = tmp_path / "project_qc_runner_partial_latest.json"
+    monkeypatch.setattr(MODULE, "DEFAULT_ARTIFACT_PATH", latest_path)
+    monkeypatch.setattr(MODULE, "DEFAULT_PARTIAL_ARTIFACT_PATH", partial_path)
+    monkeypatch.setattr(MODULE, "run_plan", lambda plan, timeout_seconds, stop_on_failure: fake_results)
+
+    code, output = run_main(["--project", "blind-to-x", "--check", "test", "--json"])
+
+    payload = json.loads(output)
+    persisted = json.loads(partial_path.read_text(encoding="utf-8"))
+    assert code == 0
+    assert not latest_path.exists()
+    assert payload["artifact_path"] == str(partial_path)
+    assert payload["artifact_full_workspace_coverage"] is False
+    assert payload["artifact_canonical_latest_written"] is False
+    assert "did not overwrite canonical" in payload["artifact_note"]
+    assert persisted["projects"]["blind-to-x"]["coverage"] == "partial"
+
+
+def test_default_full_workspace_run_updates_canonical_latest(monkeypatch, tmp_path: Path) -> None:
+    latest_path = tmp_path / "project_qc_runner_latest.json"
+    partial_path = tmp_path / "project_qc_runner_partial_latest.json"
+    monkeypatch.setattr(MODULE, "DEFAULT_ARTIFACT_PATH", latest_path)
+    monkeypatch.setattr(MODULE, "DEFAULT_PARTIAL_ARTIFACT_PATH", partial_path)
+    monkeypatch.setattr(MODULE, "run_plan", lambda plan, timeout_seconds, stop_on_failure: _full_workspace_results())
+
+    code, output = run_main(["--json"])
+
+    payload = json.loads(output)
+    persisted = json.loads(latest_path.read_text(encoding="utf-8"))
+    assert code == 0
+    assert payload["artifact_path"] == str(latest_path)
+    assert payload["artifact_full_workspace_coverage"] is True
+    assert payload["artifact_canonical_latest_written"] is True
+    assert "artifact_note" not in payload
+    assert not partial_path.exists()
+    assert set(persisted["projects"]) == set(MODULE.PROJECTS)
+    assert all(project["coverage"] == "complete" for project in persisted["projects"].values())
 
 
 def test_list_json_includes_all_project_commands() -> None:
