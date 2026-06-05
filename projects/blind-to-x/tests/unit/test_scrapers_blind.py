@@ -20,6 +20,31 @@ def scraper(mock_config):
     return BlindScraper(mock_config)
 
 
+class _FeedElement:
+    def __init__(self, *, text="", href=None):
+        self._text = text
+        self._href = href
+
+    async def get_attribute(self, name):
+        return self._href if name == "href" else None
+
+    async def inner_text(self):
+        return self._text
+
+
+class _FeedRow:
+    def __init__(self, *, href, title, meta_text=""):
+        self._link = _FeedElement(text=title, href=href)
+        self._meta = _FeedElement(text=meta_text) if meta_text else None
+
+    async def query_selector(self, selector):
+        if selector == ".tit h3 a":
+            return self._link
+        if selector == ".meta":
+            return self._meta
+        return None
+
+
 def test_extract_count():
     assert BlindScraper._extract_count("좋아요 1,234 댓글 56", ["좋아요"]) == 1234
     assert BlindScraper._extract_count("조회 100", ["좋아요"]) == 0
@@ -30,6 +55,9 @@ def test_determine_category(scraper):
     assert scraper._determine_category("소개팅 남친", "고민입니다") == "relationship"
     assert scraper._determine_category("주식 투자 가이드", "떡상") == "money"
     assert scraper._determine_category("이직", "이력서") == "career"
+    assert scraper._determine_category("회사 팀 문화", "매니저 고민") == "work-life"
+    assert scraper._determine_category("부모님 가족 모임", "남편과 상의") == "family"
+    assert scraper._determine_category("취미 이야기", "주말 산책") == "general"
 
 
 @pytest.mark.asyncio
@@ -100,6 +128,26 @@ async def test_get_feed_candidates(mock_fetch, scraper):
     assert len(candidates) == 1
     assert candidates[0].url == "https://www.teamblind.com/kr/topic/123"
     assert candidates[0].title == "블라인드글"
+
+
+@pytest.mark.asyncio
+async def test_collect_feed_candidates_sorts_by_engagement_and_dedupes(scraper):
+    page_mock = AsyncMock()
+    page_mock.query_selector_all.return_value = [
+        _FeedRow(href="/kr/topic/low", title="낮은 반응", meta_text="좋아요 1 댓글 0"),
+        _FeedRow(href="/kr/topic/high", title="높은 반응", meta_text="좋아요 5 댓글 4"),
+        _FeedRow(href="/kr/topic/high", title="중복 높은 반응", meta_text="좋아요 100 댓글 100"),
+        _FeedRow(href="https://ads.example.com/a", title="광고", meta_text="좋아요 999"),
+    ]
+
+    candidates = await scraper._collect_feed_candidates_from_page(page_mock, limit=2)
+
+    assert [candidate.url for candidate in candidates] == [
+        "https://www.teamblind.com/kr/topic/high",
+        "https://www.teamblind.com/kr/topic/low",
+    ]
+    assert candidates[0].likes == 5
+    assert candidates[0].comments == 4
 
 
 @pytest.mark.asyncio

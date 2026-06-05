@@ -17,6 +17,30 @@ from scrapers.base import BaseScraper, BrowserUnavailableError, FeedCandidate
 
 logger = logging.getLogger(__name__)
 
+_TRENDING_FEED_URL = "https://www.teamblind.com/kr/topics/trending"
+_POPULAR_FEED_URL = "https://www.teamblind.com/kr/topics/%ED%86%A0%ED%94%BD-%EB%B2%A0%EC%8A%A4%ED%8A%B8"
+_FEED_META_SELECTORS = (".meta", ".info", ".count", "[class*='like']", "[class*='comment']")
+_POST_CONTAINER_SELECTORS = (
+    ".contents",
+    ".wrapped",
+    "main",
+    ".article-wrap",
+    "article",
+    ".post-content",
+    "#__next",
+    "body",
+)
+_DIRECT_POST_CONTAINER_SELECTORS = (".contents", ".wrapped", "main", "article")
+_POST_TITLE_SELECTORS = (".article-view-head h2", "h2", "h1")
+_POST_CONTENT_SELECTORS = (".article-view-text", ".contents-txt", ".article-view", "p")
+_CATEGORY_KEYWORDS = (
+    ("relationship", ("연애", "결혼", "남친", "여친", "데이트", "relationship", "couple", "marriage")),
+    ("career", ("이직", "취업", "면접", "커리어", "채용", "career", "job", "interview")),
+    ("work-life", ("회사", "직장", "출근", "팀", "문화", "work", "office", "manager")),
+    ("family", ("부모", "가족", "남편", "아내", "family", "parents")),
+    ("money", ("주식", "코인", "부동산", "재테크", "투자", "finance", "investment")),
+)
+
 
 class BlindScraper(BaseScraper):
     """Scraper for teamblind.com (Korean workplace community)."""
@@ -100,6 +124,217 @@ class BlindScraper(BaseScraper):
                 if title:
                     return title
         return "제목 없음"
+
+    @staticmethod
+    def _feed_url_for_mode(mode: str) -> str:
+        return _POPULAR_FEED_URL if mode == "popular" else _TRENDING_FEED_URL
+
+    async def _feed_row_meta_text(self, row) -> str:
+        text_parts: list[str] = []
+        for selector in _FEED_META_SELECTORS:
+            element = await row.query_selector(selector)
+            if element:
+                text = (await element.inner_text()).strip()
+                if text:
+                    text_parts.append(text)
+        return " ".join(text_parts)
+
+    async def _feed_candidate_from_row(self, row) -> FeedCandidate | None:
+        link = await row.query_selector(".tit h3 a")
+        if not link:
+            link = await row.query_selector("a")
+        if not link:
+            return None
+
+        href = await link.get_attribute("href")
+        url = self._normalize_url(href)
+        if not url:
+            return None
+
+        title = (await link.inner_text()).strip()
+        meta_text = await self._feed_row_meta_text(row)
+        candidate = FeedCandidate(
+            url=url,
+            title=title,
+            likes=self._extract_count(meta_text, ["좋아요", "like", "👍"]),
+            comments=self._extract_count(meta_text, ["댓글", "comment", "💬"]),
+            source=self.SOURCE_NAME,
+        )
+        candidate.compute_engagement()
+        return candidate
+
+    async def _collect_feed_candidates_from_page(self, page, limit: int) -> list[FeedCandidate]:
+        candidates: list[FeedCandidate] = []
+        seen: set[str] = set()
+        rows = await page.query_selector_all(".article-list li, .article-list > div")
+        for row in rows[: limit * 3]:
+            candidate = await self._feed_candidate_from_row(row)
+            if not candidate or candidate.url in seen:
+                continue
+            candidates.append(candidate)
+            seen.add(candidate.url)
+
+        candidates.sort(key=lambda c: c.engagement_score, reverse=True)
+        return candidates[:limit]
+
+    @staticmethod
+    async def _first_text_from_selectors(root, selectors: tuple[str, ...]) -> str:
+        for selector in selectors:
+            element = await root.query_selector(selector)
+            if element:
+                text = (await element.inner_text()).strip()
+                if text:
+                    return text
+        return ""
+
+    async def _extract_post_content_text(self, page, main_container) -> str:
+        content = await self._first_text_from_selectors(
+            main_container,
+            _POST_CONTENT_SELECTORS,
+        )
+        if content:
+            return content
+
+        try:
+            raw_html = await page.content()
+            content = self._extract_clean_text(raw_html)
+            if content:
+                logger.info("Content extracted via trafilatura fallback")
+        except Exception:
+            return ""
+        return content
+
+    async def _extract_post_counts(self, page) -> tuple[int, int]:
+        likes = 0
+        comments = 0
+        like_el = await page.query_selector(".wrap-info .like")
+        if like_el:
+            like_text = (await like_el.inner_text()).strip()
+            likes = int(re.sub(r"[^0-9]", "", like_text)) if re.search(r"\d", like_text) else 0
+        cmt_el = await page.query_selector(".wrap-info .cmt")
+        if cmt_el:
+            cmt_text = (await cmt_el.inner_text()).strip()
+            comments = int(re.sub(r"[^0-9]", "", cmt_text)) if re.search(r"\d", cmt_text) else 0
+        return likes, comments
+
+    @staticmethod
+    def _post_fetch_failure_reason(fetch_err: Exception) -> str:
+        err_str = str(fetch_err).lower()
+        if "403" in err_str:
+            return "http_403_forbidden"
+        if "404" in err_str:
+            return "http_404_not_found"
+        if "timeout" in err_str:
+            return "fetch_timeout"
+        return "html_fetch_failed"
+
+    async def _fetch_post_html_content(self, url: str) -> tuple[str | None, str]:
+        logger.info("Fetching HTML via curl_cffi to bypass bot detection...")
+        try:
+            return await self._fetch_html_via_session(url), "unknown"
+        except Exception as fetch_err:
+            reason = self._post_fetch_failure_reason(fetch_err)
+            logger.warning(
+                "HTML session fetch failed for %s: %s. Trying direct browser navigation.",
+                url,
+                fetch_err,
+            )
+            return None, reason
+
+    async def _navigate_post_page(self, page, url: str, html_content: str | None) -> None:
+        if not html_content:
+            await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+            await asyncio.sleep(3)
+            return
+
+        async def intercept_post(route):
+            await route.fulfill(body=html_content, content_type="text/html")
+
+        try:
+            await page.route(url, intercept_post)
+            await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+            await asyncio.sleep(2)
+        except Exception as intercept_err:
+            logger.warning(
+                "Intercept post fetch failed for %s: %s. Trying direct navigation.",
+                url,
+                intercept_err,
+            )
+            try:
+                await page.unroute(url)
+            except Exception:
+                pass
+            await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+            await asyncio.sleep(3)
+        finally:
+            try:
+                await page.unroute(url)
+            except Exception:
+                pass
+
+    async def _find_post_container(self, page, selectors: tuple[str, ...], timeout_ms: int):
+        for selector in selectors:
+            try:
+                await page.wait_for_selector(selector, timeout=timeout_ms)
+                main_container = await page.query_selector(selector)
+                if main_container:
+                    logger.info(f"Found content container with selector: {selector}")
+                    return main_container
+            except PlaywrightTimeoutError:
+                continue
+        return None
+
+    async def _find_post_container_after_direct_navigation(self, page, url: str):
+        logger.warning(f"Intercept mode failed for {url}. Retrying with direct navigation...")
+        try:
+            await page.unroute(url)
+            await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+            await asyncio.sleep(3)
+            container = await self._find_post_container(
+                page,
+                _DIRECT_POST_CONTAINER_SELECTORS,
+                self.direct_fallback_timeout_ms,
+            )
+            return container, "intercept_selector_not_found"
+        except Exception as fallback_err:
+            logger.error(f"Fallback direct navigation also failed: {fallback_err}")
+            return None, "direct_navigation_failed"
+
+    async def _extract_post_with_crawl4ai(self, url: str, html_content: str | None, page):
+        crawl4ai_result = await self._extract_with_crawl4ai(url, html_content)
+        if not crawl4ai_result or not crawl4ai_result.get("content"):
+            return None
+
+        logger.info("Crawl4AI fallback succeeded for %s", url)
+        short_id = uuid.uuid4().hex[:8]
+        safe_t = (
+            "".join(x for x in crawl4ai_result.get("title", "post")[:20] if x.isalnum() or x in " -_").strip() or "post"
+        )
+        filepath = os.path.join(self.screenshot_dir, f"blind_{safe_t}_{short_id}.png")
+        await self._take_screenshot(page, filepath)
+        crawl4ai_result["screenshot_path"] = filepath
+        crawl4ai_result["category"] = self._determine_category(
+            crawl4ai_result.get("title", ""),
+            crawl4ai_result.get("content", ""),
+        )
+        return crawl4ai_result
+
+    async def _save_post_screenshot(self, page, main_container, title: str) -> str:
+        await self._clean_ui_for_screenshot(page)
+
+        short_id = uuid.uuid4().hex[:8]
+        safe_title = "".join(x for x in title[:20] if x.isalnum() or x in " -_").strip()
+        filename = f"blind_{safe_title or 'post'}_{short_id}.png"
+        filepath = os.path.join(self.screenshot_dir, filename)
+
+        await asyncio.sleep(0.5)
+        try:
+            await asyncio.wait_for(main_container.screenshot(path=filepath), timeout=30)
+        except asyncio.TimeoutError:
+            logger.error("Screenshot timed out after 30s")
+            raise
+        logger.info(f"Saved screenshot: {filepath}")
+        return filepath
 
     async def _scrape_post_without_browser(self, url: str, html_content: str):
         crawl4ai_result = await self._extract_with_crawl4ai(url, html_content)
@@ -267,14 +502,14 @@ class BlindScraper(BaseScraper):
 
     async def get_trending_urls(self, limit=5):
         return await self._fetch_post_urls(
-            "https://www.teamblind.com/kr/topics/trending",
+            _TRENDING_FEED_URL,
             label="trending topics",
             limit=limit,
         )
 
     async def get_popular_urls(self, limit=5):
         return await self._fetch_post_urls(
-            "https://www.teamblind.com/kr/topics/%ED%86%A0%ED%94%BD-%EB%B2%A0%EC%8A%A4%ED%8A%B8",
+            _POPULAR_FEED_URL,
             label="popular topics (토픽 베스트)",
             limit=limit,
         )
@@ -287,11 +522,7 @@ class BlindScraper(BaseScraper):
 
     async def get_feed_candidates(self, mode="trending", limit=5):
         """피드 목록에서 제목 + 좋아요/댓글 수를 사전 추출하여 인기순 정렬."""
-        feed_url = (
-            "https://www.teamblind.com/kr/topics/%ED%86%A0%ED%94%BD-%EB%B2%A0%EC%8A%A4%ED%8A%B8"
-            if mode == "popular"
-            else "https://www.teamblind.com/kr/topics/trending"
-        )
+        feed_url = self._feed_url_for_mode(mode)
         candidates = []
         page = None
         try:
@@ -348,42 +579,7 @@ class BlindScraper(BaseScraper):
                 await page.goto(feed_url, wait_until="domcontentloaded", timeout=30000)
                 await asyncio.sleep(2)
 
-            # 각 게시글 행에서 제목 + 인기도 추출
-            rows = await page.query_selector_all(".article-list li, .article-list > div")
-            for row in rows[: limit * 3]:
-                link = await row.query_selector(".tit h3 a")
-                if not link:
-                    link = await row.query_selector("a")
-                if not link:
-                    continue
-                href = await link.get_attribute("href")
-                url = self._normalize_url(href)
-                if not url:
-                    continue
-                title = (await link.inner_text()).strip()
-
-                # 좋아요/댓글 수 추출 (Blind 목록 구조)
-                likes = 0
-                comments = 0
-                meta_text = ""
-                for sel in [".meta", ".info", ".count", "[class*='like']", "[class*='comment']"]:
-                    el = await row.query_selector(sel)
-                    if el:
-                        meta_text += " " + (await el.inner_text()).strip()
-                likes = self._extract_count(meta_text, ["좋아요", "like", "👍"])
-                comments = self._extract_count(meta_text, ["댓글", "comment", "💬"])
-
-                candidate = FeedCandidate(
-                    url=url,
-                    title=title,
-                    likes=likes,
-                    comments=comments,
-                    source=self.SOURCE_NAME,
-                )
-                candidate.compute_engagement()
-                if candidate.url not in {c.url for c in candidates}:
-                    candidates.append(candidate)
-
+            candidates = await self._collect_feed_candidates_from_page(page, limit=limit)
             logger.info("Blind feed candidates: %d collected, sorting by engagement.", len(candidates))
         except Exception as e:
             logger.warning("Feed candidate extraction failed: %s. Falling back to URL-only.", e)
@@ -393,22 +589,14 @@ class BlindScraper(BaseScraper):
             if page is not None:
                 await page.close()
 
-        candidates.sort(key=lambda c: c.engagement_score, reverse=True)
-        return candidates[:limit]
+        return candidates
 
     # ── Category classification ──────────────────────────────────────
     def _determine_category(self, title, content):
         text = (title + " " + content).lower()
-        if any(kw in text for kw in ["연애", "결혼", "남친", "여친", "데이트", "relationship", "couple", "marriage"]):
-            return "relationship"
-        elif any(kw in text for kw in ["이직", "취업", "면접", "커리어", "채용", "career", "job", "interview"]):
-            return "career"
-        elif any(kw in text for kw in ["회사", "직장", "출근", "팀", "문화", "work", "office", "manager"]):
-            return "work-life"
-        elif any(kw in text for kw in ["부모", "가족", "남편", "아내", "family", "parents"]):
-            return "family"
-        elif any(kw in text for kw in ["주식", "코인", "부동산", "재테크", "투자", "finance", "investment"]):
-            return "money"
+        for category, keywords in _CATEGORY_KEYWORDS:
+            if any(keyword in text for keyword in keywords):
+                return category
         return "general"
 
     # ── Post scraping ────────────────────────────────────────────────
@@ -429,117 +617,19 @@ class BlindScraper(BaseScraper):
             if delay > 0:
                 await asyncio.sleep(delay)
 
-            html_content = None
-            logger.info("Fetching HTML via curl_cffi to bypass bot detection...")
-            try:
-                html_content = await self._fetch_html_via_session(url)
-            except Exception as fetch_err:
-                err_str = str(fetch_err).lower()
-                if "403" in err_str:
-                    failure_reason = "http_403_forbidden"
-                elif "404" in err_str:
-                    failure_reason = "http_404_not_found"
-                elif "timeout" in err_str:
-                    failure_reason = "fetch_timeout"
-                else:
-                    failure_reason = "html_fetch_failed"
-                logger.warning(
-                    "HTML session fetch failed for %s: %s. Trying direct browser navigation.",
-                    url,
-                    fetch_err,
-                )
+            html_content, failure_reason = await self._fetch_post_html_content(url)
+            await self._navigate_post_page(page, url, html_content)
 
-            if html_content:
-
-                async def intercept_post(route):
-                    await route.fulfill(body=html_content, content_type="text/html")
-
-                try:
-                    await page.route(url, intercept_post)
-                    await page.goto(url, wait_until="domcontentloaded", timeout=30000)
-                    await asyncio.sleep(2)
-                except Exception as intercept_err:
-                    logger.warning(
-                        "Intercept post fetch failed for %s: %s. Trying direct navigation.",
-                        url,
-                        intercept_err,
-                    )
-                    try:
-                        await page.unroute(url)
-                    except Exception:
-                        pass
-                    await page.goto(url, wait_until="domcontentloaded", timeout=30000)
-                    await asyncio.sleep(3)
-                finally:
-                    try:
-                        await page.unroute(url)
-                    except Exception:
-                        pass
-            else:
-                await page.goto(url, wait_until="domcontentloaded", timeout=30000)
-                await asyncio.sleep(3)
-
-            content_selectors = [
-                ".contents",
-                ".wrapped",
-                "main",
-                ".article-wrap",
-                "article",
-                ".post-content",
-                "#__next",
-                "body",
-            ]
-            main_container = None
-            for selector in content_selectors:
-                try:
-                    await page.wait_for_selector(selector, timeout=self.selector_timeout_ms)
-                    main_container = await page.query_selector(selector)
-                    if main_container:
-                        logger.info(f"Found content container with selector: {selector}")
-                        break
-                except PlaywrightTimeoutError:
-                    continue
+            main_container = await self._find_post_container(page, _POST_CONTAINER_SELECTORS, self.selector_timeout_ms)
 
             # Fallback: direct navigation if intercept mode fails
             if not main_container:
-                logger.warning(f"Intercept mode failed for {url}. Retrying with direct navigation...")
-                failure_reason = "intercept_selector_not_found"
-                try:
-                    await page.unroute(url)
-                    await page.goto(url, wait_until="domcontentloaded", timeout=30000)
-                    await asyncio.sleep(3)
-                    for selector in [".contents", ".wrapped", "main", "article"]:
-                        try:
-                            await page.wait_for_selector(selector, timeout=self.direct_fallback_timeout_ms)
-                            main_container = await page.query_selector(selector)
-                            if main_container:
-                                logger.info(f"Direct navigation succeeded with selector: {selector}")
-                                break
-                        except PlaywrightTimeoutError:
-                            continue
-                except Exception as fallback_err:
-                    failure_reason = "direct_navigation_failed"
-                    logger.error(f"Fallback direct navigation also failed: {fallback_err}")
+                main_container, failure_reason = await self._find_post_container_after_direct_navigation(page, url)
 
             if not main_container:
                 # Crawl4AI LLM fallback: extract using LLM when all selectors fail
-                crawl4ai_result = await self._extract_with_crawl4ai(url, html_content)
-                if crawl4ai_result and crawl4ai_result.get("content"):
-                    logger.info("Crawl4AI fallback succeeded for %s", url)
-                    # Take screenshot from page before returning
-                    short_id = uuid.uuid4().hex[:8]
-                    safe_t = (
-                        "".join(
-                            x for x in crawl4ai_result.get("title", "post")[:20] if x.isalnum() or x in " -_"
-                        ).strip()
-                        or "post"
-                    )
-                    filepath = os.path.join(self.screenshot_dir, f"blind_{safe_t}_{short_id}.png")
-                    await self._take_screenshot(page, filepath)
-                    crawl4ai_result["screenshot_path"] = filepath
-                    crawl4ai_result["category"] = self._determine_category(
-                        crawl4ai_result.get("title", ""), crawl4ai_result.get("content", "")
-                    )
+                crawl4ai_result = await self._extract_post_with_crawl4ai(url, html_content, page)
+                if crawl4ai_result:
                     return crawl4ai_result
 
                 failure_stage = "parse"
@@ -549,77 +639,27 @@ class BlindScraper(BaseScraper):
             failure_stage = "parse"
 
             # Extract title
-            title = ""
-            title_selectors = [".article-view-head h2", "h2", "h1"]
-            for selector in title_selectors:
-                title_el = await main_container.query_selector(selector)
-                if title_el:
-                    text = (await title_el.inner_text()).strip()
-                    if text:
-                        title = text
-                        break
-            if not title:
-                title = "제목 없음"
+            title = await self._first_text_from_selectors(main_container, _POST_TITLE_SELECTORS)
+            title = title or "제목 없음"
 
             # Extract content
-            content = ""
-            content_sel = [".article-view-text", ".contents-txt", ".article-view", "p"]
-            for selector in content_sel:
-                content_el = await main_container.query_selector(selector)
-                if content_el:
-                    text = (await content_el.inner_text()).strip()
-                    if text:
-                        content = text
-                        break
-            # trafilatura 폴백: 셀렉터 추출 실패 시 HTML에서 클린 텍스트 추출
-            if not content:
-                try:
-                    raw_html = await page.content()
-                    content = self._extract_clean_text(raw_html)
-                    if content:
-                        logger.info("Content extracted via trafilatura fallback")
-                except Exception:
-                    pass
+            content = await self._extract_post_content_text(page, main_container)
 
             if len(content) < 10:
                 failure_reason = "insufficient_content_length"
                 raise Exception("Insufficient text content (minimum 10 chars).")
 
             # Extract likes/comments from .wrap-info elements
-            likes = 0
-            comments = 0
-            like_el = await page.query_selector(".wrap-info .like")
-            if like_el:
-                like_text = (await like_el.inner_text()).strip()
-                likes = int(re.sub(r"[^0-9]", "", like_text)) if re.search(r"\d", like_text) else 0
-            cmt_el = await page.query_selector(".wrap-info .cmt")
-            if cmt_el:
-                cmt_text = (await cmt_el.inner_text()).strip()
-                comments = int(re.sub(r"[^0-9]", "", cmt_text)) if re.search(r"\d", cmt_text) else 0
+            likes, comments = await self._extract_post_counts(page)
 
             category = self._determine_category(title, content)
             logger.info(f"Extracted metadata: Title '{title[:20]}...', Likes {likes}, Comments {comments}")
 
-            await self._clean_ui_for_screenshot(page)
-
-            short_id = uuid.uuid4().hex[:8]
-            safe_title = "".join(x for x in title[:20] if x.isalnum() or x in " -_").strip()
-            if not safe_title:
-                safe_title = "post"
-            filename = f"blind_{safe_title}_{short_id}.png"
-            filepath = os.path.join(self.screenshot_dir, filename)
-
-            await asyncio.sleep(0.5)
             try:
-                await asyncio.wait_for(
-                    main_container.screenshot(path=filepath),
-                    timeout=30,
-                )
+                filepath = await self._save_post_screenshot(page, main_container, title)
             except asyncio.TimeoutError:
                 failure_reason = "screenshot_timeout"
-                logger.error(f"Screenshot timed out after 30s for {url}")
                 raise
-            logger.info(f"Saved screenshot: {filepath}")
 
             return {
                 "url": url,
