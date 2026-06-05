@@ -699,6 +699,9 @@ def _readiness_item(readiness: dict[str, Any]) -> dict[str, Any]:
     publish_blockers = int(overall.get("publish_blocker_count") or 0)
     agent_tasks = int(overall.get("agent_task_count") or 0)
     complete = local_blockers == 0 and workspace_blockers == 0 and agent_tasks == 0
+    publish_boundary_blocked = (
+        workspace_blockers > 0 and publish_blockers >= workspace_blockers and local_blockers == 0 and agent_tasks == 0
+    )
     blockers = []
     if local_blockers:
         blockers.append(f"local_blocker_count={local_blockers}")
@@ -721,6 +724,7 @@ def _readiness_item(readiness: dict[str, Any]) -> dict[str, Any]:
         complete=complete,
         blockers=blockers,
         verified=bool(readiness),
+        coverage="complete" if publish_boundary_blocked else None,
     )
 
 
@@ -735,8 +739,14 @@ def _selector_item(selection: dict[str, Any]) -> dict[str, Any]:
     required_gates = _sentence_list(selected.get("required_gates"))
     blocked = selected.get("blocked") is True
     complete = status in {"blocked_external_only", "ready_for_completion_audit"}
+    publish_boundary_selected = selected_kind == "current_head_release_checks_unproven"
     blockers: list[str] = []
-    if not complete:
+    if publish_boundary_selected:
+        blockers.append(
+            "next_experiment_selector selected unresolved publish boundary: "
+            f"status={status}, kind={selected_kind}, project={selected_project}"
+        )
+    elif not complete:
         blockers.append(
             "next_experiment_selector selected unresolved local work: "
             f"status={status}, kind={selected_kind}, project={selected_project}"
@@ -748,6 +758,8 @@ def _selector_item(selection: dict[str, Any]) -> dict[str, Any]:
         selector_evidence = "Selector confirms only external/user-owned work remains."
     elif status == "ready_for_completion_audit":
         selector_evidence = "Selector reports no remaining local experiment candidate."
+    elif publish_boundary_selected:
+        selector_evidence = "Selector reports a publish-boundary check before launch completion can be claimed."
     else:
         selector_evidence = "Selector reports local follow-up work before launch completion can be claimed."
 
@@ -767,6 +779,7 @@ def _selector_item(selection: dict[str, Any]) -> dict[str, Any]:
         evidence,
         complete=complete and not blockers,
         blockers=blockers,
+        coverage="complete" if publish_boundary_selected else None,
     )
 
 

@@ -415,7 +415,7 @@ def test_manifest_is_complete_when_all_requirements_have_current_evidence(tmp_pa
     assert any("next experiment selector" in evidence for evidence in skill_item["evidence"])
 
 
-def test_readiness_item_includes_publish_blocker_count(tmp_path: Path) -> None:
+def test_readiness_publish_boundary_has_complete_coverage_with_blocker(tmp_path: Path) -> None:
     _write_required_skill(tmp_path)
     _write_ai_relay(tmp_path)
     readiness = _clean_readiness()
@@ -450,9 +450,34 @@ def test_readiness_item_includes_publish_blocker_count(tmp_path: Path) -> None:
         item for item in manifest["items"] if item["requirement"].startswith("Verify local product-readiness")
     )
 
-    assert readiness_item["coverage"] == "partial"
+    assert readiness_item["coverage"] == "complete"
     assert readiness_item["blockers"] == ["workspace_blocker_count=1"]
     assert any("workspace/local/publish/agent blockers=1/0/1/0" in item for item in readiness_item["evidence"])
+
+
+def test_readiness_local_workspace_blocker_remains_partial(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+    readiness = _clean_readiness()
+    assert isinstance(readiness["overall"], dict)
+    readiness["overall"]["state"] = "blocked"
+    readiness["overall"]["workspace_blocker_count"] = 1
+    readiness["overall"]["local_blocker_count"] = 1
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=readiness,
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+    )
+    readiness_item = next(
+        item for item in manifest["items"] if item["requirement"].startswith("Verify local product-readiness")
+    )
+
+    assert readiness_item["coverage"] == "partial"
+    assert readiness_item["blockers"] == ["local_blocker_count=1", "workspace_blocker_count=1"]
+    assert any("workspace/local/publish/agent blockers=1/1/0/0" in item for item in readiness_item["evidence"])
 
 
 def test_collect_current_inputs_uses_one_snapshot_for_selector(monkeypatch, tmp_path: Path) -> None:
@@ -688,6 +713,40 @@ def test_selector_local_candidate_prevents_complete_claim(tmp_path: Path) -> Non
     assert result["status"] == "incomplete"
     assert result["items"][5]["requirement"].startswith("Run the deterministic next-experiment")
     assert result["items"][5]["passed"] is False
+
+
+def test_selector_current_head_publish_boundary_has_complete_coverage_with_blocker(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+        next_experiment_selection=_selector_selection(
+            status="blocked",
+            kind="current_head_release_checks_unproven",
+            blocked=True,
+            project="workspace",
+            guardrails=["Do not push without explicit user authorization."],
+            required_gates=["current-head root-quality-gate success"],
+        ),
+    )
+    result = completion_audit.audit_manifest(manifest)
+    selector_item = next(
+        item for item in manifest["items"] if item["requirement"].startswith("Run the deterministic next-experiment")
+    )
+
+    assert selector_item["coverage"] == "complete"
+    assert selector_item["blockers"] == [
+        "next_experiment_selector selected unresolved publish boundary: "
+        "status=blocked, kind=current_head_release_checks_unproven, project=workspace"
+    ]
+    assert any("publish-boundary check" in evidence for evidence in selector_item["evidence"])
+    assert result["status"] == "incomplete"
+    assert result["items"][5]["issues"] == ["blocked"]
 
 
 def test_selector_action_evidence_has_single_terminal_punctuation_guardrails_and_gates(tmp_path: Path) -> None:
