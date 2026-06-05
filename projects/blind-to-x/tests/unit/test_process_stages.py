@@ -483,6 +483,63 @@ class TestFilterProfileStage:
         assert result is True
         assert "viral_filter_below_threshold" in ctx.post_data["daily_queue_floor_overrides"]
 
+    def test_calendar_diversity_reject_returns_false(self):
+        from pipeline.process_stages import filter_profile_stage as mod
+
+        ctx = self._ctx_with_content()
+        ctx.profile = self._stub_profile()
+        calendar = MagicMock()
+        calendar.should_post_topic.return_value = (False, "same topic too soon")
+
+        with (
+            patch("pipeline.content_calendar.ContentCalendar", return_value=calendar),
+            patch("pipeline.cost_db.get_cost_db", return_value=object()),
+        ):
+            result = mod._check_calendar_diversity(ctx)
+
+        assert result is False
+        assert ctx.result["failure_reason"] == "content_calendar_diversity"
+        assert ctx.result["notion_url"] == "(skipped-calendar)"
+        calendar.should_post_topic.assert_called_once_with(
+            topic_cluster=ctx.profile["topic_cluster"],
+            hook_type=ctx.profile["hook_type"],
+            emotion_axis=ctx.profile["emotion_axis"],
+        )
+
+    def test_daily_floor_overrides_calendar_diversity(self):
+        from pipeline.process_stages import filter_profile_stage as mod
+
+        ctx = self._ctx_with_content()
+        ctx.profile = self._stub_profile()
+        ctx.daily_queue_floor = DailyQueueFloorState(target=5, current=0, remaining=5, active=True)
+        calendar = MagicMock()
+        calendar.should_post_topic.return_value = (False, "same hook too soon")
+
+        with (
+            patch("pipeline.content_calendar.ContentCalendar", return_value=calendar),
+            patch("pipeline.cost_db.get_cost_db", return_value=object()),
+        ):
+            result = mod._check_calendar_diversity(ctx)
+
+        assert result is True
+        assert "content_calendar_diversity" in ctx.post_data["daily_queue_floor_overrides"]
+
+    def test_daily_budget_reject_sets_budget_failure(self):
+        from pipeline.process_stages import filter_profile_stage as mod
+
+        ctx = self._ctx_with_content()
+        cost_db = MagicMock()
+        cost_db.is_daily_budget_exceeded.return_value = True
+
+        with patch("pipeline.cost_db.get_cost_db", return_value=cost_db):
+            result = mod._check_daily_budget(ctx, self._Cfg())
+
+        assert result is False
+        assert ctx.result["error_code"] == "BUDGET_EXCEEDED"
+        assert ctx.result["failure_stage"] == "budget"
+        assert ctx.result["failure_reason"] == "daily_budget_exceeded"
+        cost_db.is_daily_budget_exceeded.assert_called_once_with(3.0)
+
     # ── 바이럴 필터 통과 (lines 256-257: exception swallowed) ─────────────
     def test_viral_filter_exception_is_swallowed(self):
         from pipeline.process_stages.filter_profile_stage import run_filter_profile_stage

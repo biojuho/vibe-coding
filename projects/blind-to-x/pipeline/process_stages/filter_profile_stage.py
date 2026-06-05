@@ -34,6 +34,336 @@ from .runtime import (
 )
 
 
+def _has_visual_content(post_data: dict) -> bool:
+    return bool(post_data.get("screenshot_path") or post_data.get("images"))
+
+
+def _is_daily_queue_floor_override_active(ctx: ProcessRunContext) -> bool:
+    return is_daily_queue_floor_active(getattr(ctx, "daily_queue_floor", None))
+
+
+def _add_daily_queue_floor_override(ctx: ProcessRunContext, reason: str) -> None:
+    overrides = ctx.post_data.setdefault("daily_queue_floor_overrides", [])
+    if reason not in overrides:
+        overrides.append(reason)
+
+
+def _set_filter_result(
+    ctx: ProcessRunContext,
+    *,
+    error: str,
+    error_code: str,
+    failure_stage: str,
+    failure_reason: str,
+    stage_status: str,
+    stage_reason: str | None = None,
+    success: bool | None = True,
+    notion_url: str | None = "(skipped-filtered)",
+    extra: dict | None = None,
+) -> None:
+    ctx.result["error"] = error
+    ctx.result["error_code"] = error_code
+    if success is not None:
+        ctx.result["success"] = success
+    if notion_url is not None:
+        ctx.result["notion_url"] = notion_url
+    ctx.result["failure_stage"] = failure_stage
+    ctx.result["failure_reason"] = failure_reason
+    if extra is not None:
+        ctx.result.update(extra)
+    mark_stage(ctx, "filter_profile", stage_status, stage_reason or failure_reason)
+
+
+def _set_filter_skip(
+    ctx: ProcessRunContext,
+    *,
+    error: str,
+    error_code: str,
+    failure_reason: str,
+    stage_reason: str | None = None,
+    notion_url: str = "(skipped-filtered)",
+    extra: dict | None = None,
+) -> None:
+    _set_filter_result(
+        ctx,
+        error=error,
+        error_code=error_code,
+        notion_url=notion_url,
+        failure_stage="filter",
+        failure_reason=failure_reason,
+        stage_status="skipped",
+        stage_reason=stage_reason,
+        extra=extra,
+    )
+
+
+def _build_content_profile_dict(ctx: ProcessRunContext, config, top_tweets) -> dict:
+    ranking_weights = config.get("ranking.weights", {}) if config else {}
+    llm_viral_boost = bool(config.get("ranking.llm_viral_boost", False)) if config else False
+    return build_content_profile(
+        ctx.post_data,
+        scrape_quality_score=ctx.quality["score"],
+        historical_examples=top_tweets,
+        ranking_weights=ranking_weights,
+        llm_viral_boost=llm_viral_boost,
+    ).to_dict()
+
+
+def _build_review_queue_decision(config, post_data: dict, profile: dict) -> dict:
+    if config:
+        return build_review_decision(config, post_data, profile)
+    return {
+        "should_queue": True,
+        "status": "검토필요",
+        "review_reason": "queued_for_review",
+        "review_priority": "normal",
+    }
+
+
+def _store_profile_scores(ctx: ProcessRunContext, profile: dict) -> None:
+    ctx.profile = profile
+    ctx.result["quality_score"] = profile["scrape_quality_score"]
+    ctx.result["publishability_score"] = profile["publishability_score"]
+    ctx.result["performance_score"] = profile["performance_score"]
+    ctx.result["final_rank_score"] = profile["final_rank_score"]
+
+
+def _reject_unsuitable_emotion(ctx: ProcessRunContext, profile: dict) -> bool:
+    emotion_axis = profile.get("emotion_axis")
+    if emotion_axis not in REJECT_EMOTION_AXES:
+        return False
+
+    _set_filter_skip(
+        ctx,
+        error=f"Rejected: emotion_axis='{emotion_axis}' not suitable for publishing",
+        error_code=ERROR_FILTERED_SPAM,
+        failure_reason="rejected_emotion_axis",
+    )
+    logger.info("SKIP [emotion_filter] %s - emotion=%s", ctx.url, emotion_axis)
+    return True
+
+
+def _attach_emotion_profile(ctx: ProcessRunContext) -> None:
+    post_data = ctx.post_data
+    try:
+        from pipeline.emotion_analyzer import get_emotion_profile
+
+        emotion_profile = get_emotion_profile(f"{post_data.get('title', '')} {str(post_data.get('content', ''))[:300]}")
+        if emotion_profile.confidence > 0:
+            post_data["emotion_profile"] = {
+                "top_emotions": emotion_profile.top_emotions[:3],
+                "valence": emotion_profile.valence,
+                "arousal": emotion_profile.arousal,
+                "dominant_group": emotion_profile.dominant_group,
+            }
+    except Exception:
+        pass
+
+
+def _record_sentiment(ctx: ProcessRunContext, profile: dict) -> None:
+    if sentiment_tracker is None:
+        return
+
+    try:
+        sentiment_tracker.record(
+            url=ctx.url,
+            title=ctx.post_data.get("title", ""),
+            content=str(ctx.content_text)[:1000],
+            emotion_axis=profile.get("emotion_axis", ""),
+            source=ctx.post_data.get("source", ""),
+        )
+    except Exception as tracker_exc:
+        logger.debug("Sentiment tracking failed: %s", tracker_exc)
+
+
+def _maybe_force_review_queue(ctx: ProcessRunContext, decision: dict, review_only: bool) -> dict:
+    if not review_only or decision["should_queue"]:
+        return decision
+
+    override_prefix = (
+        "daily_queue_floor_override" if _is_daily_queue_floor_override_active(ctx) else "review_only_override"
+    )
+    logger.info("[review_only] overriding review queue decision for %s: %s", ctx.url, decision["review_reason"])
+    return {
+        **decision,
+        "should_queue": True,
+        "status": "검토필요",
+        "review_reason": f"{override_prefix}:{decision['review_reason']}",
+    }
+
+
+def _reject_review_decision(ctx: ProcessRunContext, decision: dict) -> bool:
+    if decision["should_queue"]:
+        return False
+
+    _set_filter_skip(
+        ctx,
+        error="Below review threshold",
+        error_code=ERROR_FILTERED_LOW_QUALITY,
+        failure_reason=decision["review_reason"],
+    )
+    return True
+
+
+def _store_review_metadata(ctx: ProcessRunContext, profile: dict, decision: dict) -> None:
+    ctx.post_data["content_profile"] = profile
+    ctx.post_data["status"] = decision.get("status", "검토필요")
+    ctx.post_data["review_reason"] = decision.get("review_reason", "")
+    ctx.post_data["review_priority"] = decision["review_priority"]
+
+
+def _editorial_gate_failure(fit: dict, min_score: float) -> tuple[str, str, list]:
+    hard_reject_reasons = list(fit.get("hard_reject_reasons") or [])
+    if bool(fit.get("hard_reject")):
+        return (
+            "editorial_hard_reject",
+            "; ".join(hard_reject_reasons) or "편집 적합도 하드 리젝트",
+            hard_reject_reasons,
+        )
+    score = float(fit.get("score", 0.0) or 0.0)
+    return (
+        "editorial_score_below_threshold",
+        f"편집 적합도 {score:.0f} < {min_score:.0f}",
+        hard_reject_reasons,
+    )
+
+
+def _reject_editorial_fit(
+    ctx: ProcessRunContext,
+    *,
+    failure_reason: str,
+    human: str,
+    hard_reject_reasons: list,
+    score: float,
+) -> bool:
+    if _is_daily_queue_floor_override_active(ctx):
+        _add_daily_queue_floor_override(ctx, failure_reason)
+        logger.info("[daily_queue_floor] override editorial gate for %s: %s", ctx.url, human)
+        return True
+
+    _set_filter_skip(
+        ctx,
+        error=f"Editorial gate: {human}",
+        error_code=ERROR_FILTERED_EDITORIAL,
+        notion_url="(skipped-editorial)",
+        failure_reason=failure_reason,
+        extra={"editorial_reject_reasons": hard_reject_reasons},
+    )
+    logger.info("SKIP [editorial] %s - %s (score=%.0f)", ctx.url, human, score)
+    return False
+
+
+async def _check_viral_filter(ctx: ProcessRunContext, config) -> bool:
+    post_data = ctx.post_data
+    viral_filter = get_viral_filter(config)
+    if viral_filter is None:
+        return True
+
+    try:
+        viral_score = await viral_filter.score(
+            title=post_data.get("title", ""),
+            content=str(ctx.content_text)[:2000],
+            source=post_data.get("source", ""),
+            likes=int(post_data.get("likes", 0) or 0),
+            comments=int(post_data.get("comments", 0) or 0),
+        )
+        post_data["viral_score"] = viral_score.to_dict()
+        return _handle_viral_score(ctx, viral_score)
+    except Exception as viral_exc:
+        logger.debug("Viral filter skipped: %s", viral_exc)
+        return True
+
+
+def _handle_viral_score(ctx: ProcessRunContext, viral_score) -> bool:
+    if viral_score.pass_filter:
+        return True
+
+    if _is_daily_queue_floor_override_active(ctx):
+        _add_daily_queue_floor_override(ctx, "viral_filter_below_threshold")
+        logger.info(
+            "[daily_queue_floor] override viral filter for %s: score=%.0f",
+            ctx.url,
+            viral_score.score,
+        )
+        return True
+
+    _set_filter_skip(
+        ctx,
+        error=f"Viral filter: score {viral_score.score:.0f} < threshold ({viral_score.reasoning})",
+        error_code=ERROR_FILTERED_LOW_QUALITY,
+        notion_url="(skipped-viral-filter)",
+        failure_reason="viral_filter_below_threshold",
+    )
+    logger.info("[ViralFilter] SKIP %s: score=%.0f reason=%s", ctx.url, viral_score.score, viral_score.reasoning)
+    return False
+
+
+def _check_content_calendar(ctx: ProcessRunContext) -> bool:
+    try:
+        from pipeline.content_calendar import ContentCalendar
+        from pipeline.cost_db import get_cost_db
+
+        calendar = ContentCalendar(cost_db=get_cost_db())
+        calendar_ok, calendar_reason = calendar.should_post_topic(
+            topic_cluster=ctx.profile.get("topic_cluster", ""),
+            hook_type=ctx.profile.get("hook_type", ""),
+            emotion_axis=ctx.profile.get("emotion_axis", ""),
+        )
+        return _handle_calendar_result(ctx, calendar_ok, calendar_reason)
+    except Exception as exc:
+        logger.debug("Content calendar check skipped: %s", exc)
+        return True
+
+
+def _check_calendar_diversity(ctx: ProcessRunContext) -> bool:
+    return _check_content_calendar(ctx)
+
+
+def _handle_calendar_result(ctx: ProcessRunContext, calendar_ok: bool, calendar_reason: str) -> bool:
+    if calendar_ok:
+        return True
+
+    if _is_daily_queue_floor_override_active(ctx):
+        _add_daily_queue_floor_override(ctx, "content_calendar_diversity")
+        logger.info("[daily_queue_floor] override calendar diversity for %s: %s", ctx.url, calendar_reason)
+        return True
+
+    _set_filter_skip(
+        ctx,
+        error=f"Calendar skip: {calendar_reason}",
+        error_code=ERROR_FILTERED_LOW_QUALITY,
+        notion_url="(skipped-calendar)",
+        failure_reason="content_calendar_diversity",
+    )
+    logger.info("[Calendar] SKIP %s: %s", ctx.url, calendar_reason)
+    return False
+
+
+def _check_daily_budget(ctx: ProcessRunContext, config) -> bool:
+    try:
+        from pipeline.cost_db import get_cost_db
+
+        budget_limit = float(config.get("limits.daily_api_budget", 3.0)) if config else 3.0
+        if not get_cost_db().is_daily_budget_exceeded(budget_limit):
+            return True
+    except Exception as exc:
+        logger.debug("Budget check skipped: %s", exc)
+        return True
+
+    _set_filter_result(
+        ctx,
+        error=f"Daily API budget exceeded (limit ${budget_limit:.2f})",
+        error_code=ERROR_BUDGET_EXCEEDED,
+        success=None,
+        notion_url=None,
+        failure_stage="budget",
+        failure_reason="daily_budget_exceeded",
+        stage_status="failed",
+    )
+    logger.warning("SKIP [budget exceeded] %s: limit=$%.2f", ctx.url, budget_limit)
+    return False
+
+
 # ---------------------------------------------------------------------------
 # 내부 필터 함수들 — 각각 단일 필터 책임
 # ---------------------------------------------------------------------------
@@ -46,17 +376,15 @@ def _check_length(ctx: ProcessRunContext, scraper) -> bool:
     """
     post_data = ctx.post_data
     content_text = ctx.content_text
-    has_visual_content = bool(post_data.get("screenshot_path") or post_data.get("images"))
-    effective_min_length = 0 if has_visual_content else scraper.min_content_length
+    effective_min_length = 0 if _has_visual_content(post_data) else scraper.min_content_length
 
     if len(content_text) < effective_min_length:
-        ctx.result["error"] = "Content too short (potential spam/empty)"
-        ctx.result["error_code"] = ERROR_FILTERED_SHORT
-        ctx.result["success"] = True
-        ctx.result["notion_url"] = "(skipped-filtered)"
-        ctx.result["failure_stage"] = "filter"
-        ctx.result["failure_reason"] = "content_too_short"
-        mark_stage(ctx, "filter_profile", "skipped", "content_too_short")
+        _set_filter_skip(
+            ctx,
+            error="Content too short (potential spam/empty)",
+            error_code=ERROR_FILTERED_SHORT,
+            failure_reason="content_too_short",
+        )
         return False
     return True
 
@@ -69,26 +397,24 @@ def _check_spam(ctx: ProcessRunContext) -> bool:
 
     matched_inappropriate = [kw for kw in INAPPROPRIATE_TITLE_KEYWORDS if kw in title_text]
     if matched_inappropriate:
-        ctx.result["error"] = f"Inappropriate content detected: {matched_inappropriate[0]}"
-        ctx.result["error_code"] = ERROR_FILTERED_SPAM
-        ctx.result["success"] = True
-        ctx.result["notion_url"] = "(skipped-filtered)"
-        ctx.result["failure_stage"] = "filter"
-        ctx.result["failure_reason"] = "inappropriate_content"
+        _set_filter_skip(
+            ctx,
+            error=f"Inappropriate content detected: {matched_inappropriate[0]}",
+            error_code=ERROR_FILTERED_SPAM,
+            failure_reason="inappropriate_content",
+        )
         logger.info("SKIP [inappropriate] %s - keyword: %s", ctx.url, matched_inappropriate[0])
-        mark_stage(ctx, "filter_profile", "skipped", "inappropriate_content")
         return False
 
     matched_spam = [kw for kw in SPAM_TITLE_KEYWORDS if kw in title_text]
     matched_spam.extend([kw for kw in SPAM_KEYWORDS if kw in content_text])
     if matched_spam:
-        ctx.result["error"] = "Spam keywords detected"
-        ctx.result["error_code"] = ERROR_FILTERED_SPAM
-        ctx.result["success"] = True
-        ctx.result["notion_url"] = "(skipped-filtered)"
-        ctx.result["failure_stage"] = "filter"
-        ctx.result["failure_reason"] = "spam_keywords_detected"
-        mark_stage(ctx, "filter_profile", "skipped", "spam_keywords_detected")
+        _set_filter_skip(
+            ctx,
+            error="Spam keywords detected",
+            error_code=ERROR_FILTERED_SPAM,
+            failure_reason="spam_keywords_detected",
+        )
         return False
 
     return True
@@ -102,14 +428,13 @@ def _check_quality(ctx: ProcessRunContext, config) -> bool:
     quality = ctx.quality
     post_data = ctx.post_data
 
-    has_visual_content = bool(post_data.get("screenshot_path") or post_data.get("images"))
-    effective_quality_threshold = QUALITY_SCORE_THRESHOLD - 20 if has_visual_content else QUALITY_SCORE_THRESHOLD
+    effective_quality_threshold = (
+        QUALITY_SCORE_THRESHOLD - 20 if _has_visual_content(post_data) else QUALITY_SCORE_THRESHOLD
+    )
 
     if quality["score"] < effective_quality_threshold:
-        if is_daily_queue_floor_active(getattr(ctx, "daily_queue_floor", None)):
-            overrides = ctx.post_data.setdefault("daily_queue_floor_overrides", [])
-            if "low_quality_score" not in overrides:
-                overrides.append("low_quality_score")
+        if _is_daily_queue_floor_override_active(ctx):
+            _add_daily_queue_floor_override(ctx, "low_quality_score")
             logger.info(
                 "[daily_queue_floor] override quality filter for %s: score=%.1f < %.1f",
                 ctx.url,
@@ -118,13 +443,14 @@ def _check_quality(ctx: ProcessRunContext, config) -> bool:
             )
             return True
 
-        ctx.result["error"] = "Low quality content"
-        ctx.result["error_code"] = ERROR_FILTERED_LOW_QUALITY
-        ctx.result["success"] = True
-        ctx.result["notion_url"] = "(skipped-filtered)"
-        ctx.result["failure_stage"] = "filter"
-        ctx.result["failure_reason"] = quality["reasons"][0] if quality["reasons"] else "low_quality_score"
-        mark_stage(ctx, "filter_profile", "skipped", "low_quality_score")
+        failure_reason = quality["reasons"][0] if quality["reasons"] else "low_quality_score"
+        _set_filter_skip(
+            ctx,
+            error="Low quality content",
+            error_code=ERROR_FILTERED_LOW_QUALITY,
+            failure_reason=failure_reason,
+            stage_reason="low_quality_score",
+        )
         return False
 
     return True
@@ -142,106 +468,30 @@ def _build_profile_and_decision(
     감정 축 거부 대상이면 False 반환.
     """
     post_data = ctx.post_data
-    quality = ctx.quality
-
-    ranking_weights = config.get("ranking.weights", {}) if config else {}
-    llm_viral_boost = bool(config.get("ranking.llm_viral_boost", False)) if config else False
-    profile = build_content_profile(
-        post_data,
-        scrape_quality_score=quality["score"],
-        historical_examples=top_tweets,
-        ranking_weights=ranking_weights,
-        llm_viral_boost=llm_viral_boost,
-    ).to_dict()
-    decision = (
-        build_review_decision(config, post_data, profile)
-        if config
-        else {
-            "should_queue": True,
-            "status": "검토필요",
-            "review_reason": "queued_for_review",
-            "review_priority": "normal",
-        }
-    )
-
-    ctx.profile = profile
-    ctx.result["quality_score"] = profile["scrape_quality_score"]
-    ctx.result["publishability_score"] = profile["publishability_score"]
-    ctx.result["performance_score"] = profile["performance_score"]
-    ctx.result["final_rank_score"] = profile["final_rank_score"]
+    profile = _build_content_profile_dict(ctx, config, top_tweets)
+    decision = _build_review_queue_decision(config, post_data, profile)
+    _store_profile_scores(ctx, profile)
 
     # 감정 축 거부 필터
-    if profile.get("emotion_axis") in REJECT_EMOTION_AXES:
-        ctx.result["error"] = f"Rejected: emotion_axis='{profile['emotion_axis']}' not suitable for publishing"
-        ctx.result["error_code"] = ERROR_FILTERED_SPAM
-        ctx.result["success"] = True
-        ctx.result["notion_url"] = "(skipped-filtered)"
-        ctx.result["failure_stage"] = "filter"
-        ctx.result["failure_reason"] = "rejected_emotion_axis"
-        logger.info("SKIP [emotion_filter] %s - emotion=%s", ctx.url, profile["emotion_axis"])
-        mark_stage(ctx, "filter_profile", "skipped", "rejected_emotion_axis")
+    if _reject_unsuitable_emotion(ctx, profile):
         return False
 
     # 세분화 감정 프로파일 (KOTE 44차원) — 실패 시 무시
-    try:
-        from pipeline.emotion_analyzer import get_emotion_profile
-
-        emotion_profile = get_emotion_profile(f"{post_data.get('title', '')} {str(post_data.get('content', ''))[:300]}")
-        if emotion_profile.confidence > 0:
-            post_data["emotion_profile"] = {
-                "top_emotions": emotion_profile.top_emotions[:3],
-                "valence": emotion_profile.valence,
-                "arousal": emotion_profile.arousal,
-                "dominant_group": emotion_profile.dominant_group,
-            }
-    except Exception:
-        pass
+    _attach_emotion_profile(ctx)
 
     # 감정 트래킹 — 실패 시 무시
-    if sentiment_tracker is not None:
-        try:
-            sentiment_tracker.record(
-                url=ctx.url,
-                title=post_data.get("title", ""),
-                content=str(ctx.content_text)[:1000],
-                emotion_axis=profile.get("emotion_axis", ""),
-                source=post_data.get("source", ""),
-            )
-        except Exception as tracker_exc:
-            logger.debug("Sentiment tracking failed: %s", tracker_exc)
+    _record_sentiment(ctx, profile)
 
     # review_only 오버라이드
-    if review_only and not decision["should_queue"]:
-        override_prefix = (
-            "daily_queue_floor_override"
-            if is_daily_queue_floor_active(getattr(ctx, "daily_queue_floor", None))
-            else "review_only_override"
-        )
-        logger.info("[review_only] overriding review queue decision for %s: %s", ctx.url, decision["review_reason"])
-        decision = {
-            **decision,
-            "should_queue": True,
-            "status": "검토필요",
-            "review_reason": f"{override_prefix}:{decision['review_reason']}",
-        }
+    decision = _maybe_force_review_queue(ctx, decision, review_only)
 
     ctx.decision = decision
     ctx.result["status"] = decision.get("status", "검토필요")
 
-    if not decision["should_queue"]:
-        ctx.result["error"] = "Below review threshold"
-        ctx.result["error_code"] = ERROR_FILTERED_LOW_QUALITY
-        ctx.result["success"] = True
-        ctx.result["notion_url"] = "(skipped-filtered)"
-        ctx.result["failure_stage"] = "filter"
-        ctx.result["failure_reason"] = decision["review_reason"]
-        mark_stage(ctx, "filter_profile", "skipped", decision["review_reason"])
+    if _reject_review_decision(ctx, decision):
         return False
 
-    post_data["content_profile"] = profile
-    post_data["status"] = decision.get("status", "검토필요")
-    post_data["review_reason"] = decision.get("review_reason", "")
-    post_data["review_priority"] = decision["review_priority"]
+    _store_review_metadata(ctx, profile, decision)
     return True
 
 
@@ -277,130 +527,27 @@ def _check_editorial_fit(ctx: ProcessRunContext, config) -> bool:
 
     min_score = float(config.get("feed_filter.min_editorial_score", 60.0))
     score = float(fit.get("score", 0.0) or 0.0)
-    hard_reject = bool(fit.get("hard_reject"))
-    hard_reject_reasons = list(fit.get("hard_reject_reasons") or [])
 
-    if not hard_reject and score >= min_score:
+    if not bool(fit.get("hard_reject")) and score >= min_score:
         return True
 
-    if hard_reject:
-        failure_reason = "editorial_hard_reject"
-        human = "; ".join(hard_reject_reasons) or "편집 적합도 하드 리젝트"
-    else:
-        failure_reason = "editorial_score_below_threshold"
-        human = f"편집 적합도 {score:.0f} < {min_score:.0f}"
-
-    # daily_queue_floor 활성 시: 다른 필터와 동일하게 override.
-    if is_daily_queue_floor_active(getattr(ctx, "daily_queue_floor", None)):
-        overrides = post_data.setdefault("daily_queue_floor_overrides", [])
-        if failure_reason not in overrides:
-            overrides.append(failure_reason)
-        logger.info("[daily_queue_floor] override editorial gate for %s: %s", ctx.url, human)
-        return True
-
-    ctx.result["error"] = f"Editorial gate: {human}"
-    ctx.result["error_code"] = ERROR_FILTERED_EDITORIAL
-    ctx.result["success"] = True
-    ctx.result["notion_url"] = "(skipped-editorial)"
-    ctx.result["failure_stage"] = "filter"
-    ctx.result["failure_reason"] = failure_reason
-    ctx.result["editorial_reject_reasons"] = hard_reject_reasons
-    logger.info("SKIP [editorial] %s - %s (score=%.0f)", ctx.url, human, score)
-    mark_stage(ctx, "filter_profile", "skipped", failure_reason)
-    return False
+    failure_reason, human, hard_reject_reasons = _editorial_gate_failure(fit, min_score)
+    return _reject_editorial_fit(
+        ctx,
+        failure_reason=failure_reason,
+        human=human,
+        hard_reject_reasons=hard_reject_reasons,
+        score=score,
+    )
 
 
 async def _check_viral_and_calendar(ctx: ProcessRunContext, config) -> bool:
     """바이럴 필터 + 콘텐츠 캘린더 다양성 + 예산 초과 확인."""
-    post_data = ctx.post_data
-    profile = ctx.profile
-
-    # 바이럴 필터 — LLM 기반
-    viral_filter = get_viral_filter(config)
-    if viral_filter is not None:
-        try:
-            viral_score = await viral_filter.score(
-                title=post_data.get("title", ""),
-                content=str(ctx.content_text)[:2000],
-                source=post_data.get("source", ""),
-                likes=int(post_data.get("likes", 0) or 0),
-                comments=int(post_data.get("comments", 0) or 0),
-            )
-            post_data["viral_score"] = viral_score.to_dict()
-            if not viral_score.pass_filter:
-                if is_daily_queue_floor_active(getattr(ctx, "daily_queue_floor", None)):
-                    overrides = ctx.post_data.setdefault("daily_queue_floor_overrides", [])
-                    if "viral_filter_below_threshold" not in overrides:
-                        overrides.append("viral_filter_below_threshold")
-                    logger.info(
-                        "[daily_queue_floor] override viral filter for %s: score=%.0f",
-                        ctx.url,
-                        viral_score.score,
-                    )
-                else:
-                    ctx.result["error"] = (
-                        f"Viral filter: score {viral_score.score:.0f} < threshold ({viral_score.reasoning})"
-                    )
-                    ctx.result["error_code"] = ERROR_FILTERED_LOW_QUALITY
-                    ctx.result["success"] = True
-                    ctx.result["notion_url"] = "(skipped-viral-filter)"
-                    ctx.result["failure_stage"] = "filter"
-                    ctx.result["failure_reason"] = "viral_filter_below_threshold"
-                    logger.info(
-                        "[ViralFilter] SKIP %s: score=%.0f reason=%s", ctx.url, viral_score.score, viral_score.reasoning
-                    )
-                    mark_stage(ctx, "filter_profile", "skipped", "viral_filter_below_threshold")
-                    return False
-        except Exception as viral_exc:
-            logger.debug("Viral filter skipped: %s", viral_exc)
-
-    # 콘텐츠 캘린더 다양성 체크
-    try:
-        from pipeline.content_calendar import ContentCalendar
-        from pipeline.cost_db import get_cost_db
-
-        calendar = ContentCalendar(cost_db=get_cost_db())
-        calendar_ok, calendar_reason = calendar.should_post_topic(
-            topic_cluster=profile.get("topic_cluster", ""),
-            hook_type=profile.get("hook_type", ""),
-            emotion_axis=profile.get("emotion_axis", ""),
-        )
-        if not calendar_ok:
-            if is_daily_queue_floor_active(getattr(ctx, "daily_queue_floor", None)):
-                overrides = ctx.post_data.setdefault("daily_queue_floor_overrides", [])
-                if "content_calendar_diversity" not in overrides:
-                    overrides.append("content_calendar_diversity")
-                logger.info("[daily_queue_floor] override calendar diversity for %s: %s", ctx.url, calendar_reason)
-            else:
-                ctx.result["error"] = f"Calendar skip: {calendar_reason}"
-                ctx.result["error_code"] = ERROR_FILTERED_LOW_QUALITY
-                ctx.result["success"] = True
-                ctx.result["notion_url"] = "(skipped-calendar)"
-                ctx.result["failure_stage"] = "filter"
-                ctx.result["failure_reason"] = "content_calendar_diversity"
-                logger.info("[Calendar] SKIP %s: %s", ctx.url, calendar_reason)
-                mark_stage(ctx, "filter_profile", "skipped", "content_calendar_diversity")
-                return False
-    except Exception as exc:
-        logger.debug("Content calendar check skipped: %s", exc)
-
-    # 일일 API 예산 한도 확인
-    try:
-        from pipeline.cost_db import get_cost_db
-
-        budget_limit = float(config.get("limits.daily_api_budget", 3.0)) if config else 3.0
-        if get_cost_db().is_daily_budget_exceeded(budget_limit):
-            ctx.result["error"] = f"Daily API budget exceeded (limit ${budget_limit:.2f})"
-            ctx.result["error_code"] = ERROR_BUDGET_EXCEEDED
-            ctx.result["failure_stage"] = "budget"
-            ctx.result["failure_reason"] = "daily_budget_exceeded"
-            logger.warning("SKIP [budget exceeded] %s: limit=$%.2f", ctx.url, budget_limit)
-            mark_stage(ctx, "filter_profile", "failed", "daily_budget_exceeded")
-            return False
-    except Exception as exc:
-        logger.debug("Budget check skipped: %s", exc)
-
-    return True
+    if not await _check_viral_filter(ctx, config):
+        return False
+    if not _check_content_calendar(ctx):
+        return False
+    return _check_daily_budget(ctx, config)
 
 
 # ---------------------------------------------------------------------------
