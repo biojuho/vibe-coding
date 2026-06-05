@@ -333,6 +333,36 @@ def test_generate_best_image_downgrades_video_then_uses_stock_mix(tmp_path: Path
     logger.warning.assert_called()
 
 
+def test_generate_best_image_stock_mix_skip_does_not_record_failure(tmp_path: Path) -> None:
+    config = _make_config()
+    config.video.stock_mix_ratio = 0.5
+    pexels_client = MagicMock()
+    step = _make_step(config=config, google_client=None, pexels_client=pexels_client)
+    step._cache = MagicMock(get=MagicMock(return_value=None), put=MagicMock())
+    pollinations_path = tmp_path / "pollinations.png"
+
+    with (
+        patch("shorts_maker_v2.pipeline.media.fallback_mixin.random.random", return_value=0.99),
+        patch("shorts_maker_v2.pipeline.media.fallback_mixin.retry_with_backoff", side_effect=_run_retry),
+        patch.object(step, "_generate_image_pollinations", return_value=pollinations_path),
+        patch.object(step, "_generate_stock_video") as generate_stock_video,
+    ):
+        path_str, visual_type, failures = step._generate_best_image(
+            "visual",
+            tmp_path / "scene_01.png",
+            5.0,
+            _make_cost_guard(),
+            tmp_path,
+            _scene(),
+            MagicMock(),
+        )
+
+    assert path_str == str(pollinations_path)
+    assert visual_type == "image"
+    assert failures == []
+    generate_stock_video.assert_not_called()
+
+
 def test_generate_best_image_imagen_falls_back_to_gemini(tmp_path: Path) -> None:
     config = _make_config()
     config.providers.visual_primary = "google-imagen"
@@ -423,6 +453,36 @@ def test_generate_best_image_body_scene_skips_paid_and_uses_placeholder_after_st
     assert any(f["step"] == "image_pollinations" for f in failures)
     assert any(f["step"] == "stock_policy_fallback" for f in failures)
     placeholder_image.assert_called_once()
+
+
+def test_generate_best_image_uses_stock_after_image_failures(tmp_path: Path) -> None:
+    pexels_client = MagicMock()
+    step = _make_step(google_client=None, pexels_client=pexels_client)
+    step._cache = MagicMock(get=MagicMock(return_value=None), put=MagicMock())
+    stock_path = tmp_path / "scene_01_policy_fallback.mp4"
+
+    with (
+        patch("shorts_maker_v2.pipeline.media.fallback_mixin.retry_with_backoff", side_effect=_run_retry),
+        patch.object(step, "_generate_image_pollinations", side_effect=RuntimeError("pollinations down")),
+        patch.object(step, "_generate_image", side_effect=RuntimeError("dalle down")),
+        patch.object(step, "_generate_stock_video", return_value=stock_path),
+    ):
+        path_str, visual_type, failures = step._generate_best_image(
+            "visual",
+            tmp_path / "target.png",
+            5.0,
+            _make_cost_guard(),
+            tmp_path,
+            _scene(role="hook"),
+            MagicMock(),
+            use_paid_image=True,
+        )
+
+    assert path_str == str(stock_path)
+    assert visual_type == "video"
+    assert any(f["step"] == "image_pollinations" for f in failures)
+    assert any(f["step"] == "image_dalle" for f in failures)
+    step._cache.put.assert_called_once_with("visual", stock_path)
 
 
 def test_process_one_scene_recovers_checkpoint_stock_video(tmp_path: Path) -> None:

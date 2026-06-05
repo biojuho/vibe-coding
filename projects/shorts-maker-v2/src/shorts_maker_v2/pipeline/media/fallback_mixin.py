@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import random
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -106,6 +107,82 @@ class MediaFallbackMixin:
             self._log(logger, "warning", "stock_video_failed_fallback_to_image", scene_id=scene_id, error=str(exc))
             return None
 
+    @staticmethod
+    def _image_failure(step: str, exc: Exception, *, code: str | None = None) -> dict[str, str]:
+        return {"step": step, "code": code or type(exc).__name__, "message": str(exc)[:120]}
+
+    def _try_image_provider(
+        self,
+        step: str,
+        generator: Callable[[], Path | str],
+        attempts: int,
+        logger: Any,
+        scene_id: int,
+        *,
+        success_event: str,
+        failure_event: str,
+        cost_guard: CostGuard | None = None,
+    ) -> tuple[Path | None, dict[str, str] | None]:
+        try:
+            visual_path = retry_with_backoff(
+                generator,
+                max_attempts=attempts,
+                base_delay_sec=1.0,
+            )
+            if cost_guard is not None:
+                cost_guard.add_image_cost()
+            self._log(logger, "info", success_event, scene_id=scene_id)
+            return Path(visual_path), None
+        except Exception as exc:
+            self._log(logger, "warning", failure_event, scene_id=scene_id, error=str(exc))
+            return None, self._image_failure(step, exc)
+
+    def _try_dalle_image(
+        self,
+        visual_prompt: str,
+        img_path: Path,
+        scene_id: int,
+        retry_attempts: int,
+        cost_guard: CostGuard,
+        logger: Any,
+        *,
+        use_paid_image: bool,
+    ) -> tuple[Path | None, list[dict[str, str]]]:
+        if not use_paid_image:
+            self._log(logger, "info", "image_paid_skipped_body_scene", scene_id=scene_id)
+            return None, []
+
+        try:
+            visual_path = retry_with_backoff(
+                lambda p=visual_prompt, ip=img_path: self._generate_image(p, ip),
+                max_attempts=retry_attempts,
+                base_delay_sec=1.0,
+            )
+            cost_guard.add_image_cost()
+            return Path(visual_path), []
+        except BadRequestError as exc:
+            if "content_policy_violation" not in str(exc):
+                return None, [self._image_failure("image_dalle", exc)]
+
+            self._log(
+                logger,
+                "warning",
+                "image_content_policy_blocked",
+                scene_id=scene_id,
+                original_prompt=visual_prompt[:80],
+            )
+            failures = [self._image_failure("image_policy", exc, code="ContentPolicy")]
+            try:
+                safe_prompt = self._sanitize_visual_prompt(visual_prompt)
+                self._log(logger, "info", "image_sanitized_retry", scene_id=scene_id, safe_prompt=safe_prompt[:80])
+                visual_path = self._generate_image(safe_prompt, img_path)
+                cost_guard.add_image_cost()
+                return Path(visual_path), failures
+            except Exception:
+                return None, failures
+        except Exception as exc:
+            return None, [self._image_failure("image_dalle", exc)]
+
     def _try_image_chain(
         self,
         visual_prompt: str,
@@ -122,7 +199,6 @@ class MediaFallbackMixin:
         """
         failures: list[dict[str, str]] = []
         visual_path: Path = img_path
-        image_ready = False
         scene_id = scene.scene_id
         wants_imagen = self.config.providers.visual_primary == "google-imagen"
         retry_attempts = self._resolve_retry_attempts(provider_retry_attempts)
@@ -131,94 +207,81 @@ class MediaFallbackMixin:
         visual_prompt_no_text = with_text_suppression(visual_prompt)
 
         # 1. Imagen 3 (유료, visual_primary=="google-imagen" 시만)
-        if not image_ready and wants_imagen and use_paid_image and self.google_client:
-            try:
-                visual_path = retry_with_backoff(
-                    lambda p=visual_prompt_no_text, ip=img_path: self.google_client.generate_image_imagen3(
+        image_attempts: list[tuple[str, Callable[[], Path | str], int, str, str, CostGuard | None]] = []
+        if wants_imagen and use_paid_image and self.google_client:
+            google_client = self.google_client
+            image_attempts.append(
+                (
+                    "image_imagen3",
+                    lambda p=visual_prompt_no_text, ip=img_path, client=google_client: client.generate_image_imagen3(
                         prompt=p, output_path=ip
                     ),
-                    max_attempts=retry_attempts,
-                    base_delay_sec=1.0,
+                    retry_attempts,
+                    "image_imagen3_success",
+                    "image_imagen3_failed_fallback_to_free",
+                    cost_guard,
                 )
-                cost_guard.add_image_cost()
-                image_ready = True
-                self._log(logger, "info", "image_imagen3_success", scene_id=scene_id)
-            except Exception as exc:
-                failures.append({"step": "image_imagen3", "code": type(exc).__name__, "message": str(exc)[:120]})
-                self._log(logger, "warning", "image_imagen3_failed_fallback_to_free", scene_id=scene_id, error=str(exc))
+            )
 
         # 2. Gemini 무료
-        if not image_ready and self.google_client:
-            try:
-                visual_path = retry_with_backoff(
-                    lambda p=visual_prompt_no_text, ip=img_path: self.google_client.generate_image(
+        if self.google_client:
+            google_client = self.google_client
+            image_attempts.append(
+                (
+                    "image_gemini",
+                    lambda p=visual_prompt_no_text, ip=img_path, client=google_client: client.generate_image(
                         prompt=p, output_path=ip
                     ),
-                    max_attempts=retry_attempts,
-                    base_delay_sec=1.0,
+                    retry_attempts,
+                    "image_gemini_success",
+                    "image_gemini_failed_fallback_to_pollinations",
+                    None,
                 )
-                image_ready = True
-                self._log(logger, "info", "image_gemini_success", scene_id=scene_id)
-            except Exception as exc:
-                failures.append({"step": "image_gemini", "code": type(exc).__name__, "message": str(exc)[:120]})
-                self._log(
-                    logger, "warning", "image_gemini_failed_fallback_to_pollinations", scene_id=scene_id, error=str(exc)
-                )
+            )
 
         # 3. Pollinations FLUX 무료
-        if not image_ready:
-            try:
-                visual_path = retry_with_backoff(
-                    lambda p=visual_prompt, ip=img_path: self._generate_image_pollinations(p, ip),
-                    max_attempts=min(2, retry_attempts),
-                    base_delay_sec=1.0,
-                )
-                image_ready = True
-                self._log(logger, "info", "image_pollinations_flux_success", scene_id=scene_id)
-            except Exception as exc:
-                failures.append({"step": "image_pollinations", "code": type(exc).__name__, "message": str(exc)[:120]})
-                self._log(
-                    logger, "warning", "image_pollinations_failed_fallback_to_dalle", scene_id=scene_id, error=str(exc)
-                )
+        image_attempts.append(
+            (
+                "image_pollinations",
+                lambda p=visual_prompt, ip=img_path: self._generate_image_pollinations(p, ip),
+                min(2, retry_attempts),
+                "image_pollinations_flux_success",
+                "image_pollinations_failed_fallback_to_dalle",
+                None,
+            )
+        )
+
+        for step, generator, attempts, success_event, failure_event, billed_cost_guard in image_attempts:
+            candidate_path, failure = self._try_image_provider(
+                step,
+                generator,
+                attempts,
+                logger,
+                scene_id,
+                success_event=success_event,
+                failure_event=failure_event,
+                cost_guard=billed_cost_guard,
+            )
+            if candidate_path is not None:
+                return candidate_path, True, failures
+            if failure is not None:
+                failures.append(failure)
 
         # 4. DALL-E 유료
-        if not image_ready and use_paid_image:
-            try:
-                visual_path = retry_with_backoff(
-                    lambda p=visual_prompt, ip=img_path: self._generate_image(p, ip),
-                    max_attempts=retry_attempts,
-                    base_delay_sec=1.0,
-                )
-                cost_guard.add_image_cost()
-                image_ready = True
-            except BadRequestError as exc:
-                if "content_policy_violation" in str(exc):
-                    self._log(
-                        logger,
-                        "warning",
-                        "image_content_policy_blocked",
-                        scene_id=scene_id,
-                        original_prompt=visual_prompt[:80],
-                    )
-                    failures.append({"step": "image_policy", "code": "ContentPolicy", "message": str(exc)[:120]})
-                    try:
-                        safe_prompt = self._sanitize_visual_prompt(visual_prompt)
-                        self._log(
-                            logger, "info", "image_sanitized_retry", scene_id=scene_id, safe_prompt=safe_prompt[:80]
-                        )
-                        visual_path = self._generate_image(safe_prompt, img_path)
-                        cost_guard.add_image_cost()
-                        image_ready = True
-                    except Exception:
-                        pass
-                else:
-                    failures.append({"step": "image_dalle", "code": type(exc).__name__, "message": str(exc)[:120]})
-            except Exception as exc:
-                failures.append({"step": "image_dalle", "code": type(exc).__name__, "message": str(exc)[:120]})
-        elif not image_ready and not use_paid_image:
-            self._log(logger, "info", "image_paid_skipped_body_scene", scene_id=scene_id)
+        candidate_path, dalle_failures = self._try_dalle_image(
+            visual_prompt,
+            img_path,
+            scene_id,
+            retry_attempts,
+            cost_guard,
+            logger,
+            use_paid_image=use_paid_image,
+        )
+        failures.extend(dalle_failures)
+        if candidate_path is not None:
+            return candidate_path, True, failures
 
-        return visual_path, image_ready, failures
+        return visual_path, False, failures
 
     def _generate_best_image(
         self,
