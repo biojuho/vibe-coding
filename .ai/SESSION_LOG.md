@@ -576,7 +576,7 @@
 - Closed T-1309 as a bounded `$auto-research` session-orientation reliability cycle for clean-but-unpushed relay closeouts.
 - Changed `execution/session_orient.py`: expanded closeout detection for relay/clean-state/audit wording and added `latest_next_priority_note` when the latest HANDOFF asks to commit a relay update, the worktree is already clean, and git is ahead rather than synced.
 - Changed `workspace/tests/test_session_orient.py`: added regressions proving clean-ahead committed relay closeouts surface the note while dirty worktrees do not.
-- Verification: focused session-orient pytest passed `30/30`; broader session/readiness/launch pytest passed `85/85`; ruff, ruff format check, `py_compile`, and `git diff --check` passed.
-- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1309.json --json` returned `adopt_candidate` with `score_delta=0.9919743726016979`.
+- Verification: focused session-orient pytest passed `30/30`; related session/selector/launch pytest passed `72/72`; broader session/readiness/launch pytest passed `85/85`; ruff, ruff format check, `py_compile`, `git diff --check`, and code-review gate passed with advisory WARN `risk_score=0.55` covered by direct tests.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1309-codex-session-note.json --json` returned `adopt_candidate` with `score_delta=0.6852589641434264`; the broader local T-1309 manifest also returned `adopt_candidate` with `score_delta=0.9919743726016979`.
 - Commit closeout: `dc815257 fix(session): T-1309 note clean-ahead relay closeout` is local only.
 - Boundary: product launch remains incomplete until explicit push authorization/user push plus current-head Actions, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
