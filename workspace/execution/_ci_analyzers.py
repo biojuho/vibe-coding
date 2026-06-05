@@ -15,7 +15,7 @@ from __future__ import annotations
 import ast
 import re
 from pathlib import Path
-from typing import List, NamedTuple, Tuple
+from typing import Iterator, List, NamedTuple, Tuple
 
 from execution._ci_models import (
     FUNCTION_COMPLEXITY_LIMIT,
@@ -263,6 +263,9 @@ class BaseAnalyzer:
 class PythonAnalyzer(BaseAnalyzer):
     language = "python"
     comment_chars = "#"
+    _SNAKE_CASE_RE = re.compile(r"^[a-z_][a-z0-9_]*$")
+    _PASCAL_CASE_RE = re.compile(r"^_?[A-Z][a-zA-Z0-9]*$")
+    _VISITOR_METHOD_RE = re.compile(r"^visit_[A-Z]")
 
     def analyze(self, source: str, file_path: str) -> Tuple[List[Issue], FileMetrics]:
         issues, metrics = super().analyze(source, file_path)
@@ -384,49 +387,40 @@ class PythonAnalyzer(BaseAnalyzer):
     # [FIX #4] Exempt ast.NodeVisitor visit_* methods and _-prefixed private classes
     def _check_naming(self, tree: ast.AST, fp: str) -> List[Issue]:
         issues = []
-        snake_re = re.compile(r"^[a-z_][a-z0-9_]*$")
-        pascal_re = re.compile(r"^_?[A-Z][a-zA-Z0-9]*$")
-        visitor_method_re = re.compile(r"^visit_[A-Z]")
-
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                name = node.name
-                if name.startswith("_"):
-                    continue
-                if visitor_method_re.match(name):
-                    continue
-                if name.startswith("test"):
-                    continue
-                if not snake_re.match(name):
-                    issues.append(
-                        Issue(
-                            file=fp,
-                            line=node.lineno,
-                            column=0,
-                            category="readability",
-                            severity="low",
-                            rule_id="PY003",
-                            message=f"Function '{name}' should be snake_case.",
-                            code_snippet=f"def {name}(...):",
-                            suggestion_hint="Rename to snake_case.",
-                        )
-                    )
-            elif isinstance(node, ast.ClassDef):
-                if not pascal_re.match(node.name):
-                    issues.append(
-                        Issue(
-                            file=fp,
-                            line=node.lineno,
-                            column=0,
-                            category="readability",
-                            severity="low",
-                            rule_id="PY004",
-                            message=f"Class '{node.name}' should be PascalCase.",
-                            code_snippet=f"class {node.name}:",
-                            suggestion_hint="Rename to PascalCase.",
-                        )
-                    )
+                if self._should_check_function_name(node.name) and not self._SNAKE_CASE_RE.match(node.name):
+                    issues.append(self._function_naming_issue(fp, node))
+            elif isinstance(node, ast.ClassDef) and not self._PASCAL_CASE_RE.match(node.name):
+                issues.append(self._class_naming_issue(fp, node))
         return issues
+
+    def _should_check_function_name(self, name: str) -> bool:
+        return not (name.startswith("_") or self._VISITOR_METHOD_RE.match(name) or name.startswith("test"))
+
+    def _function_naming_issue(self, fp: str, node: ast.FunctionDef | ast.AsyncFunctionDef) -> Issue:
+        return _make_issue(
+            file=fp,
+            line=node.lineno,
+            category="readability",
+            severity="low",
+            rule_id="PY003",
+            message=f"Function '{node.name}' should be snake_case.",
+            code_snippet=f"def {node.name}(...):",
+            suggestion_hint="Rename to snake_case.",
+        )
+
+    def _class_naming_issue(self, fp: str, node: ast.ClassDef) -> Issue:
+        return _make_issue(
+            file=fp,
+            line=node.lineno,
+            category="readability",
+            severity="low",
+            rule_id="PY004",
+            message=f"Class '{node.name}' should be PascalCase.",
+            code_snippet=f"class {node.name}:",
+            suggestion_hint="Rename to PascalCase.",
+        )
 
     def _is_test_context(self, fp: str, func_name: str) -> bool:
         norm = fp.replace("\\", "/").lower()
@@ -438,15 +432,13 @@ class PythonAnalyzer(BaseAnalyzer):
 
     def _is_data_heavy_function(self, node: ast.AST) -> bool:
         """Detect functions mostly used for big literal initialization blocks."""
-        for child in ast.walk(node):
-            if isinstance(child, ast.List) and len(child.elts) >= 150:
-                return True
-            if isinstance(child, ast.Tuple) and len(child.elts) >= 150:
-                return True
-            if isinstance(child, ast.Set) and len(child.elts) >= 150:
-                return True
-            if isinstance(child, ast.Dict) and len(child.keys) >= 100:
-                return True
+        return any(self._is_large_literal_node(child) for child in ast.walk(node))
+
+    def _is_large_literal_node(self, node: ast.AST) -> bool:
+        if isinstance(node, ast.Dict):
+            return len(node.keys) >= 100
+        if isinstance(node, (ast.List, ast.Tuple, ast.Set)):
+            return len(node.elts) >= 150
         return False
 
     def _is_dispatcher_function(self, node: ast.AST) -> bool:
@@ -457,13 +449,9 @@ class PythonAnalyzer(BaseAnalyzer):
         if length < 120:
             return False
 
-        if_count = 0
-        return_count = 0
-        for child in ast.walk(node):
-            if isinstance(child, ast.If):
-                if_count += 1
-            elif isinstance(child, ast.Return):
-                return_count += 1
+        children = list(ast.walk(node))
+        if_count = sum(1 for child in children if isinstance(child, ast.If))
+        return_count = sum(1 for child in children if isinstance(child, ast.Return))
         return if_count >= 8 and return_count >= 6
 
     def _check_function_length(self, tree: ast.AST, fp: str, limit: int = FUNCTION_LENGTH_LIMIT) -> List[Issue]:
@@ -553,29 +541,27 @@ class PythonAnalyzer(BaseAnalyzer):
     def _check_type_hints(self, tree: ast.AST, fp: str) -> List[Issue]:
         issues = []
         for node in ast.walk(tree):
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                if node.name.startswith("_"):
-                    continue
-                non_self_args = [a for a in node.args.args if a.arg not in ("self", "cls")]
-                if not non_self_args:
-                    continue
-                args_all_missing = all(a.annotation is None for a in non_self_args)
-                return_missing = node.returns is None
-                if args_all_missing and return_missing:
-                    issues.append(
-                        Issue(
-                            file=fp,
-                            line=node.lineno,
-                            column=0,
-                            category="readability",
-                            severity="low",
-                            rule_id="PY007",
-                            message=f"Function '{node.name}' has no type hints.",
-                            code_snippet=f"def {node.name}(...):",
-                            suggestion_hint="Add type annotations for parameters and return type.",
-                        )
-                    )
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and self._is_missing_public_type_hints(node):
+                issues.append(self._type_hint_issue(fp, node))
         return issues
+
+    def _is_missing_public_type_hints(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+        if node.name.startswith("_"):
+            return False
+        non_self_args = [a for a in node.args.args if a.arg not in ("self", "cls")]
+        return bool(non_self_args) and all(a.annotation is None for a in non_self_args) and node.returns is None
+
+    def _type_hint_issue(self, fp: str, node: ast.FunctionDef | ast.AsyncFunctionDef) -> Issue:
+        return _make_issue(
+            file=fp,
+            line=node.lineno,
+            category="readability",
+            severity="low",
+            rule_id="PY007",
+            message=f"Function '{node.name}' has no type hints.",
+            code_snippet=f"def {node.name}(...):",
+            suggestion_hint="Add type annotations for parameters and return type.",
+        )
 
     def _check_assert_non_test(self, tree: ast.AST, fp: str) -> List[Issue]:
         if "test" in Path(fp).stem.lower():
@@ -630,37 +616,45 @@ class PythonAnalyzer(BaseAnalyzer):
     def _check_string_concat_loop(self, tree: ast.AST, fp: str) -> List[Issue]:
         issues = []
         for node in ast.walk(tree):
-            if isinstance(node, (ast.For, ast.While)):
-                for child in ast.walk(node):
-                    if isinstance(child, ast.AugAssign) and isinstance(child.op, ast.Add):
-                        if isinstance(child.target, ast.Name):
-                            val = child.value
-                            is_string_op = False
-                            if isinstance(val, ast.Constant) and isinstance(val.value, str):
-                                is_string_op = True
-                            elif isinstance(val, ast.JoinedStr):
-                                is_string_op = True
-                            elif isinstance(val, ast.BinOp) and isinstance(val.op, ast.Add):
-                                is_string_op = True
-                            elif isinstance(val, ast.Call):
-                                # e.g., str(...) or .format(...)
-                                is_string_op = True
-                            if is_string_op:
-                                issues.append(
-                                    Issue(
-                                        file=fp,
-                                        line=child.lineno,
-                                        column=0,
-                                        category="performance",
-                                        severity="low",
-                                        rule_id="PY009",
-                                        message="String concatenation in loop may be slow.",
-                                        code_snippet=f"{child.target.id} += ...",
-                                        suggestion_hint="Collect in a list and use ''.join().",
-                                    )
-                                )
-                                break
+            if not isinstance(node, (ast.For, ast.While)):
+                continue
+            for child in self._iter_string_concat_augassigns(node):
+                issues.append(self._string_concat_issue(fp, child))
+                break
         return issues
+
+    def _iter_string_concat_augassigns(self, node: ast.AST) -> Iterator[ast.AugAssign]:
+        for child in ast.walk(node):
+            if self._is_string_concat_augassign(child):
+                yield child
+
+    def _is_string_concat_augassign(self, node: ast.AST) -> bool:
+        return (
+            isinstance(node, ast.AugAssign)
+            and isinstance(node.op, ast.Add)
+            and isinstance(node.target, ast.Name)
+            and self._is_string_concat_value(node.value)
+        )
+
+    def _is_string_concat_value(self, node: ast.AST) -> bool:
+        if isinstance(node, ast.Constant):
+            return isinstance(node.value, str)
+        return isinstance(node, (ast.JoinedStr, ast.Call)) or (
+            isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add)
+        )
+
+    def _string_concat_issue(self, fp: str, node: ast.AugAssign) -> Issue:
+        target = node.target.id if isinstance(node.target, ast.Name) else "value"
+        return _make_issue(
+            file=fp,
+            line=node.lineno,
+            category="performance",
+            severity="low",
+            rule_id="PY009",
+            message="String concatenation in loop may be slow.",
+            code_snippet=f"{target} += ...",
+            suggestion_hint="Collect in a list and use ''.join().",
+        )
 
 
 # ---------------------------------------------------------------------------
