@@ -690,6 +690,19 @@
 
 ## 2026-06-06 - Codex
 
+- Closed T-1335 as a bounded `$auto-research` `blind-to-x` Notion upload maintainability cycle.
+- Changed `projects/blind-to-x/pipeline/notion/_upload.py`: `upload()` now delegates upload memo construction, X publish properties, draft body properties, analysis properties, base upload properties, initial media children, regulation status, and child block assembly to focused helpers while preserving page creation behavior.
+- Changed `projects/blind-to-x/tests/unit/test_notion_upload.py`: added direct regression coverage that `_build_upload_properties()` preserves review brief, X scheduling/status, draft body, reply, Threads/blog, topic/emotion, and final rank score payloads.
+- Verification: project venv Notion upload pytest passed `43/43` using repo-local `--basetemp`; ruff check passed; ruff format check passed; `py_compile` passed; `git diff --check` passed.
+- Full blind-to-x project QC passed: `1744 passed, 9 skipped` plus lint.
+- VibeDebt proof: `pipeline/notion/_upload.py` score `43.2 -> 34.4`, max complexity `24 -> 20`, max function length `128 -> 49`, blind-to-x project TDR `34.8 -> 34.6`.
+- Code-review gate: `code_review_gate.py --base HEAD --json`, staged gate, and pre-commit hook returned advisory WARN (`risk_score` `0.35` to `0.40`) from graph test-gap heuristics; direct Notion upload tests plus full blind-to-x project QC covered the changed behavior.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1335.json --json` returned `adopt_candidate` with `score_delta=0.25058404887338076`.
+- Commit closeout: `a1c5a000 refactor(blind-to-x): T-1335 split notion upload assembly` is local only; no push was performed.
+- Current boundary: code-review graph is current at `a1c5a000`, but release authorization packet is `blocked_dirty_worktree` because six unrelated `shorts-maker-v2` files are unstaged. Selector chooses `github_inventory_followup` before more product changes. Preserve that WIP unless explicitly scoped; do not retry T-251 before Supabase Dashboard credential reset and `.env` resync.
+
+## 2026-06-06 - Codex
+
 - Closed T-1334 as a bounded `$auto-research` `shorts-maker-v2` media fallback maintainability cycle.
 - Changed `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/media/fallback_mixin.py`: `_try_image_provider()` and `_try_dalle_image()` now carry the repeated provider retry and DALL-E policy paths, while `_try_image_chain()` builds ordered Imagen/Gemini/Pollinations image attempts and preserves stock-video fallback, cache, and placeholder behavior.
 - Changed `projects/shorts-maker-v2/tests/unit/test_media_step_branches.py`: added regressions for skipped stock-mix attempts not recording failures and for stock-video recovery after image-provider failures.
