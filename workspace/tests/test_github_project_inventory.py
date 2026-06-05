@@ -189,3 +189,101 @@ def test_inventory_cli_output_file_writes_ascii_json_and_preserves_stdout(tmp_pa
     assert stdout_payload == file_payload
     assert file_payload["root"] == str(root.resolve())
     assert output.read_text(encoding="utf-8").isascii()
+
+
+def test_git_summary_refreshes_index_and_ignores_stale_status_when_diff_is_clean(tmp_path: Path, monkeypatch) -> None:
+    calls: list[list[str]] = []
+
+    def fake_run(args: list[str], cwd: Path, timeout: int = 20) -> dict[str, object]:
+        calls.append(args)
+        command = tuple(args)
+        if command == ("git", "branch", "--show-current"):
+            return {"available": True, "returncode": 0, "stdout": "main", "stderr": ""}
+        if command == ("git", "status", "--porcelain=v1", "-b"):
+            return {
+                "available": True,
+                "returncode": 0,
+                "stdout": "## main...origin/main\nM  .ai/HANDOFF.md\n M .ai/TASKS.md",
+                "stderr": "",
+            }
+        if command in {
+            ("git", "update-index", "-q", "--refresh"),
+            ("git", "diff", "--quiet"),
+            ("git", "diff", "--cached", "--quiet"),
+            ("git", "remote", "-v"),
+        }:
+            return {"available": True, "returncode": 0, "stdout": "", "stderr": ""}
+        raise AssertionError(f"unexpected command: {args}")
+
+    monkeypatch.setattr(inventory, "_run", fake_run)
+
+    summary = inventory._git_summary(tmp_path)
+
+    assert calls[0] == ["git", "update-index", "-q", "--refresh"]
+    assert summary["status_dirty_count"] == 2
+    assert summary["dirty_count"] == 0
+    assert summary["dirty_paths"] == []
+    assert summary["dirty_confirmation"] == "diff_clean_status_stale"
+
+
+def test_git_summary_keeps_tracked_status_when_worktree_diff_is_dirty(tmp_path: Path, monkeypatch) -> None:
+    def fake_run(args: list[str], cwd: Path, timeout: int = 20) -> dict[str, object]:
+        command = tuple(args)
+        if command == ("git", "branch", "--show-current"):
+            return {"available": True, "returncode": 0, "stdout": "main", "stderr": ""}
+        if command == ("git", "status", "--porcelain=v1", "-b"):
+            return {
+                "available": True,
+                "returncode": 0,
+                "stdout": "## main...origin/main\n M .ai/TASKS.md",
+                "stderr": "",
+            }
+        if command == ("git", "diff", "--quiet"):
+            return {"available": True, "returncode": 1, "stdout": "", "stderr": ""}
+        if command in {
+            ("git", "update-index", "-q", "--refresh"),
+            ("git", "diff", "--cached", "--quiet"),
+            ("git", "remote", "-v"),
+        }:
+            return {"available": True, "returncode": 0, "stdout": "", "stderr": ""}
+        raise AssertionError(f"unexpected command: {args}")
+
+    monkeypatch.setattr(inventory, "_run", fake_run)
+
+    summary = inventory._git_summary(tmp_path)
+
+    assert summary["status_dirty_count"] == 1
+    assert summary["dirty_count"] == 1
+    assert summary["dirty_paths"] == [".ai/TASKS.md"]
+    assert summary["dirty_confirmation"] == "diff_dirty"
+
+
+def test_git_summary_keeps_untracked_status_even_when_tracked_diff_is_clean(tmp_path: Path, monkeypatch) -> None:
+    def fake_run(args: list[str], cwd: Path, timeout: int = 20) -> dict[str, object]:
+        command = tuple(args)
+        if command == ("git", "branch", "--show-current"):
+            return {"available": True, "returncode": 0, "stdout": "main", "stderr": ""}
+        if command == ("git", "status", "--porcelain=v1", "-b"):
+            return {
+                "available": True,
+                "returncode": 0,
+                "stdout": "## main...origin/main\n?? .tmp/new-evidence.json",
+                "stderr": "",
+            }
+        if command in {
+            ("git", "update-index", "-q", "--refresh"),
+            ("git", "diff", "--quiet"),
+            ("git", "diff", "--cached", "--quiet"),
+            ("git", "remote", "-v"),
+        }:
+            return {"available": True, "returncode": 0, "stdout": "", "stderr": ""}
+        raise AssertionError(f"unexpected command: {args}")
+
+    monkeypatch.setattr(inventory, "_run", fake_run)
+
+    summary = inventory._git_summary(tmp_path)
+
+    assert summary["status_dirty_count"] == 1
+    assert summary["dirty_count"] == 1
+    assert summary["dirty_paths"] == [".tmp/new-evidence.json"]
+    assert summary["dirty_confirmation"] == "untracked"

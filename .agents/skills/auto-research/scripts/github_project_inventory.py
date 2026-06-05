@@ -186,17 +186,67 @@ def _discover_projects(root: Path) -> list[dict[str, Any]]:
     return [_project_info(path, root) for path in unique if _has_any(path, PROJECT_MARKERS)]
 
 
+def _status_dirty_lines(status_stdout: str) -> list[str]:
+    return [line for line in status_stdout.splitlines() if line and not line.startswith("##")]
+
+
+def _status_path(line: str) -> str:
+    return line[3:].strip() if len(line) > 3 else line.strip()
+
+
+def _diff_is_clean(result: dict[str, Any]) -> bool:
+    return result.get("available") is True and result.get("returncode") == 0
+
+
+def _diff_is_dirty(result: dict[str, Any]) -> bool:
+    return result.get("available") is True and result.get("returncode") == 1
+
+
+def _confirmed_dirty_count(
+    status_dirty_lines: list[str],
+    *,
+    worktree_diff: dict[str, Any],
+    cached_diff: dict[str, Any],
+) -> tuple[int, list[str], str]:
+    if not status_dirty_lines:
+        return 0, [], "status_clean"
+
+    dirty_paths = [_status_path(line) for line in status_dirty_lines]
+    if any(line.startswith("??") for line in status_dirty_lines):
+        return len(status_dirty_lines), dirty_paths, "untracked"
+
+    if _diff_is_dirty(worktree_diff) or _diff_is_dirty(cached_diff):
+        return len(status_dirty_lines), dirty_paths, "diff_dirty"
+
+    if _diff_is_clean(worktree_diff) and _diff_is_clean(cached_diff):
+        return 0, [], "diff_clean_status_stale"
+
+    return len(status_dirty_lines), dirty_paths, "status_unconfirmed"
+
+
 def _git_summary(root: Path) -> dict[str, Any]:
+    index_refresh = _run(["git", "update-index", "-q", "--refresh"], root)
     branch = _run(["git", "branch", "--show-current"], root)
     status = _run(["git", "status", "--porcelain=v1", "-b"], root)
+    worktree_diff = _run(["git", "diff", "--quiet"], root)
+    cached_diff = _run(["git", "diff", "--cached", "--quiet"], root)
     remote = _run(["git", "remote", "-v"], root)
-    dirty_count = 0
-    if status.get("available") and status.get("stdout"):
-        dirty_count = sum(1 for line in status["stdout"].splitlines() if not line.startswith("##"))
+    status_dirty_lines = _status_dirty_lines(str(status.get("stdout") or "")) if status.get("available") else []
+    dirty_count, dirty_paths, dirty_confirmation = _confirmed_dirty_count(
+        status_dirty_lines,
+        worktree_diff=worktree_diff,
+        cached_diff=cached_diff,
+    )
     return {
         "branch": branch.get("stdout") if branch.get("returncode") == 0 else None,
         "dirty_count": dirty_count,
+        "dirty_paths": dirty_paths,
+        "status_dirty_count": len(status_dirty_lines),
+        "dirty_confirmation": dirty_confirmation,
+        "index_refresh": index_refresh,
         "status": status,
+        "worktree_diff": worktree_diff,
+        "cached_diff": cached_diff,
         "remote": remote,
     }
 
