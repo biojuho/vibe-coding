@@ -91,6 +91,49 @@ def test_providers_package_lazy_loads_client_exports():
 # ── Chatterbox 테스트 ──────────────────────────────────────────────────────────
 
 
+def test_providers_package_restores_loaded_submodule_attribute():
+    import shorts_maker_v2.providers as providers_module
+    import shorts_maker_v2.providers.edge_tts_client as edge_tts_module
+
+    original = providers_module.__dict__.pop("edge_tts_client", None)
+    try:
+        with patch("shorts_maker_v2.providers.find_spec", return_value=None):
+            assert providers_module.edge_tts_client is edge_tts_module
+    finally:
+        providers_module.__dict__.pop("edge_tts_client", None)
+        if original is not None:
+            providers_module.__dict__["edge_tts_client"] = original
+
+
+def test_edge_tts_client_imports_without_optional_dependency():
+    import builtins
+    import importlib
+
+    import shorts_maker_v2.providers.edge_tts_client as edge_tts_module
+
+    original_import = builtins.__import__
+    had_edge_tts = "edge_tts" in sys.modules
+    original_edge_tts = sys.modules.get("edge_tts")
+
+    def _raise_for_edge_tts(name, *args, **kwargs):
+        if name == "edge_tts":
+            raise ImportError("No module named edge_tts")
+        return original_import(name, *args, **kwargs)
+
+    sys.modules.pop("edge_tts", None)
+    try:
+        with patch.object(builtins, "__import__", side_effect=_raise_for_edge_tts):
+            reloaded = importlib.reload(edge_tts_module)
+        with pytest.raises(ImportError, match="edge-tts package is required"):
+            reloaded.edge_tts.Communicate("text", voice="ko-KR-SunHiNeural")
+    finally:
+        if had_edge_tts:
+            sys.modules["edge_tts"] = original_edge_tts
+        else:
+            sys.modules.pop("edge_tts", None)
+        importlib.reload(edge_tts_module)
+
+
 class TestChatterboxClient:
     """ChatterboxTTSClient 유닛 테스트."""
 

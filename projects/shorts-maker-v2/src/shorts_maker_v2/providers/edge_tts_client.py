@@ -17,7 +17,16 @@ import re as _re
 from pathlib import Path
 from typing import Any
 
-import edge_tts
+try:
+    import edge_tts
+except ImportError:
+
+    class _MissingEdgeTTS:
+        @staticmethod
+        def Communicate(*_args: Any, **_kwargs: Any):
+            raise ImportError("edge-tts package is required for EdgeTTSClient") from None
+
+    edge_tts = _MissingEdgeTTS()
 import yaml
 
 logger = logging.getLogger(__name__)
