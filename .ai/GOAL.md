@@ -9,7 +9,7 @@
 - Owner: Codex, with user-owned T-251 external Supabase credential reset
 - Started: 2026-06-05
 - Latest: 2026-06-05 T-1301 feature commit `43bd0f8e` is pushed and required Actions passed. `launch_objective_audit.py` now collects live `next_experiment_selector.py` state, records clean `blocked_external_only` as evidence without duplicating T-251, and blocks launch completion when a local selector candidate remains.
-- Success: Launch audit is 8/8 complete after user-owned Hanwoo T-251 Supabase credential reset and live Prisma CRUD E2E pass; until then keep local launch evidence green and do not retry T-251.
+- Success: All launch-audit requirements are complete after user-owned Hanwoo T-251 Supabase credential reset and live Prisma CRUD E2E pass; until then keep local launch evidence green and do not retry T-251.
 
 ## Progress Notes
 
