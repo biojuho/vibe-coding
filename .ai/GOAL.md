@@ -8,10 +8,12 @@
 - Goal: Product launch-ready workspace through the auto-research self-improvement loop across GitHub projects, browser-click QA, A/B adoption, current dependency/code triage, and local readiness gates.
 - Owner: Codex, with user-owned T-251 external Supabase credential reset
 - Started: 2026-06-05
-- Latest: 2026-06-05 T-1300 feature commit `b59e3006` is pushed and required Actions passed. `launch_objective_audit.py` now selects local A/B manifest evidence by highest task identity when available, supports `--ab-manifest` for explicit evidence pinning, and cites `.tmp/ab-manifest-t1300.json` with candidate metrics `5` and gates `8/8`.
+- Latest: 2026-06-05 T-1301 feature commit `43bd0f8e` is pushed and required Actions passed. `launch_objective_audit.py` now collects live `next_experiment_selector.py` state, records clean `blocked_external_only` as evidence without duplicating T-251, and blocks launch completion when a local selector candidate remains.
 - Success: Launch audit is 8/8 complete after user-owned Hanwoo T-251 Supabase credential reset and live Prisma CRUD E2E pass; until then keep local launch evidence green and do not retry T-251.
 
 ## Progress Notes
+
+- 2026-06-05: T-1301 added live next-experiment selector-state evidence to launch-objective audits. The candidate passed focused pytest `20/20`, broader auto-research launch/completion/selector pytest `33/33`, ruff, format check, `py_compile`, diff-check, runtime launch audit selector evidence, A/B `adopt_candidate`, completion audit `4/4`, code-review gate exit `0` with advisory WARN `risk_score=0.35` covered by direct tests, and required Actions on `43bd0f8e`. Full product launch remains blocked only by external/user-owned Hanwoo T-251.
 
 - 2026-06-05: T-1300 stabilized launch-objective A/B manifest evidence selection so older `.tmp/ab-manifest-*` artifacts touched after newer experiments do not displace the intended latest evidence. The candidate passed focused pytest `18/18`, broader auto-research launch/completion/selector pytest `31/31`, ruff, format check, `py_compile`, diff-check, code-review gate `risk_score=0.0`, A/B `adopt_candidate`, completion audit `4/4`, and required Actions on `b59e3006`. Full product launch remains blocked only by external/user-owned Hanwoo T-251.
 
