@@ -60,6 +60,15 @@ def _dist_tags(payload: dict[str, str]) -> dict[str, object]:
     }
 
 
+def _peer_metadata(version: str, peer_dependencies: dict[str, str]) -> dict[str, object]:
+    return {
+        "available": True,
+        "returncode": 0,
+        "stdout": json.dumps({"version": version, "peerDependencies": peer_dependencies}),
+        "stderr": "",
+    }
+
+
 def test_patch_minor_wanted_update_is_candidate() -> None:
     result = dependency_freshness_inventory.classify_dependency(
         "react",
@@ -244,14 +253,20 @@ def test_peer_blocked_major_recommendation_waits_for_upstream_support(tmp_path: 
                 }
             }
         ),
+        peer_metadata_runner=lambda _path, _package_name, _timeout: _peer_metadata(
+            "7.37.5", {"eslint": "^3 || ^4 || ^5 || ^6 || ^7 || ^8 || ^9.7"}
+        ),
     )
 
     assert result["summary"]["candidate_dependency_count"] == 0
     assert result["summary"]["deferred_dependency_count"] == 2
+    assert result["summary"]["peer_blocker_latest_supported_count"] == 0
+    assert result["summary"]["peer_blocker_latest_blocked_count"] == 2
     assert result["recommendations"] == [
         "No direct npm patch/minor adoption candidates; wait for upstream peer support before "
-        "major migrations for: projects/hanwoo-dashboard (eslint: 1 peer blocker(s)); "
-        "projects/knowledge-dashboard (eslint: 1 peer blocker(s))"
+        "major migrations for: projects/hanwoo-dashboard "
+        "(eslint: 1 peer blocker(s), 0/1 latest-supported, 1 still blocked); "
+        "projects/knowledge-dashboard (eslint: 1 peer blocker(s), 0/1 latest-supported, 1 still blocked)"
     ]
 
 
@@ -291,6 +306,11 @@ def test_deferred_eslint_major_reports_lockfile_peer_blockers(tmp_path: Path) ->
                 }
             }
         ),
+        peer_metadata_runner=lambda _path, package_name, _timeout: (
+            _peer_metadata("7.37.5", {"eslint": "^3 || ^4 || ^5 || ^6 || ^7 || ^8 || ^9.7"})
+            if package_name == "eslint-plugin-react"
+            else _peer_metadata("7.1.1", {"eslint": "^3 || ^4 || ^5 || ^6 || ^7 || ^8 || ^9 || ^10.0.0"})
+        ),
     )
 
     dependency = result["projects"][0]["dependencies"][0]
@@ -298,15 +318,84 @@ def test_deferred_eslint_major_reports_lockfile_peer_blockers(tmp_path: Path) ->
     assert dependency["peer_blocker_check"] == "blocked"
     assert dependency["peer_target_major"] == 10
     assert dependency["peer_blocker_count"] == 1
+    assert dependency["peer_blocker_latest_check"] == "still_blocked"
+    assert dependency["peer_blocker_latest_supported_count"] == 0
+    assert dependency["peer_blocker_latest_blocked_count"] == 1
+    assert dependency["peer_blocker_latest_unavailable_count"] == 0
     assert dependency["peer_blockers"] == [
         {
             "package": "eslint-plugin-react",
             "version": "7.37.5",
             "peer_range": "^3 || ^4 || ^5 || ^6 || ^7 || ^8 || ^9.7",
             "path": "node_modules/eslint-config-next/node_modules/eslint-plugin-react",
+            "latest_version": "7.37.5",
+            "latest_peer_range": "^3 || ^4 || ^5 || ^6 || ^7 || ^8 || ^9.7",
+            "latest_peer_allows_target": False,
+            "latest_peer_check": "blocks_target_major",
         }
     ]
     assert "do not allow eslint major 10" in dependency["reason"]
+
+
+def test_deferred_eslint_major_reports_partial_latest_peer_support(tmp_path: Path) -> None:
+    project_path = tmp_path / "projects" / "hanwoo-dashboard"
+    _write_package(project_path, {"eslint": "^9.39.4"})
+    _write_package_lock(
+        project_path,
+        {
+            "": {
+                "name": "hanwoo-dashboard",
+                "dependencies": {"eslint": "^9.39.4"},
+            },
+            "node_modules/eslint-plugin-react": {
+                "version": "7.37.5",
+                "peerDependencies": {"eslint": "^3 || ^4 || ^5 || ^6 || ^7 || ^8 || ^9.7"},
+            },
+            "node_modules/eslint-plugin-react-hooks": {
+                "version": "7.0.1",
+                "peerDependencies": {"eslint": "^3 || ^4 || ^5 || ^6 || ^7 || ^8 || ^9"},
+            },
+        },
+    )
+
+    latest_metadata = {
+        "eslint-plugin-react": _peer_metadata("7.37.5", {"eslint": "^3 || ^4 || ^5 || ^6 || ^7 || ^8 || ^9.7"}),
+        "eslint-plugin-react-hooks": _peer_metadata(
+            "7.1.1", {"eslint": "^3 || ^4 || ^5 || ^6 || ^7 || ^8 || ^9 || ^10.0.0"}
+        ),
+    }
+
+    result = dependency_freshness_inventory.build_inventory(
+        tmp_path,
+        runner=lambda _path, _timeout: _npm_result(
+            {
+                "eslint": {
+                    "current": "9.39.4",
+                    "wanted": "9.39.4",
+                    "latest": "10.4.1",
+                }
+            }
+        ),
+        peer_metadata_runner=lambda _path, package_name, _timeout: latest_metadata[package_name],
+    )
+
+    dependency = result["projects"][0]["dependencies"][0]
+    checks_by_package = {blocker["package"]: blocker for blocker in dependency["peer_blockers"]}
+    assert dependency["peer_blocker_latest_check"] == "partial_upstream_support"
+    assert dependency["peer_blocker_latest_supported_count"] == 1
+    assert dependency["peer_blocker_latest_blocked_count"] == 1
+    assert dependency["peer_blocker_latest_unavailable_count"] == 0
+    assert result["summary"]["peer_blocker_latest_supported_count"] == 1
+    assert result["summary"]["peer_blocker_latest_blocked_count"] == 1
+    assert checks_by_package["eslint-plugin-react-hooks"]["latest_version"] == "7.1.1"
+    assert checks_by_package["eslint-plugin-react-hooks"]["latest_peer_check"] == "allows_target_major"
+    assert checks_by_package["eslint-plugin-react-hooks"]["latest_peer_allows_target"] is True
+    assert "latest metadata shows 1 peer blocker(s) now allow the target major" in dependency["reason"]
+    assert result["recommendations"] == [
+        "No direct npm patch/minor adoption candidates; wait for upstream peer support before "
+        "major migrations for: projects/hanwoo-dashboard "
+        "(eslint: 2 peer blocker(s), 1/2 latest-supported, 1 still blocked)"
+    ]
 
 
 def test_empty_outdated_payload_marks_project_clean(tmp_path: Path) -> None:

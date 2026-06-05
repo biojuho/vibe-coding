@@ -179,6 +179,10 @@ def _dependency_inventory(
                         "deferred": True,
                         "peer_blocker_check": "blocked",
                         "peer_blocker_count": 4,
+                        "peer_blocker_latest_check": "partial_upstream_support",
+                        "peer_blocker_latest_supported_count": 1,
+                        "peer_blocker_latest_blocked_count": 3,
+                        "peer_blocker_latest_unavailable_count": 0,
                     }
                 ],
             },
@@ -190,6 +194,10 @@ def _dependency_inventory(
                         "deferred": True,
                         "peer_blocker_check": "blocked",
                         "peer_blocker_count": 3,
+                        "peer_blocker_latest_check": "still_blocked",
+                        "peer_blocker_latest_supported_count": 0,
+                        "peer_blocker_latest_blocked_count": 3,
+                        "peer_blocker_latest_unavailable_count": 0,
                     }
                 ],
             },
@@ -460,6 +468,7 @@ def test_peer_blocked_deferred_dependency_evidence_is_not_a_direct_candidate_blo
     assert any(
         "projects/hanwoo-dashboard/eslint peer_blocker_count=4" in evidence
         and "projects/knowledge-dashboard/eslint peer_blocker_count=3" in evidence
+        and "latest_supported=1, latest_blocked=3, latest_unavailable=0" in evidence
         for evidence in dependency_item["evidence"]
     )
 

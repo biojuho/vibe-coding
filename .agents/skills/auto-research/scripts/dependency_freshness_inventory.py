@@ -154,6 +154,49 @@ def _run_npm_dist_tags(project_path: Path, package_name: str, timeout: int) -> d
     }
 
 
+def _run_npm_peer_metadata(project_path: Path, package_name: str, timeout: int) -> dict[str, Any]:
+    command = _npm_command()
+    if command is None:
+        return {
+            "available": False,
+            "returncode": None,
+            "stdout": "",
+            "stderr": "npm command not found",
+        }
+    try:
+        completed = subprocess.run(
+            [command, "view", package_name, "version", "peerDependencies", "--json"],
+            cwd=str(project_path),
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=timeout,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        return {
+            "available": False,
+            "returncode": None,
+            "stdout": exc.stdout or "",
+            "stderr": f"npm view {package_name} peer metadata timed out after {timeout}s",
+        }
+    except (FileNotFoundError, OSError) as exc:
+        return {
+            "available": False,
+            "returncode": None,
+            "stdout": "",
+            "stderr": str(exc),
+        }
+    return {
+        "available": True,
+        "returncode": completed.returncode,
+        "stdout": completed.stdout.strip(),
+        "stderr": completed.stderr.strip(),
+    }
+
+
 def _parse_version(version: Any) -> tuple[int, int, int] | None:
     if not isinstance(version, str):
         return None
@@ -377,6 +420,77 @@ def _parse_dist_tags_result(result: dict[str, Any]) -> tuple[dict[str, str], lis
     return tags, []
 
 
+def _parse_peer_metadata_result(result: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    if not result.get("available", False):
+        return {}, [str(result.get("stderr") or "npm peer metadata unavailable")]
+    if int(result.get("returncode") or 0) != 0:
+        return {}, [str(result.get("stderr") or "npm peer metadata command failed")]
+    stdout = str(result.get("stdout") or "").strip()
+    if not stdout:
+        return {}, ["npm peer metadata JSON was empty"]
+    try:
+        parsed = json.loads(stdout)
+    except json.JSONDecodeError as exc:
+        return {}, [f"failed to parse npm peer metadata JSON: {exc}"]
+    if not isinstance(parsed, dict):
+        return {}, ["npm peer metadata JSON root was not an object"]
+    peer_dependencies = parsed.get("peerDependencies")
+    normalized_peer_dependencies = (
+        {str(key): str(value) for key, value in peer_dependencies.items()}
+        if isinstance(peer_dependencies, dict)
+        else {}
+    )
+    version = parsed.get("version")
+    return {
+        "version": str(version) if isinstance(version, str) else "",
+        "peerDependencies": normalized_peer_dependencies,
+    }, []
+
+
+def _annotate_latest_peer_support(
+    blocker: dict[str, Any],
+    dependency_name: str,
+    target_major: int,
+    project_path: Path,
+    timeout: int,
+    peer_metadata_runner: "PeerMetadataRunner",
+) -> dict[str, Any]:
+    package_name = str(blocker.get("package") or "")
+    if not package_name or package_name == "unknown":
+        blocker["latest_peer_check"] = "unknown_package"
+        blocker["latest_peer_allows_target"] = False
+        return blocker
+
+    metadata, issues = _parse_peer_metadata_result(peer_metadata_runner(project_path, package_name, timeout))
+    if issues:
+        blocker["latest_peer_check"] = "unavailable"
+        blocker["latest_peer_issues"] = issues
+        blocker["latest_peer_allows_target"] = False
+        return blocker
+
+    latest_version = metadata.get("version")
+    if latest_version:
+        blocker["latest_version"] = latest_version
+    peer_dependencies = metadata.get("peerDependencies")
+    if not isinstance(peer_dependencies, dict) or not peer_dependencies:
+        blocker["latest_peer_check"] = "missing_peer_dependencies"
+        blocker["latest_peer_allows_target"] = False
+        return blocker
+
+    latest_peer_range = peer_dependencies.get(dependency_name)
+    if latest_peer_range is None:
+        blocker["latest_peer_check"] = "missing_target_peer"
+        blocker["latest_peer_allows_target"] = False
+        return blocker
+
+    blocker["latest_peer_range"] = str(latest_peer_range)
+    blocker["latest_peer_allows_target"] = _peer_range_allows_major(latest_peer_range, target_major)
+    blocker["latest_peer_check"] = (
+        "allows_target_major" if blocker["latest_peer_allows_target"] else "blocks_target_major"
+    )
+    return blocker
+
+
 def _apply_prerelease_dist_tag_context(
     dependency: dict[str, Any],
     project_path: Path,
@@ -411,7 +525,12 @@ def _apply_prerelease_dist_tag_context(
     return dependency
 
 
-def _apply_deferred_major_peer_context(dependency: dict[str, Any], project_path: Path) -> dict[str, Any]:
+def _apply_deferred_major_peer_context(
+    dependency: dict[str, Any],
+    project_path: Path,
+    timeout: int,
+    peer_metadata_runner: "PeerMetadataRunner",
+) -> dict[str, Any]:
     if not dependency.get("deferred") or dependency.get("latest_delta") != "major":
         return dependency
 
@@ -420,19 +539,50 @@ def _apply_deferred_major_peer_context(dependency: dict[str, Any], project_path:
         return dependency
 
     target_major = latest_version[0]
-    blockers, status = _find_peer_blockers(project_path, str(dependency["name"]), target_major)
+    dependency_name = str(dependency["name"])
+    blockers, status = _find_peer_blockers(project_path, dependency_name, target_major)
     dependency["peer_blocker_check"] = status
     dependency["peer_target_major"] = target_major
     if not blockers:
         return dependency
 
+    annotated_blockers = [
+        _annotate_latest_peer_support(
+            blocker,
+            dependency_name,
+            target_major,
+            project_path,
+            timeout,
+            peer_metadata_runner,
+        )
+        for blocker in blockers
+    ]
+    latest_supported = sum(1 for blocker in annotated_blockers if blocker.get("latest_peer_allows_target") is True)
+    latest_blocked = sum(
+        1 for blocker in annotated_blockers if blocker.get("latest_peer_check") == "blocks_target_major"
+    )
+    latest_unavailable = len(annotated_blockers) - latest_supported - latest_blocked
+
     dependency["peer_blocker_count"] = len(blockers)
-    dependency["peer_blockers"] = blockers[:PEER_BLOCKER_SAMPLE_LIMIT]
+    dependency["peer_blocker_latest_supported_count"] = latest_supported
+    dependency["peer_blocker_latest_blocked_count"] = latest_blocked
+    dependency["peer_blocker_latest_unavailable_count"] = latest_unavailable
+    if latest_supported and (latest_blocked or latest_unavailable):
+        dependency["peer_blocker_latest_check"] = "partial_upstream_support"
+    elif latest_supported == len(annotated_blockers):
+        dependency["peer_blocker_latest_check"] = "upstream_support_available"
+    elif latest_unavailable == len(annotated_blockers):
+        dependency["peer_blocker_latest_check"] = "unavailable"
+    else:
+        dependency["peer_blocker_latest_check"] = "still_blocked"
+    dependency["peer_blockers"] = annotated_blockers[:PEER_BLOCKER_SAMPLE_LIMIT]
     if len(blockers) > PEER_BLOCKER_SAMPLE_LIMIT:
         dependency["peer_blockers_truncated"] = True
     dependency["reason"] += (
         f"; {len(blockers)} installed peer dependency range(s) do not allow {dependency['name']} major {target_major}"
     )
+    if latest_supported:
+        dependency["reason"] += f"; latest metadata shows {latest_supported} peer blocker(s) now allow the target major"
     return dependency
 
 
@@ -442,6 +592,7 @@ def summarize_project(
     npm_result: dict[str, Any],
     timeout: int = 60,
     tag_runner: "DistTagRunner" = _run_npm_dist_tags,
+    peer_metadata_runner: "PeerMetadataRunner" = _run_npm_peer_metadata,
 ) -> dict[str, Any]:
     package_data = _load_json(project_path / "package.json")
     declared_names = _package_dependency_names(package_data)
@@ -472,7 +623,7 @@ def summarize_project(
     for name, raw in sorted(parsed.items(), key=lambda item: str(item[0]).lower()):
         dependency = classify_dependency(str(name), raw if isinstance(raw, dict) else {})
         dependency = _apply_prerelease_dist_tag_context(dependency, project_path, timeout, tag_runner)
-        dependency = _apply_deferred_major_peer_context(dependency, project_path)
+        dependency = _apply_deferred_major_peer_context(dependency, project_path, timeout, peer_metadata_runner)
         dependencies.append(dependency)
     project["dependencies"] = dependencies
     project["outdated_count"] = len(dependencies)
@@ -524,7 +675,18 @@ def _recommendations(projects: list[dict[str, Any]]) -> list[str]:
                     continue
                 if dependency.get("latest_delta") == "major" and dependency.get("peer_blocker_check") == "blocked":
                     blocker_count = int(dependency.get("peer_blocker_count") or 0)
-                    peer_blocked_dependencies.append(f"{dependency['name']}: {blocker_count} peer blocker(s)")
+                    label = f"{dependency['name']}: {blocker_count} peer blocker(s)"
+                    if dependency.get("peer_blocker_latest_check"):
+                        latest_supported = int(dependency.get("peer_blocker_latest_supported_count") or 0)
+                        latest_blocked = int(dependency.get("peer_blocker_latest_blocked_count") or 0)
+                        latest_unavailable = int(dependency.get("peer_blocker_latest_unavailable_count") or 0)
+                        latest_parts = [f"{latest_supported}/{blocker_count} latest-supported"]
+                        if latest_blocked:
+                            latest_parts.append(f"{latest_blocked} still blocked")
+                        if latest_unavailable:
+                            latest_parts.append(f"{latest_unavailable} unavailable")
+                        label += ", " + ", ".join(latest_parts)
+                    peer_blocked_dependencies.append(label)
                 else:
                     other_deferred_dependencies.append(str(dependency.get("name") or "unknown"))
 
@@ -565,6 +727,7 @@ def _recommendations(projects: list[dict[str, Any]]) -> list[str]:
 
 OutdatedRunner = Callable[[Path, int], dict[str, Any]]
 DistTagRunner = Callable[[Path, str, int], dict[str, Any]]
+PeerMetadataRunner = Callable[[Path, str, int], dict[str, Any]]
 
 
 def build_inventory(
@@ -572,10 +735,18 @@ def build_inventory(
     timeout: int = 60,
     runner: OutdatedRunner = _run_npm_outdated,
     tag_runner: DistTagRunner = _run_npm_dist_tags,
+    peer_metadata_runner: PeerMetadataRunner = _run_npm_peer_metadata,
 ) -> dict[str, Any]:
     root = root.resolve()
     projects = [
-        summarize_project(path, root, runner(path, timeout), timeout=timeout, tag_runner=tag_runner)
+        summarize_project(
+            path,
+            root,
+            runner(path, timeout),
+            timeout=timeout,
+            tag_runner=tag_runner,
+            peer_metadata_runner=peer_metadata_runner,
+        )
         for path in _project_dirs(root)
     ]
     summary = {
@@ -588,6 +759,21 @@ def build_inventory(
         "candidate_dependency_count": sum(project["candidate_count"] for project in projects),
         "deferred_dependency_count": sum(project["deferred_count"] for project in projects),
         "outdated_dependency_count": sum(project["outdated_count"] for project in projects),
+        "peer_blocker_latest_supported_count": sum(
+            int(dependency.get("peer_blocker_latest_supported_count") or 0)
+            for project in projects
+            for dependency in project["dependencies"]
+        ),
+        "peer_blocker_latest_blocked_count": sum(
+            int(dependency.get("peer_blocker_latest_blocked_count") or 0)
+            for project in projects
+            for dependency in project["dependencies"]
+        ),
+        "peer_blocker_latest_unavailable_count": sum(
+            int(dependency.get("peer_blocker_latest_unavailable_count") or 0)
+            for project in projects
+            for dependency in project["dependencies"]
+        ),
     }
     return {
         "root": str(root),

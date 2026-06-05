@@ -256,9 +256,16 @@ def _dependency_peer_blocker_evidence(dependency_inventory: dict[str, Any]) -> s
                 continue
             if not dependency.get("deferred") or dependency.get("peer_blocker_check") != "blocked":
                 continue
+            latest_suffix = ""
+            if dependency.get("peer_blocker_latest_check"):
+                latest_suffix = (
+                    f", latest_supported={int(dependency.get('peer_blocker_latest_supported_count') or 0)}"
+                    f", latest_blocked={int(dependency.get('peer_blocker_latest_blocked_count') or 0)}"
+                    f", latest_unavailable={int(dependency.get('peer_blocker_latest_unavailable_count') or 0)}"
+                )
             labels.append(
                 f"{project_path}/{dependency.get('name') or 'unknown'} "
-                f"peer_blocker_count={int(dependency.get('peer_blocker_count') or 0)}"
+                f"peer_blocker_count={int(dependency.get('peer_blocker_count') or 0)}{latest_suffix}"
             )
 
     if labels:
