@@ -1405,9 +1405,35 @@ def test_current_code_triage_allows_advisory_warn_gate(tmp_path: Path) -> None:
     assert any("code_review_gate status=warn, risk_score=0.4" in evidence for evidence in dependency_item["evidence"])
 
 
-def test_current_code_triage_blocks_stale_graph_or_failing_gate(tmp_path: Path) -> None:
+def test_current_code_triage_allows_stale_graph_without_relevant_changes(tmp_path: Path, monkeypatch) -> None:
     _write_required_skill(tmp_path)
     _write_ai_relay(tmp_path)
+    monkeypatch.setattr(launch_objective_audit, "_graph_relevant_files_between", lambda root, base, head: [])
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+        session_orientation=_session_orientation(freshness="stale"),
+        code_review_gate=_code_review_gate(status="pass", risk_score=0.0),
+    )
+    dependency_item = next(item for item in manifest["items"] if item["requirement"].startswith("Research"))
+
+    assert dependency_item["coverage"] == "complete"
+    assert dependency_item["blockers"] == []
+    assert "code_review_graph stale range has no graph-relevant file changes." in dependency_item["evidence"]
+
+
+def test_current_code_triage_blocks_stale_graph_or_failing_gate(tmp_path: Path, monkeypatch) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+    monkeypatch.setattr(
+        launch_objective_audit,
+        "_graph_relevant_files_between",
+        lambda root, base, head: ["execution/product_readiness_score.py"],
+    )
 
     manifest = launch_objective_audit.build_manifest(
         tmp_path,
@@ -1423,7 +1449,10 @@ def test_current_code_triage_blocks_stale_graph_or_failing_gate(tmp_path: Path) 
 
     assert result["status"] == "incomplete"
     assert dependency_item["coverage"] == "partial"
-    assert "code_review_graph freshness is stale; expected current." in dependency_item["blockers"]
+    assert any(
+        "graph-relevant changes remain: execution/product_readiness_score.py" in blocker
+        for blocker in dependency_item["blockers"]
+    )
     assert "code_review_gate status=fail; expected pass or warn." in dependency_item["blockers"]
 
 

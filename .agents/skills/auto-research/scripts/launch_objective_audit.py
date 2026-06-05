@@ -41,6 +41,29 @@ AB_MANIFEST_GLOB = "ab-manifest-*.json"
 TASK_ID_RE = re.compile(r"\b[Tt][-_]?(\d{3,6})\b")
 GOAL_STATUS_RE = re.compile(r"^-\s*Status:\s*(.*?)\s*$", re.IGNORECASE | re.MULTILINE)
 MARKDOWN_CHECKBOX_RE = re.compile(r"^\s*-\s*\[([ xX])\]\s+(.*)$")
+GRAPH_RELEVANT_SUFFIXES = {
+    ".py",
+    ".js",
+    ".jsx",
+    ".ts",
+    ".tsx",
+    ".mjs",
+    ".cjs",
+    ".go",
+    ".rs",
+    ".svelte",
+    ".vue",
+    ".sh",
+    ".bash",
+    ".ps1",
+    ".bat",
+    ".cmd",
+    ".json",
+    ".toml",
+    ".yaml",
+    ".yml",
+}
+GRAPH_RELEVANT_FILENAMES = {"Dockerfile", "Makefile", "commit-msg", "pre-commit"}
 GOAL_ACTIVE_STATUSES = {"active", "enabled", "in_progress", "in-progress", "blocked", "waiting"}
 GOAL_OBJECTIVE_TERMS = (
     "auto-research",
@@ -142,6 +165,41 @@ def _run_json(root: Path, args: list[str], timeout: int) -> dict[str, Any]:
         "stderr": completed.stderr.strip(),
         "data": data,
     }
+
+
+def _run_text(root: Path, args: list[str], timeout: int = 15) -> tuple[bool, str]:
+    try:
+        completed = subprocess.run(
+            args,
+            cwd=str(root),
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=timeout,
+            check=False,
+        )
+    except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
+        return False, ""
+    if completed.returncode != 0:
+        return False, completed.stderr.strip()
+    return True, completed.stdout.strip()
+
+
+def _is_graph_relevant_path(path: str) -> bool:
+    normalized = path.replace("\\", "/").strip()
+    path_obj = Path(normalized)
+    return path_obj.name in GRAPH_RELEVANT_FILENAMES or path_obj.suffix.lower() in GRAPH_RELEVANT_SUFFIXES
+
+
+def _graph_relevant_files_between(root: Path, base_sha: str, head_sha: str) -> list[str] | None:
+    if not base_sha or not head_sha or base_sha == head_sha:
+        return []
+    ok, output = _run_text(root, ["git", "diff", "--name-only", f"{base_sha}..{head_sha}"])
+    if not ok:
+        return None
+    return [path for path in output.splitlines() if path.strip() and _is_graph_relevant_path(path)]
 
 
 def _select_next_experiment_from_inputs(inputs: dict[str, dict[str, Any]]) -> dict[str, Any]:
@@ -824,6 +882,7 @@ def _dependency_prerelease_channel_evidence(dependency_inventory: dict[str, Any]
 def _dependency_item(
     dependency_inventory: dict[str, Any],
     *,
+    root: Path | None = None,
     session_orientation: dict[str, Any] | None = None,
     code_review_gate: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
@@ -854,8 +913,24 @@ def _dependency_item(
             f"code_review_graph freshness={freshness}, built_at_commit={built_at_commit}, current_head={current_head}."
         )
         if freshness != "current":
-            complete = False
-            blockers.append(f"code_review_graph freshness is {freshness}; expected current.")
+            relevant_files = (
+                _graph_relevant_files_between(root, str(built_at_commit), str(current_head))
+                if root is not None
+                else None
+            )
+            if relevant_files is None:
+                complete = False
+                blockers.append(
+                    f"code_review_graph freshness is {freshness}; changed files since graph build are unavailable."
+                )
+            elif relevant_files:
+                complete = False
+                blockers.append(
+                    f"code_review_graph freshness is {freshness}; graph-relevant changes remain: "
+                    f"{', '.join(relevant_files[:5])}."
+                )
+            else:
+                extra_evidence.append("code_review_graph stale range has no graph-relevant file changes.")
 
     if code_review_gate is not None:
         extra_artifacts.append("execution/code_review_gate.py")
@@ -1257,6 +1332,7 @@ def build_manifest(
         _browser_item(browser_inventory or {}),
         _dependency_item(
             dependency_inventory or {},
+            root=root,
             session_orientation=session_orientation,
             code_review_gate=code_review_gate,
         ),
