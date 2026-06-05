@@ -40,11 +40,26 @@ def test_top_level_package_lazy_loads_submodule_export():
 
     original = shorts_maker_v2.__dict__.pop("providers", None)
     try:
-        assert shorts_maker_v2.providers is providers_module
+        with patch("shorts_maker_v2.importlib.util.find_spec", return_value=None):
+            assert shorts_maker_v2.providers is providers_module
     finally:
         shorts_maker_v2.__dict__.pop("providers", None)
         if original is not None:
             shorts_maker_v2.__dict__["providers"] = original
+
+
+def test_pipeline_package_restores_loaded_submodule_attribute():
+    import shorts_maker_v2.pipeline as pipeline_module
+    import shorts_maker_v2.pipeline.media_step as media_step_module
+
+    original = pipeline_module.__dict__.pop("media_step", None)
+    try:
+        with patch("shorts_maker_v2.pipeline.find_spec", return_value=None):
+            assert pipeline_module.media_step is media_step_module
+    finally:
+        pipeline_module.__dict__.pop("media_step", None)
+        if original is not None:
+            pipeline_module.__dict__["media_step"] = original
 
 
 def test_pipeline_package_lazy_loads_step_exports():
