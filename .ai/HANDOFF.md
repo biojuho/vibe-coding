@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-06-05 |
 | Tool | Codex |
+| Work | **T-1286 owner-aware readiness blocker routing**. Tightened `execution/product_readiness_score.py` so project recommendations distinguish user-owned task blockers from local/agent work. Hanwoo T-251 now surfaces as `Wait for 1 user-owned task blocker(s) before rerunning local launch checks: T-251.` in both the Hanwoo recommendation and first `next_actions` entry instead of the previous generic `Resolve 1 open task blocker(s).` This keeps the external Supabase credential reset boundary explicit while preserving readiness score `96`, external blocker count `1`, local blocker behavior, and existing agent-owned task wording. Verification passed focused product-readiness pytest `24/24`, ruff, format check, `py_compile`, runtime `product_readiness_score.py --json`, `git diff --check`, A/B `adopt_candidate` (`score_delta=0.8888888888888888`), and completion audit `complete` (`4/4`). |
+| Next Priorities | Commit/push T-1286 and verify required GitHub Actions on the new head. After the clean commit, expected launch audit should again be `7/8` complete and incomplete only for external/user-owned T-251. Do not retry T-251 until the Supabase Dashboard password/control-plane credential reset is done. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-05 |
+| Tool | Codex |
 | Work | **T-1285 post-push release-gate confirmation**. Confirmed feature commit `491b7782` (`fix(session): T-1285 align handoff rotation recommendation`) and context commit `7d5f633b` (`[ai-context] record T-1285 orientation closeout`) are pushed to `origin/main`. Required GitHub Actions are green on current head `7d5f633b`: `root-quality-gate` run `26987547889` and `active-project-matrix` run `26987547880`. Final focused verification still passes (`31/31` session-orient/handoff-rotator tests, ruff, format check), `session_orient.py --json` reports clean/synced worktree, open PRs `0`, HANDOFF `archivable_addendum_count=0`, and `rotation_suggested=false`. Product readiness is score `96` with workspace/local/agent blockers `0/0/0`; launch-objective completion audit remains `7/8` complete and incomplete only for external/user-owned Hanwoo T-251. |
 | Next Priorities | T-1285 is closed. Current steady state: no workspace/local blockers, no open PRs, required Actions green, browser QA screenshots fresh `4/4`, direct dependency candidates `0`, Hanwoo/Knowledge ESLint 10 still upstream-peer-blocked, and only external/user-owned T-251 blocks full launch completion. Do not retry T-251 until the Supabase Dashboard password/control-plane credential reset is done. |
 

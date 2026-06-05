@@ -109,6 +109,32 @@ def _is_user_owned_task(task: dict[str, str]) -> bool:
     return task.get("owner", "").strip().lower() == "user"
 
 
+def _task_ids(tasks: list[dict[str, str]]) -> str:
+    ids = [task.get("id", "").strip() for task in tasks if task.get("id", "").strip()]
+    return ", ".join(ids) if ids else "unlisted task(s)"
+
+
+def _task_blocker_recommendation(
+    *,
+    active_blockers: list[dict[str, str]],
+    user_task_blockers: list[dict[str, str]],
+    agent_task_blockers: list[dict[str, str]],
+) -> str | None:
+    if not active_blockers:
+        return None
+    if user_task_blockers and not agent_task_blockers:
+        return (
+            f"Wait for {len(user_task_blockers)} user-owned task blocker(s) before rerunning local launch checks: "
+            f"{_task_ids(user_task_blockers)}."
+        )
+    if agent_task_blockers and user_task_blockers:
+        return (
+            f"Resolve {len(agent_task_blockers)} agent-owned task blocker(s), then wait for "
+            f"{len(user_task_blockers)} user-owned task blocker(s): {_task_ids(user_task_blockers)}."
+        )
+    return f"Resolve {len(active_blockers)} open task blocker(s)."
+
+
 def _check_ids(value: Any) -> list[str]:
     if not isinstance(value, (list, tuple, set)):
         return []
@@ -826,8 +852,13 @@ def _score_project(
             "Configure the required project environment variables and rerun live checks.",
         )
         recommendations.append(env_message)
-    if active_blockers:
-        recommendations.append(f"Resolve {len(active_blockers)} open task blocker(s).")
+    task_recommendation = _task_blocker_recommendation(
+        active_blockers=active_blockers,
+        user_task_blockers=user_task_blockers,
+        agent_task_blockers=agent_task_blockers,
+    )
+    if task_recommendation:
+        recommendations.append(task_recommendation)
     if qc.get("stale"):
         age = qc.get("age_days")
         suffix = f" ({age} days old)" if isinstance(age, int) else ""

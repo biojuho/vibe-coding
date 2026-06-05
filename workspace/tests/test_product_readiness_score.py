@@ -272,6 +272,9 @@ def test_user_owned_project_task_reports_external_blocker_without_local_blocker(
         "agent_task_count": 0,
         "environment_count": 0,
     }
+    message = "Wait for 1 user-owned task blocker(s) before rerunning local launch checks: T-251."
+    assert hanwoo["recommendations"][0] == message
+    assert report["next_actions"][0]["action"] == message
 
 
 def test_missing_hanwoo_env_reports_missing_file_instead_of_configured(tmp_path: Path):
