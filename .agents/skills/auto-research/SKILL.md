@@ -33,7 +33,13 @@ Use graph/context tools before broad text search when they are available. Preser
 
 ### 2. Scope One Experiment
 
-Choose the next cycle from the user's goal, active tasks, GitHub PRs, product readiness gaps, or visible UI defects. Write a compact hypothesis:
+Choose the next cycle from the user's goal, active tasks, GitHub PRs, product readiness gaps, or visible UI defects. When the next target is not obvious, run the deterministic selector after the inventories:
+
+```bash
+python .agents/skills/auto-research/scripts/next_experiment_selector.py --root . --output .tmp/next-experiment.json --json
+```
+
+If it reports `blocked_external_only`, do not retry the blocked live check. Record the blocker and continue only with a distinct local maintenance experiment that has its own hypothesis and gates. Write a compact hypothesis:
 
 ```text
 If we change <surface>, then <metric or user workflow> improves because <reason>.
@@ -141,6 +147,16 @@ Use it to separate direct patch/minor adoption candidates from major migrations 
 Prerelease packages that are current on their matching npm dist-tag are reported as `current_prerelease_channel` instead of deferred, so lower stable `latest` tags do not become false blockers.
 Deferred major migrations may include lockfile peer blocker evidence when installed package peer ranges do not allow the target major.
 When every remaining major migration is peer-blocked, treat the next action as waiting for upstream peer support instead of retrying a forced install.
+
+## Next Experiment Selector
+
+Run the selector after readiness, GitHub, browser, and dependency inventories when the loop has no obvious next target:
+
+```bash
+python .agents/skills/auto-research/scripts/next_experiment_selector.py --root . --json
+```
+
+It ranks local readiness blockers, GitHub/PR follow-ups, browser QA refreshes, dependency candidates, stale QC refreshes, and external/user-owned blockers. A `candidate` status is safe to scope as the next bounded experiment. A `blocked_external_only` status means local launch evidence is already green and the selected blocker requires user action, so do not retry it until the prerequisite is complete.
 
 ## A/B Decision Helper
 

@@ -67,8 +67,20 @@ def _string_list(value: Any) -> list[str]:
     return result
 
 
-def _item_issue(index: int, code: str, message: str) -> dict[str, Any]:
-    return {"index": index, "code": code, "message": message}
+def _item_issue(
+    index: int,
+    code: str,
+    message: str,
+    *,
+    requirement: str = "",
+    blockers: list[str] | None = None,
+) -> dict[str, Any]:
+    issue: dict[str, Any] = {"index": index, "code": code, "message": message}
+    if requirement:
+        issue["requirement"] = requirement
+    if blockers:
+        issue["blockers"] = blockers
+    return issue
 
 
 def audit_manifest(data: dict[str, Any]) -> dict[str, Any]:
@@ -123,7 +135,15 @@ def audit_manifest(data: dict[str, Any]) -> dict[str, Any]:
         if blockers:
             blocked_count += 1
             item_issues.append("blocked")
-            issues.append(_item_issue(index, "blocked", "Requirement has unresolved blockers."))
+            issues.append(
+                _item_issue(
+                    index,
+                    "blocked",
+                    "Requirement has unresolved blocker(s): " + "; ".join(blockers),
+                    requirement=requirement_text,
+                    blockers=blockers,
+                )
+            )
 
         passed = not item_issues
         if passed:
@@ -191,6 +211,10 @@ def _print_text(result: dict[str, Any]) -> None:
         print("issues:")
         for issue in result["issues"]:
             print(f"  - item {issue['index']}: {issue['code']} - {issue['message']}")
+            blockers = issue.get("blockers")
+            if isinstance(blockers, list):
+                for blocker in blockers:
+                    print(f"    blocker: {blocker}")
 
 
 def main(argv: list[str] | None = None) -> int:

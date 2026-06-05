@@ -70,6 +70,7 @@ def test_missing_evidence_and_verification_are_incomplete():
 
 
 def test_blocked_items_prevent_completion():
+    blocker = "Supabase password must be reset by user"
     result = completion_audit.audit_manifest(
         {
             "objective": "Launch product",
@@ -80,7 +81,7 @@ def test_blocked_items_prevent_completion():
                     "evidence": ["P2010 / XX000 tenant-user mismatch reproduced"],
                     "verified": True,
                     "coverage": "complete",
-                    "blockers": ["Supabase password must be reset by user"],
+                    "blockers": [blocker],
                 }
             ],
         }
@@ -88,7 +89,10 @@ def test_blocked_items_prevent_completion():
 
     assert result["status"] == "incomplete"
     assert result["summary"]["blocked_count"] == 1
-    assert any(issue["code"] == "blocked" for issue in result["issues"])
+    issue = next(issue for issue in result["issues"] if issue["code"] == "blocked")
+    assert blocker in issue["message"]
+    assert issue["blockers"] == [blocker]
+    assert issue["requirement"] == "Run live Supabase CRUD"
 
 
 def test_load_json_accepts_powershell_utf16_redirect(tmp_path: Path):

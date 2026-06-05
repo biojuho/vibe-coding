@@ -25,6 +25,7 @@ SKILL_ARTIFACTS = (
     ".agents/skills/auto-research/scripts/dependency_freshness_inventory.py",
     ".agents/skills/auto-research/scripts/github_project_inventory.py",
     ".agents/skills/auto-research/scripts/launch_objective_audit.py",
+    ".agents/skills/auto-research/scripts/next_experiment_selector.py",
 )
 AI_RELAY_ARTIFACTS = (
     ".ai/HANDOFF.md",
@@ -154,13 +155,14 @@ def _skill_item(root: Path) -> dict[str, Any]:
         "dependency_freshness_inventory.py",
         "github_project_inventory.py",
         "launch_objective_audit.py",
+        "next_experiment_selector.py",
     )
     missing_terms = [term for term in required_terms if term not in skill_text]
     complete = not missing and not missing_terms
     evidence = [
         f"{len(SKILL_ARTIFACTS) - len(missing)}/{len(SKILL_ARTIFACTS)} required auto-research artifacts exist.",
-        "SKILL.md documents A/B, completion audit, launch objective audit, GitHub inventory, "
-        "browser QA inventory, and dependency freshness commands."
+        "SKILL.md documents A/B, completion audit, next experiment selector, launch objective audit, "
+        "GitHub inventory, browser QA inventory, and dependency freshness commands."
         if not missing_terms
         else "SKILL.md is missing documented command reference(s): " + ", ".join(missing_terms),
     ]

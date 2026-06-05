@@ -39,6 +39,7 @@ def _write_required_skill(root: Path) -> None:
                 "dependency_freshness_inventory.py",
                 "github_project_inventory.py",
                 "launch_objective_audit.py",
+                "next_experiment_selector.py",
             ]
         ),
         encoding="utf-8",
@@ -50,6 +51,7 @@ def _write_required_skill(root: Path) -> None:
         "dependency_freshness_inventory.py",
         "github_project_inventory.py",
         "launch_objective_audit.py",
+        "next_experiment_selector.py",
     ):
         (scripts / name).write_text("# helper\n", encoding="utf-8")
 
@@ -275,6 +277,7 @@ def test_manifest_is_complete_when_all_requirements_have_current_evidence(tmp_pa
     assert result["status"] == "complete"
     assert result["summary"]["complete_count"] == len(manifest["items"])
     assert any("launch objective audit" in evidence for evidence in skill_item["evidence"])
+    assert any("next experiment selector" in evidence for evidence in skill_item["evidence"])
 
 
 def test_ab_item_includes_latest_local_manifest_artifact(tmp_path: Path) -> None:
@@ -387,6 +390,9 @@ def test_external_user_blocker_prevents_completion(tmp_path: Path) -> None:
     assert result["summary"]["issue_count"] == 1
     assert external_item["coverage"] == "complete"
     assert any("T-251" in blocker for item in manifest["items"] for blocker in item["blockers"])
+    blocked_issue = next(issue for issue in result["issues"] if issue["code"] == "blocked")
+    assert blocked_issue["blockers"] == ["1 external/user-owned blocker(s) remain: T-251"]
+    assert "T-251" in blocked_issue["message"]
 
 
 def test_external_blocker_without_task_id_is_not_claimed_fully_covered(tmp_path: Path) -> None:
