@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { buildHealthResponse } from "@/lib/health-response.mjs";
 import prisma from "@/lib/db";
 
 export async function GET() {
@@ -7,39 +8,34 @@ export async function GET() {
     process.env.CI === "1";
 
   if (isBuildPhase) {
-    return NextResponse.json({
-      status: "healthy",
-      database: "disconnected",
-      warning: "health check skipped during build",
+    const response = buildHealthResponse({
+      skipped: true,
       timestamp: new Date().toISOString()
     });
+    return NextResponse.json(response.body, response.init);
   }
 
   try {
     // Basic ping to Prisma database to check connection if possible
     await prisma.$queryRaw`SELECT 1`;
-    
-    return NextResponse.json({
-      status: "healthy",
-      database: "connected",
+
+    const response = buildHealthResponse({
+      connected: true,
       timestamp: new Date().toISOString()
     });
+    return NextResponse.json(response.body, response.init);
   } catch (error) {
-    const warning =
-      error instanceof Error ? error.message : "Database connectivity issue";
     const isProductionLike = process.env.NODE_ENV === "production";
+    const response = buildHealthResponse({
+      connected: false,
+      warning: error,
+      timestamp: new Date().toISOString()
+    });
 
     if (!isProductionLike) {
-      console.error("Health check database warning:", warning);
+      console.error("Health check database warning:", response.body.warning);
     }
-    
-    // Return degraded status but still 200/503 depending on preference
-    // In demo mode or offline mode, returning healthy status might be safer
-    return NextResponse.json({
-      status: "healthy",
-      database: "disconnected",
-      warning,
-      timestamp: new Date().toISOString()
-    });
+
+    return NextResponse.json(response.body, response.init);
   }
 }
