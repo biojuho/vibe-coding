@@ -656,3 +656,16 @@
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1327.json --json` returned `adopt_candidate` with `score_delta=1.0158915`.
 - Commit closeout: `2512571d refactor(blind-to-x): T-1327 split generate review stage helpers` is local only; no push was performed.
 - Boundary: product launch remains incomplete until explicit push authorization/user push plus current-head `root-quality-gate` and `active-project-matrix`, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
+
+## 2026-06-06 - Codex
+
+- Closed T-1328/T-1329 as a bounded `$auto-research` launch fallback guard cycle.
+- T-1328 changed `projects/knowledge-dashboard/scripts/sync_data.py`: NotebookLM token-template checks are split into focused helpers for marker strings, cookie values, empty/template cookie values, and identity placeholder fields.
+- T-1328 changed `projects/knowledge-dashboard/scripts/test_sync_data.py` and `projects/knowledge-dashboard/tests/test_sync_data.py`: added regressions for non-string cookie values and identity placeholder fields so template NotebookLM credentials are not treated as real identity.
+- T-1329 changed `projects/shorts-maker-v2/src/shorts_maker_v2/providers/tts_factory.py`: TTS provider request/spec construction, premium provider loading, Edge fallback, Edge request generation, OpenAI/client generation, and request building are split into focused helpers while preserving fallback behavior.
+- T-1329 added `projects/shorts-maker-v2/tests/unit/test_tts_factory.py`: covers premium provider success, premium provider failure unlinking stale output and using Edge fallback, OpenAI signature routing, and missing OpenAI client failure.
+- Verification: Knowledge sync pytest passed `15/15`; Shorts TTS/provider pytest passed `17/17` with one upstream Google GenAI deprecation warning; ruff check passed; ruff format check passed; `py_compile` passed; `git diff --check` passed with CRLF warnings only.
+- Full active-project QC passed and refreshed the canonical artifact: blind-to-x `1740 passed, 9 skipped` plus lint; shorts-maker-v2 `1581 passed, 12 skipped, 1 warning` plus lint; Hanwoo `500 passed` plus lint/build/smoke; Knowledge `61 passed` plus lint/build/smoke.
+- A/B decisions: `.tmp\ab-manifest-t1328.json` returned `adopt_candidate` with `score_delta=1.1957691`; `.tmp\ab-manifest-t1329.json` returned `adopt_candidate` with `score_delta=1.5712114`.
+- Commit closeout: `1fec5971 test(launch): guard token and tts fallbacks` is local only; no push was performed.
+- Boundary: product launch remains incomplete until explicit push authorization/user push plus current-head `root-quality-gate` and `active-project-matrix`, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
