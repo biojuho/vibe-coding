@@ -565,7 +565,8 @@
 - Changed `projects/shorts-maker-v2/FEATURE.md`: added implemented status and marked all seven acceptance criteria complete.
 - Changed `workspace/tests/test_auto_research_launch_objective_audit.py`: added fixture checklist creation, evidence assertions, and a regression proving open feature checklist items block target readiness completion.
 - Runtime launch-audit proof during the dirty candidate state showed `shorts-maker-v2 FEATURE checklist complete 7/7, open=0`; the same dirty audit remained incomplete because uncommitted files were correctly treated as local blockers.
-- Verification: focused launch-audit pytest passed `28/28`; related auto-research pytest passed `42/42`; full auto-research pytest passed `67/67`; ruff, ruff format check, `py_compile`, and `git diff --check` passed.
-- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1308.json --json` returned `adopt_candidate` with `score_delta=0.9942131721455777`.
-- Commit closeout: `925e7bf1 fix(auto-research): T-1308 require shorts feature checklist evidence` is local only. Pre-commit code-review gate returned advisory WARN `risk=0.50`; direct focused and broad tests above cover the changed behavior.
+- Verification: focused launch-audit pytest passed `28/28`; broader auto-research/readiness pytest passed `69/69`; ruff, `py_compile`, and `git diff --check` passed; staged code-review gate passed with `risk_score=0.0`.
+- Full active-project QC passed: blind-to-x `1723 passed, 9 skipped`; shorts-maker-v2 `1577 passed, 12 skipped`; Hanwoo `500/500` plus lint/build/smoke; Knowledge `61/61` plus lint/build/smoke.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1308.json --json` returned `adopt_candidate` with `score_delta=0.9942122861956799`.
+- Commit closeout: `925e7bf1 fix(auto-research): T-1308 require shorts feature checklist evidence` is local only.
 - Boundary: product launch remains incomplete until explicit push authorization/user push plus current-head Actions, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
