@@ -35,12 +35,13 @@ py -3 main.py --source auto --popular --review-only --limit 5
 py -3 main.py --source blind --popular --review-only --limit 5
 py -3 main.py --source multi --popular --review-only --limit 5
 
-# Source browser preflight before a multi-source run
+# Source browser preflight before a multi-source run.
+# Run from projects/blind-to-x; on this Windows workspace, prefer the project venv.
 # `--source all` is explicit; omitting --source has the same effect.
-py -3 scripts/source_browser_probe.py --source all --output .tmp/source_browser_probe.json --screenshot-dir screenshots/source_probe
+.\.venv\Scripts\python.exe scripts/source_browser_probe.py --source all --output .tmp/source_browser_probe.json --screenshot-dir screenshots/source_probe
 
 # Source browser preflight plus first-post click-through verification
-py -3 scripts/source_browser_probe.py --source ppomppu --click-through --output .tmp/source_browser_probe.json --screenshot-dir screenshots/source_probe
+.\.venv\Scripts\python.exe scripts/source_browser_probe.py --source ppomppu --click-through --output .tmp/source_browser_probe.json --screenshot-dir screenshots/source_probe
 
 # The preflight JSON summary includes ready_sources, problem_sources, and recommended_source.
 # recommended_source prefers the ready source with the strongest successful detail evidence.
@@ -78,7 +79,7 @@ py -3 -m pytest --no-cov -q tests/unit
 ```bash
 # 의존성은 pyproject.toml에 정의되어 있습니다. 프로젝트 루트에서:
 pip install -e .[dev]
-playwright install chromium
+python -m playwright install chromium
 ```
 
 ## 설정

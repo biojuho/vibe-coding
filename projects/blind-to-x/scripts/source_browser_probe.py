@@ -74,6 +74,10 @@ _LOGIN_WALL_PATTERNS = (
 _BROWSER_UNAVAILABLE_PATTERNS = (
     "browser executable",
     "executable doesn't exist",
+    "no module named 'playwright.",
+    "no module named 'playwright'",
+    'no module named "playwright.',
+    'no module named "playwright"',
     "playwright install",
     "unable to launch browser",
 )
@@ -279,7 +283,7 @@ def _build_recommended_command(source: str | None) -> str | None:
 def _build_problem_action(result: ProbeResult) -> dict[str, Any]:
     status = result.classification.status
     if status == "browser_unavailable":
-        action = "Install Chromium with `py -3 -m playwright install chromium`, then rerun the preflight."
+        action = _build_browser_unavailable_action(result)
     elif status == "blocked":
         action = "Use a ready fallback source for this run, then recheck this source after access controls change."
     elif status == "click_error":
@@ -299,6 +303,20 @@ def _build_problem_action(result: ProbeResult) -> dict[str, Any]:
         "status": status,
         "action": action,
     }
+
+
+def _build_browser_unavailable_action(result: ProbeResult) -> str:
+    error_text = (result.error or " ".join(result.classification.signals)).lower()
+    if "no module named 'playwright" in error_text or 'no module named "playwright' in error_text:
+        return (
+            "Run this helper with the Blind-to-X virtualenv, or install Playwright into the current "
+            "interpreter with `python -m pip install playwright` and then "
+            "`python -m playwright install chromium`."
+        )
+    return (
+        "Install Chromium in the active Python environment with "
+        "`python -m playwright install chromium`, then rerun the preflight."
+    )
 
 
 def exit_code_for_report(report: dict[str, Any], *, fail_on_problem: bool) -> int:

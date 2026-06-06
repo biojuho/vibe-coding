@@ -85,6 +85,26 @@ def test_classify_playwright_install_error_as_browser_unavailable():
     assert "playwright install" in result.signals
 
 
+def test_classify_missing_playwright_package_as_browser_unavailable():
+    result = classify_probe(
+        http_status=None,
+        error="No module named 'playwright'",
+    )
+
+    assert result.status == "browser_unavailable"
+    assert "no module named 'playwright'" in result.signals
+
+
+def test_classify_missing_playwright_submodule_as_browser_unavailable():
+    result = classify_probe(
+        http_status=None,
+        error="No module named 'playwright.async_api'",
+    )
+
+    assert result.status == "browser_unavailable"
+    assert any("no module named 'playwright" in signal for signal in result.signals)
+
+
 def test_parse_targets_defaults_and_custom_url():
     targets = parse_targets(None, ["example=https://example.com/feed"])
 
@@ -226,6 +246,41 @@ def test_build_report_counts_click_error_as_problem():
         }
     ]
     assert exit_code_for_report(report, fail_on_problem=True) == 1
+
+
+def test_build_report_gives_install_action_for_missing_playwright_package():
+    results = [
+        ProbeResult(
+            source="ppomppu",
+            url="https://www.ppomppu.co.kr/hot.php",
+            final_url="",
+            http_status=None,
+            title="",
+            body_chars=0,
+            classification=ProbeClassification(
+                "browser_unavailable",
+                "Playwright browser is not installed or cannot launch",
+                ["no module named 'playwright'"],
+            ),
+            console_errors=[],
+            page_errors=[],
+            error="No module named 'playwright'",
+        )
+    ]
+
+    report = build_report(results)
+
+    assert report["summary"]["problem_actions"] == [
+        {
+            "source": "ppomppu",
+            "status": "browser_unavailable",
+            "action": (
+                "Run this helper with the Blind-to-X virtualenv, or install Playwright into the current "
+                "interpreter with `python -m pip install playwright` and then "
+                "`python -m playwright install chromium`."
+            ),
+        }
+    ]
 
 
 def test_build_report_recommends_ready_source_with_strongest_detail_evidence():
