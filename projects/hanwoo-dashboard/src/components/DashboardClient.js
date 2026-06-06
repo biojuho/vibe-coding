@@ -412,8 +412,12 @@ export default function DashboardClient(options = {}) {
 	const isOnline = useOnlineStatus();
 	const [activeTab, setActiveTab] = useState("home");
 	const [isFieldMode, setIsFieldMode] = useState(false);
-	const shouldSkipFieldModeCattlePreload =
+	const isInitialCattleDataDegraded =
 		initialDataLoadStatus.failedSections.includes("cattle");
+	const isInitialSalesDataDegraded =
+		initialDataLoadStatus.failedSections.includes("sales");
+	const shouldSkipFieldModeCattlePreload =
+		isInitialCattleDataDegraded;
 	const handleRefreshInitialData = useCallback(() => {
 		playTactileClick();
 		router.refresh();
@@ -459,8 +463,12 @@ export default function DashboardClient(options = {}) {
 		showNotifications,
 		setShowNotifications,
 	} = useDashboardModals();
-	const [allCattleRegistry, setAllCattleRegistry] = useState(null);
-	const [allSalesLedger, setAllSalesLedger] = useState(null);
+	const [allCattleRegistry, setAllCattleRegistry] = useState(() =>
+		isInitialCattleDataDegraded ? [] : null,
+	);
+	const [allSalesLedger, setAllSalesLedger] = useState(() =>
+		isInitialSalesDataDegraded ? [] : null,
+	);
 	const [isAllCattleLoading, setIsAllCattleLoading] = useState(false);
 	const [isAllSalesLoading, setIsAllSalesLoading] = useState(false);
 	const [allCattleLoadError, setAllCattleLoadError] = useState("");

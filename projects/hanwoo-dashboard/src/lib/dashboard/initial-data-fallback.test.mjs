@@ -115,7 +115,23 @@ test("home route degrades initial data failures instead of crashing the shell", 
 	);
 	assert.match(
 		dashboardClientSource,
-		/const shouldSkipFieldModeCattlePreload =\s+initialDataLoadStatus\.failedSections\.includes\("cattle"\);/,
+		/const isInitialCattleDataDegraded =\s+initialDataLoadStatus\.failedSections\.includes\("cattle"\);/,
+	);
+	assert.match(
+		dashboardClientSource,
+		/const isInitialSalesDataDegraded =\s+initialDataLoadStatus\.failedSections\.includes\("sales"\);/,
+	);
+	assert.match(
+		dashboardClientSource,
+		/const shouldSkipFieldModeCattlePreload =\s+isInitialCattleDataDegraded;/,
+	);
+	assert.match(
+		dashboardClientSource,
+		/const \[allCattleRegistry, setAllCattleRegistry\] = useState\(\(\) =>\s+isInitialCattleDataDegraded \? \[\] : null,/,
+	);
+	assert.match(
+		dashboardClientSource,
+		/const \[allSalesLedger, setAllSalesLedger\] = useState\(\(\) =>\s+isInitialSalesDataDegraded \? \[\] : null,/,
 	);
 	assert.match(
 		dashboardClientSource,
