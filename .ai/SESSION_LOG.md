@@ -861,9 +861,9 @@
 - Closed T-1366 as a bounded `$auto-research` `blind-to-x` JobPlanet scraper maintainability cycle.
 - Changed `projects/blind-to-x/scrapers/jobplanet.py`: `JobplanetScraper.scrape_post()` now delegates post-id extraction, detail fetch, title resolution, payload validation, screenshot capture, success-result assembly, and error-result classification to focused helpers while preserving scrape behavior.
 - Changed `projects/blind-to-x/tests/unit/test_scrapers_jobplanet.py`: added direct helper and classification coverage for invalid URLs, title fallback, short-content rejection, screenshot-capture failure, and invalid URL reason reporting.
-- Verification: focused JobPlanet/scrape-failure pytest passed `22/22`; related scraper pytest passed `71/71`; ruff check passed; ruff format check passed; diff-check passed; blind-to-x project QC passed with `1769 passed`, `9 skipped` plus lint.
-- VibeDebt/structure proof: `jobplanet.py` target score moved `34.4 -> 24.8`, max complexity `14 -> 10`, max function length `95 -> 38`, and `scrape_post` moved from `96` lines/`12` branches to `30` lines/`4` branches.
-- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1366.json --json` returned `adopt_candidate` with `score_delta=1.7680608569246803`.
+- Verification: focused JobPlanet pytest passed `14/14`; related FMKorea/JobPlanet dry-run pytest passed `28/28`; combined focused/related pytest passed `42/42`; ruff check passed; ruff format check passed; diff-check passed; code-review gate returned advisory WARN `risk_score=0.40` covered by focused/related/project tests; blind-to-x project QC passed with `1769 passed`, `9 skipped` plus lint.
+- Structure proof: `scrape_post` moved from `96` lines/`20` branches to `30` lines/`5` branches; max function length moved `96 -> 39`; max branches moved `20 -> 13`.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1366.json --json` returned `adopt_candidate` with `score_delta=0.5974137040973087`.
 - Commit closeout: `18527ad8 refactor(blind-to-x): T-1366 split JobPlanet scraper helpers` is local only; no push was performed and T-251 was not retried.
 
 ## 2026-06-06 - Codex
