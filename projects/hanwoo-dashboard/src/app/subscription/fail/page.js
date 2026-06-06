@@ -59,6 +59,7 @@ function FailContent() {
 					marginTop: "4px",
 					fontSize: "12px",
 					color: "var(--color-text-muted)",
+					overflowWrap: "anywhere",
 				}}
 			>
 				오류 코드: {errorCode}
