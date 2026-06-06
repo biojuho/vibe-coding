@@ -45,7 +45,10 @@ test("dashboard stacking context keeps mobile tab bar fixed", () => {
 	const source = readSource("app/globals.css");
 
 	assert.match(source, /\.tab-bar\s*\{[\s\S]*?position:\s*fixed;/);
-	assert.match(source, /\.dashboard-container > :not\(\.tab-bar\)\s*\{/);
+	assert.match(
+		source,
+		/\.dashboard-container > :not\(\.tab-bar\):not\(\.modal-overlay\)\s*\{/,
+	);
 	assert.doesNotMatch(source, /\.dashboard-container > \*\s*\{/);
 });
 

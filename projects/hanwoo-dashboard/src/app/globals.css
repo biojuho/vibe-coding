@@ -1109,7 +1109,7 @@ body {
   background-size: 200px 200px;
 }
 
-.dashboard-container > :not(.tab-bar) {
+.dashboard-container > :not(.tab-bar):not(.modal-overlay) {
   position: relative;
   z-index: 1;
 }

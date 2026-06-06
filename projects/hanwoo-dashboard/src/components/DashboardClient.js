@@ -1919,15 +1919,6 @@ export default function DashboardClient(options = {}) {
 					</div>
 				</div>
 
-				{showNotifications && (
-					<NotificationModal
-						id={NOTIFICATION_MODAL_ID}
-						notifications={notifications}
-						onClose={() => setShowNotifications(false)}
-						onTestSMS={handleTestSMS}
-					/>
-				)}
-
 				<TodayFocusPanel
 					items={todayFocusItems}
 					onOpenNotifications={() => setShowNotifications(true)}
@@ -2242,6 +2233,15 @@ export default function DashboardClient(options = {}) {
 			)}
 			{!isFieldMode && (
 				<TabBar activeTab={activeTab} onTabChange={handleTabChange} />
+			)}
+
+			{showNotifications && (
+				<NotificationModal
+					id={NOTIFICATION_MODAL_ID}
+					notifications={notifications}
+					onClose={() => setShowNotifications(false)}
+					onTestSMS={handleTestSMS}
+				/>
 			)}
 
 			{showAddModal && (

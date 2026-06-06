@@ -53,6 +53,24 @@ test("notification modal exposes dialog semantics with a visible title label", (
 	assert.doesNotMatch(source, /export default function NotificationModal\(\{\s+id,/);
 });
 
+test("notification modal remains above the fixed mobile tab bar", () => {
+	const dashboardSource = readSource("components/DashboardClient.js");
+	const globalStyles = readSource("app/globals.css");
+
+	assert.match(
+		dashboardSource,
+		/<TabBar activeTab=\{activeTab\} onTabChange=\{handleTabChange\} \/>[\s\S]*?\{showNotifications && \(\s*<NotificationModal/,
+	);
+	assert.match(
+		globalStyles,
+		/\.dashboard-container > :not\(\.tab-bar\):not\(\.modal-overlay\) \{/,
+	);
+	assert.match(
+		globalStyles,
+		/\.modal-overlay \{[\s\S]*?position: fixed;[\s\S]*?z-index: 300;/,
+	);
+});
+
 test("notification modal can be dismissed with Escape from the dialog surface", () => {
 	const source = readSource("components/ui/NotificationModal.js");
 
