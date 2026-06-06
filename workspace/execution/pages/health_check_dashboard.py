@@ -1,9 +1,11 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
+if str(WORKSPACE_ROOT) not in sys.path:
+    sys.path.insert(0, str(WORKSPACE_ROOT))
 
-import streamlit as st
+import streamlit as st  # noqa: E402
 
 try:
     from execution.health_check import (
@@ -19,6 +21,11 @@ try:
 except ImportError as e:
     _MODULE_OK = False
     _MODULE_ERR = str(e)
+
+
+def _stretch_button_kwargs() -> dict[str, str]:
+    return {"width": "stretch"}
+
 
 st.set_page_config(page_title="Health Check - Joolife", page_icon="🏥", layout="wide")
 
@@ -50,7 +57,7 @@ with col_filter:
     )
 with col_btn:
     st.write("")  # spacer
-    run_clicked = st.button("🔍 점검 실행", type="primary", use_container_width=True)
+    run_clicked = st.button("🔍 점검 실행", type="primary", **_stretch_button_kwargs())
 
 # ── 점검 실행 ─────────────────────────────────────
 if run_clicked:
