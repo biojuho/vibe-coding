@@ -95,7 +95,7 @@ export default function LoginPage() {
 
 	return (
 		<main className="login-shell">
-			<section className="login-card" aria-labelledby="login-title">
+			<section id="login" className="login-card" aria-labelledby="login-title">
 				<div className="login-brand">
 					<div className="login-mark" aria-hidden="true">
 						<ShieldCheck size={26} strokeWidth={2.2} aria-hidden="true" />

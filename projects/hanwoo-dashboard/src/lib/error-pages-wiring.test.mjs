@@ -210,6 +210,10 @@ test("login page operator eyebrow uses Korean product copy", () => {
 	assert.doesNotMatch(source, /Demo Accounts/);
 	assert.doesNotMatch(source, />ID:/);
 	assert.doesNotMatch(source, />PW:/);
+	assert.match(
+		source,
+		/<section id="login" className="login-card" aria-labelledby="login-title">/,
+	);
 });
 
 test("database seed requires a configured admin password", () => {
