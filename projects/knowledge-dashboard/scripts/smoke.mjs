@@ -1,12 +1,11 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { createServer } from "node:net";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 
-const PORT = process.env.SMOKE_PORT ?? "3102";
 const HOST = "127.0.0.1";
-const BASE_URL = `http://${HOST}:${PORT}`;
 const API_KEY = process.env.DASHBOARD_API_KEY ?? "smoke-dashboard-key";
 const DATA_DIR = path.join(process.cwd(), "data");
 const DATA_DIRS = [
@@ -112,10 +111,32 @@ async function withFixtures(run) {
 	}
 }
 
-function startServer() {
+function baseUrlForPort(port) {
+	return `http://${HOST}:${port}`;
+}
+
+async function resolveSmokePort() {
+	if (process.env.SMOKE_PORT) {
+		return process.env.SMOKE_PORT;
+	}
+
+	const server = createServer();
+	await new Promise((resolve, reject) => {
+		server.once("error", reject);
+		server.listen(0, HOST, resolve);
+	});
+	const address = server.address();
+	const port = typeof address === "object" && address ? String(address.port) : "3102";
+	await new Promise((resolve, reject) => {
+		server.close((error) => (error ? reject(error) : resolve()));
+	});
+	return port;
+}
+
+function startServer(port) {
 	const env = {
 		...process.env,
-		PORT,
+		PORT: port,
 		HOSTNAME: HOST,
 		DASHBOARD_API_KEY: API_KEY,
 	};
@@ -138,11 +159,14 @@ function startServer() {
 	return child;
 }
 
-async function waitForServer(pathname = "/", timeoutMs = 45000) {
+async function waitForServer(baseUrl, child, pathname = "/", timeoutMs = 45000) {
 	const startedAt = Date.now();
 	while (Date.now() - startedAt < timeoutMs) {
+		if (child.exitCode !== null) {
+			throw new Error(`Smoke server exited before ${baseUrl}${pathname} became ready`);
+		}
 		try {
-			const response = await fetch(`${BASE_URL}${pathname}`, {
+			const response = await fetch(`${baseUrl}${pathname}`, {
 				redirect: "manual",
 			});
 			if (response.status < 500) return;
@@ -151,7 +175,7 @@ async function waitForServer(pathname = "/", timeoutMs = 45000) {
 		}
 		await delay(500);
 	}
-	throw new Error(`Timed out waiting for ${pathname} on ${BASE_URL}`);
+	throw new Error(`Timed out waiting for ${baseUrl}${pathname}`);
 }
 
 async function stopServer(child) {
@@ -175,12 +199,14 @@ const DATA_ROUTES = [
 ];
 
 async function run() {
-	const server = startServer();
+	const port = await resolveSmokePort();
+	const baseUrl = baseUrlForPort(port);
+	const server = startServer(port);
 	try {
-		await waitForServer();
+		await waitForServer(baseUrl, server);
 
 		// 1) Page shell renders.
-		const pageResponse = await fetch(`${BASE_URL}/`, { redirect: "manual" });
+		const pageResponse = await fetch(`${baseUrl}/`, { redirect: "manual" });
 		assert.equal(pageResponse.status, 200, "dashboard root should load");
 		assert(
 			(await pageResponse.text()).toLowerCase().includes("<html"),
@@ -199,19 +225,19 @@ async function run() {
 		);
 
 		// 3) Health endpoint is unauthenticated and healthy (key is configured).
-		const health = await fetch(`${BASE_URL}/api/health`, { redirect: "manual" });
+		const health = await fetch(`${baseUrl}/api/health`, { redirect: "manual" });
 		assert.equal(health.status, 200, "health should be 200 with a key set");
 		const healthJson = await health.json();
 		assert.equal(healthJson.checks.apiKeyConfigured, true);
 
 		// 4) All data routes reject missing auth.
 		for (const route of DATA_ROUTES) {
-			const res = await fetch(`${BASE_URL}${route}`, { redirect: "manual" });
+			const res = await fetch(`${baseUrl}${route}`, { redirect: "manual" });
 			assert.equal(res.status, 401, `${route} should reject missing auth`);
 		}
 
 		// 5) Login: wrong key and malformed body -> 401.
-		const wrongKey = await fetch(`${BASE_URL}/api/auth/session`, {
+		const wrongKey = await fetch(`${baseUrl}/api/auth/session`, {
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify({ apiKey: "definitely-wrong" }),
@@ -219,7 +245,7 @@ async function run() {
 		});
 		assert.equal(wrongKey.status, 401, "wrong key should be rejected");
 
-		const malformed = await fetch(`${BASE_URL}/api/auth/session`, {
+		const malformed = await fetch(`${baseUrl}/api/auth/session`, {
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: "not-json",
@@ -228,7 +254,7 @@ async function run() {
 		assert.equal(malformed.status, 401, "malformed body should be rejected");
 
 		// 6) Login with the valid key sets a session cookie.
-		const sessionResponse = await fetch(`${BASE_URL}/api/auth/session`, {
+		const sessionResponse = await fetch(`${baseUrl}/api/auth/session`, {
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify({ apiKey: API_KEY }),
@@ -251,7 +277,7 @@ async function run() {
 			"/api/data/skills": (json) => typeof json.summary?.status === "string",
 		};
 		for (const route of DATA_ROUTES) {
-			const res = await fetch(`${BASE_URL}${route}`, {
+			const res = await fetch(`${baseUrl}${route}`, {
 				headers: authed,
 				redirect: "manual",
 			});
@@ -266,7 +292,7 @@ async function run() {
 		for (const dataDir of DATA_DIRS) {
 			await rm(path.join(dataDir, "skill_lint.json"), { force: true });
 		}
-		const missing = await fetch(`${BASE_URL}/api/data/skills`, {
+		const missing = await fetch(`${baseUrl}/api/data/skills`, {
 			headers: authed,
 			redirect: "manual",
 		});
@@ -280,7 +306,7 @@ async function run() {
 		}
 
 		// 9) DELETE clears the cookie.
-		const deleted = await fetch(`${BASE_URL}/api/auth/session`, {
+		const deleted = await fetch(`${baseUrl}/api/auth/session`, {
 			method: "DELETE",
 			redirect: "manual",
 		});
