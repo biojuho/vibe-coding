@@ -13,7 +13,7 @@ from pathlib import Path
 import re
 import sys
 from typing import Any
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit, urlunsplit
 
 
 DEFAULT_SOURCES: dict[str, str] = {
@@ -382,20 +382,25 @@ async def _click_first_post(
         if candidate is None:
             raise RuntimeError("no post link candidates")
 
+        candidate_href = _resolve_click_through_href(target.url, str(candidate.get("href", "")))
         locator = page.locator("a[href]").nth(int(candidate["index"]))
         await locator.scroll_into_view_if_needed(timeout=min(5000, timeout_ms))
         await locator.click(timeout=min(8000, timeout_ms))
         await page.wait_for_load_state("domcontentloaded", timeout=timeout_ms)
-        await page.wait_for_timeout(500)
+        await _wait_for_click_detail(page, timeout_ms=timeout_ms)
         title = await page.title()
         body_text = await _safe_body_text(page)
-        body_chars = len(_compact_text(body_text))
+        if not _is_readable_click_detail(title, body_text):
+            await _retry_click_detail_url(page, candidate_href=candidate_href, timeout_ms=timeout_ms)
+            title = await page.title()
+            body_text = await _safe_body_text(page)
         screenshot_path = await _safe_click_screenshot(page, target, screenshot_dir)
-        ok = body_chars >= 120 and page.url != target.url
+        body_chars = len(_compact_text(body_text))
+        ok = _is_readable_click_detail(title, body_text) and page.url != target.url
         return ClickThroughResult(
             ok=ok,
             candidate_text=str(candidate.get("text", ""))[:160],
-            candidate_href=urljoin(target.url, str(candidate.get("href", ""))),
+            candidate_href=candidate_href,
             final_url=page.url,
             title=_compact_text(title)[:160],
             body_chars=body_chars,
@@ -412,6 +417,48 @@ async def _click_first_post(
             body_chars=0,
             error=str(exc)[:500],
         )
+
+
+async def _wait_for_click_detail(page: Any, *, timeout_ms: int) -> None:
+    try:
+        await page.wait_for_function(
+            """
+            () => {
+                const body = document.body;
+                const text = ((body && (body.innerText || body.textContent)) || '')
+                    .replace(/\\s+/g, ' ')
+                    .trim();
+                const title = (document.title || '').trim().toLowerCase();
+                return text.length >= 120 && !title.startsWith('loading ');
+            }
+            """,
+            timeout=min(max(timeout_ms, 1000), 8000),
+        )
+    except Exception:
+        await page.wait_for_timeout(500)
+
+
+async def _retry_click_detail_url(page: Any, *, candidate_href: str, timeout_ms: int) -> None:
+    if not candidate_href:
+        return
+    try:
+        await page.goto(candidate_href, wait_until="domcontentloaded", timeout=timeout_ms)
+        await _wait_for_click_detail(page, timeout_ms=timeout_ms)
+    except Exception:
+        return
+
+
+def _is_readable_click_detail(title: str, body_text: str) -> bool:
+    title_text = _compact_text(title).lower()
+    return len(_compact_text(body_text)) >= 120 and not title_text.startswith("loading ")
+
+
+def _resolve_click_through_href(base_url: str, href: str) -> str:
+    absolute = urljoin(base_url, href)
+    parts = urlsplit(absolute)
+    if parts.netloc.endswith("ppomppu.co.kr") and parts.path.endswith("/zboard/zboard.php") and "no=" in parts.query:
+        return urlunsplit((parts.scheme, parts.netloc, "/zboard/view.php", parts.query, ""))
+    return absolute
 
 
 def _select_click_through_candidate(anchors: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -536,7 +583,7 @@ async def run_source_preflight(
 
 
 def _write_report(report: dict[str, Any], output_path: Path | None) -> None:
-    payload = json.dumps(report, ensure_ascii=False, indent=2)
+    payload = json.dumps(report, ensure_ascii=True, indent=2)
     if output_path:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(payload + "\n", encoding="utf-8")
