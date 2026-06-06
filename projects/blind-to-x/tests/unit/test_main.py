@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import time
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -16,7 +17,13 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from pipeline.cli import acquire_lock as _acquire_lock, _is_process_alive, build_parser as _build_parser
+from pipeline.cli import (
+    _resolve_source_preflight_sources,
+    acquire_lock as _acquire_lock,
+    _is_process_alive,
+    build_parser as _build_parser,
+    run_source_preflight_command as _run_source_preflight_command,
+)
 from pipeline.runner import handle_single_commands as _handle_single_commands
 from pipeline.bootstrap import init_scrapers as _init_scrapers, resolve_input_sources as _resolve_input_sources
 
@@ -60,6 +67,33 @@ class TestBuildParser:
         args = parser.parse_args(["--digest", "--digest-date", "2026-03-31"])
         assert args.digest is True
         assert args.digest_date == "2026-03-31"
+
+    def test_source_preflight_args(self):
+        parser = _build_parser()
+        args = parser.parse_args(
+            [
+                "--source-preflight",
+                "--source",
+                "ppomppu",
+                "--source-preflight-fail-on-problem",
+                "--source-preflight-timeout-ms",
+                "5000",
+                "--source-preflight-output",
+                ".tmp/preflight.json",
+                "--source-preflight-screenshot-dir",
+                "screenshots/preflight",
+                "--source-preflight-viewport",
+                "mobile",
+            ]
+        )
+
+        assert args.source_preflight is True
+        assert args.source == "ppomppu"
+        assert args.source_preflight_fail_on_problem is True
+        assert args.source_preflight_timeout_ms == 5000
+        assert args.source_preflight_output == Path(".tmp/preflight.json")
+        assert args.source_preflight_screenshot_dir == Path("screenshots/preflight")
+        assert args.source_preflight_viewport == "mobile"
 
 
 # ---------------------------------------------------------------------------
@@ -135,6 +169,80 @@ class TestResolveInputSources:
         args = MagicMock(source="auto")
         result = _resolve_input_sources(config, args)
         assert result == ["fmkorea", "ppomppu"]
+
+
+# ---------------------------------------------------------------------------
+# source preflight
+# ---------------------------------------------------------------------------
+
+
+class TestSourcePreflight:
+    def test_resolve_source_preflight_sources_filters_unsupported(self):
+        config = MagicMock()
+        config.get.side_effect = lambda key, default=None: {
+            "input_sources": ["blind", "internal", "ppomppu"],
+            "content_strategy.primary_source": "multi",
+        }.get(key, default)
+        args = SimpleNamespace(source="multi")
+
+        assert _resolve_source_preflight_sources(config, args) == ["blind", "ppomppu"]
+
+    @pytest.mark.asyncio
+    async def test_source_preflight_command_skips_when_flag_absent(self):
+        args = SimpleNamespace(source_preflight=False)
+
+        result = await _run_source_preflight_command(MagicMock(), args)
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_source_preflight_command_runs_probe_and_returns_exit_code(self, monkeypatch, tmp_path):
+        calls = {}
+
+        async def fake_run_source_preflight(**kwargs):
+            calls.update(kwargs)
+            return {"summary": {"ok": False}}
+
+        monkeypatch.setattr("pipeline.cli.run_source_preflight", fake_run_source_preflight)
+        config = MagicMock()
+        config.get.side_effect = lambda key, default=None: {
+            "input_sources": ["blind", "ppomppu"],
+            "content_strategy.primary_source": "multi",
+        }.get(key, default)
+        args = SimpleNamespace(
+            source_preflight=True,
+            source="multi",
+            source_preflight_fail_on_problem=True,
+            source_preflight_timeout_ms=500,
+            source_preflight_output=tmp_path / "preflight.json",
+            source_preflight_screenshot_dir=tmp_path / "screens",
+            source_preflight_headed=True,
+            source_preflight_viewport="mobile",
+        )
+
+        result = await _run_source_preflight_command(config, args)
+
+        assert result == 1
+        assert calls == {
+            "sources": ["blind", "ppomppu"],
+            "custom_urls": None,
+            "timeout_ms": 1000,
+            "output_path": tmp_path / "preflight.json",
+            "screenshot_dir": tmp_path / "screens",
+            "headed": True,
+            "viewport": "mobile",
+        }
+
+    @pytest.mark.asyncio
+    async def test_source_preflight_command_rejects_unsupported_source(self, monkeypatch):
+        fake_run_source_preflight = AsyncMock()
+        monkeypatch.setattr("pipeline.cli.run_source_preflight", fake_run_source_preflight)
+        args = SimpleNamespace(source_preflight=True, source="internal")
+
+        result = await _run_source_preflight_command(MagicMock(), args)
+
+        assert result == 1
+        fake_run_source_preflight.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

@@ -1,3 +1,5 @@
+import pytest
+
 from scripts.source_browser_probe import (
     READY_STATUS,
     ProbeClassification,
@@ -6,6 +8,7 @@ from scripts.source_browser_probe import (
     classify_probe,
     exit_code_for_report,
     parse_targets,
+    run_source_preflight,
 )
 
 
@@ -115,3 +118,44 @@ def test_build_report_counts_problem_statuses_and_exit_code():
     }
     assert exit_code_for_report(report, fail_on_problem=False) == 0
     assert exit_code_for_report(report, fail_on_problem=True) == 1
+
+
+@pytest.mark.asyncio
+async def test_run_source_preflight_reuses_probe_and_writes_report(monkeypatch, tmp_path):
+    async def fake_run_probe(targets, **kwargs):
+        assert [target.source for target in targets] == ["ppomppu"]
+        assert kwargs == {
+            "timeout_ms": 1500,
+            "screenshot_dir": tmp_path / "screens",
+            "headed": True,
+            "viewport": "mobile",
+        }
+        return [
+            ProbeResult(
+                source="ppomppu",
+                url="https://www.ppomppu.co.kr/hot.php",
+                final_url="https://www.ppomppu.co.kr/hot.php",
+                http_status=200,
+                title="Hot",
+                body_chars=200,
+                classification=ProbeClassification(READY_STATUS, "ok", []),
+                console_errors=[],
+                page_errors=[],
+            )
+        ]
+
+    output_path = tmp_path / "report.json"
+    monkeypatch.setattr("scripts.source_browser_probe.run_probe", fake_run_probe)
+
+    report = await run_source_preflight(
+        sources=["ppomppu"],
+        custom_urls=None,
+        timeout_ms=1500,
+        output_path=output_path,
+        screenshot_dir=tmp_path / "screens",
+        headed=True,
+        viewport="mobile",
+    )
+
+    assert report["summary"]["ok"] is True
+    assert '"source_count": 1' in output_path.read_text(encoding="utf-8")

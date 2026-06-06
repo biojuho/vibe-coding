@@ -9,8 +9,9 @@ import time
 
 from config import ConfigManager
 from pipeline import NotificationManager, NotionUploader, TwitterPoster
-from pipeline.bootstrap import init_scrapers, check_budget, init_components
+from pipeline.bootstrap import check_budget, init_components, init_scrapers, resolve_input_sources
 from pipeline.runner import execute_pipeline, handle_single_commands
+from scripts.source_browser_probe import DEFAULT_SOURCES, exit_code_for_report, run_source_preflight
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,45 @@ def build_parser():
         "--source",
         default="auto",
         help="Source scraper to use. Use 'auto' for configured primary/input_sources, or 'multi' for all input_sources.",
+    )
+    parser.add_argument(
+        "--source-preflight",
+        action="store_true",
+        help="Probe configured source pages in a browser and exit before pipeline work.",
+    )
+    parser.add_argument(
+        "--source-preflight-fail-on-problem",
+        action="store_true",
+        help="Exit with status 1 when any browser-probed source is not ready.",
+    )
+    parser.add_argument(
+        "--source-preflight-timeout-ms",
+        type=int,
+        default=12000,
+        help="Browser source preflight navigation timeout in milliseconds.",
+    )
+    parser.add_argument(
+        "--source-preflight-output",
+        type=Path,
+        default=Path(".tmp/source_browser_preflight.json"),
+        help="Write the source preflight JSON report to this path.",
+    )
+    parser.add_argument(
+        "--source-preflight-screenshot-dir",
+        type=Path,
+        default=Path("screenshots/source_preflight"),
+        help="Directory for source preflight full-page screenshots.",
+    )
+    parser.add_argument(
+        "--source-preflight-headed",
+        action="store_true",
+        help="Run source preflight with a visible browser window.",
+    )
+    parser.add_argument(
+        "--source-preflight-viewport",
+        choices=("desktop", "mobile"),
+        default="desktop",
+        help="Browser viewport profile for source preflight.",
     )
     parser.add_argument("--review-only", action="store_true", help="Queue items for review without publishing")
     parser.add_argument("--reprocess-approved", action="store_true", help="Publish approved Notion items only")
@@ -83,6 +123,36 @@ def acquire_lock() -> bool:
     return True
 
 
+def _resolve_source_preflight_sources(config_mgr, args) -> list[str]:
+    resolved_sources = resolve_input_sources(config_mgr, args)
+    source_names = [source for source in resolved_sources if source in DEFAULT_SOURCES]
+    unsupported_sources = [source for source in resolved_sources if source not in DEFAULT_SOURCES]
+    if unsupported_sources:
+        logger.warning("Skipping unsupported source preflight targets: %s", ", ".join(unsupported_sources))
+    return source_names
+
+
+async def run_source_preflight_command(config_mgr, args) -> int | None:
+    if not getattr(args, "source_preflight", False):
+        return None
+
+    sources = _resolve_source_preflight_sources(config_mgr, args)
+    if not sources:
+        logger.error("No supported source preflight targets resolved for source=%s.", getattr(args, "source", "auto"))
+        return 1
+
+    report = await run_source_preflight(
+        sources=sources,
+        custom_urls=None,
+        timeout_ms=max(1000, getattr(args, "source_preflight_timeout_ms", 12000)),
+        output_path=getattr(args, "source_preflight_output", None),
+        screenshot_dir=getattr(args, "source_preflight_screenshot_dir", None),
+        headed=getattr(args, "source_preflight_headed", False),
+        viewport=getattr(args, "source_preflight_viewport", "desktop"),
+    )
+    return exit_code_for_report(report, fail_on_problem=getattr(args, "source_preflight_fail_on_problem", False))
+
+
 async def run_main():
     parser = build_parser()
     args = parser.parse_args()
@@ -96,6 +166,14 @@ async def run_main():
         logger.warning("Could not load %s. Using empty config.", args.config)
         config_mgr = ConfigManager("nonexistent")
         config_mgr.config = {}
+
+    if getattr(args, "source_preflight", False):
+        source_preflight_exit = 1
+        try:
+            source_preflight_exit = await run_source_preflight_command(config_mgr, args)
+        finally:
+            _LOCK_FILE.unlink(missing_ok=True)
+        sys.exit(0 if source_preflight_exit is None else source_preflight_exit)
 
     notifier = NotificationManager(config_mgr)
     notion_uploader = NotionUploader(config_mgr)

@@ -397,6 +397,29 @@ def _result_to_dict(result: ProbeResult) -> dict[str, Any]:
     return data
 
 
+async def run_source_preflight(
+    *,
+    sources: list[str] | None,
+    custom_urls: list[str] | None,
+    timeout_ms: int,
+    output_path: Path | None,
+    screenshot_dir: Path | None,
+    headed: bool = False,
+    viewport: str = "desktop",
+) -> dict[str, Any]:
+    targets = parse_targets(sources, custom_urls)
+    results = await run_probe(
+        targets,
+        timeout_ms=timeout_ms,
+        screenshot_dir=screenshot_dir,
+        headed=headed,
+        viewport=viewport,
+    )
+    report = build_report(results)
+    _write_report(report, output_path)
+    return report
+
+
 def _write_report(report: dict[str, Any], output_path: Path | None) -> None:
     payload = json.dumps(report, ensure_ascii=False, indent=2)
     if output_path:
@@ -438,16 +461,15 @@ def build_parser() -> argparse.ArgumentParser:
 
 async def async_main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    targets = parse_targets(args.source, args.url)
-    results = await run_probe(
-        targets,
+    report = await run_source_preflight(
+        sources=args.source,
+        custom_urls=args.url,
         timeout_ms=max(1000, args.timeout_ms),
+        output_path=args.output,
         screenshot_dir=args.screenshot_dir,
         headed=args.headed,
         viewport=args.viewport,
     )
-    report = build_report(results)
-    _write_report(report, args.output)
     return exit_code_for_report(report, fail_on_problem=args.fail_on_problem)
 
 

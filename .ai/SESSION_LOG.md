@@ -926,3 +926,13 @@
 - Code-review gate: staged gate returned advisory WARN `risk_score=0.40`, covered by focused tests and browser QA.
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1381.json --json` returned `adopt_candidate` with `score_delta=0.8`.
 - Boundary: no push was performed. T-251 was not retried. Preserve unrelated dirty blind-to-x WIP outside T-1381.
+
+## 2026-06-06 - Codex
+
+- Closed T-1382 as a bounded `$auto-research` blind-to-x CLI source preflight cycle.
+- Changed `projects/blind-to-x/pipeline/cli.py`: added `--source-preflight`, fail-on-problem, timeout, output, screenshot-dir, headed, and viewport options; the CLI now resolves configured sources through `resolve_input_sources()`, filters unsupported browser probe targets, runs the shared source preflight, releases the lock, and exits before normal pipeline work.
+- Changed `projects/blind-to-x/scripts/source_browser_probe.py`: added reusable `run_source_preflight()` so the standalone script and main CLI share target parsing, browser probing, report building, and report writing.
+- Updated `projects/blind-to-x/tests/unit/test_main.py` and `projects/blind-to-x/tests/unit/test_source_browser_probe.py` with parser, source-filtering, command-exit, and report-writing regressions.
+- Verification: focused pytest passed `37/37`; Ruff check passed; `py_compile` passed; path-limited diff-check passed; live `main.py --source-preflight --source ppomppu --source-preflight-fail-on-problem` wrote `.tmp/source-preflight-t1382-ppomppu.json` with `ready_count=1`, `problem_count=0`, and screenshot `projects/blind-to-x/screenshots/source_preflight_t1382/ppomppu.png`.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1382.json --json` returned `adopt_candidate` with `score_delta=1.0`.
+- Boundary: no push was performed. T-251 was not retried. Refresh live session/readiness/selector after commit before exact-head launch claims.
