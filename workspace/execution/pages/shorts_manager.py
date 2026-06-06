@@ -87,6 +87,7 @@ CHANNELS = [
 VOICE_OPTIONS = ["alloy", "ash", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer"]
 STYLE_OPTIONS = ["default", "bold", "neon", "subtitle", "cta"]
 _FLASH_KEY = "shorts_manager_flash"
+_DELETE_CONFIRM_KEY = "shorts_manager_pending_delete_id"
 
 # ---------------------------------------------------------------------------
 # 페이지 설정
@@ -114,6 +115,36 @@ def _render_flash() -> None:
     level = payload.get("level", "info")
     message = payload.get("message", "")
     getattr(st, level, st.info)(message)
+
+
+def _get_pending_delete_id() -> int | None:
+    pending = st.session_state.get(_DELETE_CONFIRM_KEY)
+    if isinstance(pending, int) and not isinstance(pending, bool):
+        return pending
+    return None
+
+
+def _request_delete_confirmation(item_id: int) -> None:
+    st.session_state[_DELETE_CONFIRM_KEY] = item_id
+    _set_flash("warning", "삭제 확인 대기: 항목을 지우려면 삭제 확인을 누르세요.")
+
+
+def _cancel_delete_confirmation(item_id: int | None = None) -> None:
+    pending = _get_pending_delete_id()
+    if item_id is None or pending == item_id:
+        st.session_state.pop(_DELETE_CONFIRM_KEY, None)
+
+
+def _delete_item_with_confirmation(item_id: int) -> None:
+    delete_item(item_id)
+    _cancel_delete_confirmation(item_id)
+    _set_flash("success", "항목 삭제 완료")
+
+
+def _clear_stale_delete_confirmation(visible_item_ids: set[int]) -> None:
+    pending = _get_pending_delete_id()
+    if pending is not None and pending not in visible_item_ids:
+        _cancel_delete_confirmation(pending)
 
 
 def _status_badge(status: str) -> str:
@@ -619,6 +650,7 @@ with left:
 with right:
     st.subheader("콘텐츠 목록")
     all_items = get_all()
+    _clear_stale_delete_confirmation({int(item["id"]) for item in all_items})
     tab_labels = [f"전체 ({len(all_items)})"] + CHANNELS
     tabs = st.tabs(tab_labels)
 
@@ -732,14 +764,33 @@ with right:
                     _set_flash("error", f"Notion 오류: {result.get('error', '')}")
                 st.rerun()
         with btn_col5:
-            if st.button(
+            if _get_pending_delete_id() == item["id"]:
+                st.caption("삭제 확인 필요")
+                if st.button(
+                    "삭제 확인",
+                    key=f"del_confirm_{key_prefix}_{item['id']}",
+                    help="이 항목을 영구 삭제합니다",
+                    use_container_width=True,
+                    type="primary",
+                ):
+                    _delete_item_with_confirmation(item["id"])
+                    st.rerun()
+                if st.button(
+                    "취소",
+                    key=f"del_cancel_{key_prefix}_{item['id']}",
+                    help="삭제 확인을 취소합니다",
+                    use_container_width=True,
+                ):
+                    _cancel_delete_confirmation(item["id"])
+                    _set_flash("info", "삭제 취소됨")
+                    st.rerun()
+            elif st.button(
                 "삭제",
                 key=f"del_{key_prefix}_{item['id']}",
-                help="삭제",
+                help="삭제 확인을 엽니다",
                 use_container_width=True,
             ):
-                delete_item(item["id"])
-                _set_flash("success", "항목 삭제 완료")
+                _request_delete_confirmation(item["id"])
                 st.rerun()
 
     def _render_items(items_to_show: list[dict[str, Any]], key_prefix: str = "all") -> None:

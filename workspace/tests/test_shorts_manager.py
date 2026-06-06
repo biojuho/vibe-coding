@@ -224,6 +224,44 @@ def test_flash_helpers_emit_and_clear_state(shorts_manager) -> None:
     assert ("success", "done") in shorts_manager.st.events
 
 
+def test_delete_confirmation_helpers_require_explicit_confirm(shorts_manager, monkeypatch: pytest.MonkeyPatch) -> None:
+    deleted: list[int] = []
+    monkeypatch.setattr(shorts_manager, "delete_item", deleted.append)
+
+    shorts_manager._request_delete_confirmation(42)
+
+    assert shorts_manager._get_pending_delete_id() == 42
+    assert deleted == []
+    assert shorts_manager.st.session_state[shorts_manager._FLASH_KEY]["level"] == "warning"
+
+    shorts_manager._cancel_delete_confirmation(41)
+
+    assert shorts_manager._get_pending_delete_id() == 42
+
+    shorts_manager._delete_item_with_confirmation(42)
+
+    assert deleted == [42]
+    assert shorts_manager._DELETE_CONFIRM_KEY not in shorts_manager.st.session_state
+    assert shorts_manager.st.session_state[shorts_manager._FLASH_KEY] == {
+        "level": "success",
+        "message": "항목 삭제 완료",
+    }
+
+
+def test_stale_delete_confirmation_is_cleared(shorts_manager) -> None:
+    shorts_manager.st.session_state[shorts_manager._DELETE_CONFIRM_KEY] = 7
+
+    shorts_manager._clear_stale_delete_confirmation({1, 2, 3})
+
+    assert shorts_manager._DELETE_CONFIRM_KEY not in shorts_manager.st.session_state
+
+    shorts_manager.st.session_state[shorts_manager._DELETE_CONFIRM_KEY] = 2
+
+    shorts_manager._clear_stale_delete_confirmation({1, 2, 3})
+
+    assert shorts_manager._get_pending_delete_id() == 2
+
+
 def test_formatting_helpers_cover_badges_and_display(shorts_manager) -> None:
     assert "완료" in shorts_manager._status_badge("success")
     assert shorts_manager._fmt_dur(125) == "2:05"
