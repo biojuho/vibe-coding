@@ -228,6 +228,30 @@ test("login page operator eyebrow uses Korean product copy", () => {
 	assert.match(source, /운영자 계정 안내/);
 	assert.match(source, /발급된 관리자 아이디와 비밀번호로 로그인해 주세요/);
 	assert.match(source, /const LOGIN_LEGAL_LINKS = \[/);
+	assert.match(
+		source,
+		/function buildLoginLegalDocumentHref\(pathname, redirectTarget = ["']["']\) \{/,
+	);
+	assert.match(source, /!pathname\.startsWith\(["']\/["']\)/);
+	assert.match(source, /pathname\.startsWith\(["']\/\/["']\)/);
+	assert.match(source, /params\.set\(["']returnTo["'], ["']login["']\);/);
+	assert.match(source, /params\.set\(["']callbackUrl["'], redirectTarget\);/);
+	assert.match(
+		source,
+		/function resolveLoginLegalRedirectTarget\(locationHref\) \{\s+const redirectTarget = getSafeLoginRedirectTarget\(locationHref\);/,
+	);
+	assert.match(
+		source,
+		/return redirectTarget === ["']\/["'] \? ["']["'] : redirectTarget;/,
+	);
+	assert.match(
+		source,
+		/const \[legalRedirectTarget, setLegalRedirectTarget\] = useState\(["']["']\);/,
+	);
+	assert.match(
+		source,
+		/setLegalRedirectTarget\(\s*resolveLoginLegalRedirectTarget\(window\.location\.href\),\s*\);/,
+	);
 	assert.match(source, /href: ["']\/terms["'][\s\S]*?label: ["']이용약관["']/);
 	assert.match(
 		source,
@@ -256,7 +280,11 @@ test("login page operator eyebrow uses Korean product copy", () => {
 	);
 	assert.match(
 		source,
-		/<Link[\s\S]*?href=\{href\}[\s\S]*?aria-label=\{accessibleLabel\}[\s\S]*?title=\{accessibleLabel\}/,
+		/const legalHref = buildLoginLegalDocumentHref\(\s*href,\s*legalRedirectTarget,\s*\);/,
+	);
+	assert.match(
+		source,
+		/<Link[\s\S]*?href=\{legalHref\}[\s\S]*?aria-label=\{accessibleLabel\}[\s\S]*?title=\{accessibleLabel\}/,
 	);
 	assert.doesNotMatch(source, /데모 로그인 정보/);
 	assert.doesNotMatch(source, /아이디: <code/);
@@ -390,7 +418,7 @@ test("login page recovers submit state when sign-in fails unexpectedly", () => {
 	assert.match(source, /const isMountedRef = useRef\(false\)/);
 	assert.match(
 		source,
-		/useEffect\(\(\) => \{\s+isMountedRef\.current = true;\s+return \(\) => \{\s+isMountedRef\.current = false;\s+submitInFlightRef\.current = false;\s+\};\s+\}, \[\]\);/,
+		/useEffect\(\(\) => \{\s+isMountedRef\.current = true;[\s\S]*?return \(\) => \{\s+isMountedRef\.current = false;\s+submitInFlightRef\.current = false;\s+\};\s+\}, \[\]\);/,
 	);
 	assert.match(source, /const loginSubmitLabel = isSubmitting/);
 	assert.match(source, /아이디를 입력하면 로그인할 수 있습니다/);

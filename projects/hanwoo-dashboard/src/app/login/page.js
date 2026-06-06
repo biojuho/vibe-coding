@@ -29,6 +29,34 @@ const LOGIN_LEGAL_LINKS = [
 	},
 ];
 
+function buildLoginLegalDocumentHref(pathname, redirectTarget = "") {
+	if (
+		typeof pathname !== "string" ||
+		!pathname.startsWith("/") ||
+		pathname.startsWith("//")
+	) {
+		return "/login";
+	}
+
+	if (
+		typeof redirectTarget !== "string" ||
+		redirectTarget.length === 0 ||
+		redirectTarget === "/"
+	) {
+		return pathname;
+	}
+
+	const params = new URLSearchParams();
+	params.set("returnTo", "login");
+	params.set("callbackUrl", redirectTarget);
+	return `${pathname}?${params.toString()}`;
+}
+
+function resolveLoginLegalRedirectTarget(locationHref) {
+	const redirectTarget = getSafeLoginRedirectTarget(locationHref);
+	return redirectTarget === "/" ? "" : redirectTarget;
+}
+
 export default function LoginPage() {
 	const router = useRouter();
 	const [username, setUsername] = useState("");
@@ -36,6 +64,7 @@ export default function LoginPage() {
 	const [error, setError] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [showPassword, setShowPassword] = useState(false);
+	const [legalRedirectTarget, setLegalRedirectTarget] = useState("");
 	const submitInFlightRef = useRef(false);
 	const usernameInputRef = useRef(null);
 
@@ -56,6 +85,11 @@ export default function LoginPage() {
 
 	useEffect(() => {
 		isMountedRef.current = true;
+		if (typeof window !== "undefined") {
+			setLegalRedirectTarget(
+				resolveLoginLegalRedirectTarget(window.location.href),
+			);
+		}
 		return () => {
 			isMountedRef.current = false;
 			submitInFlightRef.current = false;
@@ -259,18 +293,29 @@ export default function LoginPage() {
 					className="login-legal-links flex flex-wrap justify-center gap-3.5"
 					aria-label="로그인 화면 문서"
 				>
-					{LOGIN_LEGAL_LINKS.map(({ href, label, accessibleLabel }, index) => (
-						<Fragment key={href}>
-							{index > 0 ? (
-								<span className="login-legal-separator" aria-hidden="true">
-									{" · "}
-								</span>
-							) : null}
-							<Link href={href} aria-label={accessibleLabel} title={accessibleLabel}>
-								{label}
-							</Link>
-						</Fragment>
-					))}
+					{LOGIN_LEGAL_LINKS.map(({ href, label, accessibleLabel }, index) => {
+						const legalHref = buildLoginLegalDocumentHref(
+							href,
+							legalRedirectTarget,
+						);
+
+						return (
+							<Fragment key={href}>
+								{index > 0 ? (
+									<span className="login-legal-separator" aria-hidden="true">
+										{" · "}
+									</span>
+								) : null}
+								<Link
+									href={legalHref}
+									aria-label={accessibleLabel}
+									title={accessibleLabel}
+								>
+									{label}
+								</Link>
+							</Fragment>
+						);
+					})}
 				</nav>
 			</section>
 		</main>

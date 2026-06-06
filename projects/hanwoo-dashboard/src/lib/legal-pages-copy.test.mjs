@@ -65,6 +65,10 @@ test("legal pages expose stable support channels without personal contact detail
 	assert.match(returnLinkSource, /"use client";/);
 	assert.match(
 		returnLinkSource,
+		/import \{ getSafeLoginRedirectTarget \} from ["']@\/lib\/login-redirect\.mjs["'];/,
+	);
+	assert.match(
+		returnLinkSource,
 		/Dashboard legal return must use document navigation so auth proxy redirect fragments are preserved\./,
 	);
 	assert.match(returnLinkSource, /import \{ useSearchParams \} from ["']next\/navigation["'];/);
@@ -77,6 +81,35 @@ test("legal pages expose stable support channels without personal contact detail
 		returnLinkSource,
 		/login:\s*\{\s*href: "\/login",\s*label: "로그인 화면으로 돌아가기"/,
 	);
+	assert.match(
+		returnLinkSource,
+		/function buildLoginReturnHref\(callbackTarget = ["']["']\) \{/,
+	);
+	assert.match(
+		returnLinkSource,
+		/params\.set\(["']callbackUrl["'], callbackTarget\);/,
+	);
+	assert.match(
+		returnLinkSource,
+		/return `\$\{LEGAL_RETURN_TARGETS\.login\.href\}\?\$\{params\.toString\(\)\}#login`;/,
+	);
+	assert.match(
+		returnLinkSource,
+		/function resolveLegalLoginReturnTarget\(searchParams, locationHref = ["']["']\) \{/,
+	);
+	assert.match(
+		returnLinkSource,
+		/const callbackUrl = searchParams\?\.get\(["']callbackUrl["']\);/,
+	);
+	assert.match(
+		returnLinkSource,
+		/loginUrl\.searchParams\.set\(["']callbackUrl["'], callbackUrl\);/,
+	);
+	assert.match(
+		returnLinkSource,
+		/const redirectTarget = getSafeLoginRedirectTarget\(loginUrl\.href\);/,
+	);
+	assert.match(returnLinkSource, /href: buildLoginReturnHref\(redirectTarget\),/);
 	assert.match(returnLinkSource, /returnTo === "dashboard"/);
 	assert.match(
 		returnLinkSource,
@@ -89,6 +122,14 @@ test("legal pages expose stable support channels without personal contact detail
 	);
 	assert.match(returnLinkSource, /export function LegalReturnLinkFallback\(\)/);
 	assert.match(returnLinkSource, /const searchParams = useSearchParams\(\);/);
+	assert.match(
+		returnLinkSource,
+		/const locationHref = typeof window === ["']undefined["'] \? ["']["'] : window\.location\.href;/,
+	);
+	assert.match(
+		returnLinkSource,
+		/resolveLegalReturnTarget\(searchParams, locationHref\)/,
+	);
 	assert.match(
 		returnLinkSource,
 		/<ArrowLeft className="h-4 w-4" aria-hidden="true" \/>/,
