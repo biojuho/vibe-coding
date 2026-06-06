@@ -4,6 +4,7 @@ import pytest
 
 from scripts.source_browser_probe import (
     READY_STATUS,
+    ClickThroughResult,
     ProbeClassification,
     ProbeResult,
     ProbeTarget,
@@ -168,6 +169,54 @@ def test_build_report_counts_click_error_as_problem():
     ]
     assert report["summary"]["recommended_source"] is None
     assert exit_code_for_report(report, fail_on_problem=True) == 1
+
+
+def test_build_report_recommends_ready_source_with_strongest_detail_evidence():
+    results = [
+        ProbeResult(
+            source="jobplanet",
+            url="https://www.jobplanet.co.kr/api/v5/community/posts",
+            final_url="https://www.jobplanet.co.kr/api/v5/community/posts/1001",
+            http_status=200,
+            title="JobPlanet",
+            body_chars=16000,
+            classification=ProbeClassification(READY_STATUS, "ok", []),
+            console_errors=[],
+            page_errors=[],
+            click_through=ClickThroughResult(
+                ok=True,
+                candidate_text="JobPlanet post",
+                candidate_href="https://www.jobplanet.co.kr/community/posts/1001",
+                final_url="https://www.jobplanet.co.kr/api/v5/community/posts/1001",
+                title="JobPlanet post",
+                body_chars=77,
+            ),
+        ),
+        ProbeResult(
+            source="ppomppu",
+            url="https://www.ppomppu.co.kr/hot.php",
+            final_url="https://www.ppomppu.co.kr/zboard/view.php?id=freeboard&no=1",
+            http_status=200,
+            title="Ppomppu",
+            body_chars=1700,
+            classification=ProbeClassification(READY_STATUS, "ok", []),
+            console_errors=[],
+            page_errors=[],
+            click_through=ClickThroughResult(
+                ok=True,
+                candidate_text="Ppomppu post",
+                candidate_href="https://www.ppomppu.co.kr/zboard/view.php?id=freeboard&no=1",
+                final_url="https://www.ppomppu.co.kr/zboard/view.php?id=freeboard&no=1",
+                title="Ppomppu post",
+                body_chars=3300,
+            ),
+        ),
+    ]
+
+    report = build_report(results)
+
+    assert report["summary"]["ready_sources"] == ["jobplanet", "ppomppu"]
+    assert report["summary"]["recommended_source"] == "ppomppu"
 
 
 def test_write_report_escapes_non_ascii_evidence(tmp_path, capsys):

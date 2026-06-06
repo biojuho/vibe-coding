@@ -217,7 +217,8 @@ def build_report(results: list[ProbeResult]) -> dict[str, Any]:
 
 def _build_summary(results: list[ProbeResult]) -> dict[str, Any]:
     statuses = Counter(result.classification.status for result in results)
-    ready_sources = [result.source for result in results if result.classification.status == READY_STATUS]
+    ready_results = [result for result in results if result.classification.status == READY_STATUS]
+    ready_sources = [result.source for result in ready_results]
     problem_sources = [
         {
             "source": result.source,
@@ -236,8 +237,23 @@ def _build_summary(results: list[ProbeResult]) -> dict[str, Any]:
         "statuses": dict(sorted(statuses.items())),
         "ready_sources": ready_sources,
         "problem_sources": problem_sources,
-        "recommended_source": ready_sources[0] if ready_sources else None,
+        "recommended_source": _recommend_ready_source(ready_results),
     }
+
+
+def _recommend_ready_source(ready_results: list[ProbeResult]) -> str | None:
+    if not ready_results:
+        return None
+    indexed_results = enumerate(ready_results)
+    _, selected = max(indexed_results, key=lambda item: (_ready_result_evidence_chars(item[1]), -item[0]))
+    return selected.source
+
+
+def _ready_result_evidence_chars(result: ProbeResult) -> int:
+    click = result.click_through
+    if click and click.ok:
+        return click.body_chars
+    return result.body_chars
 
 
 def exit_code_for_report(report: dict[str, Any], *, fail_on_problem: bool) -> int:
