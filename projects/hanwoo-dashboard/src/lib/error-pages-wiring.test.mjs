@@ -283,6 +283,10 @@ test("login page recovers submit state when sign-in fails unexpectedly", () => {
 	assert.match(source, /import \{ useEffect, useRef, useState \} from ["']react["']/);
 	assert.match(
 		source,
+		/import \{ getSafeLoginRedirectTarget \} from ["']@\/lib\/login-redirect\.mjs["'];/,
+	);
+	assert.match(
+		source,
 		/const LOGIN_NAVIGATION_ERROR_MESSAGE =\s+["']로그인은 완료됐지만 대시보드로 이동하지 못했습니다\. 새로고침 후 다시 시도해 주세요\.["'];/,
 	);
 	assert.match(source, /const submitInFlightRef = useRef\(false\)/);
@@ -308,10 +312,12 @@ test("login page recovers submit state when sign-in fails unexpectedly", () => {
 	);
 	assert.match(source, /setIsSubmitting\(true\);/);
 	assert.match(source, /try \{\s+const result = await signIn\(["']credentials["']/);
+	assert.match(source, /const redirectTarget = getSafeLoginRedirectTarget\(window\.location\.href\);/);
 	assert.match(
 		source,
-		/try \{\s+router\.push\(["']\/["']\);\s+router\.refresh\(\);\s+\} catch \(navigationError\) \{/,
+		/try \{\s+const redirectTarget = getSafeLoginRedirectTarget\(window\.location\.href\);\s+router\.push\(redirectTarget\);\s+router\.refresh\(\);\s+\} catch \(navigationError\) \{/,
 	);
+	assert.doesNotMatch(source, /router\.push\(["']\/["']\);/);
 	assert.match(
 		source,
 		/console\.error\(["']Login dashboard navigation failed:/,
