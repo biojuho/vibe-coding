@@ -376,6 +376,29 @@ def test_build_report_recommends_ready_source_with_strongest_detail_evidence():
     assert "--config" in command
     assert "config.yaml" in command
     assert "--source ppomppu" in command
+    assert "--source-preflight-viewport" not in command
+
+
+def test_build_report_preserves_mobile_viewport_in_recommended_command():
+    results = [
+        ProbeResult(
+            source="ppomppu",
+            url="https://www.ppomppu.co.kr/hot.php",
+            final_url="https://www.ppomppu.co.kr/zboard/view.php?id=freeboard&no=1",
+            http_status=200,
+            title="Ppomppu",
+            body_chars=1700,
+            classification=ProbeClassification(READY_STATUS, "ok", []),
+            console_errors=[],
+            page_errors=[],
+        )
+    ]
+
+    report = build_report(results, viewport="mobile")
+
+    command = report["summary"]["recommended_command"]
+    assert command == _build_recommended_command("ppomppu", viewport="mobile")
+    assert "--source-preflight-viewport mobile" in command
 
 
 def test_write_report_escapes_non_ascii_evidence(tmp_path, capsys):
@@ -590,6 +613,7 @@ async def test_run_source_preflight_reuses_probe_and_writes_report(monkeypatch, 
     assert report["summary"]["ok"] is True
     assert report["summary"]["ready_sources"] == ["ppomppu"]
     assert report["summary"]["recommended_source"] == "ppomppu"
+    assert "--source-preflight-viewport mobile" in report["summary"]["recommended_command"]
     assert '"source_count": 1' in output_path.read_text(encoding="utf-8")
 
 

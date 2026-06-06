@@ -216,8 +216,8 @@ def parse_targets(sources: list[str] | None, custom_urls: list[str] | None) -> l
     return list(deduped.values())
 
 
-def build_report(results: list[ProbeResult]) -> dict[str, Any]:
-    summary = _build_summary(results)
+def build_report(results: list[ProbeResult], *, viewport: str = "desktop") -> dict[str, Any]:
+    summary = _build_summary(results, viewport=viewport)
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "summary": summary,
@@ -225,7 +225,7 @@ def build_report(results: list[ProbeResult]) -> dict[str, Any]:
     }
 
 
-def _build_summary(results: list[ProbeResult]) -> dict[str, Any]:
+def _build_summary(results: list[ProbeResult], *, viewport: str = "desktop") -> dict[str, Any]:
     statuses = Counter(result.classification.status for result in results)
     ready_results = [result for result in results if result.classification.status == READY_STATUS]
     ready_sources = [result.source for result in ready_results]
@@ -252,7 +252,7 @@ def _build_summary(results: list[ProbeResult]) -> dict[str, Any]:
         "ready_warnings": ready_warnings,
         "problem_sources": problem_sources,
         "recommended_source": recommended_source,
-        "recommended_command": _build_recommended_command(recommended_source),
+        "recommended_command": _build_recommended_command(recommended_source, viewport=viewport),
         "problem_actions": [
             _build_problem_action(result) for result in results if result.classification.status != READY_STATUS
         ],
@@ -303,29 +303,30 @@ def _ready_result_evidence_chars(result: ProbeResult) -> int:
     return result.body_chars
 
 
-def _build_recommended_command(source: str | None) -> str | None:
+def _build_recommended_command(source: str | None, *, viewport: str = "desktop") -> str | None:
     if source not in DEFAULT_SOURCES:
         return None
-    return "& " + subprocess.list2cmdline(
-        [
-            sys.executable,
-            str(_PROJECT_ROOT / "main.py"),
-            "--config",
-            str(_PROJECT_ROOT / "config.yaml"),
-            "--source",
-            source,
-            "--popular",
-            "--review-only",
-            "--limit",
-            "5",
-            "--require-source-ready",
-            "--source-preflight-click-through",
-            "--source-preflight-output",
-            str(_PROJECT_ROOT / ".tmp" / "source_browser_preflight.json"),
-            "--source-preflight-screenshot-dir",
-            str(_PROJECT_ROOT / "screenshots" / "source_preflight"),
-        ]
-    )
+    command_parts = [
+        sys.executable,
+        str(_PROJECT_ROOT / "main.py"),
+        "--config",
+        str(_PROJECT_ROOT / "config.yaml"),
+        "--source",
+        source,
+        "--popular",
+        "--review-only",
+        "--limit",
+        "5",
+        "--require-source-ready",
+        "--source-preflight-click-through",
+        "--source-preflight-output",
+        str(_PROJECT_ROOT / ".tmp" / "source_browser_preflight.json"),
+        "--source-preflight-screenshot-dir",
+        str(_PROJECT_ROOT / "screenshots" / "source_preflight"),
+    ]
+    if viewport != "desktop":
+        command_parts.extend(["--source-preflight-viewport", viewport])
+    return "& " + subprocess.list2cmdline(command_parts)
 
 
 def _build_problem_action(result: ProbeResult) -> dict[str, Any]:
@@ -907,7 +908,7 @@ async def run_source_preflight(
         viewport=viewport,
         click_through=click_through,
     )
-    report = build_report(results)
+    report = build_report(results, viewport=viewport)
     _write_report(report, output_path)
     return report
 

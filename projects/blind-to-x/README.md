@@ -48,6 +48,7 @@ py -3 main.py --source all --popular --review-only --limit 5
 # recommended_source prefers the ready source with the strongest successful detail evidence.
 # recommended_command gives a copyable guarded pipeline command for the recommended source,
 # using the active Python interpreter and explicit project/config paths.
+# Non-default viewport preflights preserve that viewport in recommended_command.
 # problem_actions lists per-source operator next steps for blocked, click, browser, and timeout failures.
 # HTML sources click the first post and fall back to the canonical detail URL
 # if the click is obstructed; API-backed JobPlanet verifies the first post detail endpoint.
