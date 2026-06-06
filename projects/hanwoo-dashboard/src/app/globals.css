@@ -1911,6 +1911,9 @@ body {
 }
 
 .login-legal-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
   border-radius: 8px;
   color: var(--color-text-muted);
   font-size: 12px;
@@ -1933,6 +1936,17 @@ body {
 .login-legal-links a:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary-custom) 20%, transparent);
+}
+
+.login-legal-separator {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.4;
+  opacity: 0.72;
 }
 
 @media (max-width: 420px) {

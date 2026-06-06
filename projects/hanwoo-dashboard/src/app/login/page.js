@@ -11,7 +11,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { getSafeLoginRedirectTarget } from "@/lib/login-redirect.mjs";
 
 const LOGIN_NAVIGATION_ERROR_MESSAGE =
@@ -238,16 +238,21 @@ export default function LoginPage() {
 					<span>오프라인 대기열</span>
 				</div>
 
-				<nav className="login-legal-links" aria-label="로그인 화면 문서">
-					{LOGIN_LEGAL_LINKS.map(({ href, label, accessibleLabel }) => (
-						<Link
-							key={href}
-							href={href}
-							aria-label={accessibleLabel}
-							title={accessibleLabel}
-						>
-							{label}
-						</Link>
+				<nav
+					className="login-legal-links flex flex-wrap justify-center gap-3.5"
+					aria-label="로그인 화면 문서"
+				>
+					{LOGIN_LEGAL_LINKS.map(({ href, label, accessibleLabel }, index) => (
+						<Fragment key={href}>
+							{index > 0 ? (
+								<span className="login-legal-separator" aria-hidden="true">
+									{" · "}
+								</span>
+							) : null}
+							<Link href={href} aria-label={accessibleLabel} title={accessibleLabel}>
+								{label}
+							</Link>
+						</Fragment>
 					))}
 				</nav>
 			</section>

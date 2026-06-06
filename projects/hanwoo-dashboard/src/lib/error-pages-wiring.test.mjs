@@ -193,6 +193,10 @@ test("login page operator eyebrow uses Korean product copy", () => {
 	assert.match(source, /import Link from ["']next\/link["'];/);
 	assert.match(
 		source,
+		/import \{ Fragment, useEffect, useRef, useState \} from ["']react["'];/,
+	);
+	assert.match(
+		source,
 		/<ShieldCheck size=\{26\} strokeWidth=\{2\.2\} aria-hidden="true" \/>/,
 	);
 	assert.match(source, /<EyeOff size=\{18\} aria-hidden="true" \/>/);
@@ -219,11 +223,20 @@ test("login page operator eyebrow uses Korean product copy", () => {
 	);
 	assert.match(
 		source,
-		/<nav className="login-legal-links" aria-label="로그인 화면 문서">/,
+		/<nav[\s\S]*?className="login-legal-links flex flex-wrap justify-center gap-3\.5"[\s\S]*?aria-label="로그인 화면 문서"/,
 	);
 	assert.match(
 		source,
-		/<Link[\s\S]*?key=\{href\}[\s\S]*?href=\{href\}[\s\S]*?aria-label=\{accessibleLabel\}[\s\S]*?title=\{accessibleLabel\}/,
+		/LOGIN_LEGAL_LINKS\.map\(\(\{ href, label, accessibleLabel \}, index\)/,
+	);
+	assert.match(source, /<Fragment key=\{href\}>/);
+	assert.match(
+		source,
+		/<span className="login-legal-separator" aria-hidden="true">[\s\S]*?\{" · "\}[\s\S]*?<\/span>/,
+	);
+	assert.match(
+		source,
+		/<Link[\s\S]*?href=\{href\}[\s\S]*?aria-label=\{accessibleLabel\}[\s\S]*?title=\{accessibleLabel\}/,
 	);
 	assert.doesNotMatch(source, /데모 로그인 정보/);
 	assert.doesNotMatch(source, /아이디: <code/);
@@ -307,7 +320,10 @@ test("login password visibility toggle exposes matching accessible and title cop
 test("login page recovers submit state when sign-in fails unexpectedly", () => {
 	const source = readSource("app/login/page.js");
 
-	assert.match(source, /import \{ useEffect, useRef, useState \} from ["']react["']/);
+	assert.match(
+		source,
+		/import \{ Fragment, useEffect, useRef, useState \} from ["']react["']/,
+	);
 	assert.match(
 		source,
 		/import \{ getSafeLoginRedirectTarget \} from ["']@\/lib\/login-redirect\.mjs["'];/,
