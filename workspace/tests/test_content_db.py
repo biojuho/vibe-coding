@@ -154,6 +154,24 @@ def test_get_kpis_daily_stats_and_channel_stats(monkeypatch, tmp_path):
     assert channel_stats["history"]["pending"] == 1
 
 
+def test_get_kpis_returns_zero_counts_for_empty_queue(monkeypatch, tmp_path):
+    _patch_db(monkeypatch, tmp_path)
+
+    empty_kpis = cdb.get_kpis()
+    assert empty_kpis == {
+        "total": 0,
+        "success_count": 0,
+        "failed_count": 0,
+        "pending_count": 0,
+        "running_count": 0,
+        "total_cost_usd": 0.0,
+        "avg_cost_usd": 0.0,
+    }
+
+    missing_channel_kpis = cdb.get_kpis(channel="missing")
+    assert missing_channel_kpis == empty_kpis
+
+
 def test_get_top_performing_topics_and_hourly_stats(monkeypatch, tmp_path):
     _patch_db(monkeypatch, tmp_path)
 

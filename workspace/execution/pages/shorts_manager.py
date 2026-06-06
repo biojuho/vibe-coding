@@ -140,6 +140,10 @@ def _fmt_cost(usd: float) -> str:
     return f"${usd:.4f}" if usd > 0 else "-"
 
 
+def _fmt_youtube_upload_metric(uploaded: int, awaiting: int) -> str:
+    return f"{uploaded} / {awaiting} 대기"
+
+
 def _youtube_badge(yt_status: str, yt_url: str = "") -> str:
     if yt_status == "uploaded" and yt_url:
         safe_url = _html.escape(yt_url, quote=True)
@@ -529,7 +533,7 @@ c2.metric("완료", kpis.get("success_count", 0))
 c3.metric("대기 / 생성중", f"{kpis.get('pending_count', 0)} / {kpis.get('running_count', 0)}")
 c4.metric("실패", kpis.get("failed_count", 0))
 c5.metric("총 비용", f"${kpis.get('total_cost_usd', 0.0):.4f}")
-c6.metric("YT 업로드", f"{yt_stats['uploaded']} / {yt_stats['awaiting']}대기")
+c6.metric("YT 업로드", _fmt_youtube_upload_metric(yt_stats["uploaded"], yt_stats["awaiting"]))
 
 st.divider()
 

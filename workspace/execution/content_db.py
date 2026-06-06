@@ -280,10 +280,10 @@ def get_kpis(channel: str | None = None) -> dict[str, Any]:
     base_query = """
         SELECT
             COUNT(*)                                               AS total,
-            SUM(CASE WHEN status='success' THEN 1 ELSE 0 END)    AS success_count,
-            SUM(CASE WHEN status='failed'  THEN 1 ELSE 0 END)    AS failed_count,
-            SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END)    AS pending_count,
-            SUM(CASE WHEN status='running' THEN 1 ELSE 0 END)    AS running_count,
+            COALESCE(SUM(CASE WHEN status='success' THEN 1 ELSE 0 END), 0) AS success_count,
+            COALESCE(SUM(CASE WHEN status='failed'  THEN 1 ELSE 0 END), 0) AS failed_count,
+            COALESCE(SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END), 0) AS pending_count,
+            COALESCE(SUM(CASE WHEN status='running' THEN 1 ELSE 0 END), 0) AS running_count,
             COALESCE(SUM(cost_usd), 0.0)                          AS total_cost_usd,
             COALESCE(AVG(CASE WHEN status='success' THEN cost_usd END), 0.0) AS avg_cost_usd
         FROM content_queue

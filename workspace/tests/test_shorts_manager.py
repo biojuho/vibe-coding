@@ -230,6 +230,7 @@ def test_formatting_helpers_cover_badges_and_display(shorts_manager) -> None:
     assert shorts_manager._fmt_dur(0) == "-"
     assert shorts_manager._fmt_cost(0.0) == "-"
     assert shorts_manager._fmt_cost(1.23456) == "$1.2346"
+    assert shorts_manager._fmt_youtube_upload_metric(0, 0) == "0 / 0 대기"
     assert "YT 실패" in shorts_manager._youtube_badge("failed")
     assert "주의" in shorts_manager._ops_badge("warning")
 

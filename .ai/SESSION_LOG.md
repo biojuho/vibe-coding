@@ -914,3 +914,15 @@
 - Code-review gate: staged gate returned advisory WARN `risk_score=0.35` from graph test-gap heuristics, covered by focused Edge TTS tests, related TTS provider tests, and shorts-maker-v2 project QC.
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1378.json --json` returned `adopt_candidate` with `score_delta=0.927004`.
 - Boundary: no push was performed. T-251 was not retried. Preserve unrelated current WIP outside T-1378 in blind-to-x and Hanwoo files. Remaining release blockers are explicit push authorization/user push plus current-head Actions, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E.
+
+## 2026-06-06 - Codex
+
+- Closed T-1381 as a bounded `$auto-research` Shorts Manager browser-QA polish cycle.
+- Browser baseline: Streamlit `workspace/execution/pages/shorts_manager.py` on `http://127.0.0.1:8765` rendered an empty queue KPI as `None / None` for pending/running and `0 / 0대기` for YouTube uploads. MCP browser was locked by the shared Playwright profile, so independent Playwright CLI was used.
+- Changed `workspace/execution/content_db.py`: `get_kpis()` now wraps empty SQLite `SUM(CASE ...)` counters in `COALESCE(..., 0)`, matching SQLite official aggregate behavior where `sum()` returns `NULL` for no non-NULL input rows.
+- Changed `workspace/execution/pages/shorts_manager.py`: added `_fmt_youtube_upload_metric()` and uses it for spaced `uploaded / awaiting 대기` copy.
+- Updated `workspace/tests/test_content_db.py` and `workspace/tests/test_shorts_manager.py` with regressions for empty KPI rows and upload metric spacing.
+- Verification: focused pytest passed `59/59` with repo-local `--basetemp`; Ruff check passed; `py_compile` passed; path-limited diff-check passed; final Playwright eval returned `hasNone=false`, `hasJoinedUpload=false`, `hasSpacedUpload=true`; console warnings/errors were `0`; screenshot `output/playwright/shorts-manager-kpi-clean-final.png`.
+- Code-review gate: staged gate returned advisory WARN `risk_score=0.40`, covered by focused tests and browser QA.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1381.json --json` returned `adopt_candidate` with `score_delta=0.8`.
+- Boundary: no push was performed. T-251 was not retried. Preserve unrelated dirty blind-to-x WIP outside T-1381.
