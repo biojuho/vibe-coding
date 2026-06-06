@@ -401,26 +401,91 @@ class BlindScraper(BaseScraper):
             return False
 
     # ── Feed URL fetching ────────────────────────────────────────────
+    async def _collect_feed_urls_from_page(self, page, limit: int) -> list[str]:
+        selector = ".article-list .tit h3 a"
+        await page.wait_for_selector(selector, timeout=self.selector_timeout_ms)
+        elements = await page.query_selector_all(selector)
+        collected = []
+        for element in elements[:limit]:
+            href = await element.get_attribute("href")
+            normalized = self._normalize_url(href)
+            if normalized:
+                collected.append(normalized)
+        return collected
+
+    async def _fetch_feed_urls_html_only(self, feed_url: str, label: str, limit: int) -> list[str]:
+        html_content = await self._fetch_html_via_session(feed_url)
+        urls = self._extract_urls_from_feed_html(html_content, limit=limit)
+        if urls:
+            logger.info(f"Found {len(urls)} {label} (HTML-only fallback).")
+            return urls
+        self.last_feed_fetch_error = f"Feed fetch failed ({label}): browser unavailable and HTML parse yielded no URLs"
+        self.last_feed_fetch_reason = "browser_unavailable_no_feed_urls"
+        logger.error(self.last_feed_fetch_error)
+        return []
+
+    async def _fetch_feed_html_content(self, feed_url: str, label: str) -> str | None:
+        try:
+            logger.info(f"Fetching {label} via curl_cffi...")
+            return await self._fetch_html_via_session(feed_url)
+        except Exception as fetch_err:
+            logger.warning(
+                "Feed HTML fetch failed for %s: %s. Trying direct browser navigation.",
+                label,
+                fetch_err,
+            )
+            return None
+
+    async def _collect_feed_urls_with_intercept(
+        self,
+        page,
+        feed_url: str,
+        label: str,
+        html_content: str,
+        limit: int,
+    ) -> list[str] | None:
+        async def intercept(route):
+            await route.fulfill(body=html_content, content_type="text/html")
+
+        try:
+            await page.route(feed_url, intercept)
+            await page.goto(feed_url, wait_until="domcontentloaded", timeout=30000)
+            await asyncio.sleep(2)
+            urls = await self._collect_feed_urls_from_page(page, limit)
+            logger.info(f"Found {len(urls)} {label} (intercept mode).")
+            return urls
+        except Exception as intercept_err:
+            logger.warning(
+                "Intercept feed fetch failed for %s: %s. Trying direct navigation.",
+                label,
+                intercept_err,
+            )
+            return None
+        finally:
+            try:
+                await page.unroute(feed_url)
+            except Exception:
+                pass
+
+    async def _collect_feed_urls_direct(self, page, feed_url: str, label: str, limit: int) -> list[str] | None:
+        try:
+            await page.goto(feed_url, wait_until="domcontentloaded", timeout=30000)
+            await asyncio.sleep(2)
+            urls = await self._collect_feed_urls_from_page(page, limit)
+            logger.info(f"Found {len(urls)} {label} (direct fallback).")
+            return urls
+        except Exception as direct_err:
+            self.last_feed_fetch_error = f"Feed fetch failed ({label}): {direct_err}"
+            self.last_feed_fetch_reason = "feed_fetch_failed_after_fallback"
+            logger.error(self.last_feed_fetch_error)
+            return None
+
     async def _fetch_post_urls(self, feed_url, label="posts", limit=5):
         """Generic helper: fetch post URLs from any Blind list page."""
         urls = []
         self.last_feed_fetch_error = None
         self.last_feed_fetch_reason = None
         page = None
-
-        async def _collect_urls():
-            # .tit h3 a: 제목 링크만 선택 (.tit 안에는 h3>a(제목)와 p.pre-txt>a(미리보기)가
-            # 같은 href를 가지므로, h3>a 만 잡아 중복 수집을 방지)
-            selector = ".article-list .tit h3 a"
-            await page.wait_for_selector(selector, timeout=self.selector_timeout_ms)
-            elements = await page.query_selector_all(selector)
-            collected = []
-            for i in range(min(limit, len(elements))):
-                href = await elements[i].get_attribute("href")
-                normalized = self._normalize_url(href)
-                if normalized:
-                    collected.append(normalized)
-            return collected
 
         try:
             try:
@@ -431,64 +496,19 @@ class BlindScraper(BaseScraper):
                     label,
                     exc,
                 )
-                html_content = await self._fetch_html_via_session(feed_url)
-                urls = self._extract_urls_from_feed_html(html_content, limit=limit)
-                if urls:
-                    logger.info(f"Found {len(urls)} {label} (HTML-only fallback).")
-                    return urls
-                self.last_feed_fetch_error = (
-                    f"Feed fetch failed ({label}): browser unavailable and HTML parse yielded no URLs"
-                )
-                self.last_feed_fetch_reason = "browser_unavailable_no_feed_urls"
-                logger.error(self.last_feed_fetch_error)
-                return []
+                return await self._fetch_feed_urls_html_only(feed_url, label, limit)
 
             await self._login(page)
 
-            html_content = None
-            try:
-                logger.info(f"Fetching {label} via curl_cffi...")
-                html_content = await self._fetch_html_via_session(feed_url)
-            except Exception as fetch_err:
-                logger.warning(
-                    "Feed HTML fetch failed for %s: %s. Trying direct browser navigation.",
-                    label,
-                    fetch_err,
-                )
+            html_content = await self._fetch_feed_html_content(feed_url, label)
 
             if html_content:
-
-                async def intercept(route):
-                    await route.fulfill(body=html_content, content_type="text/html")
-
-                try:
-                    await page.route(feed_url, intercept)
-                    await page.goto(feed_url, wait_until="domcontentloaded", timeout=30000)
-                    await asyncio.sleep(2)
-                    urls = await _collect_urls()
-                    logger.info(f"Found {len(urls)} {label} (intercept mode).")
+                urls = await self._collect_feed_urls_with_intercept(page, feed_url, label, html_content, limit)
+                if urls is not None:
                     return urls
-                except Exception as intercept_err:
-                    logger.warning(
-                        "Intercept feed fetch failed for %s: %s. Trying direct navigation.",
-                        label,
-                        intercept_err,
-                    )
-                finally:
-                    try:
-                        await page.unroute(feed_url)
-                    except Exception:
-                        pass
 
-            try:
-                await page.goto(feed_url, wait_until="domcontentloaded", timeout=30000)
-                await asyncio.sleep(2)
-                urls = await _collect_urls()
-                logger.info(f"Found {len(urls)} {label} (direct fallback).")
-            except Exception as direct_err:
-                self.last_feed_fetch_error = f"Feed fetch failed ({label}): {direct_err}"
-                self.last_feed_fetch_reason = "feed_fetch_failed_after_fallback"
-                logger.error(self.last_feed_fetch_error)
+            urls = await self._collect_feed_urls_direct(page, feed_url, label, limit)
+            if urls is None:
                 return []
         except Exception as e:
             self.last_feed_fetch_error = f"Feed fetch failed ({label}): {e}"

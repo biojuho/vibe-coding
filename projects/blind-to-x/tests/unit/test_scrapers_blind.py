@@ -45,6 +45,24 @@ class _FeedRow:
         return None
 
 
+@pytest.mark.asyncio
+async def test_collect_feed_urls_from_page_preserves_limit_and_url_filter(scraper):
+    page_mock = AsyncMock()
+    page_mock.query_selector_all.return_value = [
+        _FeedElement(href="/kr/topic/123"),
+        _FeedElement(href="https://ads.example.com/a"),
+        _FeedElement(href="/kr/topic/456"),
+    ]
+
+    urls = await scraper._collect_feed_urls_from_page(page_mock, limit=2)
+
+    assert urls == ["https://www.teamblind.com/kr/topic/123"]
+    page_mock.wait_for_selector.assert_awaited_once_with(
+        ".article-list .tit h3 a",
+        timeout=scraper.selector_timeout_ms,
+    )
+
+
 def test_extract_count():
     assert BlindScraper._extract_count("좋아요 1,234 댓글 56", ["좋아요"]) == 1234
     assert BlindScraper._extract_count("조회 100", ["좋아요"]) == 0
