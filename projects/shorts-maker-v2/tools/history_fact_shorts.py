@@ -462,6 +462,7 @@ class HistoryCountdownGenerator:
             }
             for _ in range(12)
         ]
+        self._bg_gradient = self._make_bg_gradient()
 
     def _load_fonts(self):
         dirs = [Path("C:/Windows/Fonts"), Path(os.path.expanduser("~/AppData/Local/Microsoft/Windows/Fonts"))]
@@ -515,17 +516,14 @@ class HistoryCountdownGenerator:
     def _eo(t):
         return 1 - (1 - min(1, max(0, t))) ** 3
 
-    def _render(self, t):
-        # BG
+    def _make_bg_gradient(self):
         arr = np.zeros((self.H, self.W, 3), dtype=np.uint8)
         for y in range(self.H):
             r_ = y / self.H
             arr[y, :] = [int(26 + 8 * r_), int(20 + 5 * r_), int(8 + 3 * r_)]
-        bg = Image.fromarray(arr, "RGB").convert("RGBA")
-        ov = Image.new("RGBA", (self.W, self.H), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(ov)
+        return arr
 
-        # Embers
+    def _draw_embers(self, draw, t):
         for p in self._embers:
             x = (p["x"] + p["vx"] * t) % self.W
             y_ = (p["y"] + p["vy"] * t) % self.H
@@ -533,66 +531,83 @@ class HistoryCountdownGenerator:
             al = int(p["a"] * fl)
             draw.ellipse([(x - p["r"], y_ - p["r"]), (x + p["r"], y_ + p["r"])], fill=(212, 165, 116, al))
 
-        n = len(self._item_lines)
-        # Phase timing
+    def _countdown_timing(self):
+        item_count = len(self._item_lines)
         hook_end = 4.0
-        item_dur = (self.duration - hook_end - 5.0) / max(1, n)
+        item_dur = (self.duration - hook_end - 5.0) / max(1, item_count)
         cta_start = self.duration - 5.0
+        return hook_end, item_dur, cta_start, item_count
 
+    def _draw_countdown_hook(self, draw, t):
+        lh = self._th("가", self.f_title) + 12
+        for i, line in enumerate(self._title_lines):
+            la = int(240 * self._eo((t - 0.5 - i * 0.2) / 0.8))
+            if la < 0:
+                la = 0
+            tw_ = self._tw(line, self.f_title)
+            draw.text(((self.W - tw_) // 2, 700 + i * lh), line, font=self.f_title, fill=(*self.IVORY, la))
+
+    def _draw_countdown_description(self, draw, item, item_lt):
+        if item_lt <= 0.8 or not item["desc_lines"]:
+            return
+
+        lh = self._th("가", self.f_body) + 10
+        ch = 30 + len(item["desc_lines"]) * lh + 20
+        cx, cy = 80, 670
+        ca = int(200 * self._eo((item_lt - 0.8) / 0.5))
+        for i in range(3):
+            draw.rounded_rectangle(
+                [(cx + i, cy + i), (cx + self.W - 160 - i, cy + ch - i)],
+                radius=8,
+                fill=(*self.PARCHMENT, ca - i * 5),
+            )
+        draw.rounded_rectangle(
+            [(cx, cy), (cx + self.W - 160, cy + ch)], radius=8, outline=(*self.GOLD, ca // 3), width=1
+        )
+        for j, ln in enumerate(item["desc_lines"]):
+            la = int(220 * self._eo((item_lt - 1.0 - j * 0.1) / 0.4))
+            if la < 0:
+                la = 0
+            draw.text((cx + 25, cy + 20 + j * lh), ln, font=self.f_body, fill=(*self.IVORY, la))
+
+    def _draw_countdown_item(self, draw, t, hook_end, item_dur, item_count):
+        lt = t - hook_end
+        idx = min(int(lt / item_dur), item_count - 1)
+        item_lt = lt - idx * item_dur
+        item = self._item_lines[idx]
+
+        rn = f"#{item['rank']}"
+        al = int(255 * self._eo(item_lt / 0.5))
+        rw = self._tw(rn, self.f_rank)
+        draw.text(((self.W - rw) // 2, 450), rn, font=self.f_rank, fill=(*self.GOLD, al))
+
+        if item_lt > 0.3:
+            na = int(240 * self._eo((item_lt - 0.3) / 0.5))
+            nw = self._tw(item["name"], self.f_name)
+            draw.text(((self.W - nw) // 2, 580), item["name"], font=self.f_name, fill=(*self.IVORY, na))
+
+        self._draw_countdown_description(draw, item, item_lt)
+
+    def _draw_countdown_cta(self, draw, t, cta_start):
+        clt = t - cta_start
+        ca = int(220 * self._eo(clt / 0.8))
+        cw = self._tw(self.cta, self.f_body)
+        draw.text(((self.W - cw) // 2, 800), self.cta, font=self.f_body, fill=(*self.GOLD, ca))
+
+    def _render(self, t):
+        bg = Image.fromarray(self._bg_gradient).convert("RGBA")
+        ov = Image.new("RGBA", (self.W, self.H), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(ov)
+
+        self._draw_embers(draw, t)
+
+        hook_end, item_dur, cta_start, item_count = self._countdown_timing()
         if t < hook_end:
-            # Title
-            lh = self._th("가", self.f_title) + 12
-            for i, line in enumerate(self._title_lines):
-                la = int(240 * self._eo((t - 0.5 - i * 0.2) / 0.8))
-                if la < 0:
-                    la = 0
-                tw_ = self._tw(line, self.f_title)
-                draw.text(((self.W - tw_) // 2, 700 + i * lh), line, font=self.f_title, fill=(*self.IVORY, la))
+            self._draw_countdown_hook(draw, t)
         elif t < cta_start:
-            # Item cards
-            lt = t - hook_end
-            idx = min(int(lt / item_dur), n - 1)
-            item_lt = lt - idx * item_dur
-            item = self._item_lines[idx]
-
-            # Rank number (large, gold, translucent bg)
-            rn = f"#{item['rank']}"
-            al = int(255 * self._eo(item_lt / 0.5))
-            rw = self._tw(rn, self.f_rank)
-            draw.text(((self.W - rw) // 2, 450), rn, font=self.f_rank, fill=(*self.GOLD, al))
-
-            # Name
-            if item_lt > 0.3:
-                na = int(240 * self._eo((item_lt - 0.3) / 0.5))
-                nw = self._tw(item["name"], self.f_name)
-                draw.text(((self.W - nw) // 2, 580), item["name"], font=self.f_name, fill=(*self.IVORY, na))
-
-            # Card with description
-            if item_lt > 0.8 and item["desc_lines"]:
-                lh = self._th("가", self.f_body) + 10
-                ch = 30 + len(item["desc_lines"]) * lh + 20
-                cx, cy = 80, 670
-                ca = int(200 * self._eo((item_lt - 0.8) / 0.5))
-                for i in range(3):
-                    draw.rounded_rectangle(
-                        [(cx + i, cy + i), (cx + self.W - 160 - i, cy + ch - i)],
-                        radius=8,
-                        fill=(*self.PARCHMENT, ca - i * 5),
-                    )
-                draw.rounded_rectangle(
-                    [(cx, cy), (cx + self.W - 160, cy + ch)], radius=8, outline=(*self.GOLD, ca // 3), width=1
-                )
-                for j, ln in enumerate(item["desc_lines"]):
-                    la = int(220 * self._eo((item_lt - 1.0 - j * 0.1) / 0.4))
-                    if la < 0:
-                        la = 0
-                    draw.text((cx + 25, cy + 20 + j * lh), ln, font=self.f_body, fill=(*self.IVORY, la))
+            self._draw_countdown_item(draw, t, hook_end, item_dur, item_count)
         else:
-            # CTA
-            clt = t - cta_start
-            ca = int(220 * self._eo(clt / 0.8))
-            cw = self._tw(self.cta, self.f_body)
-            draw.text(((self.W - cw) // 2, 800), self.cta, font=self.f_body, fill=(*self.GOLD, ca))
+            self._draw_countdown_cta(draw, t, cta_start)
 
         comp = Image.alpha_composite(bg, ov)
         return np.array(comp.convert("RGB"))
