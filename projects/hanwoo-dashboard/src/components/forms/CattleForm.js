@@ -58,6 +58,7 @@ export default function CattleForm({
 	onCancel,
 }) {
 	const dialogRef = useRef(null);
+	const cattleNameInputRef = useRef(null);
 	const lookupInFlightRef = useRef(false);
 	const lookupRequestIdRef = useRef(0);
 	const mountedRef = useRef(true);
@@ -94,6 +95,7 @@ export default function CattleForm({
 		resolver: zodResolver(cattleFormSchema),
 		defaultValues: createCattleFormValues(cattle, safeBuildings),
 	});
+	const cattleNameRegistration = register("name");
 
 	useEffect(() => {
 		let cancelled = false;
@@ -118,7 +120,7 @@ export default function CattleForm({
 	}, [safeBuildings, cattle, reset]);
 
 	useEffect(() => {
-		focusElementSafely(dialogRef.current);
+		focusElementSafely(cattleNameInputRef.current || dialogRef.current);
 	}, [cattle?.id]);
 
 	useEffect(() => {
@@ -347,7 +349,11 @@ export default function CattleForm({
 							placeholder="예: 순심이"
 							aria-invalid={Boolean(errors.name)}
 							aria-describedby={errors.name ? "cattle-name-error" : undefined}
-							{...register("name")}
+							{...cattleNameRegistration}
+							ref={(element) => {
+								cattleNameRegistration.ref(element);
+								cattleNameInputRef.current = element;
+							}}
 						/>
 						{errors.name ? (
 							<div id="cattle-name-error" role="alert" style={errorTextStyle}>

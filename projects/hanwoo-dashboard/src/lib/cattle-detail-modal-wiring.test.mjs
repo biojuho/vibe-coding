@@ -146,7 +146,11 @@ test("cattle form and detail icon-only navigation controls have Korean labels", 
 	assert.match(formSource, /aria-modal="true"/);
 	assert.match(formSource, /aria-labelledby="cattle-form-title"/);
 	assert.match(formSource, /const dialogRef = useRef\(null\)/);
-	assert.match(formSource, /focusElementSafely\(dialogRef\.current\);/);
+	assert.match(formSource, /const cattleNameInputRef = useRef\(null\)/);
+	assert.match(
+		formSource,
+		/focusElementSafely\(cattleNameInputRef\.current \|\| dialogRef\.current\);/,
+	);
 	assert.match(formSource, /tabIndex=\{-1\}/);
 	assert.match(formSource, /onKeyDown=\{handleDialogKeyDown\}/);
 	assert.match(
@@ -156,6 +160,12 @@ test("cattle form and detail icon-only navigation controls have Korean labels", 
 	assert.match(formSource, /id="cattle-form-title"/);
 	assert.match(formSource, /<label htmlFor="cattle-name"/);
 	assert.match(formSource, /id="cattle-name"/);
+	assert.match(formSource, /const cattleNameRegistration = register\("name"\);/);
+	assert.match(formSource, /\{\.\.\.cattleNameRegistration\}/);
+	assert.match(
+		formSource,
+		/cattleNameRegistration\.ref\(element\);\s+cattleNameInputRef\.current = element;/,
+	);
 	assert.match(formSource, /<label htmlFor="cattle-tag-number"/);
 	assert.match(formSource, /id="cattle-tag-number"/);
 	assert.match(formSource, /<label htmlFor="cattle-building"/);
