@@ -108,9 +108,20 @@ def test_health_check_dashboard_uses_current_button_width_api(
     ]
 
 
+def test_health_check_dashboard_formats_result_details_as_literal_text(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module, _fake_streamlit = _import_health_check_dashboard(monkeypatch)
+
+    assert module._format_result_detail("") == ""
+    assert module._format_result_detail(r"C:\Users\name\project\.tmp") == r"C:\Users\name\project\.tmp"
+    assert module._format_result_detail("value `with ticks`") == r"value \`with ticks\`"
+
+
 def test_health_check_dashboard_source_avoids_deprecated_width_api() -> None:
     source = (WORKSPACE_ROOT / "execution" / "pages" / "health_check_dashboard.py").read_text(encoding="utf-8")
 
     assert "use_container_width=True" not in source
     assert 'return {"width": "stretch"}' in source
     assert "**_stretch_button_kwargs()" in source
+    assert 'detail_text = f" — `{detail}`"' in source

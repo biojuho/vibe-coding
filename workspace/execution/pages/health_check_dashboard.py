@@ -27,6 +27,12 @@ def _stretch_button_kwargs() -> dict[str, str]:
     return {"width": "stretch"}
 
 
+def _format_result_detail(detail: object) -> str:
+    if not detail:
+        return ""
+    return str(detail).replace("`", "\\`")
+
+
 st.set_page_config(page_title="Health Check - Joolife", page_icon="🏥", layout="wide")
 
 if not _MODULE_OK:
@@ -85,8 +91,9 @@ if run_clicked:
         with st.expander(f"**{cat_label}** ({len(cat_results)}건)", expanded=True):
             for r in cat_results:
                 icon = _ICONS.get(r["status"], "?")
-                detail = f" — {r['detail']}" if r.get("detail") else ""
-                st.markdown(f"{icon} **{r['name']}**{detail}")
+                detail = _format_result_detail(r.get("detail"))
+                detail_text = f" — `{detail}`" if detail else ""
+                st.markdown(f"{icon} **{r['name']}**{detail_text}")
 
     st.divider()
     st.caption(f"총 {summary['total']}개 항목 점검 완료")
