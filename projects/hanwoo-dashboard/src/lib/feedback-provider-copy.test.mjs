@@ -51,7 +51,11 @@ test("feedback toasts expose live-region semantics and Korean dismiss labels", (
 		/window\.setTimeout\(\(\) => \{\s+timeoutIdsRef\.current\.delete\(id\);\s+if \(mountedRef\.current\) \{\s+dismiss\(id\);/,
 	);
 	assert.match(source, /const \{\s+title,\s+description = "",\s+variant = "info",\s+duration = 3600,\s+\} = normalizeToastOptions\(options\);/);
-	assert.match(source, /fixed inset-x-0 bottom-4 z-\[360\]/);
+	assert.match(
+		source,
+		/fixed inset-x-0 bottom-\[calc\(6rem_\+_env\(safe-area-inset-bottom,0px\)\)\] z-\[360\]/,
+	);
+	assert.match(source, /sm:bottom-4/);
 	assert.doesNotMatch(source, /z-\[70\]/);
 	assert.doesNotMatch(source, /export function FeedbackProvider\(\{ children \}\)/);
 	assert.doesNotMatch(
