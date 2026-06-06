@@ -105,6 +105,13 @@ def _render_dataframe(data, **kwargs) -> None:
     st.dataframe(data, width="stretch", **kwargs)
 
 
+def _has_multiple_rows(data) -> bool:
+    try:
+        return len(data) > 1
+    except TypeError:
+        return False
+
+
 # ── Helper: watchdog stats ───────────────────────────────────
 def _watchdog_stats() -> dict:
     """Parse watchdog_history.json for success rate and last run."""
@@ -216,7 +223,11 @@ if _RT_OK:
         df_trend = pd.DataFrame(trend)
         df_trend["day"] = pd.to_datetime(df_trend["day"])
         df_trend = df_trend.set_index("day")
-        _render_line_chart(df_trend[["count"]])
+        if _has_multiple_rows(df_trend):
+            _render_line_chart(df_trend[["count"]])
+        else:
+            st.info("Only one publishing data point is available for the last 30 days.")
+            _render_dataframe(df_trend.reset_index(), hide_index=True)
     else:
         st.info("No publishing data found for the last 30 days.")
 else:
@@ -239,7 +250,11 @@ if _API_OK:
             df_daily = pd.DataFrame(daily)
             df_daily["day"] = pd.to_datetime(df_daily["day"])
             df_daily = df_daily.set_index("day")
-            _render_bar_chart(df_daily[["cost"]])
+            if _has_multiple_rows(df_daily):
+                _render_bar_chart(df_daily[["cost"]])
+            else:
+                st.info("Only one API cost data point is available for the last 30 days.")
+                _render_dataframe(df_daily.reset_index(), hide_index=True)
         else:
             st.info("No API cost data for the last 30 days.")
 

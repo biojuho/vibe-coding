@@ -122,6 +122,14 @@ def test_performance_overview_uses_current_streamlit_width_api(monkeypatch: pyte
     ]
 
 
+def test_performance_overview_detects_chartable_row_ranges(monkeypatch: pytest.MonkeyPatch) -> None:
+    module, _fake_streamlit = _import_performance_overview(monkeypatch)
+
+    assert module._has_multiple_rows([{"day": "2026-06-05"}, {"day": "2026-06-06"}])
+    assert not module._has_multiple_rows([{"day": "2026-06-06"}])
+    assert not module._has_multiple_rows(object())
+
+
 def test_performance_overview_watchdog_stats_reads_history(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     module, _fake_streamlit = _import_performance_overview(monkeypatch)
     module.TMP_DIR = tmp_path
@@ -153,3 +161,5 @@ def test_performance_overview_source_avoids_deprecated_width_api() -> None:
     assert 'st.line_chart(data, width="stretch")' in source
     assert 'st.bar_chart(data, width="stretch")' in source
     assert 'st.dataframe(data, width="stretch", **kwargs)' in source
+    assert "if _has_multiple_rows(df_trend):" in source
+    assert "if _has_multiple_rows(df_daily):" in source
