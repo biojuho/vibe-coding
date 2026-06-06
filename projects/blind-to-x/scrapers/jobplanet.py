@@ -17,6 +17,13 @@ from scrapers.base import BaseScraper, FeedCandidate
 logger = logging.getLogger(__name__)
 
 
+class _JobplanetScrapeFailure(Exception):
+    def __init__(self, message: str, *, reason: str, stage: str = "post_fetch"):
+        super().__init__(message)
+        self.reason = reason
+        self.stage = stage
+
+
 class JobplanetScraper(BaseScraper):
     """Scraper for jobplanet.co.kr Korean workplace community."""
 
@@ -148,6 +155,106 @@ class JobplanetScraper(BaseScraper):
         return "general"
 
     # ── Post scraping ────────────────────────────────────────────────
+    def _extract_post_id(self, url):
+        match = re.search(r"/posts/(\d+)", url)
+        if not match:
+            raise _JobplanetScrapeFailure(
+                f"Could not extract post ID from URL: {url}",
+                reason="invalid_url_format",
+            )
+        return match.group(1)
+
+    async def _fetch_post_detail(self, page, post_id):
+        api_url = f"{self.BASE_URL}/api/v5/community/posts/{post_id}"
+        logger.info(f"Fetching post detail from API: {api_url}")
+        response = await page.goto(api_url, timeout=30000)
+        if not response or response.status in [403, 404]:
+            status = response.status if response else "unknown"
+            raise _JobplanetScrapeFailure(
+                f"API fetch failed with status {status}",
+                reason=f"http_{status}",
+            )
+        json_data = await response.json()
+        return json_data.get("data", {})
+
+    def _resolve_post_title(self, post_data):
+        title = post_data.get("title", "").strip()
+        content = post_data.get("content", "").strip()
+        if title:
+            return title
+
+        lines = [line.strip() for line in content.split("\n") if line.strip()]
+        title = lines[0] if lines else "제목 없음"
+        if len(title) > 50:
+            title = title[:47] + "..."
+        return title
+
+    def _extract_post_payload(self, post_data):
+        content = post_data.get("content", "").strip()
+        title = self._resolve_post_title(post_data)
+        if len(content) < 10:
+            raise _JobplanetScrapeFailure(
+                "Insufficient text content (minimum 10 chars).",
+                reason="insufficient_content_length",
+                stage="parse",
+            )
+
+        cat_info = post_data.get("community_category")
+        category = cat_info.get("name", "기타") if isinstance(cat_info, dict) else "기타"
+        return {
+            "title": title,
+            "content": content,
+            "category": category,
+            "likes": post_data.get("likes_count", 0),
+            "comments": post_data.get("comments_count", 0),
+        }
+
+    async def _save_post_screenshot(self, page, url, title):
+        logger.info(f"Navigating to HTML page for screenshot: {url}")
+        await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+        await asyncio.sleep(3)  # Wait for SPA to render
+
+        await self._clean_ui_for_screenshot(page)
+
+        short_id = uuid.uuid4().hex[:8]
+        safe_title = "".join(x for x in title[:20] if x.isalnum() or x in " -_").strip()
+        if not safe_title:
+            safe_title = "post"
+        filename = f"jobplanet_{safe_title}_{short_id}.png"
+        filepath = os.path.join(self.screenshot_dir, filename)
+
+        body = await page.query_selector("body")
+        if body:
+            await asyncio.wait_for(body.screenshot(path=filepath), timeout=30)
+        else:
+            await asyncio.wait_for(page.screenshot(path=filepath, full_page=True), timeout=30)
+
+        logger.info(f"Saved screenshot: {filepath}")
+        return filepath
+
+    def _build_success_result(self, url, payload, screenshot_path):
+        return {
+            "url": url,
+            "title": payload["title"].strip(),
+            "content": payload["content"],
+            "category": payload["category"],
+            "likes": payload["likes"],
+            "comments": payload["comments"],
+            "screenshot_path": screenshot_path,
+            "source": self.SOURCE_NAME,
+        }
+
+    def _build_error_result(self, url, exc, failure_stage, failure_reason):
+        error_code = ERROR_SCRAPE_PARSE_FAILED if failure_stage == "parse" else ERROR_SCRAPE_FAILED
+        return {
+            "_scrape_error": True,
+            "url": url,
+            "error_code": error_code,
+            "failure_stage": failure_stage,
+            "failure_reason": failure_reason,
+            "error_message": str(exc),
+        }
+
     async def scrape_post(self, url):
         logger.info(f"Scraping Jobplanet post (API + Screenshot): {url}")
         failure_stage = "post_fetch"
@@ -159,88 +266,22 @@ class JobplanetScraper(BaseScraper):
                 if delay > 0:
                     await asyncio.sleep(delay)
 
-                # 1. Fetch data from JSON API
-                match = re.search(r"/posts/(\d+)", url)
-                if not match:
-                    failure_reason = "invalid_url_format"
-                    raise ValueError(f"Could not extract post ID from URL: {url}")
-
-                post_id = match.group(1)
-                api_url = f"{self.BASE_URL}/api/v5/community/posts/{post_id}"
-
-                logger.info(f"Fetching post detail from API: {api_url}")
-                response = await page.goto(api_url, timeout=30000)
-
-                if not response or response.status in [403, 404]:
-                    failure_reason = f"http_{response.status if response else 'unknown'}"
-                    raise Exception(f"API fetch failed with status {response.status if response else 'unknown'}")
-
-                json_data = await response.json()
-                post_data = json_data.get("data", {})
-
-                content = post_data.get("content", "").strip()
-                title = post_data.get("title", "").strip()
-
-                if not title:
-                    lines = [line.strip() for line in content.split("\n") if line.strip()]
-                    title = lines[0] if lines else "제목 없음"
-                    if len(title) > 50:
-                        title = title[:47] + "..."
-
-                if len(content) < 10:
-                    failure_reason = "insufficient_content_length"
-                    raise Exception("Insufficient text content (minimum 10 chars).")
-
-                likes = post_data.get("likes_count", 0)
-                comments = post_data.get("comments_count", 0)
-                _views = post_data.get("views_count", 0)
-
-                cat_info = post_data.get("community_category")
-                category = cat_info.get("name", "기타") if isinstance(cat_info, dict) else "기타"
+                post_id = self._extract_post_id(url)
+                post_data = await self._fetch_post_detail(page, post_id)
+                payload = self._extract_post_payload(post_data)
 
                 failure_stage = "screenshot"
-                # 2. Navigate to actual URL just to take a screenshot
-                logger.info(f"Navigating to HTML page for screenshot: {url}")
-                await page.goto(url, wait_until="domcontentloaded", timeout=30000)
-                await asyncio.sleep(3)  # Wait for SPA to render
+                failure_reason = "screenshot_capture_failed"
+                filepath = await self._save_post_screenshot(page, url, payload["title"])
+                return self._build_success_result(url, payload, filepath)
 
-                await self._clean_ui_for_screenshot(page)
-
-                short_id = uuid.uuid4().hex[:8]
-                safe_title = "".join(x for x in title[:20] if x.isalnum() or x in " -_").strip()
-                if not safe_title:
-                    safe_title = "post"
-                filename = f"jobplanet_{safe_title}_{short_id}.png"
-                filepath = os.path.join(self.screenshot_dir, filename)
-
-                body = await page.query_selector("body")
-                if body:
-                    await asyncio.wait_for(body.screenshot(path=filepath), timeout=30)
-                else:
-                    await asyncio.wait_for(page.screenshot(path=filepath, full_page=True), timeout=30)
-
-                logger.info(f"Saved screenshot: {filepath}")
-
-                return {
-                    "url": url,
-                    "title": title.strip(),
-                    "content": content,
-                    "category": category,
-                    "likes": likes,
-                    "comments": comments,
-                    "screenshot_path": filepath,
-                    "source": self.SOURCE_NAME,
-                }
-
+            except _JobplanetScrapeFailure as e:
+                failure_stage = e.stage
+                failure_reason = e.reason
+                logger.error(f"Error scraping {url}: {e}")
+                await self._save_failure_snapshot(page, url, failure_stage, failure_reason)
+                return self._build_error_result(url, e, failure_stage, failure_reason)
             except Exception as e:
                 logger.error(f"Error scraping {url}: {e}")
                 await self._save_failure_snapshot(page, url, failure_stage, failure_reason)
-                error_code = ERROR_SCRAPE_PARSE_FAILED if failure_stage == "parse" else ERROR_SCRAPE_FAILED
-                return {
-                    "_scrape_error": True,
-                    "url": url,
-                    "error_code": error_code,
-                    "failure_stage": failure_stage,
-                    "failure_reason": failure_reason,
-                    "error_message": str(e),
-                }
+                return self._build_error_result(url, e, failure_stage, failure_reason)
