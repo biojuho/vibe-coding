@@ -220,6 +220,31 @@ def _print_cross_report(cross_stats: list[dict]) -> None:
         )
 
 
+def _build_topic_weight_map(cross_stats: list[dict]) -> dict[str, float]:
+    """Convert topic composite scores into neutral-safe performance weights."""
+    topic_scores: list[tuple[str, float]] = []
+    for stat in cross_stats:
+        topic = str(stat.get("topic") or "")
+        if not topic:
+            continue
+        try:
+            composite = float(stat["composite"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        topic_scores.append((topic, composite))
+
+    if not topic_scores:
+        return {}
+
+    scores = [score for _, score in topic_scores]
+    score_min, score_max = min(scores), max(scores)
+    score_range = score_max - score_min
+    if score_range == 0:
+        return {topic: 1.0 for topic, _ in topic_scores}
+
+    return {topic: round(0.5 + (score - score_min) / score_range, 3) for topic, score in topic_scores}
+
+
 def _update_classification_weights(
     cross_stats: list[dict],
     rules_path: Path,
@@ -242,12 +267,9 @@ def _update_classification_weights(
             return False
 
         # composite score → weight (0.5 ~ 1.5 범위 정규화)
-        scores = [s["composite"] for s in cross_stats]
-        if not scores:
+        topic_weight_map = _build_topic_weight_map(cross_stats)
+        if not topic_weight_map:
             return False
-        score_min, score_max = min(scores), max(scores)
-        score_range = score_max - score_min or 1.0
-        topic_weight_map = {s["topic"]: round(0.5 + (s["composite"] - score_min) / score_range, 3) for s in cross_stats}
 
         changed = False
         for rule in topic_rules:
