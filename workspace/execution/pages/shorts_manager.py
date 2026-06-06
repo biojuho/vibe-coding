@@ -175,6 +175,10 @@ def _fmt_youtube_upload_metric(uploaded: int, awaiting: int) -> str:
     return f"{uploaded} / {awaiting} 대기"
 
 
+def _stretch_button_kwargs() -> dict[str, str]:
+    return {"width": "stretch"}
+
+
 def _youtube_badge(yt_status: str, yt_url: str = "") -> str:
     if yt_status == "uploaded" and yt_url:
         safe_url = _html.escape(yt_url, quote=True)
@@ -512,7 +516,7 @@ with batch_col:
         batch_submit = st.form_submit_button(
             "업로드 시작",
             disabled=not _can_attempt_upload(auth_status),
-            use_container_width=True,
+            **_stretch_button_kwargs(),
         )
         if batch_submit:
             target_channel = None if batch_channel == "전체" else batch_channel
@@ -533,7 +537,7 @@ with batch_col:
 
 sync_col, notion_col, sync_spacer = st.columns([1, 1, 4])
 with sync_col:
-    if st.button("↻ 결과 동기화", help="v2 output 폴더에서 완료된 작업을 가져옵니다", use_container_width=True):
+    if st.button("↻ 결과 동기화", help="v2 output 폴더에서 완료된 작업을 가져옵니다", **_stretch_button_kwargs()):
         _scan_manifests()
         _set_flash("success", "manifest 동기화 완료")
         st.rerun()
@@ -543,7 +547,7 @@ with notion_col:
         "📋 전체 Notion 동기화",
         help="모든 항목을 Notion DB에 동기화합니다" if notion_ready else "NOTION_SHORTS_DATABASE_ID 설정 필요",
         disabled=not notion_ready,
-        use_container_width=True,
+        **_stretch_button_kwargs(),
     ):
         results = notion_sync_all()
         created = sum(1 for r in results if r["action"] == "created")
@@ -590,7 +594,7 @@ with left:
         channel_input = st.selectbox("채널", options=CHANNELS)
         topic_input = st.text_area("주제", placeholder="예: 블랙홀의 미스터리 5가지", height=80)
         notes_input = st.text_input("메모 (선택)", placeholder="태그, 참고사항 등")
-        submitted = st.form_submit_button("큐에 추가", use_container_width=True, type="primary")
+        submitted = st.form_submit_button("큐에 추가", type="primary", **_stretch_button_kwargs())
         if submitted:
             if topic_input.strip():
                 add_topic(topic_input.strip(), notes_input.strip(), channel=channel_input)
@@ -614,7 +618,7 @@ with left:
             height=80,
             placeholder="예: cinematic documentary lighting, high contrast",
         )
-        settings_submit = st.form_submit_button("채널 설정 저장", use_container_width=True)
+        settings_submit = st.form_submit_button("채널 설정 저장", **_stretch_button_kwargs())
         if settings_submit:
             upsert_channel_settings(
                 settings_channel,
@@ -696,7 +700,7 @@ with right:
                 key=f"run_{key_prefix}_{item['id']}",
                 disabled=not can_run,
                 help="v2 파이프라인 실행",
-                use_container_width=True,
+                **_stretch_button_kwargs(),
             ):
                 pid = _launch_v2(item["id"], item["topic"], item.get("channel", ""))
                 if pid:
@@ -716,7 +720,7 @@ with right:
                 key=f"yt_{key_prefix}_{item['id']}",
                 disabled=not can_upload,
                 help="YouTube 업로드",
-                use_container_width=True,
+                **_stretch_button_kwargs(),
             ):
                 try:
                     result = _upload_single(item, retry=False)
@@ -737,7 +741,7 @@ with right:
                 key=f"ytretry_{key_prefix}_{item['id']}",
                 disabled=not can_retry,
                 help="업로드 실패 건 재시도",
-                use_container_width=True,
+                **_stretch_button_kwargs(),
             ):
                 try:
                     result = _upload_single(item, retry=True)
@@ -754,7 +758,7 @@ with right:
                 key=f"notion_{key_prefix}_{item['id']}",
                 disabled=not (_NOTION_OK and notion_is_configured()),
                 help="Notion에 동기화" if not notion_synced else "Notion 업데이트",
-                use_container_width=True,
+                **_stretch_button_kwargs(),
             ):
                 result = notion_sync_item(item["id"])
                 action = result["action"]
@@ -770,8 +774,8 @@ with right:
                     "삭제 확인",
                     key=f"del_confirm_{key_prefix}_{item['id']}",
                     help="이 항목을 영구 삭제합니다",
-                    use_container_width=True,
                     type="primary",
+                    **_stretch_button_kwargs(),
                 ):
                     _delete_item_with_confirmation(item["id"])
                     st.rerun()
@@ -779,7 +783,7 @@ with right:
                     "취소",
                     key=f"del_cancel_{key_prefix}_{item['id']}",
                     help="삭제 확인을 취소합니다",
-                    use_container_width=True,
+                    **_stretch_button_kwargs(),
                 ):
                     _cancel_delete_confirmation(item["id"])
                     _set_flash("info", "삭제 취소됨")
@@ -788,7 +792,7 @@ with right:
                 "삭제",
                 key=f"del_{key_prefix}_{item['id']}",
                 help="삭제 확인을 엽니다",
-                use_container_width=True,
+                **_stretch_button_kwargs(),
             ):
                 _request_delete_confirmation(item["id"])
                 st.rerun()

@@ -990,3 +990,13 @@
 - Verification: focused Node tests passed `15/15`; ESLint passed; full Hanwoo `npm.cmd test` passed `510/510`; Hanwoo project QC passed test/lint/build/smoke; `git diff --check` passed; staged code-review gate returned advisory WARN `risk_score=0.50`, covered by focused/full/browser/project tests.
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1391.json --json` returned `adopt_candidate` with `score_delta=0.7142857142857143`.
 - Commit closeout: `702f85a3 fix(hanwoo): T-1391 honor login callback target` is local only; no push was performed and T-251 was not retried. Preserve unrelated shorts-manager WIP outside T-1391.
+
+## 2026-06-06 - Codex
+
+- Closed T-1392 as a bounded `$auto-research` `workspace/shorts-manager` Streamlit width API browser-QA cycle.
+- Changed `workspace/execution/pages/shorts_manager.py`: added `_stretch_button_kwargs()` and routed all Shorts Manager `st.button()` / `st.form_submit_button()` stretch sizing through current `width="stretch"` arguments instead of deprecated `use_container_width=True`.
+- Changed `workspace/tests/test_shorts_manager.py`: added helper contract coverage and a source guard so `use_container_width=True` cannot silently return to this manager page.
+- Verification: focused pytest passed `63/63` across `test_shorts_manager.py` and `test_content_db.py`; Ruff check passed; Ruff format check passed; `py_compile` passed; `rg` found `0` deprecated width calls in `shorts_manager.py`; path-limited `git diff --check` passed with CRLF warnings only.
+- Browser QA: direct Streamlit/Playwright CLI on `http://127.0.0.1:8769` rendered the manager, clicked content tabs (`심리학`, `AI/기술`) and the empty `큐에 추가` form-submit path, kept console warnings/errors at `0`, and produced nonblank screenshot `output/playwright/shorts-manager-t1392-width-refresh.png`.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1392.json --json` returned `adopt_candidate` with `score_delta=1.1666666666666667`.
+- Boundary: no push was performed. T-251 was not retried. Preserve unrelated `projects/blind-to-x/scripts/source_browser_probe.py` WIP outside T-1392.

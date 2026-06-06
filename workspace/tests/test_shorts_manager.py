@@ -273,6 +273,17 @@ def test_formatting_helpers_cover_badges_and_display(shorts_manager) -> None:
     assert "주의" in shorts_manager._ops_badge("warning")
 
 
+def test_stretch_button_kwargs_uses_current_streamlit_width_api(shorts_manager) -> None:
+    assert shorts_manager._stretch_button_kwargs() == {"width": "stretch"}
+
+
+def test_shorts_manager_source_avoids_deprecated_container_width_api() -> None:
+    source = (WORKSPACE_ROOT / "execution" / "pages" / "shorts_manager.py").read_text(encoding="utf-8")
+
+    assert "use_container_width=True" not in source
+    assert 'return {"width": "stretch"}' in source
+
+
 def test_youtube_badge_escapes_user_supplied_url(shorts_manager) -> None:
     badge = shorts_manager._youtube_badge("uploaded", "https://example.com/?q='x'&next=<tag>")
     assert "target='_blank'" in badge
