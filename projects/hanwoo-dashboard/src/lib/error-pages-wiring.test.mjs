@@ -190,6 +190,7 @@ test("dashboard error boundary guards custom reset handler failures", () => {
 test("login page operator eyebrow uses Korean product copy", () => {
 	const source = readSource("app/login/page.js");
 
+	assert.match(source, /import Link from ["']next\/link["'];/);
 	assert.match(
 		source,
 		/<ShieldCheck size=\{26\} strokeWidth=\{2\.2\} aria-hidden="true" \/>/,
@@ -202,6 +203,28 @@ test("login page operator eyebrow uses Korean product copy", () => {
 	assert.doesNotMatch(source, /오늘의 사육, 재고, 출하 업무를 이어서 관리하세요/);
 	assert.match(source, /운영자 계정 안내/);
 	assert.match(source, /발급된 관리자 아이디와 비밀번호로 로그인해 주세요/);
+	assert.match(source, /const LOGIN_LEGAL_LINKS = \[/);
+	assert.match(source, /href: ["']\/terms["'][\s\S]*?label: ["']이용약관["']/);
+	assert.match(
+		source,
+		/accessibleLabel: ["']Joolife 이용약관 보기["']/,
+	);
+	assert.match(
+		source,
+		/href: ["']\/privacy["'][\s\S]*?label: ["']개인정보처리방침["']/,
+	);
+	assert.match(
+		source,
+		/accessibleLabel: ["']Joolife 개인정보처리방침 보기["']/,
+	);
+	assert.match(
+		source,
+		/<nav className="login-legal-links" aria-label="로그인 화면 문서">/,
+	);
+	assert.match(
+		source,
+		/<Link[\s\S]*?key=\{href\}[\s\S]*?href=\{href\}[\s\S]*?aria-label=\{accessibleLabel\}[\s\S]*?title=\{accessibleLabel\}/,
+	);
 	assert.doesNotMatch(source, /데모 로그인 정보/);
 	assert.doesNotMatch(source, /아이디: <code/);
 	assert.doesNotMatch(source, /비밀번호: <code/);

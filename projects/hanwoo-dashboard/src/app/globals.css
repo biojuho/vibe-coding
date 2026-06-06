@@ -1900,6 +1900,41 @@ body {
   white-space: nowrap;
 }
 
+.login-legal-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 14px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid color-mix(in srgb, var(--color-surface-stroke) 62%, transparent);
+}
+
+.login-legal-links a {
+  border-radius: 8px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.4;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--color-text-muted) 48%, transparent);
+  text-underline-offset: 3px;
+  transition:
+    color 0.2s ease,
+    text-decoration-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.login-legal-links a:hover {
+  color: var(--color-primary-custom);
+  text-decoration-color: var(--color-primary-custom);
+}
+
+.login-legal-links a:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary-custom) 20%, transparent);
+}
+
 @media (max-width: 420px) {
   .login-card {
     padding: 22px;

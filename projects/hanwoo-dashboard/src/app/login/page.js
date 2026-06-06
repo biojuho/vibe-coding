@@ -8,6 +8,7 @@ import {
 	ShieldCheck,
 	UserRound,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
@@ -15,6 +16,18 @@ import { getSafeLoginRedirectTarget } from "@/lib/login-redirect.mjs";
 
 const LOGIN_NAVIGATION_ERROR_MESSAGE =
 	"로그인은 완료됐지만 대시보드로 이동하지 못했습니다. 새로고침 후 다시 시도해 주세요.";
+const LOGIN_LEGAL_LINKS = [
+	{
+		href: "/terms",
+		label: "이용약관",
+		accessibleLabel: "Joolife 이용약관 보기",
+	},
+	{
+		href: "/privacy",
+		label: "개인정보처리방침",
+		accessibleLabel: "Joolife 개인정보처리방침 보기",
+	},
+];
 
 export default function LoginPage() {
 	const router = useRouter();
@@ -224,6 +237,19 @@ export default function LoginPage() {
 					<span>모바일 최적화</span>
 					<span>오프라인 대기열</span>
 				</div>
+
+				<nav className="login-legal-links" aria-label="로그인 화면 문서">
+					{LOGIN_LEGAL_LINKS.map(({ href, label, accessibleLabel }) => (
+						<Link
+							key={href}
+							href={href}
+							aria-label={accessibleLabel}
+							title={accessibleLabel}
+						>
+							{label}
+						</Link>
+					))}
+				</nav>
 			</section>
 		</main>
 	);
