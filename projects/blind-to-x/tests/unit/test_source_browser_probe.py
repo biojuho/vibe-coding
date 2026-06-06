@@ -16,6 +16,7 @@ from scripts.source_browser_probe import (
     parse_targets,
     run_source_preflight,
     _click_first_post,
+    _build_recommended_command,
     _resolve_click_through_href,
     _write_report,
     _select_click_through_candidate,
@@ -186,12 +187,7 @@ def test_build_report_counts_problem_statuses_and_exit_code():
             }
         ],
         "recommended_source": "fmkorea",
-        "recommended_command": (
-            "py -3 main.py --source fmkorea --popular --review-only --limit 5 "
-            "--require-source-ready --source-preflight-click-through "
-            "--source-preflight-output .tmp/source_browser_preflight.json "
-            "--source-preflight-screenshot-dir screenshots/source_preflight"
-        ),
+        "recommended_command": _build_recommended_command("fmkorea"),
         "problem_actions": [
             {
                 "source": "blind",
@@ -329,7 +325,13 @@ def test_build_report_recommends_ready_source_with_strongest_detail_evidence():
 
     assert report["summary"]["ready_sources"] == ["jobplanet", "ppomppu"]
     assert report["summary"]["recommended_source"] == "ppomppu"
-    assert report["summary"]["recommended_command"].startswith("py -3 main.py --source ppomppu")
+    command = report["summary"]["recommended_command"]
+    assert command == _build_recommended_command("ppomppu")
+    assert "py -3 main.py" not in command
+    assert "main.py" in command
+    assert "--config" in command
+    assert "config.yaml" in command
+    assert "--source ppomppu" in command
 
 
 def test_write_report_escapes_non_ascii_evidence(tmp_path, capsys):
@@ -432,6 +434,46 @@ async def test_click_first_post_verifies_jobplanet_api_detail():
     assert result.title == "JobPlanet detail title"
     assert result.body_chars == len("Detailed JobPlanet content")
     assert page.goto_urls == ["https://www.jobplanet.co.kr/api/v5/community/posts/1001"]
+
+
+@pytest.mark.asyncio
+async def test_click_first_post_skips_short_jobplanet_api_detail_candidate():
+    page = _FakeJobplanetApiPage(
+        feed_payload={
+            "data": {
+                "items": [
+                    {"id": 1001, "title": "Short JobPlanet post"},
+                    {"id": 1002, "title": "Readable JobPlanet post"},
+                ]
+            }
+        },
+        detail_payloads={
+            "1001": {"data": {"title": "Short JobPlanet post", "content": "Too short"}},
+            "1002": {
+                "data": {
+                    "title": "Readable JobPlanet detail title",
+                    "content": "Detailed JobPlanet content with enough text",
+                }
+            },
+        },
+    )
+    target = ProbeTarget(
+        source="jobplanet",
+        url="https://www.jobplanet.co.kr/api/v5/community/posts?limit=20&order_by=recent",
+    )
+
+    result = await _click_first_post(page, target, timeout_ms=12000, screenshot_dir=None)
+
+    assert result.ok is True
+    assert result.candidate_text == "Readable JobPlanet post"
+    assert result.candidate_href == "https://www.jobplanet.co.kr/community/posts/1002"
+    assert result.final_url == "https://www.jobplanet.co.kr/api/v5/community/posts/1002"
+    assert result.title == "Readable JobPlanet detail title"
+    assert result.body_chars == len("Detailed JobPlanet content with enough text")
+    assert page.goto_urls == [
+        "https://www.jobplanet.co.kr/api/v5/community/posts/1001",
+        "https://www.jobplanet.co.kr/api/v5/community/posts/1002",
+    ]
 
 
 @pytest.mark.asyncio
@@ -575,7 +617,7 @@ class _FakeResponse:
 
 
 class _FakeJobplanetApiPage:
-    def __init__(self, feed_payload=None, detail_payload=None):
+    def __init__(self, feed_payload=None, detail_payload=None, detail_payloads=None):
         self.url = "https://www.jobplanet.co.kr/api/v5/community/posts?limit=20&order_by=recent"
         self.title_value = ""
         self.goto_urls: list[str] = []
@@ -586,6 +628,7 @@ class _FakeJobplanetApiPage:
                 "content": "Detailed JobPlanet content",
             }
         }
+        self.detail_payloads = detail_payloads or {}
         self.body_text = json.dumps(self.feed_payload)
 
     def locator(self, selector):
@@ -596,7 +639,8 @@ class _FakeJobplanetApiPage:
     async def goto(self, url, **_kwargs):
         self.goto_urls.append(url)
         self.url = url
-        self.body_text = json.dumps(self.detail_payload)
+        post_id = url.rstrip("/").rsplit("/", 1)[-1]
+        self.body_text = json.dumps(self.detail_payloads.get(post_id, self.detail_payload))
         return _FakeResponse(200)
 
     async def wait_for_timeout(self, *_args, **_kwargs):

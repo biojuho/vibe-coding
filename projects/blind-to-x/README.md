@@ -45,18 +45,19 @@ py -3 main.py --source multi --popular --review-only --limit 5
 
 # The preflight JSON summary includes ready_sources, problem_sources, and recommended_source.
 # recommended_source prefers the ready source with the strongest successful detail evidence.
-# recommended_command gives a copyable guarded pipeline command for the recommended source.
+# recommended_command gives a copyable guarded pipeline command for the recommended source,
+# using the active Python interpreter and explicit project/config paths.
 # problem_actions lists per-source operator next steps for blocked, click, browser, and timeout failures.
 # HTML sources click the first post; API-backed JobPlanet verifies the first post detail endpoint.
 
 # Source browser gate, then continue only when the resolved source is ready
-py -3 main.py --source ppomppu --popular --review-only --limit 5 --require-source-ready --source-preflight-output .tmp/source_browser_preflight.json --source-preflight-screenshot-dir screenshots/source_preflight
+.\.venv\Scripts\python.exe main.py --source ppomppu --popular --review-only --limit 5 --require-source-ready --source-preflight-output .tmp/source_browser_preflight.json --source-preflight-screenshot-dir screenshots/source_preflight
 
 # Source browser gate with first-post click-through before a paid/LLM run
-py -3 main.py --source ppomppu --popular --review-only --limit 5 --require-source-ready --source-preflight-click-through --source-preflight-output .tmp/source_browser_preflight.json --source-preflight-screenshot-dir screenshots/source_preflight
+.\.venv\Scripts\python.exe main.py --source ppomppu --popular --review-only --limit 5 --require-source-ready --source-preflight-click-through --source-preflight-output .tmp/source_browser_preflight.json --source-preflight-screenshot-dir screenshots/source_preflight
 
 # Multi-source gate that continues with the strongest ready source when some sources are blocked
-py -3 main.py --source multi --popular --review-only --limit 5 --require-source-ready --source-preflight-click-through --source-preflight-use-recommended --source-preflight-output .tmp/source_browser_preflight.json --source-preflight-screenshot-dir screenshots/source_preflight
+.\.venv\Scripts\python.exe main.py --source multi --popular --review-only --limit 5 --require-source-ready --source-preflight-click-through --source-preflight-use-recommended --source-preflight-output .tmp/source_browser_preflight.json --source-preflight-screenshot-dir screenshots/source_preflight
 
 # 승인된 항목 재처리용 경로
 py -3 main.py --reprocess-approved --limit 5

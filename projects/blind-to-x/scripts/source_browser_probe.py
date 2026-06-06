@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 import json
 from pathlib import Path
 import re
+import subprocess
 import sys
 from typing import Any
 from urllib.parse import urljoin, urlsplit, urlunsplit
@@ -25,6 +26,7 @@ DEFAULT_SOURCES: dict[str, str] = {
 ALL_SOURCE_ALIASES = frozenset({"all", "auto", "multi"})
 
 _JOBPLANET_BASE_URL = "https://www.jobplanet.co.kr"
+_PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 READY_STATUS = "ready"
 PROBLEM_STATUSES = {
@@ -272,11 +274,25 @@ def _ready_result_evidence_chars(result: ProbeResult) -> int:
 def _build_recommended_command(source: str | None) -> str | None:
     if source not in DEFAULT_SOURCES:
         return None
-    return (
-        f"py -3 main.py --source {source} --popular --review-only --limit 5 "
-        "--require-source-ready --source-preflight-click-through "
-        "--source-preflight-output .tmp/source_browser_preflight.json "
-        "--source-preflight-screenshot-dir screenshots/source_preflight"
+    return "& " + subprocess.list2cmdline(
+        [
+            sys.executable,
+            str(_PROJECT_ROOT / "main.py"),
+            "--config",
+            str(_PROJECT_ROOT / "config.yaml"),
+            "--source",
+            source,
+            "--popular",
+            "--review-only",
+            "--limit",
+            "5",
+            "--require-source-ready",
+            "--source-preflight-click-through",
+            "--source-preflight-output",
+            str(_PROJECT_ROOT / ".tmp" / "source_browser_preflight.json"),
+            "--source-preflight-screenshot-dir",
+            str(_PROJECT_ROOT / "screenshots" / "source_preflight"),
+        ]
     )
 
 
@@ -537,8 +553,8 @@ async def _verify_jobplanet_api_detail(
     timeout_ms: int,
     screenshot_dir: Path | None,
 ) -> ClickThroughResult:
-    candidate = _select_jobplanet_api_candidate(feed_body_text)
-    if candidate is None:
+    candidates = _select_jobplanet_api_candidates(feed_body_text)
+    if not candidates:
         return ClickThroughResult(
             ok=False,
             candidate_text=None,
@@ -549,33 +565,60 @@ async def _verify_jobplanet_api_detail(
             error="no JobPlanet API post id candidates",
         )
 
+    last_result: ClickThroughResult | None = None
     try:
-        response = await page.goto(str(candidate["api_href"]), wait_until="domcontentloaded", timeout=timeout_ms)
-        await page.wait_for_timeout(500)
-        title = await page.title()
-        body_text = await _safe_body_text(page)
-        detail_title, detail_content = _extract_jobplanet_detail_payload(body_text)
-        screenshot_path = await _safe_click_screenshot(page, target, screenshot_dir)
-        body_chars = len(_compact_text(detail_content or body_text))
-        http_status = response.status if response else None
-        ok = (http_status is None or http_status < 400) and len(_compact_text(detail_content)) >= 10
-        error = None
-        if not ok:
-            if http_status is not None and http_status >= 400:
-                error = f"JobPlanet detail API returned HTTP {http_status}"
-            else:
-                error = "JobPlanet detail API did not return readable post content"
+        for candidate in candidates:
+            response = await page.goto(str(candidate["api_href"]), wait_until="domcontentloaded", timeout=timeout_ms)
+            await page.wait_for_timeout(500)
+            title = await page.title()
+            body_text = await _safe_body_text(page)
+            detail_title, detail_content = _extract_jobplanet_detail_payload(body_text)
+            screenshot_path = await _safe_click_screenshot(page, target, screenshot_dir)
+            body_chars = len(_compact_text(detail_content or body_text))
+            http_status = response.status if response else None
+            ok = (http_status is None or http_status < 400) and len(_compact_text(detail_content)) >= 10
+            error = None
+            if not ok:
+                if http_status is not None and http_status >= 400:
+                    error = f"JobPlanet detail API returned HTTP {http_status}"
+                else:
+                    error = "JobPlanet detail API did not return readable post content"
+
+            last_result = ClickThroughResult(
+                ok=ok,
+                candidate_text=str(candidate["text"])[:160],
+                candidate_href=str(candidate["href"]),
+                final_url=getattr(page, "url", ""),
+                title=_compact_text(detail_title or title)[:160],
+                body_chars=body_chars,
+                screenshot_path=str(screenshot_path) if screenshot_path else None,
+                error=error,
+            )
+            if ok:
+                return last_result
+
+        if last_result is not None:
+            return ClickThroughResult(
+                ok=False,
+                candidate_text=last_result.candidate_text,
+                candidate_href=last_result.candidate_href,
+                final_url=last_result.final_url,
+                title=last_result.title,
+                body_chars=last_result.body_chars,
+                screenshot_path=last_result.screenshot_path,
+                error="JobPlanet detail API did not return readable post content from feed candidates",
+            )
         return ClickThroughResult(
-            ok=ok,
-            candidate_text=str(candidate["text"])[:160],
-            candidate_href=str(candidate["href"]),
+            ok=False,
+            candidate_text=None,
+            candidate_href=None,
             final_url=getattr(page, "url", ""),
-            title=_compact_text(detail_title or title)[:160],
-            body_chars=body_chars,
-            screenshot_path=str(screenshot_path) if screenshot_path else None,
-            error=error,
+            title="",
+            body_chars=0,
+            error="no JobPlanet API post id candidates",
         )
     except Exception as exc:
+        candidate = candidates[0]
         return ClickThroughResult(
             ok=False,
             candidate_text=str(candidate["text"])[:160],
@@ -648,8 +691,14 @@ def _select_click_through_candidate(anchors: list[dict[str, Any]]) -> dict[str, 
 
 
 def _select_jobplanet_api_candidate(body_text: str) -> dict[str, str] | None:
+    candidates = _select_jobplanet_api_candidates(body_text)
+    return candidates[0] if candidates else None
+
+
+def _select_jobplanet_api_candidates(body_text: str, *, limit: int = 5) -> list[dict[str, str]]:
     payload = _json_payload_from_body(body_text)
     items = _nested_mapping_list(payload, "data", "items")
+    candidates: list[dict[str, str]] = []
     for item in items:
         if not isinstance(item, dict):
             continue
@@ -657,13 +706,17 @@ def _select_jobplanet_api_candidate(body_text: str) -> dict[str, str] | None:
         if not post_id:
             continue
         title = _compact_text(str(item.get("title") or item.get("content") or ""))
-        return {
-            "id": post_id,
-            "text": title or f"JobPlanet post {post_id}",
-            "href": f"{_JOBPLANET_BASE_URL}/community/posts/{post_id}",
-            "api_href": f"{_JOBPLANET_BASE_URL}/api/v5/community/posts/{post_id}",
-        }
-    return None
+        candidates.append(
+            {
+                "id": post_id,
+                "text": title or f"JobPlanet post {post_id}",
+                "href": f"{_JOBPLANET_BASE_URL}/community/posts/{post_id}",
+                "api_href": f"{_JOBPLANET_BASE_URL}/api/v5/community/posts/{post_id}",
+            }
+        )
+        if len(candidates) >= limit:
+            break
+    return candidates
 
 
 def _extract_jobplanet_detail_payload(body_text: str) -> tuple[str, str]:
