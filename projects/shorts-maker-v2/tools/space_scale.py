@@ -249,110 +249,124 @@ class SpaceScaleGenerator:
         b = f.getbbox(t)
         return b[2] - b[0] if b else 0
 
-    def _render(self, t):
-        n = len(self.scales)
+    def _phase_bounds(self):
         scale_end = self.total_scale_dur
         outro_start = scale_end
         rewind_start = outro_start + self.outro_dur
+        return scale_end, outro_start, rewind_start
 
-        # BG
+    def _new_frame_layers(self):
         bg = Image.new("RGBA", (self.W, self.H), (*self.BG, 255))
         ov = Image.new("RGBA", (self.W, self.H), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(ov)
+        return bg, ov, ImageDraw.Draw(ov)
 
-        # 현재 페이즈 계산
-        if t < scale_end:
-            idx = min(int(t / self.step_dur), n - 1)
-            lt = t - idx * self.step_dur  # 현재 스텝 내 로컬 시간
-            lt / self.step_dur
+    def _scale_phase_step(self, t, n):
+        idx = min(int(t / self.step_dur), n - 1)
+        return idx, t - idx * self.step_dur
 
-            # 와프 속도 — 전환 중 가속
-            if lt < self.trans_dur and idx > 0:
-                warp = 1 + 5 * (1 - lt / self.trans_dur)  # 빠르게 감속
-            elif lt > self.step_dur - self.trans_dur and idx < n - 1:
-                warp = 1 + 5 * ((lt - (self.step_dur - self.trans_dur)) / self.trans_dur)
-            else:
-                warp = 1.0
+    def _warp_speed(self, idx, lt, n):
+        if lt < self.trans_dur and idx > 0:
+            return 1 + 5 * (1 - lt / self.trans_dur)  # 빠르게 감속
+        if lt > self.step_dur - self.trans_dur and idx < n - 1:
+            return 1 + 5 * ((lt - (self.step_dur - self.trans_dur)) / self.trans_dur)
+        return 1.0
 
-            # Stars
-            self._draw_stars(draw, t, warp)
+    def _previous_item_transition(self, idx, lt):
+        if lt >= self.trans_dur or idx <= 0:
+            return None
 
-            # 전환: 이전 이미지 축소 퇴장
-            if lt < self.trans_dur and idx > 0:
-                prev_scale = 1.0 - self._eo(lt / self.trans_dur) * 0.9
-                prev_alpha = int(255 * (1 - self._eo(lt / self.trans_dur)))
-                if prev_scale > 0.05:
-                    self._draw_scale_item(draw, bg, idx - 1, prev_scale, prev_alpha, t)
+        eased = self._eo(lt / self.trans_dur)
+        scale = 1.0 - eased * 0.9
+        if scale <= 0.05:
+            return None
+        return scale, int(255 * (1 - eased))
 
-            # 현재 이미지
-            if lt < self.trans_dur and idx > 0:
-                cur_prog = self._eo(lt / self.trans_dur)
-                cur_scale = 0.1 + cur_prog * 0.9
-                cur_alpha = int(255 * cur_prog)
-            elif lt > self.step_dur - self.trans_dur and idx < n - 1:
-                exit_prog = self._eo((lt - (self.step_dur - self.trans_dur)) / self.trans_dur)
-                cur_scale = 1.0 - exit_prog * 0.9
-                cur_alpha = int(255 * (1 - exit_prog))
-            else:
-                cur_scale = 1.0
-                cur_alpha = 255
-
-            self._draw_scale_item(
-                draw,
-                bg,
-                idx,
-                cur_scale,
-                cur_alpha,
-                t,
-                show_text=True,
-                text_t=max(0, lt - self.trans_dur * (1 if idx > 0 else 0)),
-            )
-
-        elif t < rewind_start:
-            # Outro
-            lt = t - outro_start
-            self._draw_stars(draw, t, 0.3)
-
-            # Flash at start
-            if lt < 0.5:
-                flash_a = int(120 * (1 - lt / 0.5))
-                draw.rectangle([(0, 0), (self.W, self.H)], fill=(255, 255, 255, flash_a))
-
-            # Outro text
-            lh = 70
-            total_h = len(self._outro_lines) * lh
-            start_y = (self.H - total_h) // 2
-            for i, line in enumerate(self._outro_lines):
-                la = int(255 * self._eo((lt - 0.3 - i * 0.4) / 0.8))
-                if la < 0:
-                    la = 0
-                tw = self._tw(line, self.f_outro)
-                # Slide up slightly
-                slide = int(15 * (1 - self._eo((lt - 0.3 - i * 0.4) / 0.8)))
-                draw.text(
-                    ((self.W - tw) // 2, start_y + i * lh + slide), line, font=self.f_outro, fill=(*self.WHITE, la)
-                )
-
+    def _current_item_transition(self, idx, lt, n):
+        if lt < self.trans_dur and idx > 0:
+            cur_prog = self._eo(lt / self.trans_dur)
+            cur_scale = 0.1 + cur_prog * 0.9
+            cur_alpha = int(255 * cur_prog)
+        elif lt > self.step_dur - self.trans_dur and idx < n - 1:
+            exit_prog = self._eo((lt - (self.step_dur - self.trans_dur)) / self.trans_dur)
+            cur_scale = 1.0 - exit_prog * 0.9
+            cur_alpha = int(255 * (1 - exit_prog))
         else:
-            # Rewind: 빠르게 줌인 역재생
-            lt = t - rewind_start
-            rewind_prog = self._eo(lt / self.rewind_dur)
-            self._draw_stars(draw, t, 4 * (1 - rewind_prog))
+            cur_scale = 1.0
+            cur_alpha = 255
 
-            # 역순으로 이미지 빠르게 스캐닝
-            rev_idx = n - 1 - int(rewind_prog * n)
-            rev_idx = max(0, min(n - 1, rev_idx))
-            sc = 0.3 + rewind_prog * 0.5
-            al = int(150 * (1 - rewind_prog * 0.5))
-            self._draw_scale_item(draw, bg, rev_idx, sc, al, t)
+        text_t = max(0, lt - self.trans_dur * (1 if idx > 0 else 0))
+        return cur_scale, cur_alpha, text_t
 
-            # 마지막에 지구(첫 번째 또는 "Earth" 관련) 아이템
-            if rewind_prog > 0.8:
-                ea = int(255 * self._eo((rewind_prog - 0.8) / 0.2))
-                self._draw_scale_item(draw, bg, 0, 1.0, ea, t, show_text=True, text_t=2)
+    def _render(self, t):
+        scale_end, outro_start, rewind_start = self._phase_bounds()
+        bg, ov, draw = self._new_frame_layers()
+
+        if t < scale_end:
+            self._draw_scale_phase(draw, bg, t)
+        elif t < rewind_start:
+            self._draw_outro_phase(draw, t, outro_start)
+        else:
+            self._draw_rewind_phase(draw, bg, t, rewind_start)
 
         comp = Image.alpha_composite(bg, ov)
         return np.array(comp.convert("RGB"))
+
+    def _draw_scale_phase(self, draw, bg, t):
+        n = len(self.scales)
+        idx, lt = self._scale_phase_step(t, n)
+
+        self._draw_stars(draw, t, self._warp_speed(idx, lt, n))
+
+        previous = self._previous_item_transition(idx, lt)
+        if previous is not None:
+            prev_scale, prev_alpha = previous
+            self._draw_scale_item(draw, bg, idx - 1, prev_scale, prev_alpha, t)
+
+        cur_scale, cur_alpha, text_t = self._current_item_transition(idx, lt, n)
+        self._draw_scale_item(
+            draw,
+            bg,
+            idx,
+            cur_scale,
+            cur_alpha,
+            t,
+            show_text=True,
+            text_t=text_t,
+        )
+
+    def _draw_outro_phase(self, draw, t, outro_start):
+        lt = t - outro_start
+        self._draw_stars(draw, t, 0.3)
+
+        if lt < 0.5:
+            flash_a = int(120 * (1 - lt / 0.5))
+            draw.rectangle([(0, 0), (self.W, self.H)], fill=(255, 255, 255, flash_a))
+
+        lh = 70
+        total_h = len(self._outro_lines) * lh
+        start_y = (self.H - total_h) // 2
+        for i, line in enumerate(self._outro_lines):
+            line_t = (lt - 0.3 - i * 0.4) / 0.8
+            la = max(0, int(255 * self._eo(line_t)))
+            tw = self._tw(line, self.f_outro)
+            slide = int(15 * (1 - self._eo(line_t)))
+            draw.text(((self.W - tw) // 2, start_y + i * lh + slide), line, font=self.f_outro, fill=(*self.WHITE, la))
+
+    def _draw_rewind_phase(self, draw, bg, t, rewind_start):
+        n = len(self.scales)
+        lt = t - rewind_start
+        rewind_prog = self._eo(lt / self.rewind_dur)
+        self._draw_stars(draw, t, 4 * (1 - rewind_prog))
+
+        rev_idx = n - 1 - int(rewind_prog * n)
+        rev_idx = max(0, min(n - 1, rev_idx))
+        sc = 0.3 + rewind_prog * 0.5
+        al = int(150 * (1 - rewind_prog * 0.5))
+        self._draw_scale_item(draw, bg, rev_idx, sc, al, t)
+
+        if rewind_prog > 0.8:
+            ea = int(255 * self._eo((rewind_prog - 0.8) / 0.2))
+            self._draw_scale_item(draw, bg, 0, 1.0, ea, t, show_text=True, text_t=2)
 
     def _draw_scale_item(self, draw, bg, idx, scale, alpha, t, show_text=False, text_t=0):
         """하나의 스케일 단계 렌더링."""
@@ -365,50 +379,49 @@ class SpaceScaleGenerator:
 
         cx, cy = self.W // 2, self.H // 2 - 80
 
-        # 글로우 링
         if alpha > 30:
             ring_r = int(target_size * scale / 2) + 20
             self._draw_glow_ring(draw, cx, cy, ring_r, t, alpha_base=int(50 * alpha / 255))
 
-        # 이미지 (스케일 적용)
         if scale > 0.05 and alpha > 10:
-            sz = max(10, int(target_size * scale))
-            resized = img.resize((sz, sz), Image.LANCZOS)
-            # 알파 조정
-            if alpha < 255:
-                arr = np.array(resized)
-                arr[:, :, 3] = (arr[:, :, 3].astype(np.float32) * alpha / 255).clip(0, 255).astype(np.uint8)
-                resized = Image.fromarray(arr)
-            paste_x = cx - sz // 2
-            paste_y = cy - sz // 2
-            bg.paste(resized, (paste_x, paste_y), resized)
+            self._paste_scaled_image(bg, img, cx, cy, scale, alpha)
 
-        # 텍스트
         if show_text and alpha > 30:
-            name = sc.get("name", "")
-            size_text = sc.get("size_text", "")
+            self._draw_scale_labels(draw, sc, idx, target_size, scale, alpha, text_t, cy)
 
-            # 이름 (인디고, 상단)
-            name_y = cy - int(target_size * scale / 2) - 80
-            if name_y < 50:
-                name_y = 50
-            na = int(min(255, alpha) * self._eo(text_t / 0.6))
-            if na > 0:
-                nw = self._tw(name, self.f_name)
-                draw.text(((self.W - nw) // 2, name_y), name, font=self.f_name, fill=(*self.INDIGO, na))
+    def _paste_scaled_image(self, bg, img, cx, cy, scale, alpha):
+        sz = max(10, int(img.width * scale))
+        resized = img.resize((sz, sz), Image.LANCZOS)
+        if alpha < 255:
+            arr = np.array(resized)
+            arr[:, :, 3] = (arr[:, :, 3].astype(np.float32) * alpha / 255).clip(0, 255).astype(np.uint8)
+            resized = Image.fromarray(arr)
+        paste_x = cx - sz // 2
+        paste_y = cy - sz // 2
+        bg.paste(resized, (paste_x, paste_y), resized)
 
-            # 크기 (앰버, 하단, 카운트업)
-            size_y = cy + int(target_size * scale / 2) + 40
-            if size_y > self.H - 200:
-                size_y = self.H - 200
-            if text_t > 0.3 and size_text:
-                self._draw_countup(draw, size_text, text_t - 0.3, self.step_dur, size_y)
+    def _draw_scale_labels(self, draw, sc, idx, target_size, scale, alpha, text_t, cy):
+        name = sc.get("name", "")
+        size_text = sc.get("size_text", "")
 
-            # 스텝 인디케이터
-            step_text = f"{idx + 1} / {len(self.scales)}"
-            sa = int(100 * self._eo(text_t / 0.8))
-            sw = self._tw(step_text, self.f_small)
-            draw.text(((self.W - sw) // 2, self.H - 120), step_text, font=self.f_small, fill=(*self.INDIGO, sa))
+        name_y = cy - int(target_size * scale / 2) - 80
+        if name_y < 50:
+            name_y = 50
+        na = int(min(255, alpha) * self._eo(text_t / 0.6))
+        if na > 0:
+            nw = self._tw(name, self.f_name)
+            draw.text(((self.W - nw) // 2, name_y), name, font=self.f_name, fill=(*self.INDIGO, na))
+
+        size_y = cy + int(target_size * scale / 2) + 40
+        if size_y > self.H - 200:
+            size_y = self.H - 200
+        if text_t > 0.3 and size_text:
+            self._draw_countup(draw, size_text, text_t - 0.3, self.step_dur, size_y)
+
+        step_text = f"{idx + 1} / {len(self.scales)}"
+        sa = int(100 * self._eo(text_t / 0.8))
+        sw = self._tw(step_text, self.f_small)
+        draw.text(((self.W - sw) // 2, self.H - 120), step_text, font=self.f_small, fill=(*self.INDIGO, sa))
 
     def generate(self, out="space_scale.mp4"):
         clip = VideoClip(lambda t: self._render(t), duration=self.duration).with_fps(self.FPS)
