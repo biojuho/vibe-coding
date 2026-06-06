@@ -45,6 +45,96 @@ def is_whisperx_available() -> bool:
         return False
 
 
+def _build_word_timing(word: str, start: float, end: float) -> dict | None:
+    cleaned = word.strip()
+    if not cleaned:
+        return None
+    return {
+        "word": cleaned,
+        "start": round(float(start), 4),
+        "end": round(float(end), 4),
+    }
+
+
+def _word_timing_from_mapping(word_info: dict) -> dict | None:
+    if "start" not in word_info or "end" not in word_info:
+        return None
+    return _build_word_timing(str(word_info.get("word", "")), word_info["start"], word_info["end"])
+
+
+def _collect_mapping_word_timings(segments: list[dict]) -> list[dict]:
+    result_words: list[dict] = []
+    for segment in segments:
+        for word_info in segment.get("words", []):
+            timing = _word_timing_from_mapping(word_info)
+            if timing:
+                result_words.append(timing)
+    return result_words
+
+
+def _collect_faster_whisper_word_timings(segments) -> list[dict]:
+    result_words: list[dict] = []
+    for segment in segments:
+        if segment.words is None:
+            continue
+        for word in segment.words:
+            timing = _build_word_timing(word.word, word.start, word.end)
+            if timing:
+                result_words.append(timing)
+    return result_words
+
+
+def _transcribe_with_whisperx(audio_path: Path, model_size: str, whisper_language: str) -> list[dict]:
+    import whisperx
+
+    logger.info("whisper_aligner: whisperx (%s, cpu, int8) loading", model_size)
+    model = whisperx.load_model(model_size, device="cpu", compute_type="int8")
+
+    logger.info("whisper_aligner: whisperx '%s' transcribe start (lang: %s)", audio_path.name, whisper_language)
+    audio = whisperx.load_audio(str(audio_path))
+    result = model.transcribe(audio, batch_size=16, language=whisper_language)
+
+    result_words: list[dict] = []
+    try:
+        logger.info("whisper_aligner: whisperx alignment model loading")
+        model_a, metadata = whisperx.load_align_model(language_code=whisper_language, device="cpu")
+
+        logger.info("whisper_aligner: whisperx alignment running")
+        result_aligned = whisperx.align(
+            result["segments"],
+            model_a,
+            metadata,
+            audio,
+            device="cpu",
+            return_char_alignments=False,
+        )
+        result_words = _collect_mapping_word_timings(result_aligned.get("segments", []))
+    except Exception as align_exc:
+        logger.warning("whisper_aligner: whisperx alignment failed; using segment words: %s", align_exc)
+
+    if not result_words:
+        logger.info("whisper_aligner: parsing whisperx segments directly")
+        result_words = _collect_mapping_word_timings(result.get("segments", []))
+    return result_words
+
+
+def _transcribe_with_faster_whisper(audio_path: Path, model_size: str, whisper_language: str) -> list[dict]:
+    from faster_whisper import WhisperModel
+
+    logger.info("whisper_aligner: faster-whisper (%s, cpu, int8) loading", model_size)
+    model = WhisperModel(model_size, device="cpu", compute_type="int8")
+
+    logger.info("whisper_aligner: faster-whisper '%s' analysis start", audio_path.name)
+    segments, _info = model.transcribe(
+        str(audio_path),
+        word_timestamps=True,
+        beam_size=1,
+        vad_filter=True,
+        language=whisper_language,
+    )
+    return _collect_faster_whisper_word_timings(segments)
+
+
 def transcribe_to_word_timings(
     audio_path: Path,
     model_size: str = "base",
@@ -75,59 +165,7 @@ def transcribe_to_word_timings(
     # 1. WhisperX 시도
     if is_whisperx_available():
         try:
-            import whisperx
-
-            logger.info("whisper_aligner: whisperx (%s, cpu, int8) 로드 중…", model_size)
-            model = whisperx.load_model(model_size, device="cpu", compute_type="int8")
-
-            logger.info("whisper_aligner: whisperx '%s' 전사 시작 (lang: %s)", audio_path.name, whisper_language)
-            audio = whisperx.load_audio(str(audio_path))
-            result = model.transcribe(audio, batch_size=16, language=whisper_language)
-
-            # Alignment 시도
-            result_words: list[dict] = []
-            aligned = False
-            try:
-                logger.info("whisper_aligner: whisperx alignment 모델 로드 중…")
-                model_a, metadata = whisperx.load_align_model(language_code=whisper_language, device="cpu")
-
-                logger.info("whisper_aligner: whisperx alignment 수행 중…")
-                result_aligned = whisperx.align(
-                    result["segments"],
-                    model_a,
-                    metadata,
-                    audio,
-                    device="cpu",
-                    return_char_alignments=False,
-                )
-
-                for segment in result_aligned.get("segments", []):
-                    for word_info in segment.get("words", []):
-                        if "start" in word_info and "end" in word_info:
-                            cleaned = word_info["word"].strip()
-                            if cleaned:
-                                result_words.append({
-                                    "word": cleaned,
-                                    "start": round(float(word_info["start"]), 4),
-                                    "end": round(float(word_info["end"]), 4),
-                                })
-                aligned = True
-            except Exception as align_exc:
-                logger.warning("whisper_aligner: whisperx alignment 실패 (기본 segment 단어 활용 시도): %s", align_exc)
-
-            # Alignment가 실패했거나 결과 단어가 없는 경우, whisperx transcribe segments 자체에서 단어 추출 시도
-            if not aligned or not result_words:
-                logger.info("whisper_aligner: segments 직접 파싱 진행")
-                for segment in result.get("segments", []):
-                    for word_info in segment.get("words", []):
-                        if "start" in word_info and "end" in word_info:
-                            cleaned = word_info["word"].strip()
-                            if cleaned:
-                                result_words.append({
-                                    "word": cleaned,
-                                    "start": round(float(word_info["start"]), 4),
-                                    "end": round(float(word_info["end"]), 4),
-                                })
+            result_words = _transcribe_with_whisperx(audio_path, model_size, whisper_language)
 
             if result_words:
                 logger.info(
@@ -143,35 +181,7 @@ def transcribe_to_word_timings(
     # 2. faster-whisper Fallback 시도
     if is_whisper_available():
         try:
-            from faster_whisper import WhisperModel
-
-            logger.info("whisper_aligner: faster-whisper (%s, cpu, int8) 로드 중…", model_size)
-            model = WhisperModel(model_size, device="cpu", compute_type="int8")
-
-            logger.info("whisper_aligner: faster-whisper '%s' 분석 시작", audio_path.name)
-            segments, _info = model.transcribe(
-                str(audio_path),
-                word_timestamps=True,
-                beam_size=1,  # CPU 속도 최적화
-                vad_filter=True,  # 무음 구간 제거 → 타임스탬프 안정화
-                language=whisper_language,
-            )
-
-            result_words = []
-            for segment in segments:
-                if segment.words is None:
-                    continue
-                for word in segment.words:
-                    cleaned = word.word.strip()
-                    if not cleaned:
-                        continue
-                    result_words.append(
-                        {
-                            "word": cleaned,
-                            "start": round(float(word.start), 4),
-                            "end": round(float(word.end), 4),
-                        }
-                    )
+            result_words = _transcribe_with_faster_whisper(audio_path, model_size, whisper_language)
 
             if result_words:
                 logger.info(

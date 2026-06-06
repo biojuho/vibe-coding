@@ -124,6 +124,71 @@ class TestTranscribeToWordTimings:
 
         assert mock_model.transcribe.call_args.kwargs["language"] == "en"
 
+    def test_uses_whisperx_aligned_words_when_available(self, tmp_path: Path):
+        """WhisperX alignment 결과가 있으면 aligned 단어 타임스탬프를 우선한다."""
+        audio = tmp_path / "whisperx.mp3"
+        audio.write_bytes(b"\xff\xfb\x90")
+
+        mock_model = MagicMock()
+        mock_model.transcribe.return_value = {
+            "segments": [
+                {
+                    "words": [
+                        {"word": "fallback", "start": 9.0, "end": 10.0},
+                    ]
+                }
+            ]
+        }
+
+        mock_whisperx = MagicMock()
+        mock_whisperx.load_model.return_value = mock_model
+        mock_whisperx.load_audio.return_value = object()
+        mock_whisperx.load_align_model.return_value = (object(), object())
+        mock_whisperx.align.return_value = {
+            "segments": [
+                {
+                    "words": [
+                        {"word": " aligned ", "start": 0.123456, "end": 0.789123},
+                    ]
+                }
+            ]
+        }
+
+        with patch.dict("sys.modules", {"whisperx": mock_whisperx}):
+            result = transcribe_to_word_timings(audio, language="en-US")
+
+        assert result == [{"word": "aligned", "start": 0.1235, "end": 0.7891}]
+        assert mock_model.transcribe.call_args.kwargs["language"] == "en"
+        assert mock_whisperx.align.called
+
+    def test_whisperx_alignment_failure_uses_segment_words(self, tmp_path: Path):
+        """WhisperX alignment 실패 시 transcribe segment 단어를 fallback으로 사용한다."""
+        audio = tmp_path / "whisperx-fallback.mp3"
+        audio.write_bytes(b"\xff\xfb\x90")
+
+        mock_model = MagicMock()
+        mock_model.transcribe.return_value = {
+            "segments": [
+                {
+                    "words": [
+                        {"word": " segment ", "start": 1.23456, "end": 2.34567},
+                        {"word": "   ", "start": 3.0, "end": 4.0},
+                    ]
+                }
+            ]
+        }
+
+        mock_whisperx = MagicMock()
+        mock_whisperx.load_model.return_value = mock_model
+        mock_whisperx.load_audio.return_value = object()
+        mock_whisperx.load_align_model.return_value = (object(), object())
+        mock_whisperx.align.side_effect = RuntimeError("align unavailable")
+
+        with patch.dict("sys.modules", {"whisperx": mock_whisperx}):
+            result = transcribe_to_word_timings(audio)
+
+        assert result == [{"word": "segment", "start": 1.2346, "end": 2.3457}]
+
     def test_returns_empty_when_whisper_unavailable(self, tmp_path: Path):
         """faster-whisper 미설치 시 빈 리스트 반환 (graceful)."""
         audio = tmp_path / "test.mp3"
