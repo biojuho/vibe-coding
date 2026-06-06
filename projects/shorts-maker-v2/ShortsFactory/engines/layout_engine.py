@@ -39,6 +39,15 @@ class LayoutEngine:
         self.font_body = channel_config.get("font_body", "Pretendard-Regular")
         self._width, self._height = 1080, 1920
 
+    @staticmethod
+    def _resolve_output_path(output_path: Path | None) -> Path:
+        if output_path is None:
+            fd, tmp = tempfile.mkstemp(suffix=".png")
+            os.close(fd)
+            output_path = Path(tmp)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        return output_path
+
     def split_screen(
         self,
         left_text: str,
@@ -50,11 +59,7 @@ class LayoutEngine:
         right_color: str | None = None,
         output_path: Path | None = None,
     ) -> Path:
-        if output_path is None:
-            _fd, _tmp = tempfile.mkstemp(suffix=".png")
-            os.close(_fd)
-            output_path = Path(_tmp)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path = self._resolve_output_path(output_path)
         bg = self._hex(self.palette.get("bg", "#0A0E1A"))
         pos = self._hex(left_color or self.palette.get("accent", "#34D399"))
         neg = self._hex(right_color or "#EF4444")
@@ -72,11 +77,7 @@ class LayoutEngine:
         return output_path
 
     def card_layout(self, items: list[dict[str, str]], *, output_path: Path | None = None) -> Path:
-        if output_path is None:
-            _fd, _tmp = tempfile.mkstemp(suffix=".png")
-            os.close(_fd)
-            output_path = Path(_tmp)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path = self._resolve_output_path(output_path)
         bg = self._hex(self.palette.get("bg", "#0A0E1A"))
         pri = self._hex(self.palette.get("primary", "#00D4FF"))
         acc = self._hex(self.palette.get("accent", "#00FF88"))
@@ -96,11 +97,7 @@ class LayoutEngine:
         return output_path
 
     def timeline_layout(self, events: list[dict[str, str]], *, output_path: Path | None = None) -> Path:
-        if output_path is None:
-            _fd, _tmp = tempfile.mkstemp(suffix=".png")
-            os.close(_fd)
-            output_path = Path(_tmp)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path = self._resolve_output_path(output_path)
         bg = self._hex(self.palette.get("bg", "#1A1408"))
         pri = self._hex(self.palette.get("primary", "#D4A574"))
         acc = self._hex(self.palette.get("accent", "#C41E3A"))
@@ -151,11 +148,7 @@ class LayoutEngine:
             height_ratio: 화면 대비 높이 비율.
             output_path: 출력 경로.
         """
-        if output_path is None:
-            _fd, _tmp = tempfile.mkstemp(suffix=".png")
-            os.close(_fd)
-            output_path = Path(_tmp)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path = self._resolve_output_path(output_path)
 
         bar_h = int(self._height * height_ratio)
         img = Image.new("RGBA", (self._width, bar_h), (0, 0, 0, 0))
@@ -214,11 +207,7 @@ class LayoutEngine:
             height_ratio: 화면 대비 높이 비율.
             output_path: 출력 경로.
         """
-        if output_path is None:
-            _fd, _tmp = tempfile.mkstemp(suffix=".png")
-            os.close(_fd)
-            output_path = Path(_tmp)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path = self._resolve_output_path(output_path)
 
         card_h = int(self._height * height_ratio)
         img = Image.new("RGBA", (self._width, card_h), (0, 0, 0, 0))
@@ -295,11 +284,7 @@ class LayoutEngine:
             width: 이미지 너비.
             output_path: 출력 경로.
         """
-        if output_path is None:
-            _fd, _tmp = tempfile.mkstemp(suffix=".png")
-            os.close(_fd)
-            output_path = Path(_tmp)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path = self._resolve_output_path(output_path)
 
         w = width or self._width
         total_h = bar_height + 60  # 항목명 + 바
@@ -385,11 +370,7 @@ class LayoutEngine:
             badge_color: 배지 색상 (기본: accent).
             output_path: 출력 경로.
         """
-        if output_path is None:
-            _fd, _tmp = tempfile.mkstemp(suffix=".png")
-            os.close(_fd)
-            output_path = Path(_tmp)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path = self._resolve_output_path(output_path)
 
         bg = self._hex(self.palette.get("bg", "#0A0E1A"))
         acc = self._hex(badge_color or self.palette.get("accent", "#00FF88"))
@@ -442,11 +423,7 @@ class LayoutEngine:
             opacity: 배경 투명도 (0-255).
             output_path: 출력 경로.
         """
-        if output_path is None:
-            _fd, _tmp = tempfile.mkstemp(suffix=".png")
-            os.close(_fd)
-            output_path = Path(_tmp)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path = self._resolve_output_path(output_path)
 
         pri = self._hex(self.palette.get("primary", "#00D4FF"))
         img = Image.new("RGBA", (self._width, self._height), (0, 0, 0, 0))
@@ -504,11 +481,7 @@ class LayoutEngine:
             cols: 열 개수 (1~3).
             output_path: 출력 경로.
         """
-        if output_path is None:
-            _fd, _tmp = tempfile.mkstemp(suffix=".png")
-            os.close(_fd)
-            output_path = Path(_tmp)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path = self._resolve_output_path(output_path)
 
         bg = self._hex(self.palette.get("bg", "#0A0E1A"))
         pri = self._hex(self.palette.get("primary", "#00D4FF"))
@@ -579,11 +552,7 @@ class LayoutEngine:
             title: 상단 제목 (선택).
             output_path: 출력 경로.
         """
-        if output_path is None:
-            _fd, _tmp = tempfile.mkstemp(suffix=".png")
-            os.close(_fd)
-            output_path = Path(_tmp)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path = self._resolve_output_path(output_path)
 
         bg = self._hex(self.palette.get("bg", "#0A0E1A"))
         pri = self._hex(self.palette.get("primary", "#00D4FF"))
@@ -651,11 +620,7 @@ class LayoutEngine:
             accent_color: 악센트 색상 (기본: primary).
             output_path: 출력 경로.
         """
-        if output_path is None:
-            _fd, _tmp = tempfile.mkstemp(suffix=".png")
-            os.close(_fd)
-            output_path = Path(_tmp)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path = self._resolve_output_path(output_path)
 
         bg = self._hex(self.palette.get("bg", "#0A0E1A"))
         pri = self._hex(accent_color or self.palette.get("primary", "#00D4FF"))
@@ -711,11 +676,7 @@ class LayoutEngine:
             header_color: 헤더 배경 색상 (기본: primary).
             output_path: 출력 경로.
         """
-        if output_path is None:
-            _fd, _tmp = tempfile.mkstemp(suffix=".png")
-            os.close(_fd)
-            output_path = Path(_tmp)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path = self._resolve_output_path(output_path)
 
         bg = self._hex(self.palette.get("bg", "#0A0E1A"))
         pri = self._hex(header_color or self.palette.get("primary", "#00D4FF"))
@@ -760,40 +721,25 @@ class LayoutEngine:
 
     @staticmethod
     def _wrap(d, text, font, x, y, mw, fill):
-        words, lines, cur = text.split(), [], []
-        for w in words:
-            c = " ".join(cur + [w])
-            try:
-                bw = d.textbbox((0, 0), c, font=font)[2]
-            except Exception:
-                bw = len(c) * 20
-            if bw <= mw or not cur:
-                cur.append(w)
-            else:
-                lines.append(" ".join(cur))
-                cur = [w]
-        if cur:
-            lines.append(" ".join(cur))
+        lines = LayoutEngine._wrapped_lines_with_draw(text, font, mw, d)
         for i, ln in enumerate(lines):
             d.text((x, y + i * 40), ln, font=font, fill=fill)
 
     @staticmethod
     def _wrap_lines(text: str, font, max_width: int) -> list[str]:
         """텍스트를 max_width 내에서 줄바꿈하여 리스트 반환."""
+        probe = Image.new("RGB", (1, 1))
+        d = ImageDraw.Draw(probe)
+        return LayoutEngine._wrapped_lines_with_draw(text, font, max_width, d)
+
+    @staticmethod
+    def _wrapped_lines_with_draw(text: str, font, max_width: int, d) -> list[str]:
         words = text.split()
         lines: list[str] = []
         cur: list[str] = []
         for w in words:
             c = " ".join(cur + [w])
-            try:
-                from PIL import Image as _Img
-                from PIL import ImageDraw as _Draw
-
-                probe = _Img.new("RGB", (1, 1))
-                d = _Draw.Draw(probe)
-                bw = d.textbbox((0, 0), c, font=font)[2]
-            except Exception:
-                bw = len(c) * 20
+            bw = LayoutEngine._measure_text_width(d, c, font)
             if bw <= max_width or not cur:
                 cur.append(w)
             else:
@@ -802,6 +748,13 @@ class LayoutEngine:
         if cur:
             lines.append(" ".join(cur))
         return lines
+
+    @staticmethod
+    def _measure_text_width(d, text: str, font) -> int:
+        try:
+            return d.textbbox((0, 0), text, font=font)[2]
+        except Exception:
+            return len(text) * 20
 
     @staticmethod
     def _hex(c: str) -> tuple[int, int, int]:
