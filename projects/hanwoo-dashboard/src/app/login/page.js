@@ -37,6 +37,7 @@ export default function LoginPage() {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [showPassword, setShowPassword] = useState(false);
 	const submitInFlightRef = useRef(false);
+	const usernameInputRef = useRef(null);
 
 	const canSubmit =
 		username.trim().length > 0 && password.length > 0 && !isSubmitting;
@@ -61,6 +62,14 @@ export default function LoginPage() {
 		};
 	}, []);
 
+	const focusLoginCorrectionField = () => {
+		window.requestAnimationFrame(() => {
+			if (isMountedRef.current) {
+				usernameInputRef.current?.focus();
+			}
+		});
+	};
+
 	const handleSubmit = async (event) => {
 		event.preventDefault();
 		if (submitInFlightRef.current || !canSubmit) return;
@@ -80,6 +89,7 @@ export default function LoginPage() {
 			if (result?.error) {
 				if (isMountedRef.current) {
 					setError("아이디 또는 비밀번호를 다시 확인해 주세요.");
+					focusLoginCorrectionField();
 				}
 				return;
 			}
@@ -97,6 +107,7 @@ export default function LoginPage() {
 		} catch {
 			if (isMountedRef.current) {
 				setError("로그인을 완료하지 못했습니다. 네트워크 상태를 확인해 주세요.");
+				focusLoginCorrectionField();
 			}
 		} finally {
 			submitInFlightRef.current = false;
@@ -157,6 +168,7 @@ export default function LoginPage() {
 							/>
 							<input
 								id={usernameInputId}
+								ref={usernameInputRef}
 								name="username"
 								type="text"
 								value={username}
@@ -168,6 +180,7 @@ export default function LoginPage() {
 								aria-label="아이디"
 								aria-invalid={Boolean(error)}
 								aria-describedby={error ? loginErrorId : undefined}
+								aria-errormessage={error ? loginErrorId : undefined}
 								className="login-input"
 							/>
 						</span>
@@ -195,6 +208,7 @@ export default function LoginPage() {
 								aria-label="비밀번호"
 								aria-invalid={Boolean(error)}
 								aria-describedby={error ? loginErrorId : undefined}
+								aria-errormessage={error ? loginErrorId : undefined}
 								className="login-input login-input-password"
 							/>
 							<button

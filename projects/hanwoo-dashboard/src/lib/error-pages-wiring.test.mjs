@@ -294,7 +294,33 @@ test("login page links authentication errors to both credential fields", () => {
 	);
 	assert.match(
 		source,
+		/aria-errormessage=\{error \? loginErrorId : undefined\}/,
+	);
+	assert.match(
+		source,
 		/<div id=\{loginErrorId\} className="login-error" role="alert">/,
+	);
+});
+
+test("login credential failure returns focus to the first credential field", () => {
+	const source = readSource("app/login/page.js");
+
+	assert.match(source, /const usernameInputRef = useRef\(null\)/);
+	assert.match(
+		source,
+		/const focusLoginCorrectionField = \(\) => \{\s+window\.requestAnimationFrame\(\(\) => \{\s+if \(isMountedRef\.current\) \{\s+usernameInputRef\.current\?\.focus\(\);\s+\}\s+\}\);\s+\};/,
+	);
+	assert.match(
+		source,
+		/<input[\s\S]*?id=\{usernameInputId\}[\s\S]*?ref=\{usernameInputRef\}/,
+	);
+	assert.match(
+		source,
+		/setError\("아이디 또는 비밀번호를 다시 확인해 주세요\."\);\s+focusLoginCorrectionField\(\);/,
+	);
+	assert.match(
+		source,
+		/setError\("로그인을 완료하지 못했습니다\. 네트워크 상태를 확인해 주세요\."\);\s+focusLoginCorrectionField\(\);/,
 	);
 });
 
