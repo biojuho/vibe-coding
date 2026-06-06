@@ -30,6 +30,25 @@ test("buildSetupProgressItems routes missing buildings to the add-building flow"
 	assert.equal(progress.nextItem.actionId, "add-building");
 });
 
+test("buildSetupProgressItems routes missing inventory and schedule to add forms", () => {
+	const progress = buildSetupProgressItems({
+		farmSettings: { name: "주호목장", location: "전북 남원" },
+		buildings: [{ id: "b1", name: "1동" }],
+		cattleList: [{ id: "c1", earTag: "001" }],
+		inventoryList: [],
+		scheduleEvents: [],
+	});
+
+	const inventoryItem = progress.items.find((item) => item.id === "inventory");
+	const scheduleItem = progress.items.find((item) => item.id === "schedule");
+
+	assert.equal(progress.nextItem.id, "inventory");
+	assert.equal(inventoryItem.targetTab, "inventory");
+	assert.equal(inventoryItem.actionId, "add-inventory");
+	assert.equal(scheduleItem.targetTab, "schedule");
+	assert.equal(scheduleItem.actionId, "add-schedule");
+});
+
 test("buildSetupProgressItems ignores malformed collection rows", () => {
 	const progress = buildSetupProgressItems({
 		farmSettings: { name: "Farm", location: "Namwon" },

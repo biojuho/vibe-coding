@@ -14,6 +14,7 @@ import {
 	createScheduleFormValues,
 	scheduleEventSchema,
 } from "@/lib/formSchemas";
+import { focusElementSafely } from "@/lib/safeFocus";
 
 const TYPE_STYLES = {
 	Vaccination: { label: "백신", color: "var(--chart-clay-4)" },
@@ -99,6 +100,8 @@ export default function ScheduleTab(options = {}) {
 	const [savingEventId, setSavingEventId] = useState(null);
 	const [currentDate, setCurrentDate] = useState(new Date());
 	const isMountedRef = useRef(false);
+	const scheduleFormRef = useRef(null);
+	const scheduleTitleInputRef = useRef(null);
 	const saveInFlightRef = useRef(false);
 	const completionInFlightRef = useRef(false);
 	const submitButtonLabel = isSaving ? "일정 등록 중" : "일정 등록";
@@ -124,6 +127,7 @@ export default function ScheduleTab(options = {}) {
 		resolver: zodResolver(scheduleEventSchema),
 		defaultValues: createScheduleFormValues(),
 	});
+	const scheduleTitleRegistration = register("title");
 
 	const safeEvents = useMemo(() => normalizeScheduleEvents(events), [events]);
 
@@ -136,6 +140,36 @@ export default function ScheduleTab(options = {}) {
 			completionInFlightRef.current = false;
 		};
 	}, []);
+
+	useEffect(() => {
+		if (quickActionIntent?.actionId === "add-schedule") {
+			setIsAdding(true);
+		}
+	}, [quickActionIntent?.actionId, quickActionIntent?.nonce]);
+
+	useEffect(() => {
+		if (!isAdding) {
+			return;
+		}
+
+		const timeoutId = window.setTimeout(() => {
+			try {
+				scheduleFormRef.current?.scrollIntoView({
+					behavior: "smooth",
+					block: "start",
+					inline: "nearest",
+				});
+			} catch {
+				scheduleFormRef.current?.scrollIntoView();
+			}
+
+			focusElementSafely(scheduleTitleInputRef.current);
+		}, 0);
+
+		return () => {
+			window.clearTimeout(timeoutId);
+		};
+	}, [isAdding, quickActionIntent?.nonce]);
 
 	const monthDays = useMemo(() => {
 		const days = [];
@@ -294,6 +328,7 @@ export default function ScheduleTab(options = {}) {
 
 			{isAdding ? (
 				<form
+					ref={scheduleFormRef}
 					onSubmit={handleScheduleSubmit}
 					className="clay-page-section mb-4 p-4"
 				>
@@ -315,7 +350,11 @@ export default function ScheduleTab(options = {}) {
 								aria-describedby={
 									errors.title ? "schedule-title-error" : undefined
 								}
-								{...register("title")}
+								{...scheduleTitleRegistration}
+								ref={(element) => {
+									scheduleTitleRegistration.ref(element);
+									scheduleTitleInputRef.current = element;
+								}}
 								className="clay-inset w-full rounded-[16px] px-4 py-3 text-sm text-[color:var(--color-text)] outline-none"
 							/>
 							{errors.title ? (

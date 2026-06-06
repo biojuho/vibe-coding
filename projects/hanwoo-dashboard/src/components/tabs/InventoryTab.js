@@ -16,6 +16,7 @@ import {
 	createInventoryFormValues,
 	inventoryItemSchema,
 } from "@/lib/formSchemas";
+import { focusElementSafely } from "@/lib/safeFocus";
 
 const errorTextStyle = {
 	fontSize: "12px",
@@ -97,6 +98,8 @@ export default function InventoryTab(options = {}) {
 	const [editId, setEditId] = useState(null);
 	const [editQty, setEditQty] = useState("");
 	const isMountedRef = useRef(false);
+	const inventoryFormRef = useRef(null);
+	const inventoryNameInputRef = useRef(null);
 	const saveInFlightRef = useRef(false);
 	const quantityInFlightRef = useRef(false);
 	const submitButtonLabel = isSaving ? "재고 등록 중" : "재고 등록";
@@ -121,6 +124,7 @@ export default function InventoryTab(options = {}) {
 		resolver: zodResolver(inventoryItemSchema),
 		defaultValues: createInventoryFormValues(),
 	});
+	const inventoryNameRegistration = register("name");
 
 	const categories = {
 		Feed: "사료",
@@ -138,6 +142,36 @@ export default function InventoryTab(options = {}) {
 			quantityInFlightRef.current = false;
 		};
 	}, []);
+
+	useEffect(() => {
+		if (quickActionIntent?.actionId === "add-inventory") {
+			setIsAdding(true);
+		}
+	}, [quickActionIntent?.actionId, quickActionIntent?.nonce]);
+
+	useEffect(() => {
+		if (!isAdding) {
+			return;
+		}
+
+		const timeoutId = window.setTimeout(() => {
+			try {
+				inventoryFormRef.current?.scrollIntoView({
+					behavior: "smooth",
+					block: "start",
+					inline: "nearest",
+				});
+			} catch {
+				inventoryFormRef.current?.scrollIntoView();
+			}
+
+			focusElementSafely(inventoryNameInputRef.current);
+		}, 0);
+
+		return () => {
+			window.clearTimeout(timeoutId);
+		};
+	}, [isAdding, quickActionIntent?.nonce]);
 
 	const toggleAddForm = () => {
 		if (saveInFlightRef.current || isSaving) {
@@ -250,7 +284,11 @@ export default function InventoryTab(options = {}) {
 			</div>
 
 			{isAdding ? (
-				<form onSubmit={handleInventorySubmit} className="mb-4">
+				<form
+					ref={inventoryFormRef}
+					onSubmit={handleInventorySubmit}
+					className="mb-4"
+				>
 					<PremiumCard className="bg-slate-800/60 w-full mb-4">
 						<PremiumCardContent className="p-4">
 							<div
@@ -269,7 +307,11 @@ export default function InventoryTab(options = {}) {
 									<PremiumInput
 										id="inventory-name"
 										placeholder="자재명 (예: 볏짚)"
-										{...register("name")}
+										{...inventoryNameRegistration}
+										ref={(element) => {
+											inventoryNameRegistration.ref(element);
+											inventoryNameInputRef.current = element;
+										}}
 										hasError={!!errors.name}
 										aria-invalid={Boolean(errors.name)}
 										aria-describedby={

@@ -569,11 +569,23 @@ test("inventory quantity edit preserves input when async save fails", () => {
 test("inventory create form waits for async saves before re-enabling submit", () => {
 	const source = readSource("components/tabs/InventoryTab.js");
 
+	assert.match(source, /import \{ focusElementSafely \} from ["']@\/lib\/safeFocus["'];/);
 	assert.match(source, /const isMountedRef = useRef\(false\)/);
+	assert.match(source, /const inventoryFormRef = useRef\(null\);/);
+	assert.match(source, /const inventoryNameInputRef = useRef\(null\);/);
 	assert.match(source, /const saveInFlightRef = useRef\(false\)/);
+	assert.match(source, /const inventoryNameRegistration = register\("name"\);/);
 	assert.match(
 		source,
 		/useEffect\(\(\) => \{\s+isMountedRef\.current = true;[\s\S]*?return \(\) => \{\s+isMountedRef\.current = false;\s+saveInFlightRef\.current = false;\s+quantityInFlightRef\.current = false;/,
+	);
+	assert.match(
+		source,
+		/useEffect\(\(\) => \{\s+if \(quickActionIntent\?\.actionId === ["']add-inventory["']\) \{\s+setIsAdding\(true\);\s+\}\s+\}, \[quickActionIntent\?\.actionId, quickActionIntent\?\.nonce\]\);/,
+	);
+	assert.match(
+		source,
+		/useEffect\(\(\) => \{\s+if \(!isAdding\) \{\s+return;\s+\}[\s\S]*?const timeoutId = window\.setTimeout\(\(\) => \{[\s\S]*?inventoryFormRef\.current\?\.scrollIntoView\(\{\s+behavior: "smooth",\s+block: "start",\s+inline: "nearest",\s+\}\);[\s\S]*?inventoryFormRef\.current\?\.scrollIntoView\(\);[\s\S]*?focusElementSafely\(inventoryNameInputRef\.current\);[\s\S]*?\}, 0\);[\s\S]*?window\.clearTimeout\(timeoutId\);[\s\S]*?\}, \[isAdding, quickActionIntent\?\.nonce\]\);/,
 	);
 	assert.match(
 		source,
@@ -616,6 +628,18 @@ test("inventory create form waits for async saves before re-enabling submit", ()
 		/onClick=\{toggleAddForm\}\s+disabled=\{isSaving\}\s+aria-busy=\{isSaving\}\s+aria-label=\{addFormButtonLabel\}\s+title=\{addFormButtonLabel\}/,
 	);
 	assert.match(source, /\{addFormButtonText\}/);
+	assert.match(
+		source,
+		/<form\s+ref=\{inventoryFormRef\}[\s\S]*?onSubmit=\{handleInventorySubmit\}/,
+	);
+	assert.match(
+		source,
+		/id="inventory-name"[\s\S]*?\{\.\.\.inventoryNameRegistration\}[\s\S]*?ref=\{\(element\) => \{\s+inventoryNameRegistration\.ref\(element\);\s+inventoryNameInputRef\.current = element;\s+\}\}/,
+	);
+	assert.doesNotMatch(
+		source,
+		/id="inventory-name"[\s\S]{0,240}\{\.\.\.register\("name"\)\}/,
+	);
 	assert.match(
 		source,
 		/type="submit"\s+disabled=\{isSaving\}\s+aria-busy=\{isSaving\}\s+aria-label=\{submitButtonLabel\}\s+title=\{submitButtonLabel\}/,

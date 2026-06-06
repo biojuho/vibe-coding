@@ -65,6 +65,7 @@ export function buildSetupProgressItems(options = {}) {
 					: "사료와 약품을 등록하면 부족 알림을 받을 수 있습니다.",
 			done: countItems(inventoryList) > 0,
 			targetTab: "inventory",
+			actionId: "add-inventory",
 		},
 		{
 			id: "schedule",
@@ -75,6 +76,7 @@ export function buildSetupProgressItems(options = {}) {
 					: "접종·검진·출하 예정일을 캘린더에 올려두세요.",
 			done: countItems(scheduleEvents) > 0,
 			targetTab: "schedule",
+			actionId: "add-schedule",
 		},
 	];
 

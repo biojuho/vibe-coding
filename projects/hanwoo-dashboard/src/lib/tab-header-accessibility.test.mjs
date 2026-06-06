@@ -91,6 +91,10 @@ test("schedule form waits for async saves before re-enabling actions", () => {
 
 	assert.match(
 		scheduleSource,
+		/import \{ focusElementSafely \} from ["']@\/lib\/safeFocus["'];/,
+	);
+	assert.match(
+		scheduleSource,
 		/function normalizeScheduleTabOptions\(options\) \{/,
 	);
 	assert.match(
@@ -111,10 +115,21 @@ test("schedule form waits for async saves before re-enabling actions", () => {
 		/const \[isSaving, setIsSaving\] = useState\(false\)/,
 	);
 	assert.match(scheduleSource, /const isMountedRef = useRef\(false\)/);
+	assert.match(scheduleSource, /const scheduleFormRef = useRef\(null\);/);
+	assert.match(scheduleSource, /const scheduleTitleInputRef = useRef\(null\);/);
 	assert.match(scheduleSource, /const saveInFlightRef = useRef\(false\)/);
+	assert.match(scheduleSource, /const scheduleTitleRegistration = register\("title"\);/);
 	assert.match(
 		scheduleSource,
 		/useEffect\(\(\) => \{\s+isMountedRef\.current = true;[\s\S]*?return \(\) => \{\s+isMountedRef\.current = false;\s+saveInFlightRef\.current = false;\s+completionInFlightRef\.current = false;/,
+	);
+	assert.match(
+		scheduleSource,
+		/useEffect\(\(\) => \{\s+if \(quickActionIntent\?\.actionId === ["']add-schedule["']\) \{\s+setIsAdding\(true\);\s+\}\s+\}, \[quickActionIntent\?\.actionId, quickActionIntent\?\.nonce\]\);/,
+	);
+	assert.match(
+		scheduleSource,
+		/useEffect\(\(\) => \{\s+if \(!isAdding\) \{\s+return;\s+\}[\s\S]*?const timeoutId = window\.setTimeout\(\(\) => \{[\s\S]*?scheduleFormRef\.current\?\.scrollIntoView\(\{\s+behavior: "smooth",\s+block: "start",\s+inline: "nearest",\s+\}\);[\s\S]*?scheduleFormRef\.current\?\.scrollIntoView\(\);[\s\S]*?focusElementSafely\(scheduleTitleInputRef\.current\);[\s\S]*?\}, 0\);[\s\S]*?window\.clearTimeout\(timeoutId\);[\s\S]*?\}, \[isAdding, quickActionIntent\?\.nonce\]\);/,
 	);
 	assert.match(
 		scheduleSource,
@@ -165,6 +180,18 @@ test("schedule form waits for async saves before re-enabling actions", () => {
 		/onClick=\{toggleAddForm\}\s+disabled=\{isSaving\}\s+aria-busy=\{isSaving\}\s+aria-label=\{addFormButtonLabel\}\s+title=\{addFormButtonLabel\}/,
 	);
 	assert.match(scheduleSource, /\{addFormButtonText\}/);
+	assert.match(
+		scheduleSource,
+		/<form\s+ref=\{scheduleFormRef\}[\s\S]*?onSubmit=\{handleScheduleSubmit\}/,
+	);
+	assert.match(
+		scheduleSource,
+		/id="schedule-title"[\s\S]*?\{\.\.\.scheduleTitleRegistration\}[\s\S]*?ref=\{\(element\) => \{\s+scheduleTitleRegistration\.ref\(element\);\s+scheduleTitleInputRef\.current = element;\s+\}\}/,
+	);
+	assert.doesNotMatch(
+		scheduleSource,
+		/id="schedule-title"[\s\S]{0,240}\{\.\.\.register\("title"\)\}/,
+	);
 	assert.match(
 		scheduleSource,
 		/const submitButtonLabel = isSaving \? ['"]일정 등록 중['"] : ['"]일정 등록['"];/,
