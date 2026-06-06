@@ -257,7 +257,7 @@ test("profitability widget is mounted on the dashboard, not orphaned", () => {
 
 	const page = readSource("app/page.js");
 	assert.match(page, /getProfitabilityData/);
-	assert.match(page, /initialProfitability=\{profitability\}/);
+	assert.match(page, /initialProfitability=\{initialData\.profitability\}/);
 });
 
 test("premium card header renders profitability widget title props as visible content", () => {

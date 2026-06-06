@@ -18,56 +18,159 @@ import {
 	getCachedDashboardSummary,
 	getCachedSalesList,
 } from "@/lib/dashboard/cached-queries";
+import {
+	buildDashboardInitialDataFallback,
+	buildDashboardInitialDataLoadStatus,
+} from "@/lib/dashboard/initial-data-fallback.mjs";
+
+const INITIAL_PAGE_LIMIT = 50;
+
+const INITIAL_DATA_LOADERS = [
+	{
+		key: "initialCattlePage",
+		sectionId: "cattle",
+		load: () => getCachedCattleList({ limit: INITIAL_PAGE_LIMIT }),
+	},
+	{
+		key: "initialSalesPage",
+		sectionId: "sales",
+		load: () => getCachedSalesList({ limit: INITIAL_PAGE_LIMIT }),
+	},
+	{
+		key: "summary",
+		sectionId: "summary",
+		load: () => getCachedDashboardSummary(),
+	},
+	{
+		key: "notifications",
+		sectionId: "notifications",
+		load: () => getNotifications(),
+	},
+	{
+		key: "feedStandards",
+		sectionId: "feedStandards",
+		load: () => getFeedStandards(),
+	},
+	{
+		key: "inventory",
+		sectionId: "inventory",
+		load: () => getInventory(),
+	},
+	{
+		key: "schedule",
+		sectionId: "schedule",
+		load: () => getScheduleEvents(),
+	},
+	{
+		key: "feedHistory",
+		sectionId: "feedHistory",
+		load: () => getFeedHistory(),
+	},
+	{
+		key: "buildings",
+		sectionId: "buildings",
+		load: () => getBuildings(),
+	},
+	{
+		key: "farmSettings",
+		sectionId: "farmSettings",
+		load: () => getFarmSettings(),
+	},
+	{
+		key: "expenses",
+		sectionId: "expenses",
+		load: () => getExpenseRecords(),
+	},
+	{
+		key: "marketPrice",
+		sectionId: "marketPrice",
+		load: () => getRealTimeMarketPrice(),
+	},
+	{
+		key: "profitability",
+		sectionId: "profitability",
+		load: () => getProfitabilityData(),
+	},
+];
+
+function isNextControlFlowError(error) {
+	const digest = typeof error?.digest === "string" ? error.digest : "";
+	return digest.startsWith("NEXT_REDIRECT") || digest.startsWith("NEXT_NOT_FOUND");
+}
+
+function logInitialDataLoadFailure(sectionId, error) {
+	const errorName =
+		typeof error?.name === "string" && error.name.length > 0
+			? error.name
+			: "Error";
+	const errorMessage =
+		typeof error?.message === "string" && error.message.length > 0
+			? error.message
+			: "initial data unavailable";
+
+	console.warn(
+		`[hanwoo-dashboard] degraded initial ${sectionId} data load: ${errorName}: ${errorMessage}`,
+	);
+}
+
+async function loadInitialDataSection(loader) {
+	try {
+		return {
+			key: loader.key,
+			sectionId: loader.sectionId,
+			ok: true,
+			value: await loader.load(),
+		};
+	} catch (error) {
+		if (isNextControlFlowError(error)) {
+			throw error;
+		}
+
+		logInitialDataLoadFailure(loader.sectionId, error);
+		return {
+			key: loader.key,
+			sectionId: loader.sectionId,
+			ok: false,
+			value: buildDashboardInitialDataFallback(loader.sectionId, {
+				limit: INITIAL_PAGE_LIMIT,
+			}),
+		};
+	}
+}
+
+export async function loadDashboardInitialData() {
+	const results = await Promise.all(INITIAL_DATA_LOADERS.map(loadInitialDataSection));
+	const data = Object.fromEntries(
+		results.map((result) => [result.key, result.value]),
+	);
+
+	return {
+		...data,
+		initialDataLoadStatus: buildDashboardInitialDataLoadStatus(results),
+	};
+}
 
 export default async function Page() {
 	await requireAuthenticatedSession({ redirectToLogin: true });
-
-	const [
-		initialCattlePage,
-		initialSalesPage,
-		summary,
-		notifications,
-		feedStandards,
-		inventory,
-		schedule,
-		feedHistory,
-		buildings,
-		farmSettings,
-		expenses,
-		marketPrice,
-		profitability,
-	] = await Promise.all([
-		getCachedCattleList({ limit: 50 }),
-		getCachedSalesList({ limit: 50 }),
-		getCachedDashboardSummary(),
-		getNotifications(),
-		getFeedStandards(),
-		getInventory(),
-		getScheduleEvents(),
-		getFeedHistory(),
-		getBuildings(),
-		getFarmSettings(),
-		getExpenseRecords(),
-		getRealTimeMarketPrice(),
-		getProfitabilityData(),
-	]);
+	const initialData = await loadDashboardInitialData();
 
 	return (
 		<ErrorBoundary>
 			<DashboardClient
-				initialCattlePage={initialCattlePage}
-				initialSalesPage={initialSalesPage}
-				initialSummary={summary}
-				initialNotifications={notifications}
-				initialFeedStandards={feedStandards}
-				initialInventory={inventory}
-				initialSchedule={schedule}
-				initialFeedHistory={feedHistory}
-				initialBuildings={buildings}
-				initialFarmSettings={farmSettings}
-				initialExpenses={expenses}
-				initialMarketPrice={marketPrice}
-				initialProfitability={profitability}
+				initialCattlePage={initialData.initialCattlePage}
+				initialSalesPage={initialData.initialSalesPage}
+				initialSummary={initialData.summary}
+				initialNotifications={initialData.notifications}
+				initialFeedStandards={initialData.feedStandards}
+				initialInventory={initialData.inventory}
+				initialSchedule={initialData.schedule}
+				initialFeedHistory={initialData.feedHistory}
+				initialBuildings={initialData.buildings}
+				initialFarmSettings={initialData.farmSettings}
+				initialExpenses={initialData.expenses}
+				initialMarketPrice={initialData.marketPrice}
+				initialProfitability={initialData.profitability}
+				initialDataLoadStatus={initialData.initialDataLoadStatus}
 			/>
 		</ErrorBoundary>
 	);

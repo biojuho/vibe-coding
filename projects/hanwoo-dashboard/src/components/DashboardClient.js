@@ -64,6 +64,7 @@ import { getNextDashboardPaginationState } from "@/lib/dashboard/pagination-guar
 import { buildSetupProgressItems } from "@/lib/dashboard/setup-progress.mjs";
 import { buildTodayFocusItems } from "@/lib/dashboard/today-focus.mjs";
 import { fetchWithTimeout, isTimeoutError } from "@/lib/fetchWithTimeout";
+import { normalizeDashboardInitialDataLoadStatus } from "@/lib/dashboard/initial-data-fallback.mjs";
 import { useCattlePagination } from "@/lib/hooks/useCattlePagination";
 import { useSalesPagination } from "@/lib/hooks/useSalesPagination";
 import { useDashboardModals } from "@/lib/hooks/useDashboardModals";
@@ -289,6 +290,9 @@ function normalizeDashboardClientOptions(options) {
 		initialExpenses: safeOptions.initialExpenses ?? [],
 		initialMarketPrice: safeOptions.initialMarketPrice ?? null,
 		initialProfitability: safeOptions.initialProfitability ?? null,
+		initialDataLoadStatus: normalizeDashboardInitialDataLoadStatus(
+			safeOptions.initialDataLoadStatus,
+		),
 	};
 }
 
@@ -299,6 +303,56 @@ function normalizeFullListLoadOptions(options) {
 	return {
 		silent: safeOptions.silent === true,
 	};
+}
+
+function InitialDataStatusBanner(options = {}) {
+	const safeOptions =
+		options && typeof options === "object" && !Array.isArray(options) ? options : {};
+	const status = normalizeDashboardInitialDataLoadStatus(safeOptions.status);
+	const handleRetry =
+		typeof safeOptions.onRetry === "function" ? safeOptions.onRetry : () => {};
+
+	if (!status.degraded) {
+		return null;
+	}
+
+	const affectedSections =
+		status.failedSectionLabels.length > 0
+			? `영향 범위: ${status.failedSectionLabels.join(", ")}`
+			: "";
+
+	return (
+		<section
+			className="mb-3 flex flex-col gap-3 rounded-lg border border-amber-400/40 bg-amber-50 px-4 py-3 text-sm text-amber-950 shadow-[var(--shadow-sm)] dark:bg-amber-950/30 dark:text-amber-100 sm:flex-row sm:items-center"
+			role="status"
+			aria-live="polite"
+			aria-label="저장소 연결 저하"
+		>
+			<div className="flex min-w-0 flex-1 items-start gap-3">
+				<AlertTriangle
+					className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-300"
+					aria-hidden="true"
+				/>
+				<div className="min-w-0">
+					<p className="m-0 font-bold">일부 농장 데이터가 비어 있는 상태입니다</p>
+					<p className="m-0 mt-1 leading-relaxed text-amber-900/80 dark:text-amber-100/80">
+						{status.message}
+						{affectedSections ? (
+							<span className="block break-keep">{affectedSections}</span>
+						) : null}
+					</p>
+				</div>
+			</div>
+			<PremiumButton
+				variant="outline"
+				size="sm"
+				onClick={handleRetry}
+				className="w-full border-amber-500/40 bg-white/70 text-amber-950 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-100 sm:w-auto"
+			>
+				새로고침
+			</PremiumButton>
+		</section>
+	);
 }
 
 function normalizeDashboardHelperOptions(options) {
@@ -349,6 +403,7 @@ export default function DashboardClient(options = {}) {
 		initialExpenses,
 		initialMarketPrice,
 		initialProfitability,
+		initialDataLoadStatus,
 	} = normalizeDashboardClientOptions(options);
 	const router = useRouter();
 	const { theme, toggleTheme } = useTheme();
@@ -357,6 +412,12 @@ export default function DashboardClient(options = {}) {
 	const isOnline = useOnlineStatus();
 	const [activeTab, setActiveTab] = useState("home");
 	const [isFieldMode, setIsFieldMode] = useState(false);
+	const shouldSkipFieldModeCattlePreload =
+		initialDataLoadStatus.failedSections.includes("cattle");
+	const handleRefreshInitialData = useCallback(() => {
+		playTactileClick();
+		router.refresh();
+	}, [router]);
 
 	// Pagination hooks — these are the PRIMARY data sources for cattle and sales
 
@@ -1787,8 +1848,8 @@ export default function DashboardClient(options = {}) {
 		return (
 			<>
 				{/* Header — generous breathing room for visual hierarchy */}
-				<div className="animate-fadeInDown flex justify-between items-start mb-7 pt-2 pb-1">
-					<div>
+				<div className="animate-fadeInDown mb-7 flex flex-col gap-4 pt-2 pb-1 sm:flex-row sm:items-start sm:justify-between">
+					<div className="min-w-0">
 						<h1 className="text-[26px] font-extrabold text-foreground tracking-[-0.02em] mb-1.5 leading-tight flex items-center gap-2">
 							{farmSettings.name || "Joolife 한우 농장"}
 							<span className="text-[10px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
@@ -1799,7 +1860,7 @@ export default function DashboardClient(options = {}) {
 							오늘도 힘찬 하루 되세요! 🐮
 						</p>
 					</div>
-					<div className="flex gap-2.5 pt-0.5">
+					<div className="flex w-full flex-wrap justify-end gap-2.5 pt-0.5 sm:w-auto">
 						<PremiumButton
 							variant="outline"
 							onClick={() => {
@@ -2135,12 +2196,18 @@ export default function DashboardClient(options = {}) {
 				<FieldModeView
 					cattleList={cattleList}
 					buildings={safeBuildings}
-					ensureAllCattleLoaded={ensureAllCattleLoaded}
+					ensureAllCattleLoaded={
+						shouldSkipFieldModeCattlePreload ? null : ensureAllCattleLoaded
+					}
 					onSelect={setSelectedCow}
 					onCloseFieldMode={() => setIsFieldMode(false)}
 				/>
 			) : (
 				<div className="max-w-[600px] mx-auto p-4 relative">
+					<InitialDataStatusBanner
+						status={initialDataLoadStatus}
+						onRetry={handleRefreshInitialData}
+					/>
 					{!isOnline && (
 						<div
 							className="mb-3 flex items-center gap-2.5 rounded-[20px] px-4 py-3 text-sm font-bold text-white shadow-[var(--shadow-md)]"
