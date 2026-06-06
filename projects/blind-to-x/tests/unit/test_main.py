@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import time
 from pathlib import Path
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -21,7 +21,10 @@ from pipeline.cli import (
     _resolve_source_preflight_sources,
     acquire_lock as _acquire_lock,
     _is_process_alive,
+    _source_preflight_requested,
+    _source_preflight_should_continue,
     build_parser as _build_parser,
+    run_main as _run_main,
     run_source_preflight_command as _run_source_preflight_command,
 )
 from pipeline.runner import handle_single_commands as _handle_single_commands
@@ -41,6 +44,7 @@ class TestBuildParser:
         assert args.dry_run is False
         assert args.parallel == 3
         assert args.source == "auto"
+        assert args.require_source_ready is False
 
     def test_urls_arg(self):
         parser = _build_parser()
@@ -94,6 +98,14 @@ class TestBuildParser:
         assert args.source_preflight_output == Path(".tmp/preflight.json")
         assert args.source_preflight_screenshot_dir == Path("screenshots/preflight")
         assert args.source_preflight_viewport == "mobile"
+
+    def test_require_source_ready_args(self):
+        parser = _build_parser()
+        args = parser.parse_args(["--require-source-ready", "--source", "ppomppu"])
+
+        assert args.require_source_ready is True
+        assert args.source_preflight is False
+        assert args.source == "ppomppu"
 
 
 # ---------------------------------------------------------------------------
@@ -177,6 +189,15 @@ class TestResolveInputSources:
 
 
 class TestSourcePreflight:
+    def test_source_preflight_request_helpers(self):
+        assert _source_preflight_requested(SimpleNamespace(source_preflight=False, require_source_ready=False)) is False
+        assert _source_preflight_requested(SimpleNamespace(source_preflight=True, require_source_ready=False)) is True
+        assert _source_preflight_requested(SimpleNamespace(source_preflight=False, require_source_ready=True)) is True
+
+        assert _source_preflight_should_continue(SimpleNamespace(require_source_ready=False), 0) is False
+        assert _source_preflight_should_continue(SimpleNamespace(require_source_ready=True), 0) is True
+        assert _source_preflight_should_continue(SimpleNamespace(require_source_ready=True), 1) is False
+
     def test_resolve_source_preflight_sources_filters_unsupported(self):
         config = MagicMock()
         config.get.side_effect = lambda key, default=None: {
@@ -243,6 +264,93 @@ class TestSourcePreflight:
 
         assert result == 1
         fake_run_source_preflight.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_require_source_ready_implies_fail_on_problem(self, monkeypatch, tmp_path):
+        calls = {}
+
+        async def fake_run_source_preflight(**kwargs):
+            calls.update(kwargs)
+            return {"summary": {"ok": False}}
+
+        monkeypatch.setattr("pipeline.cli.run_source_preflight", fake_run_source_preflight)
+        config = MagicMock()
+        config.get.side_effect = lambda key, default=None: {
+            "input_sources": ["ppomppu"],
+            "content_strategy.primary_source": "ppomppu",
+        }.get(key, default)
+        args = SimpleNamespace(
+            source_preflight=False,
+            require_source_ready=True,
+            source="ppomppu",
+            source_preflight_fail_on_problem=False,
+            source_preflight_timeout_ms=500,
+            source_preflight_output=tmp_path / "preflight.json",
+            source_preflight_screenshot_dir=tmp_path / "screens",
+            source_preflight_headed=False,
+            source_preflight_viewport="desktop",
+        )
+
+        result = await _run_source_preflight_command(config, args)
+
+        assert result == 1
+        assert calls["sources"] == ["ppomppu"]
+
+
+class TestRunMainSourcePreflight:
+    def _patch_run_main_dependencies(self, monkeypatch, tmp_path, preflight_exit: int):
+        lock_file = tmp_path / "run.lock"
+        fake_config = MagicMock()
+        execute_pipeline = AsyncMock()
+
+        async def fake_run_source_preflight_command(config_mgr, args):
+            assert config_mgr is fake_config
+            assert args.require_source_ready is True
+            return preflight_exit
+
+        fake_harness_guard = ModuleType("pipeline.harness_guard")
+        fake_harness_guard.is_harness_enabled = lambda: False
+        fake_harness_guard.run_preflight = lambda: {"passed": True, "skipped": False, "issues": []}
+
+        monkeypatch.setattr("pipeline.cli._LOCK_FILE", lock_file)
+        monkeypatch.setattr("pipeline.cli.ConfigManager", lambda path: fake_config)
+        monkeypatch.setattr("pipeline.cli.run_source_preflight_command", fake_run_source_preflight_command)
+        monkeypatch.setattr("pipeline.cli.NotificationManager", lambda config_mgr: MagicMock())
+        monkeypatch.setattr("pipeline.cli.NotionUploader", lambda config_mgr: MagicMock())
+        monkeypatch.setattr("pipeline.cli.TwitterPoster", lambda config_mgr: MagicMock())
+        monkeypatch.setattr("pipeline.cli.handle_single_commands", AsyncMock(return_value=False))
+        monkeypatch.setattr("pipeline.cli.init_scrapers", MagicMock(return_value={"ppomppu": MagicMock()}))
+        monkeypatch.setattr("pipeline.cli.check_budget", AsyncMock(return_value=MagicMock()))
+        monkeypatch.setattr(
+            "pipeline.cli.init_components",
+            AsyncMock(return_value=tuple(MagicMock() for _ in range(5))),
+        )
+        monkeypatch.setattr("pipeline.cli.execute_pipeline", execute_pipeline)
+        monkeypatch.setitem(sys.modules, "pipeline.harness_guard", fake_harness_guard)
+
+        return lock_file, execute_pipeline
+
+    @pytest.mark.asyncio
+    async def test_require_source_ready_continues_to_pipeline_on_success(self, monkeypatch, tmp_path):
+        lock_file, execute_pipeline = self._patch_run_main_dependencies(monkeypatch, tmp_path, preflight_exit=0)
+        monkeypatch.setattr(sys, "argv", ["main.py", "--require-source-ready", "--source", "ppomppu"])
+
+        await _run_main()
+
+        execute_pipeline.assert_awaited_once()
+        assert not lock_file.exists()
+
+    @pytest.mark.asyncio
+    async def test_require_source_ready_exits_before_pipeline_on_failure(self, monkeypatch, tmp_path):
+        lock_file, execute_pipeline = self._patch_run_main_dependencies(monkeypatch, tmp_path, preflight_exit=1)
+        monkeypatch.setattr(sys, "argv", ["main.py", "--require-source-ready", "--source", "ppomppu"])
+
+        with pytest.raises(SystemExit) as exc_info:
+            await _run_main()
+
+        assert exc_info.value.code == 1
+        execute_pipeline.assert_not_awaited()
+        assert not lock_file.exists()
 
 
 # ---------------------------------------------------------------------------

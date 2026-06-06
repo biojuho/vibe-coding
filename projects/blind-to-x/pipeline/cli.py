@@ -46,6 +46,11 @@ def build_parser():
         help="Exit with status 1 when any browser-probed source is not ready.",
     )
     parser.add_argument(
+        "--require-source-ready",
+        action="store_true",
+        help="Run source browser preflight before normal pipeline work and abort if any source is not ready.",
+    )
+    parser.add_argument(
         "--source-preflight-timeout-ms",
         type=int,
         default=12000,
@@ -132,8 +137,16 @@ def _resolve_source_preflight_sources(config_mgr, args) -> list[str]:
     return source_names
 
 
+def _source_preflight_requested(args) -> bool:
+    return bool(getattr(args, "source_preflight", False) or getattr(args, "require_source_ready", False))
+
+
+def _source_preflight_should_continue(args, exit_code: int) -> bool:
+    return bool(getattr(args, "require_source_ready", False) and exit_code == 0)
+
+
 async def run_source_preflight_command(config_mgr, args) -> int | None:
-    if not getattr(args, "source_preflight", False):
+    if not _source_preflight_requested(args):
         return None
 
     sources = _resolve_source_preflight_sources(config_mgr, args)
@@ -150,7 +163,10 @@ async def run_source_preflight_command(config_mgr, args) -> int | None:
         headed=getattr(args, "source_preflight_headed", False),
         viewport=getattr(args, "source_preflight_viewport", "desktop"),
     )
-    return exit_code_for_report(report, fail_on_problem=getattr(args, "source_preflight_fail_on_problem", False))
+    fail_on_problem = getattr(args, "source_preflight_fail_on_problem", False) or getattr(
+        args, "require_source_ready", False
+    )
+    return exit_code_for_report(report, fail_on_problem=fail_on_problem)
 
 
 async def run_main():
@@ -167,13 +183,17 @@ async def run_main():
         config_mgr = ConfigManager("nonexistent")
         config_mgr.config = {}
 
-    if getattr(args, "source_preflight", False):
+    if _source_preflight_requested(args):
         source_preflight_exit = 1
         try:
             source_preflight_exit = await run_source_preflight_command(config_mgr, args)
         finally:
-            _LOCK_FILE.unlink(missing_ok=True)
-        sys.exit(0 if source_preflight_exit is None else source_preflight_exit)
+            normalized_preflight_exit = 0 if source_preflight_exit is None else source_preflight_exit
+            if not _source_preflight_should_continue(args, normalized_preflight_exit):
+                _LOCK_FILE.unlink(missing_ok=True)
+        source_preflight_exit = 0 if source_preflight_exit is None else source_preflight_exit
+        if not _source_preflight_should_continue(args, source_preflight_exit):
+            sys.exit(source_preflight_exit)
 
     notifier = NotificationManager(config_mgr)
     notion_uploader = NotionUploader(config_mgr)
