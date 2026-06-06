@@ -173,6 +173,7 @@ def test_build_report_counts_problem_statuses_and_exit_code():
 
     assert report["summary"] == {
         "source_count": 2,
+        "viewport": "desktop",
         "ready_count": 1,
         "problem_count": 1,
         "ready_warning_count": 0,
@@ -397,6 +398,7 @@ def test_build_report_preserves_mobile_viewport_in_recommended_command():
     report = build_report(results, viewport="mobile")
 
     command = report["summary"]["recommended_command"]
+    assert report["summary"]["viewport"] == "mobile"
     assert command == _build_recommended_command("ppomppu", viewport="mobile")
     assert "--source-preflight-viewport mobile" in command
 

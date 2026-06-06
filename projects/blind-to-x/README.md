@@ -44,7 +44,7 @@ py -3 main.py --source all --popular --review-only --limit 5
 # Source browser preflight plus first-post click-through verification
 .\.venv\Scripts\python.exe scripts/source_browser_probe.py --source ppomppu --click-through --output .tmp/source_browser_probe.json --screenshot-dir screenshots/source_probe
 
-# The preflight JSON summary includes ready_sources, problem_sources, and recommended_source.
+# The preflight JSON summary includes viewport, ready_sources, problem_sources, and recommended_source.
 # recommended_source prefers the ready source with the strongest successful detail evidence.
 # recommended_command gives a copyable guarded pipeline command for the recommended source,
 # using the active Python interpreter and explicit project/config paths.

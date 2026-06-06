@@ -243,6 +243,7 @@ def _build_summary(results: list[ProbeResult], *, viewport: str = "desktop") -> 
     recommended_source = _recommend_ready_source(ready_results)
     return {
         "source_count": len(results),
+        "viewport": viewport,
         "ready_count": len(ready_sources),
         "problem_count": len(problem_sources),
         "ready_warning_count": len(ready_warnings),
