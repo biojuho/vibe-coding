@@ -19,6 +19,7 @@ const PAYMENT_RETRY_PATH = "/subscription";
 const PAYMENT_RETRY_PENDING_MESSAGE = "결제 화면으로 이동하고 있습니다.";
 const PAYMENT_RETRY_NAVIGATION_ERROR_MESSAGE =
 	"결제 화면으로 자동 이동하지 못했습니다. 주소창에서 구독 화면으로 다시 이동해 주세요.";
+const PAYMENT_FAILURE_ORDER_ID_PATTERN = /^[A-Za-z0-9_-]{6,128}$/;
 
 function normalizePaymentFailureCode(value) {
 	return typeof value === "string" && value.trim()
@@ -28,6 +29,14 @@ function normalizePaymentFailureCode(value) {
 
 function getPaymentFailureMessage(code) {
 	return PAYMENT_FAILURE_MESSAGES[code] || PAYMENT_FAILURE_GENERIC_MESSAGE;
+}
+
+function normalizePaymentFailureOrderId(value) {
+	if (typeof value !== "string") {
+		return "";
+	}
+	const orderId = value.trim();
+	return PAYMENT_FAILURE_ORDER_ID_PATTERN.test(orderId) ? orderId : "";
 }
 
 function navigateToPaymentRetry() {
@@ -42,6 +51,7 @@ function FailContent() {
 	const [retryStatus, setRetryStatus] = useState("");
 	const [isRetrying, setIsRetrying] = useState(false);
 	const errorCode = normalizePaymentFailureCode(searchParams.get("code"));
+	const orderId = normalizePaymentFailureOrderId(searchParams.get("orderId"));
 	const failureMessage = getPaymentFailureMessage(errorCode);
 	const retryButtonLabel = isRetrying
 		? PAYMENT_RETRY_PENDING_MESSAGE
@@ -94,6 +104,18 @@ function FailContent() {
 			>
 				오류 코드: {errorCode}
 			</p>
+			{orderId ? (
+				<p
+					style={{
+						marginTop: "8px",
+						fontSize: "12px",
+						color: "var(--color-text-muted)",
+						overflowWrap: "anywhere",
+					}}
+				>
+					문의용 주문번호: {orderId}
+				</p>
+			) : null}
 			{retryStatus ? (
 				<p
 					role="status"

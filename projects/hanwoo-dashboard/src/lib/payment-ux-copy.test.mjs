@@ -257,6 +257,15 @@ test("subscription result pages avoid bare English loading and status copy", () 
 		failSource,
 		/PAYMENT_FAILURE_MESSAGES\[code\] \|\| PAYMENT_FAILURE_GENERIC_MESSAGE/,
 	);
+	assert.match(
+		failSource,
+		/const PAYMENT_FAILURE_ORDER_ID_PATTERN = \/\^\[A-Za-z0-9_-\]\{6,128\}\$\/;/,
+	);
+	assert.match(failSource, /function normalizePaymentFailureOrderId\(value\) \{/);
+	assert.match(
+		failSource,
+		/PAYMENT_FAILURE_ORDER_ID_PATTERN\.test\(orderId\) \? orderId : ["']["']/,
+	);
 	assert.match(failSource, /overflowWrap: ["']anywhere["']/);
 	assert.match(
 		failSource,
@@ -307,6 +316,10 @@ test("subscription result pages avoid bare English loading and status copy", () 
 	);
 	assert.match(
 		failSource,
+		/const orderId = normalizePaymentFailureOrderId\(searchParams\.get\(["']orderId["']\)\);/,
+	);
+	assert.match(
+		failSource,
 		/const failureMessage = getPaymentFailureMessage\(errorCode\);/,
 	);
 	assert.match(
@@ -314,6 +327,8 @@ test("subscription result pages avoid bare English loading and status copy", () 
 		/const retryButtonLabel = isRetrying\s+\? PAYMENT_RETRY_PENDING_MESSAGE\s+: ["']결제 화면으로 돌아가 다시 시도하기["'];/,
 	);
 	assert.match(failSource, /\{failureMessage\}/);
+	assert.match(failSource, /문의용 주문번호/);
+	assert.match(failSource, /\{orderId \? \(/);
 	assert.doesNotMatch(failSource, /오류 코드 미전달/);
 	assert.match(
 		failSource,
