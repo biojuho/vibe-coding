@@ -16,6 +16,7 @@ const PAYMENT_FAILURE_MESSAGES = {
 		"카드사에서 결제를 승인하지 않았습니다. 카드 정보를 확인하거나 다른 결제 수단을 선택해 주세요.",
 };
 const PAYMENT_RETRY_PATH = "/subscription";
+const PAYMENT_RETRY_PENDING_MESSAGE = "결제 화면으로 이동하고 있습니다.";
 const PAYMENT_RETRY_NAVIGATION_ERROR_MESSAGE =
 	"결제 화면으로 자동 이동하지 못했습니다. 주소창에서 구독 화면으로 다시 이동해 주세요.";
 
@@ -39,14 +40,24 @@ function navigateToPaymentRetry() {
 function FailContent() {
 	const searchParams = useSearchParams();
 	const [retryStatus, setRetryStatus] = useState("");
+	const [isRetrying, setIsRetrying] = useState(false);
 	const errorCode = normalizePaymentFailureCode(searchParams.get("code"));
 	const failureMessage = getPaymentFailureMessage(errorCode);
+	const retryButtonLabel = isRetrying
+		? PAYMENT_RETRY_PENDING_MESSAGE
+		: "결제 화면으로 돌아가 다시 시도하기";
 	const handleRetry = () => {
-		setRetryStatus("");
+		if (isRetrying) {
+			return;
+		}
+
+		setRetryStatus(PAYMENT_RETRY_PENDING_MESSAGE);
+		setIsRetrying(true);
 		try {
 			navigateToPaymentRetry();
 		} catch (error) {
 			console.error("Payment retry navigation failed:", error);
+			setIsRetrying(false);
 			setRetryStatus(PAYMENT_RETRY_NAVIGATION_ERROR_MESSAGE);
 		}
 	};
@@ -102,8 +113,10 @@ function FailContent() {
 			<button
 				type="button"
 				onClick={handleRetry}
-				aria-label="결제 화면으로 돌아가 다시 시도하기"
-				title="결제 화면으로 돌아가 다시 시도하기"
+				disabled={isRetrying}
+				aria-busy={isRetrying}
+				aria-label={retryButtonLabel}
+				title={retryButtonLabel}
 				style={{
 					marginTop: "20px",
 					padding: "12px 22px",
@@ -111,11 +124,12 @@ function FailContent() {
 					color: "white",
 					borderRadius: "18px",
 					border: "1px solid var(--color-surface-stroke)",
-					cursor: "pointer",
+					cursor: isRetrying ? "wait" : "pointer",
 					boxShadow: "var(--shadow-button-primary)",
+					opacity: isRetrying ? 0.72 : 1,
 				}}
 			>
-				다시 시도하기
+				{isRetrying ? "이동 중입니다..." : "다시 시도하기"}
 			</button>
 		</div>
 	);

@@ -271,6 +271,10 @@ test("subscription result pages avoid bare English loading and status copy", () 
 		/const \{ message \} = normalizeSubscriptionFallbackOptions\(options\);/,
 	);
 	assert.match(failSource, /const PAYMENT_RETRY_PATH = ["']\/subscription["'];/);
+	assert.match(
+		failSource,
+		/const PAYMENT_RETRY_PENDING_MESSAGE = ["']결제 화면으로 이동하고 있습니다\.["'];/,
+	);
 	assert.match(failSource, /결제 화면으로 자동 이동하지 못했습니다/);
 	assert.match(
 		failSource,
@@ -279,6 +283,10 @@ test("subscription result pages avoid bare English loading and status copy", () 
 	assert.match(
 		failSource,
 		/const \[retryStatus, setRetryStatus\] = useState\(["']["']\);/,
+	);
+	assert.match(
+		failSource,
+		/const \[isRetrying, setIsRetrying\] = useState\(false\);/,
 	);
 	assert.match(
 		failSource,
@@ -301,17 +309,22 @@ test("subscription result pages avoid bare English loading and status copy", () 
 		failSource,
 		/const failureMessage = getPaymentFailureMessage\(errorCode\);/,
 	);
+	assert.match(
+		failSource,
+		/const retryButtonLabel = isRetrying\s+\? PAYMENT_RETRY_PENDING_MESSAGE\s+: ["']결제 화면으로 돌아가 다시 시도하기["'];/,
+	);
 	assert.match(failSource, /\{failureMessage\}/);
 	assert.doesNotMatch(failSource, /오류 코드 미전달/);
 	assert.match(
 		failSource,
-		/const handleRetry = \(\) => \{\s+setRetryStatus\(["']["']\);\s+try \{\s+navigateToPaymentRetry\(\);\s+\} catch \(error\) \{/,
+		/const handleRetry = \(\) => \{\s+if \(isRetrying\) \{\s+return;\s+\}\s+setRetryStatus\(PAYMENT_RETRY_PENDING_MESSAGE\);\s+setIsRetrying\(true\);\s+try \{\s+navigateToPaymentRetry\(\);\s+\} catch \(error\) \{/,
 	);
 	assert.doesNotMatch(failSource, /router\.push\(PAYMENT_RETRY_PATH\)/);
 	assert.match(
 		failSource,
 		/console\.error\(["']Payment retry navigation failed:/,
 	);
+	assert.match(failSource, /setIsRetrying\(false\);/);
 	assert.match(
 		failSource,
 		/setRetryStatus\(PAYMENT_RETRY_NAVIGATION_ERROR_MESSAGE\);/,
@@ -327,8 +340,11 @@ test("subscription result pages avoid bare English loading and status copy", () 
 	);
 	assert.match(
 		failSource,
-		/type="button"\s+onClick=\{handleRetry\}\s+aria-label="결제 화면으로 돌아가 다시 시도하기"\s+title="결제 화면으로 돌아가 다시 시도하기"/,
+		/type="button"\s+onClick=\{handleRetry\}\s+disabled=\{isRetrying\}\s+aria-busy=\{isRetrying\}\s+aria-label=\{retryButtonLabel\}\s+title=\{retryButtonLabel\}/,
 	);
+	assert.match(failSource, /cursor: isRetrying \? ["']wait["'] : ["']pointer["']/);
+	assert.match(failSource, /opacity: isRetrying \? 0\.72 : 1/);
+	assert.match(failSource, /\{isRetrying \? ["']이동 중입니다\.\.\.["'] : ["']다시 시도하기["']\}/);
 	assert.doesNotMatch(failSource, /Loading\.\.\./);
 	assert.doesNotMatch(failSource, /Code:/);
 	assert.doesNotMatch(failSource, /searchParams\.get\(["']code["']\) \|\| ["']-["']/);
