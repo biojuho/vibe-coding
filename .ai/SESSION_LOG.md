@@ -1235,3 +1235,15 @@
 - Browser QA: mobile `390x844` clicked the home setup-progress item and verified selected Settings tab, `activeElementId="building-name"`, input rect `top=394.5/bottom=448.1`, form rect `top=319.6/bottom=611.7`, nav top `763.1`, `inputVisibleAboveNav=true`, horizontal overflow `0`, and screenshot `output/playwright/hanwoo-t1446-setup-building-focus.png`.
 - Verification: focused settings test passed `16/16`; Hanwoo project QC passed (`521 passed`, lint/build/smoke passed); `git diff --check` passed with CRLF warnings only; staged and commit-time code-review gate returned advisory WARN `risk_score=0.30`, covered by focused/browser/project gates.
 - Boundary: code commit `eedbf3d8` is local only. No push was performed. T-251 was not retried. Remaining release boundaries are explicit push authorization/user push plus current-head Actions, and external/user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E.
+
+## 2026-06-07 - Codex
+
+- Closed T-1448 as a bounded `$auto-research` `hanwoo-dashboard` new-cattle modal focus cycle.
+- Baseline browser QA: mobile authenticated `/` at 390px clicked the home setup-progress `개체 등록 미완료` item and opened `새 개체 등록`, but `document.activeElement` stayed on a generic `DIV` instead of the first field.
+- External/current research: checked the W3C WAI-ARIA APG modal dialog pattern for initial-focus behavior inside modal dialogs.
+- Changed `projects/hanwoo-dashboard/src/components/forms/CattleForm.js`: added `cattleNameInputRef`, composes it with the React Hook Form `name` registration ref, and focuses `cattleNameInputRef.current || dialogRef.current` when the modal opens.
+- Changed `projects/hanwoo-dashboard/src/lib/cattle-detail-modal-wiring.test.mjs`: locks the first-field focus target and registration-ref composition.
+- Browser QA: mobile `390x844` clicked the setup-progress cattle item and verified `hasDialog=true`, `activeElement=INPUT#cattle-name`, input rect `top=171.3/bottom=221.9`, dialog rect `top=20/bottom=1261.9`, nav top `763.1`, horizontal overflow `0`, and screenshot `hanwoo-t1448-cattle-form-focus.png`.
+- Verification: focused cattle detail/form wiring tests passed `17/17`; direct `npm.cmd run build` passed; Hanwoo project QC passed (`521 passed`, lint/build/smoke passed); `git diff --check` passed with CRLF warnings only; staged and commit-time code-review gate returned advisory WARN `risk_score=0.40`, covered by focused/browser/project gates.
+- Minefield update: stop local `next dev` before Hanwoo project QC/build runs. The first QC attempt failed only because the browser QA dev server held `.next/dev/lock`; direct build and a rerun of project QC passed after stopping it.
+- Boundary: code commit `1a0a9869` is local only. No push was performed. T-251 was not retried. Remaining release boundaries are explicit push authorization/user push plus current-head Actions, and external/user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E.
