@@ -58,7 +58,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 				"callbackUrl",
 				getRequestHref(request, requestOrigin),
 			);
-			return NextResponse.redirect(loginUrl);
+			// Own fragment prevents browsers from inheriting protected-route hashes.
+			return NextResponse.redirect(`${loginUrl.href}#login`);
 		},
 	},
 });

@@ -376,7 +376,10 @@ test("auth proxy preserves request origin in protected-route callback urls", () 
 		source,
 		/loginUrl\.searchParams\.set\(\s+["']callbackUrl["'],\s+getRequestHref\(request, requestOrigin\),\s+\);/,
 	);
-	assert.match(source, /return NextResponse\.redirect\(loginUrl\);/);
+	assert.match(
+		source,
+		/return NextResponse\.redirect\(`\$\{loginUrl\.href\}#login`\);/,
+	);
 	assert.doesNotMatch(source, /callbackUrl["'], request\.nextUrl\.href/);
 	assert.doesNotMatch(source, /new URL\(["']\/login["'], request\.nextUrl\.origin\)/);
 	assert.doesNotMatch(source, /authorized\(\{ auth \}\) \{\s+return !!auth\?\.user;/);
