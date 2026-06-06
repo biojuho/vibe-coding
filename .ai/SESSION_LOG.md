@@ -771,3 +771,14 @@
 - Verification: blind-to-x project QC passed with `1748 passed`, `9 skipped` plus lint; graph update passed; full active-project QC passed and refreshed the canonical artifact with blind-to-x `1748 passed, 9 skipped`, shorts-maker-v2 `1590 passed, 12 skipped, 1 warning`, Hanwoo `500 passed` plus lint/build/smoke, and Knowledge `61 passed` plus lint/build/smoke.
 - Commit closeout: `61865f87 refactor(blind-to-x): isolate draft response parsing helpers` is local only; no push was performed.
 - Current boundary: product launch remains incomplete until explicit push authorization/user push plus current-head `root-quality-gate` and `active-project-matrix`, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
+
+## 2026-06-06 - Codex
+
+- Closed T-1355 as a bounded `$auto-research` `shorts-maker-v2` history countdown renderer maintainability cycle.
+- Changed `projects/shorts-maker-v2/tools/history_fact_shorts.py`: `HistoryCountdownGenerator._render()` now delegates cached background creation, ember drawing, countdown timing, hook title, item card, description card, and CTA drawing to focused helpers while preserving visual output. The static countdown background gradient is cached in `__init__`.
+- Added `projects/shorts-maker-v2/tests/unit/test_history_fact_shorts.py`: covers countdown timing segmentation and cached background gradient formula.
+- Verification: pre/post frame-hash A/B on `DEMO_COUNTDOWN` at `0.0`, `4.2`, `12.0`, and `36.5` seconds matched `4/4`; `compileall` passed; focused pytest passed `2/2`; `ruff check` passed; `ruff format --check` passed; `git diff --check` passed with the existing CRLF warning only.
+- VibeDebt proof: `history_fact_shorts.py` direct score `45.3 -> 31.8`, max function length `79 -> 50`, and shorts-maker-v2 TDR `33.09 -> 32.99`; the file dropped out of the saved top-50 `file_scores`.
+- Code-review gate: staged gate returned advisory WARN `risk_score=0.35` from graph test-gap heuristics, covered by the new direct tests and frame-hash output comparison.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1355.json --json` returned `adopt_candidate` with `score_delta=0.22411434598396104`.
+- Boundary: no push was performed. T-251 was not retried. Unrelated dirty WIP in `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/render_step.py` was preserved and excluded from this cycle.
