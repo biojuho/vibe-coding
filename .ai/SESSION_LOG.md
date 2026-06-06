@@ -941,3 +941,15 @@
 - Verification: focused pytest passed `37/37`; Ruff check passed; `py_compile` passed; path-limited diff-check passed; live `main.py --source-preflight --source ppomppu --source-preflight-fail-on-problem` wrote `.tmp/source-preflight-t1382-ppomppu.json` with `ready_count=1`, `problem_count=0`, and screenshot `projects/blind-to-x/screenshots/source_preflight_t1382/ppomppu.png`.
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1382.json --json` returned `adopt_candidate` with `score_delta=1.0`.
 - Boundary: no push was performed. T-251 was not retried. Refresh live session/readiness/selector after commit before exact-head launch claims.
+
+## 2026-06-06 - Codex
+
+- Closed T-1386 as a bounded `$auto-research` `blind-to-x` draft-performance feedback-loop hardening cycle.
+- Changed `projects/blind-to-x/scripts/analyze_draft_performance.py`: `_update_classification_weights()` now delegates topic composite normalization to `_build_topic_weight_map()`, skips malformed cross-stat rows, preserves the existing `0.5` to `1.5` range for real spreads, and returns neutral `1.0` weights when all topic composites tie.
+- Added `projects/blind-to-x/tests/unit/test_analyze_draft_performance.py`: covers score-spread normalization, tied-score neutrality, invalid-row skipping, YAML update behavior, and no-op behavior when rules already match computed weights.
+- Verification: focused pytest passed `5/5`; adjacent analytics pytest passed `46/46`; Ruff check passed; Ruff format check passed; `py_compile` passed; path-limited diff-check passed; blind-to-x project QC passed with `1800 passed`, `9 skipped`, and lint passed.
+- Live workflow smoke: `main.py --source ppomppu --source-preflight` wrote ignored JSON evidence with `ready_count=1`, `problem_count=0`, HTTP `200`, readable content, and no console/page errors.
+- Code-review gate: staged gate returned advisory WARN `risk_score=0.50`; the relevant blind-to-x priority `_update_classification_weights` is covered by the new direct tests, adjacent analytics tests, and full blind-to-x project QC. Graph output also referenced unrelated Hanwoo dirty WIP outside this commit.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1386.json --json` returned `adopt_candidate` with `score_delta=9.0`.
+- Commit closeout: `a8c8ef1b refactor(blind-to-x): T-1386 guard performance weights` is local only; no push was performed and T-251 was not retried.
+- Boundary: preserve unrelated dirty Hanwoo login WIP plus workspace dashboard WIP outside T-1386. Remaining release blockers are explicit push authorization/user push plus current-head Actions, and external/user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E.
