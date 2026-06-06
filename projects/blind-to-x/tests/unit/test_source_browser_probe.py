@@ -122,6 +122,16 @@ def test_build_report_counts_problem_statuses_and_exit_code():
         "problem_count": 1,
         "ok": False,
         "statuses": {"blocked": 1, "ready": 1},
+        "ready_sources": ["fmkorea"],
+        "problem_sources": [
+            {
+                "source": "blind",
+                "status": "blocked",
+                "reason": "HTTP 403",
+                "signals": ["http_403"],
+            }
+        ],
+        "recommended_source": "fmkorea",
     }
     assert exit_code_for_report(report, fail_on_problem=False) == 0
     assert exit_code_for_report(report, fail_on_problem=True) == 1
@@ -146,6 +156,16 @@ def test_build_report_counts_click_error_as_problem():
 
     assert report["summary"]["problem_count"] == 1
     assert report["summary"]["statuses"] == {"click_error": 1}
+    assert report["summary"]["ready_sources"] == []
+    assert report["summary"]["problem_sources"] == [
+        {
+            "source": "ppomppu",
+            "status": "click_error",
+            "reason": "first post click-through failed",
+            "signals": ["click_failed"],
+        }
+    ]
+    assert report["summary"]["recommended_source"] is None
     assert exit_code_for_report(report, fail_on_problem=True) == 1
 
 
@@ -250,6 +270,8 @@ async def test_run_source_preflight_reuses_probe_and_writes_report(monkeypatch, 
     )
 
     assert report["summary"]["ok"] is True
+    assert report["summary"]["ready_sources"] == ["ppomppu"]
+    assert report["summary"]["recommended_source"] == "ppomppu"
     assert '"source_count": 1' in output_path.read_text(encoding="utf-8")
 
 

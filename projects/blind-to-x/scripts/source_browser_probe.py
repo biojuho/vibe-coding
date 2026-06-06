@@ -205,17 +205,36 @@ def parse_targets(sources: list[str] | None, custom_urls: list[str] | None) -> l
 
 
 def build_report(results: list[ProbeResult]) -> dict[str, Any]:
-    statuses = Counter(result.classification.status for result in results)
+    summary = _build_summary(results)
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "summary": {
-            "source_count": len(results),
-            "ready_count": statuses.get(READY_STATUS, 0),
-            "problem_count": sum(statuses.get(status, 0) for status in PROBLEM_STATUSES),
-            "ok": statuses.get(READY_STATUS, 0) == len(results),
-            "statuses": dict(sorted(statuses.items())),
-        },
+        "summary": summary,
         "results": [_result_to_dict(result) for result in results],
+    }
+
+
+def _build_summary(results: list[ProbeResult]) -> dict[str, Any]:
+    statuses = Counter(result.classification.status for result in results)
+    ready_sources = [result.source for result in results if result.classification.status == READY_STATUS]
+    problem_sources = [
+        {
+            "source": result.source,
+            "status": result.classification.status,
+            "reason": result.classification.reason,
+            "signals": result.classification.signals,
+        }
+        for result in results
+        if result.classification.status != READY_STATUS
+    ]
+    return {
+        "source_count": len(results),
+        "ready_count": len(ready_sources),
+        "problem_count": len(problem_sources),
+        "ok": len(ready_sources) == len(results),
+        "statuses": dict(sorted(statuses.items())),
+        "ready_sources": ready_sources,
+        "problem_sources": problem_sources,
+        "recommended_source": ready_sources[0] if ready_sources else None,
     }
 
 
