@@ -34,10 +34,11 @@ Blind 게시글을 수집해서 점수화하고, Notion 검토 큐에 적재하�
 py -3 main.py --source auto --popular --review-only --limit 5
 py -3 main.py --source blind --popular --review-only --limit 5
 py -3 main.py --source multi --popular --review-only --limit 5
+py -3 main.py --source all --popular --review-only --limit 5
 
 # Source browser preflight before a multi-source run.
 # Run from projects/blind-to-x; on this Windows workspace, prefer the project venv.
-# `--source all` is explicit; omitting --source has the same effect.
+# For the standalone helper, `--source all` probes every known source; omitting --source has the same effect.
 .\.venv\Scripts\python.exe scripts/source_browser_probe.py --source all --output .tmp/source_browser_probe.json --screenshot-dir screenshots/source_probe
 
 # Source browser preflight plus first-post click-through verification
@@ -56,8 +57,9 @@ py -3 main.py --source multi --popular --review-only --limit 5
 # Source browser gate with first-post click-through before a paid/LLM run
 .\.venv\Scripts\python.exe main.py --source ppomppu --popular --review-only --limit 5 --require-source-ready --source-preflight-click-through --source-preflight-output .tmp/source_browser_preflight.json --source-preflight-screenshot-dir screenshots/source_preflight
 
-# Multi-source gate that continues with the strongest ready source when some sources are blocked
-.\.venv\Scripts\python.exe main.py --source multi --popular --review-only --limit 5 --require-source-ready --source-preflight-click-through --source-preflight-use-recommended --source-preflight-output .tmp/source_browser_preflight.json --source-preflight-screenshot-dir screenshots/source_preflight
+# Multi-source gate that continues with the strongest ready source when some sources are blocked.
+# In main.py, `--source all` is an explicit alias for all configured input_sources.
+.\.venv\Scripts\python.exe main.py --source all --popular --review-only --limit 5 --require-source-ready --source-preflight-click-through --source-preflight-use-recommended --source-preflight-output .tmp/source_browser_preflight.json --source-preflight-screenshot-dir screenshots/source_preflight
 
 # 승인된 항목 재처리용 경로
 py -3 main.py --reprocess-approved --limit 5

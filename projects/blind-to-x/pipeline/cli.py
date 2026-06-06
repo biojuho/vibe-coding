@@ -33,7 +33,10 @@ def build_parser():
     parser.add_argument(
         "--source",
         default="auto",
-        help="Source scraper to use. Use 'auto' for configured primary/input_sources, or 'multi' for all input_sources.",
+        help=(
+            "Source scraper to use. Use 'auto' for configured primary/input_sources, "
+            "or 'multi'/'all' for all input_sources."
+        ),
     )
     parser.add_argument(
         "--source-preflight",

@@ -108,7 +108,7 @@
 
 ## 9. Browser source QA note
 
-- Before a live run, use source preflight from the project virtualenv: `.\.venv\Scripts\python.exe main.py --source <source> --source-preflight --source-preflight-output .tmp/source_preflight_<task>.json --source-preflight-screenshot-dir screenshots/source_preflight_<task>`.
+- Before a live run, use source preflight from the project virtualenv: `.\.venv\Scripts\python.exe main.py --source <source> --source-preflight --source-preflight-output .tmp/source_preflight_<task>.json --source-preflight-screenshot-dir screenshots/source_preflight_<task>`. `main.py --source all` is an explicit alias for all configured `input_sources`.
 - For the standalone browser preflight helper, run from `projects/blind-to-x` and use the project virtualenv on Windows: `.\.venv\Scripts\python.exe scripts/source_browser_probe.py --source all ...`. `auto` and `multi` are accepted aliases, and omitting `--source` still probes every known source.
 - Before a paid/LLM run, add `--source-preflight-click-through` so the preflight verifies the first post detail, not only that the listing page loaded. HTML sources click a visible post; API-backed JobPlanet verifies the first post detail endpoint.
 - For guarded multi-source runs where at least one source is still blocked, add `--source-preflight-use-recommended` with `--require-source-ready --source-preflight-click-through` to continue with `summary.recommended_source` instead of aborting the whole run.

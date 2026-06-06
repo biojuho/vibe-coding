@@ -11,13 +11,15 @@ from pipeline.cost_tracker import CostTracker
 
 logger = logging.getLogger(__name__)
 
+ALL_CONFIGURED_SOURCE_ALIASES = frozenset({"multi", "all"})
+
 
 def resolve_input_sources(config_mgr, args):
     configured_sources = config_mgr.get("input_sources", ["blind"])
     primary_source = config_mgr.get("content_strategy.primary_source", "blind")
     requested_source = getattr(args, "source", "auto") or "auto"
 
-    if requested_source == "multi":
+    if requested_source in ALL_CONFIGURED_SOURCE_ALIASES:
         return configured_sources or ["blind"]
 
     if requested_source != "auto":

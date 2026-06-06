@@ -168,6 +168,15 @@ class TestResolveInputSources:
         args = MagicMock(source="multi")
         assert _resolve_input_sources(config, args) == ["blind", "fmkorea", "ppomppu"]
 
+    def test_all_source_uses_configured_sources(self):
+        config = MagicMock()
+        config.get.side_effect = lambda key, default=None: {
+            "input_sources": ["blind", "fmkorea", "ppomppu"],
+            "content_strategy.primary_source": "blind",
+        }.get(key, default)
+        args = MagicMock(source="all")
+        assert _resolve_input_sources(config, args) == ["blind", "fmkorea", "ppomppu"]
+
     def test_default_blind(self):
         config = MagicMock()
         config.get.side_effect = lambda key, default=None: {
@@ -298,6 +307,16 @@ class TestSourcePreflight:
             "content_strategy.primary_source": "multi",
         }.get(key, default)
         args = SimpleNamespace(source="multi")
+
+        assert _resolve_source_preflight_sources(config, args) == ["blind", "ppomppu"]
+
+    def test_resolve_source_preflight_sources_accepts_all_alias(self):
+        config = MagicMock()
+        config.get.side_effect = lambda key, default=None: {
+            "input_sources": ["blind", "internal", "ppomppu"],
+            "content_strategy.primary_source": "blind",
+        }.get(key, default)
+        args = SimpleNamespace(source="all")
 
         assert _resolve_source_preflight_sources(config, args) == ["blind", "ppomppu"]
 
