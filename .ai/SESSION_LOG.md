@@ -846,3 +846,11 @@
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1363.json` returned `adopt_candidate` with `score_delta=41.384615`.
 - Commit closeout: `ce765cc5 feat(hanwoo): dedupe feed focus cards` is local only; no push was performed and T-251 was not retried.
 - Current boundary: refresh full active-project QC and launch evidence after the relay/context commit. Product launch remains incomplete until explicit push authorization/user push plus current-head Actions, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass.
+
+## 2026-06-06 - Codex
+
+- Refreshed full active-project QC and launch evidence after the T-1362/T-1363 code/context updates.
+- Full active-project QC passed and rewrote `.tmp/project_qc_runner_latest.json`: blind-to-x `1760 passed`, `9 skipped`; shorts-maker-v2 `1606 passed`, `12 skipped`; Hanwoo `505 passed`; Knowledge `61 passed`; total `3932 passed`, `21 skipped`; lint/build/smoke gates passed where applicable.
+- Runtime proof: `product_readiness_score.py --json` reports score `96`, state `blocked`, local blockers `0`, publish blockers `1`, external blockers `1`; `release_authorization_packet.py --json` is `ready_for_authorization`; selector is `blocked_publish_only`; launch audit has complete coverage; completion audit is `incomplete` with `9/14` complete and 5 blocked issues.
+- Code-review graph note: `session_orient.py --json` reports graph stale after context/doc commits, but launch audit confirms the stale range has no graph-relevant file changes and `code_review_gate` passed with `risk_score=0.0`.
+- Boundary: no push was performed. Product launch remains incomplete until explicit push authorization/user push plus current-head `root-quality-gate` and `active-project-matrix`, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
