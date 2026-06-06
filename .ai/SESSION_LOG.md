@@ -644,6 +644,18 @@
 
 ## 2026-06-06 - Codex
 
+- Closed T-1356 as a bounded `$auto-research` `shorts-maker-v2` RenderStep maintainability cycle.
+- Changed `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/render_step.py`: `RenderStep._render_single_scene()` now delegates warning recording, role style, color grading, scene audio postprocess/attachment, static/karaoke captions, hook animation, B-roll PiP, and closing fade into focused helpers.
+- Changed `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/render_step.py`: `RenderStep.run()` now delegates intro/outro insertion, scene sequence rendering, Shorts trimming, BGM generation/mixing, SFX layering, video write kwargs, output writing, benchmark logging, and resource cleanup into focused helpers.
+- Changed `projects/shorts-maker-v2/tests/unit/test_render_step_core.py`: added helper coverage for role-style mapping and static caption composition/resource tracking.
+- Verification: focused render pytest passed `147/147` with one upstream Google GenAI deprecation warning; full shorts-maker-v2 project QC passed with `1597 passed`, `12 skipped`, `1 warning` plus lint; ruff check passed; ruff format check passed; py_compile passed; `git diff --cached --check` passed.
+- VibeDebt proof: `render_step.py` score `39.8 -> 35.8`, max complexity `36 -> 14`, max function length `244 -> 116`, and current shorts-maker-v2 project TDR `32.77`.
+- Code-review gate: `py -3.13 execution\code_review_gate.py --base HEAD --json` returned advisory WARN `risk_score=0.40` from helper test-gap heuristics, covered by focused and full project tests.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1356.json --json` returned `adopt_candidate` with `score_delta=2.0319818301816848`.
+- Boundary: no push was performed. Product launch remains incomplete until explicit push authorization/user push plus current-head `root-quality-gate` and `active-project-matrix`, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
+
+## 2026-06-06 - Codex
+
 - Closed T-1325 as a bounded `$auto-research` launch-audit evidence cycle for Knowledge Dashboard direct target readiness.
 - Changed `.agents/skills/auto-research/scripts/launch_objective_audit.py`: added `_target_knowledge_dashboard_item()` and included it in the launch manifest after the other direct target-product readiness items.
 - Changed `workspace/tests/test_auto_research_launch_objective_audit.py`: extended readiness fixtures with Knowledge Dashboard evidence and added regressions for complete Knowledge launch evidence plus stale/failing Knowledge blockers.
