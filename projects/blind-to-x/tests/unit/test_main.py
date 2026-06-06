@@ -247,6 +247,24 @@ class TestSourcePreflight:
         assert selected is None
         assert args.source == "multi"
 
+    def test_recommended_source_fallback_requires_ready_source_membership(self):
+        args = SimpleNamespace(
+            require_source_ready=True,
+            source_preflight_use_recommended=True,
+            source="multi",
+        )
+        report = {
+            "summary": {
+                "ready_sources": ["jobplanet"],
+                "recommended_source": "ppomppu",
+            }
+        }
+
+        selected = _apply_recommended_source_fallback(args, report)
+
+        assert selected is None
+        assert args.source == "multi"
+
     def test_resolve_source_preflight_sources_filters_unsupported(self):
         config = MagicMock()
         config.get.side_effect = lambda key, default=None: {

@@ -168,6 +168,13 @@ def _apply_recommended_source_fallback(args, report: dict) -> str | None:
     recommended_source = summary.get("recommended_source") if isinstance(summary, dict) else None
     if not isinstance(recommended_source, str) or not recommended_source:
         return None
+    ready_sources = summary.get("ready_sources") if isinstance(summary, dict) else None
+    if not isinstance(ready_sources, list) or recommended_source not in ready_sources:
+        logger.warning(
+            "Ignoring source preflight recommended source %s because it is not listed as ready.",
+            recommended_source,
+        )
+        return None
 
     setattr(args, "source", recommended_source)
     logger.info("Continuing with source preflight recommended source: %s", recommended_source)
