@@ -22,6 +22,7 @@ DEFAULT_SOURCES: dict[str, str] = {
     "jobplanet": "https://www.jobplanet.co.kr/api/v5/community/posts?limit=20&order_by=recent",
     "ppomppu": "https://www.ppomppu.co.kr/hot.php",
 }
+ALL_SOURCE_ALIASES = frozenset({"all", "auto", "multi"})
 
 _JOBPLANET_BASE_URL = "https://www.jobplanet.co.kr"
 
@@ -182,6 +183,9 @@ def parse_targets(sources: list[str] | None, custom_urls: list[str] | None) -> l
     targets: list[ProbeTarget] = []
 
     for source in selected:
+        if source in ALL_SOURCE_ALIASES:
+            targets.extend(ProbeTarget(source=name, url=url) for name, url in DEFAULT_SOURCES.items())
+            continue
         if source in DEFAULT_SOURCES:
             targets.append(ProbeTarget(source=source, url=DEFAULT_SOURCES[source]))
             continue
@@ -804,8 +808,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--source",
         action="append",
-        choices=sorted(DEFAULT_SOURCES),
-        help="Known source to probe. Repeat to probe multiple sources. Defaults to all.",
+        choices=sorted([*DEFAULT_SOURCES, *ALL_SOURCE_ALIASES]),
+        help=(
+            "Known source to probe. Repeat to probe multiple sources. "
+            "Use all/auto/multi, or omit the flag, to probe every known source."
+        ),
     )
     parser.add_argument(
         "--url",
@@ -831,6 +838,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--fail-on-problem",
         action="store_true",
         help="Exit with status 1 when any source is not ready.",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Accepted for CLI consistency; source preflight output is always JSON.",
     )
     return parser
 

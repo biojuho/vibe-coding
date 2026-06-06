@@ -3,12 +3,14 @@ import json
 import pytest
 
 from scripts.source_browser_probe import (
+    DEFAULT_SOURCES,
     READY_STATUS,
     ClickThroughResult,
     ProbeClassification,
     ProbeResult,
     ProbeTarget,
     build_report,
+    build_parser as build_probe_parser,
     classify_probe,
     exit_code_for_report,
     parse_targets,
@@ -88,6 +90,36 @@ def test_parse_targets_defaults_and_custom_url():
 
     assert [target.source for target in targets] == ["blind", "fmkorea", "jobplanet", "ppomppu", "example"]
     assert targets[-1].url == "https://example.com/feed"
+
+
+def test_parse_targets_all_aliases_expand_to_default_sources():
+    expected_sources = list(DEFAULT_SOURCES)
+
+    for alias in ("all", "auto", "multi"):
+        targets = parse_targets([alias], None)
+        assert [target.source for target in targets] == expected_sources
+
+
+def test_parse_targets_dedupes_explicit_source_after_all_alias():
+    targets = parse_targets(["all", "ppomppu"], None)
+
+    assert [target.source for target in targets] == list(DEFAULT_SOURCES)
+
+
+def test_build_parser_accepts_all_source_aliases():
+    parser = build_probe_parser()
+
+    for alias in ("all", "auto", "multi"):
+        args = parser.parse_args(["--source", alias])
+        assert args.source == [alias]
+
+
+def test_build_parser_accepts_json_compat_flag():
+    parser = build_probe_parser()
+
+    args = parser.parse_args(["--json"])
+
+    assert args.json is True
 
 
 def test_build_report_counts_problem_statuses_and_exit_code():

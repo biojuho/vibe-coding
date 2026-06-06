@@ -109,6 +109,7 @@
 ## 9. Browser source QA note
 
 - Before a live run, use source preflight: `python main.py --source <source> --source-preflight --source-preflight-output .tmp/source_preflight_<task>.json --source-preflight-screenshot-dir screenshots/source_preflight_<task>`.
+- For the standalone browser preflight helper, use `python scripts/source_browser_probe.py --source all ...` when you want an explicit all-source check; `auto` and `multi` are accepted aliases, and omitting `--source` still probes every known source.
 - Before a paid/LLM run, add `--source-preflight-click-through` so the preflight verifies the first post detail, not only that the listing page loaded. HTML sources click a visible post; API-backed JobPlanet verifies the first post detail endpoint.
 - For guarded multi-source runs where at least one source is still blocked, add `--source-preflight-use-recommended` with `--require-source-ready --source-preflight-click-through` to continue with `summary.recommended_source` instead of aborting the whole run.
 - Read `summary.ready_sources`, `summary.problem_sources`, `summary.problem_actions`, `summary.recommended_source`, and `summary.recommended_command` in the preflight JSON before choosing the source for a paid/LLM run. `summary.recommended_source` prefers the ready source with the strongest successful detail evidence, and `summary.recommended_command` gives the guarded pipeline command for that source.

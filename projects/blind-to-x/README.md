@@ -36,7 +36,8 @@ py -3 main.py --source blind --popular --review-only --limit 5
 py -3 main.py --source multi --popular --review-only --limit 5
 
 # Source browser preflight before a multi-source run
-py -3 scripts/source_browser_probe.py --output .tmp/source_browser_probe.json --screenshot-dir screenshots/source_probe
+# `--source all` is explicit; omitting --source has the same effect.
+py -3 scripts/source_browser_probe.py --source all --output .tmp/source_browser_probe.json --screenshot-dir screenshots/source_probe
 
 # Source browser preflight plus first-post click-through verification
 py -3 scripts/source_browser_probe.py --source ppomppu --click-through --output .tmp/source_browser_probe.json --screenshot-dir screenshots/source_probe
