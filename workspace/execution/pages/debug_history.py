@@ -1,9 +1,11 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
+if str(WORKSPACE_ROOT) not in sys.path:
+    sys.path.insert(0, str(WORKSPACE_ROOT))
 
-import streamlit as st
+import streamlit as st  # noqa: E402
 
 try:
     import plotly.express as px
@@ -19,6 +21,11 @@ try:
 except ImportError as e:
     _MODULE_OK = False
     _MODULE_ERR = str(e)
+
+
+def _render_plotly_chart(fig: object) -> None:
+    st.plotly_chart(fig, width="stretch")
+
 
 st.set_page_config(page_title="Debug History - Joolife", page_icon="🪲", layout="wide")
 
@@ -57,7 +64,7 @@ if stats["total_entries"] > 0:
                 title="심각도별 분포",
                 color_discrete_sequence=px.colors.sequential.RdBu,
             )
-            st.plotly_chart(fig, use_container_width=True)
+            _render_plotly_chart(fig)
     with chart2:
         layer_data = stats["by_layer"]
         if layer_data:
@@ -67,7 +74,7 @@ if stats["total_entries"] > 0:
                 title="계층별 분포",
                 color_discrete_sequence=px.colors.sequential.Teal,
             )
-            st.plotly_chart(fig, use_container_width=True)
+            _render_plotly_chart(fig)
 
 # ── 엔트리 목록 ──────────────────────────────────
 st.divider()
