@@ -19,6 +19,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from pipeline.cli import (
     _apply_recommended_source_fallback,
+    _log_ready_source_warnings,
     _resolve_source_preflight_sources,
     acquire_lock as _acquire_lock,
     _is_process_alive,
@@ -265,6 +266,31 @@ class TestSourcePreflight:
         assert selected is None
         assert args.source == "multi"
 
+    def test_ready_source_warnings_are_logged_for_operator_visibility(self, caplog):
+        report = {
+            "summary": {
+                "ready_warnings": [
+                    {
+                        "source": "ppomppu",
+                        "type": "console_error",
+                        "count": 1,
+                        "sample": "Failed to load resource: the server responded with a status of 424",
+                        "action": "Source is usable, but inspect console errors before treating evidence as clean.",
+                    }
+                ]
+            }
+        }
+
+        with caplog.at_level("WARNING", logger="pipeline.cli"):
+            logged_count = _log_ready_source_warnings(report)
+
+        assert logged_count == 1
+        assert "Source preflight ready warning" in caplog.text
+        assert "source=ppomppu" in caplog.text
+        assert "type=console_error" in caplog.text
+        assert "count=1" in caplog.text
+        assert "status of 424" in caplog.text
+
     def test_resolve_source_preflight_sources_filters_unsupported(self):
         config = MagicMock()
         config.get.side_effect = lambda key, default=None: {
@@ -284,12 +310,24 @@ class TestSourcePreflight:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_source_preflight_command_runs_probe_and_returns_exit_code(self, monkeypatch, tmp_path):
+    async def test_source_preflight_command_runs_probe_and_returns_exit_code(self, monkeypatch, tmp_path, caplog):
         calls = {}
 
         async def fake_run_source_preflight(**kwargs):
             calls.update(kwargs)
-            return {"summary": {"ok": False}}
+            return {
+                "summary": {
+                    "ok": False,
+                    "ready_warnings": [
+                        {
+                            "source": "ppomppu",
+                            "type": "console_error",
+                            "count": 1,
+                            "sample": "Failed Dependency",
+                        }
+                    ],
+                }
+            }
 
         monkeypatch.setattr("pipeline.cli.run_source_preflight", fake_run_source_preflight)
         config = MagicMock()
@@ -310,7 +348,8 @@ class TestSourcePreflight:
             source_preflight_viewport="mobile",
         )
 
-        result = await _run_source_preflight_command(config, args)
+        with caplog.at_level("WARNING", logger="pipeline.cli"):
+            result = await _run_source_preflight_command(config, args)
 
         assert result == 1
         assert calls == {
@@ -323,6 +362,8 @@ class TestSourcePreflight:
             "viewport": "mobile",
             "click_through": True,
         }
+        assert "Source preflight ready warning" in caplog.text
+        assert "source=ppomppu" in caplog.text
 
     @pytest.mark.asyncio
     async def test_source_preflight_command_rejects_unsupported_source(self, monkeypatch):

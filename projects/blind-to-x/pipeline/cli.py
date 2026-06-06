@@ -181,6 +181,40 @@ def _apply_recommended_source_fallback(args, report: dict) -> str | None:
     return recommended_source
 
 
+def _compact_log_value(value, max_chars: int = 160) -> str:
+    text = " ".join(str(value or "").split())
+    if len(text) <= max_chars:
+        return text
+    return text[: max_chars - 3].rstrip() + "..."
+
+
+def _log_ready_source_warnings(report: dict) -> int:
+    summary = report.get("summary", {})
+    ready_warnings = summary.get("ready_warnings") if isinstance(summary, dict) else None
+    if not isinstance(ready_warnings, list):
+        return 0
+
+    logged_count = 0
+    for warning in ready_warnings:
+        if not isinstance(warning, dict):
+            continue
+        source = _compact_log_value(warning.get("source") or "unknown")
+        warning_type = _compact_log_value(warning.get("type") or "warning")
+        count = warning.get("count")
+        sample = _compact_log_value(warning.get("sample"))
+        action = _compact_log_value(warning.get("action"))
+        parts = [f"source={source}", f"type={warning_type}"]
+        if isinstance(count, int):
+            parts.append(f"count={count}")
+        if sample:
+            parts.append(f"sample={sample}")
+        if action:
+            parts.append(f"action={action}")
+        logger.warning("Source preflight ready warning: %s", "; ".join(parts))
+        logged_count += 1
+    return logged_count
+
+
 async def run_source_preflight_command(config_mgr, args) -> int | None:
     if not _source_preflight_requested(args):
         return None
@@ -200,6 +234,7 @@ async def run_source_preflight_command(config_mgr, args) -> int | None:
         viewport=getattr(args, "source_preflight_viewport", "desktop"),
         click_through=getattr(args, "source_preflight_click_through", False),
     )
+    _log_ready_source_warnings(report)
     if _apply_recommended_source_fallback(args, report):
         return 0
 
