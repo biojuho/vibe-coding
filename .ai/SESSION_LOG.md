@@ -1026,3 +1026,14 @@
 - Verification: manual header check returned `307` with `Location: /login?...#login`; focused Node tests passed `15/15`; ESLint passed; full Hanwoo `npm.cmd test` passed `510/510`; Hanwoo project QC passed test/lint/build/smoke; path-limited `git diff --check` passed with CRLF warnings only.
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1394.json --json` returned `adopt_candidate` with `score_delta=1.2727272727272727`.
 - Commit closeout: `eec15103 fix(hanwoo): T-1394 clear inherited login fragments` is local only; no push was performed and T-251 was not retried. Preserve unrelated workspace Shorts Analytics WIP outside T-1394.
+
+## 2026-06-06 - Codex
+
+- Closed T-1395 as a bounded `$auto-research` `shorts-maker-v2` Shorts Analytics Plotly width API refresh.
+- Research/current API check: local Streamlit `1.54.0` exposes `st.plotly_chart(..., width="stretch", ...)`, so Plotly chart calls should no longer use deprecated `use_container_width=True`.
+- Changed `workspace/execution/pages/shorts_analytics.py`: added `_render_plotly_chart()` and routed all 11 Plotly charts through `st.plotly_chart(fig, width="stretch")`.
+- Changed `workspace/tests/test_shorts_analytics.py`: added helper-level coverage for the current chart width API and a source guard against reintroducing deprecated Plotly width calls.
+- Browser QA: direct Streamlit/Playwright tab-click verification covered the Analytics landing state plus YouTube performance, ROI, and hook-pattern tabs; console warnings/errors were `0`, and screenshot artifact is `output/playwright/shorts-analytics-t1395-plotly-width-refresh.png`.
+- Verification: focused/related pytest passed `52/52`; Ruff check passed; Ruff format check passed; `py_compile` passed; `rg` found no `use_container_width=True` calls in `shorts_analytics.py`; path-limited diff-check passed with CRLF warnings only; shorts-maker-v2 project QC passed (`1637 passed`, `12 skipped`, `29 warnings`, lint passed).
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1395.json --json` returned `adopt_candidate` with `score_delta=1.5`.
+- Boundary: no push was performed. T-251 was not retried. Preserve unrelated blind-to-x WIP outside T-1395.

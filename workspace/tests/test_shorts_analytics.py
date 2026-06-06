@@ -3,8 +3,11 @@ from __future__ import annotations
 import importlib
 import sys
 import types
+from pathlib import Path
 
 import pytest
+
+WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
 
 
 class _DummyBlock:
@@ -183,3 +186,19 @@ def test_render_dataframe_uses_current_stretch_width_api(shorts_analytics) -> No
     shorts_analytics._render_dataframe([{"채널": "AI/기술"}])
 
     assert fake_streamlit.events == [("dataframe", [{"채널": "AI/기술"}], {"width": "stretch", "hide_index": True})]
+
+
+def test_render_plotly_chart_uses_current_stretch_width_api(shorts_analytics) -> None:
+    fake_streamlit = shorts_analytics.st
+    fake_streamlit.events.clear()
+
+    shorts_analytics._render_plotly_chart("figure")
+
+    assert fake_streamlit.events == [("plotly_chart", "figure", {"width": "stretch"})]
+
+
+def test_shorts_analytics_source_avoids_deprecated_plotly_width_api() -> None:
+    source = (WORKSPACE_ROOT / "execution" / "pages" / "shorts_analytics.py").read_text(encoding="utf-8")
+
+    assert "use_container_width=True" not in source
+    assert 'st.plotly_chart(fig, width="stretch")' in source

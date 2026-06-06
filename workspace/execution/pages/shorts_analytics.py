@@ -150,6 +150,10 @@ def _render_dataframe(data: list[dict]) -> None:
     st.dataframe(data, width="stretch", hide_index=True)
 
 
+def _render_plotly_chart(fig: object) -> None:
+    st.plotly_chart(fig, width="stretch")
+
+
 # ===========================================================================
 # 탭 구성
 # ===========================================================================
@@ -207,7 +211,7 @@ with tab_prod:
                 )
             )
             fig.update_layout(barmode="stack", **CHART_LAYOUT)
-            st.plotly_chart(fig, use_container_width=True)
+            _render_plotly_chart(fig)
 
         with col_right:
             st.subheader("일별 비용 추이")
@@ -224,7 +228,7 @@ with tab_prod:
                 )
             )
             fig2.update_layout(**CHART_LAYOUT)
-            st.plotly_chart(fig2, use_container_width=True)
+            _render_plotly_chart(fig2)
 
         st.divider()
 
@@ -262,7 +266,7 @@ with tab_prod:
                     color_discrete_sequence=COLORS["channels"],
                 )
                 fig3.update_layout(**CHART_LAYOUT)
-                st.plotly_chart(fig3, use_container_width=True)
+                _render_plotly_chart(fig3)
             else:
                 st.info("완료된 영상이 없어 분포를 표시할 수 없습니다.")
 
@@ -291,7 +295,7 @@ with tab_prod:
                 )
             )
             fig4.update_layout(yaxis_title="평균 비용 ($)", **CHART_LAYOUT)
-            st.plotly_chart(fig4, use_container_width=True)
+            _render_plotly_chart(fig4)
 
     st.divider()
 
@@ -313,7 +317,7 @@ with tab_prod:
             yaxis_title="성공 건수",
             **CHART_LAYOUT,
         )
-        st.plotly_chart(fig_hourly, use_container_width=True)
+        _render_plotly_chart(fig_hourly)
         best_hour = max(hourly, key=lambda h: h["success_rate"])
         st.success(f"최적 생성 시간대: {best_hour['hour']}시 (성공률 {best_hour['success_rate']:.0f}%)")
     else:
@@ -339,7 +343,7 @@ with tab_prod:
             color_discrete_sequence=[COLORS["youtube"], "#6c757d", COLORS["warning"]],
         )
         fig_yt.update_layout(**CHART_LAYOUT)
-        st.plotly_chart(fig_yt, use_container_width=True)
+        _render_plotly_chart(fig_yt)
     else:
         st.info("업로드 데이터가 아직 없습니다.")
 
@@ -402,7 +406,7 @@ with tab_youtube:
                     yaxis_title="조회수",
                     **CHART_LAYOUT,
                 )
-                st.plotly_chart(fig_cv, use_container_width=True)
+                _render_plotly_chart(fig_cv)
 
             with col_engage:
                 fig_ce = go.Figure()
@@ -421,7 +425,7 @@ with tab_youtube:
                     yaxis_title="평균 조회수",
                     **CHART_LAYOUT,
                 )
-                st.plotly_chart(fig_ce, use_container_width=True)
+                _render_plotly_chart(fig_ce)
 
             # 채널 성과 테이블
             st.markdown("**채널별 상세 성과**")
@@ -496,7 +500,7 @@ with tab_roi:
                 yaxis_title="CPV ($/1K views)",
                 **CHART_LAYOUT,
             )
-            st.plotly_chart(fig_cpv, use_container_width=True)
+            _render_plotly_chart(fig_cpv)
 
             # 효율성 등급
             best = cpv_sorted[0]
@@ -565,7 +569,7 @@ with tab_hooks:
             yaxis_title="평균 조회수",
             **CHART_LAYOUT,
         )
-        st.plotly_chart(fig_hook, use_container_width=True)
+        _render_plotly_chart(fig_hook)
 
         # ── 레이더 차트 ──────────────────────────────────────
         if len(hook_sorted) >= 3:
@@ -604,7 +608,7 @@ with tab_hooks:
                 **{k: v for k, v in CHART_LAYOUT.items() if k != "height"},
                 height=400,
             )
-            st.plotly_chart(fig_radar, use_container_width=True)
+            _render_plotly_chart(fig_radar)
 
         # ── 훅 패턴 상세 테이블 ──────────────────────────────
         st.subheader("훅 패턴 상세 데이터")
