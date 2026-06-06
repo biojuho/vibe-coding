@@ -134,6 +134,21 @@ def test_build_report_counts_problem_statuses_and_exit_code():
             }
         ],
         "recommended_source": "fmkorea",
+        "recommended_command": (
+            "py -3 main.py --source fmkorea --popular --review-only --limit 5 "
+            "--require-source-ready --source-preflight-click-through "
+            "--source-preflight-output .tmp/source_browser_preflight.json "
+            "--source-preflight-screenshot-dir screenshots/source_preflight"
+        ),
+        "problem_actions": [
+            {
+                "source": "blind",
+                "status": "blocked",
+                "action": (
+                    "Use a ready fallback source for this run, then recheck this source after access controls change."
+                ),
+            }
+        ],
     }
     assert exit_code_for_report(report, fail_on_problem=False) == 0
     assert exit_code_for_report(report, fail_on_problem=True) == 1
@@ -168,6 +183,16 @@ def test_build_report_counts_click_error_as_problem():
         }
     ]
     assert report["summary"]["recommended_source"] is None
+    assert report["summary"]["recommended_command"] is None
+    assert report["summary"]["problem_actions"] == [
+        {
+            "source": "ppomppu",
+            "status": "click_error",
+            "action": (
+                "Inspect the screenshot and click-through error, then update the source detail selector or API verifier."
+            ),
+        }
+    ]
     assert exit_code_for_report(report, fail_on_problem=True) == 1
 
 
@@ -217,6 +242,7 @@ def test_build_report_recommends_ready_source_with_strongest_detail_evidence():
 
     assert report["summary"]["ready_sources"] == ["jobplanet", "ppomppu"]
     assert report["summary"]["recommended_source"] == "ppomppu"
+    assert report["summary"]["recommended_command"].startswith("py -3 main.py --source ppomppu")
 
 
 def test_write_report_escapes_non_ascii_evidence(tmp_path, capsys):

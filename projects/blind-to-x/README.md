@@ -43,6 +43,8 @@ py -3 scripts/source_browser_probe.py --source ppomppu --click-through --output 
 
 # The preflight JSON summary includes ready_sources, problem_sources, and recommended_source.
 # recommended_source prefers the ready source with the strongest successful detail evidence.
+# recommended_command gives a copyable guarded pipeline command for the recommended source.
+# problem_actions lists per-source operator next steps for blocked, click, browser, and timeout failures.
 # HTML sources click the first post; API-backed JobPlanet verifies the first post detail endpoint.
 
 # Source browser gate, then continue only when the resolved source is ready

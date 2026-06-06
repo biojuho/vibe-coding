@@ -229,6 +229,7 @@ def _build_summary(results: list[ProbeResult]) -> dict[str, Any]:
         for result in results
         if result.classification.status != READY_STATUS
     ]
+    recommended_source = _recommend_ready_source(ready_results)
     return {
         "source_count": len(results),
         "ready_count": len(ready_sources),
@@ -237,7 +238,11 @@ def _build_summary(results: list[ProbeResult]) -> dict[str, Any]:
         "statuses": dict(sorted(statuses.items())),
         "ready_sources": ready_sources,
         "problem_sources": problem_sources,
-        "recommended_source": _recommend_ready_source(ready_results),
+        "recommended_source": recommended_source,
+        "recommended_command": _build_recommended_command(recommended_source),
+        "problem_actions": [
+            _build_problem_action(result) for result in results if result.classification.status != READY_STATUS
+        ],
     }
 
 
@@ -254,6 +259,42 @@ def _ready_result_evidence_chars(result: ProbeResult) -> int:
     if click and click.ok:
         return click.body_chars
     return result.body_chars
+
+
+def _build_recommended_command(source: str | None) -> str | None:
+    if source not in DEFAULT_SOURCES:
+        return None
+    return (
+        f"py -3 main.py --source {source} --popular --review-only --limit 5 "
+        "--require-source-ready --source-preflight-click-through "
+        "--source-preflight-output .tmp/source_browser_preflight.json "
+        "--source-preflight-screenshot-dir screenshots/source_preflight"
+    )
+
+
+def _build_problem_action(result: ProbeResult) -> dict[str, Any]:
+    status = result.classification.status
+    if status == "browser_unavailable":
+        action = "Install Chromium with `py -3 -m playwright install chromium`, then rerun the preflight."
+    elif status == "blocked":
+        action = "Use a ready fallback source for this run, then recheck this source after access controls change."
+    elif status == "click_error":
+        action = (
+            "Inspect the screenshot and click-through error, then update the source detail selector or API verifier."
+        )
+    elif status == "login_wall":
+        action = "Use a ready fallback source unless an authenticated browser context is intentionally configured."
+    elif status == "timeout":
+        action = "Retry once with a higher --timeout-ms; if it repeats, use a ready fallback source."
+    elif status == "empty":
+        action = "Inspect the screenshot and source parser because the page returned too little readable text."
+    else:
+        action = "Inspect the captured evidence, then use a ready fallback source for this run."
+    return {
+        "source": result.source,
+        "status": status,
+        "action": action,
+    }
 
 
 def exit_code_for_report(report: dict[str, Any], *, fail_on_problem: bool) -> int:
