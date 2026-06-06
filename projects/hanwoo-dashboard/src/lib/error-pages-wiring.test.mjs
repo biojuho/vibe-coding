@@ -319,7 +319,7 @@ test("login password visibility toggle exposes matching accessible and title cop
 	);
 	assert.match(
 		source,
-		/<button[\s\S]*?className="login-password-toggle"[\s\S]*?aria-label=\{passwordToggleLabel\}[\s\S]*?title=\{passwordToggleLabel\}/,
+		/<button[\s\S]*?className="login-password-toggle"[\s\S]*?aria-pressed=\{showPassword\}[\s\S]*?aria-label=\{passwordToggleLabel\}[\s\S]*?title=\{passwordToggleLabel\}/,
 	);
 	assert.match(source, /<EyeOff size=\{18\} aria-hidden="true" \/>/);
 	assert.match(source, /<Eye size=\{18\} aria-hidden="true" \/>/);

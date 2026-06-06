@@ -201,6 +201,7 @@ export default function LoginPage() {
 								type="button"
 								className="login-password-toggle"
 								onClick={() => setShowPassword((current) => !current)}
+								aria-pressed={showPassword}
 								aria-label={passwordToggleLabel}
 								title={passwordToggleLabel}
 							>
