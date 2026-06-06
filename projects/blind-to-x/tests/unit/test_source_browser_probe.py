@@ -16,6 +16,7 @@ from scripts.source_browser_probe import (
     _resolve_click_through_href,
     _write_report,
     _select_click_through_candidate,
+    _select_jobplanet_api_candidate,
 )
 
 
@@ -217,6 +218,28 @@ def test_select_click_through_candidate_skips_nav_ads_and_policy():
     assert _select_click_through_candidate(anchors) == anchors[3]
 
 
+def test_select_jobplanet_api_candidate_builds_detail_urls():
+    body = json.dumps(
+        {
+            "data": {
+                "items": [
+                    {"id": None, "title": "missing id"},
+                    {"id": 1001, "title": "JobPlanet post title"},
+                ]
+            }
+        }
+    )
+
+    candidate = _select_jobplanet_api_candidate(body)
+
+    assert candidate == {
+        "id": "1001",
+        "text": "JobPlanet post title",
+        "href": "https://www.jobplanet.co.kr/community/posts/1001",
+        "api_href": "https://www.jobplanet.co.kr/api/v5/community/posts/1001",
+    }
+
+
 @pytest.mark.asyncio
 async def test_click_first_post_retries_canonical_detail_when_clicked_page_stays_loading():
     page = _FakeClickPage()
@@ -228,6 +251,40 @@ async def test_click_first_post_retries_canonical_detail_when_clicked_page_stays
     assert result.candidate_href == "https://www.ppomppu.co.kr/zboard/view.php?id=freeboard&no=9970609"
     assert result.body_chars == 140
     assert page.goto_urls == ["https://www.ppomppu.co.kr/zboard/view.php?id=freeboard&no=9970609"]
+
+
+@pytest.mark.asyncio
+async def test_click_first_post_verifies_jobplanet_api_detail():
+    page = _FakeJobplanetApiPage()
+    target = ProbeTarget(
+        source="jobplanet",
+        url="https://www.jobplanet.co.kr/api/v5/community/posts?limit=20&order_by=recent",
+    )
+
+    result = await _click_first_post(page, target, timeout_ms=12000, screenshot_dir=None)
+
+    assert result.ok is True
+    assert result.candidate_text == "JobPlanet post title"
+    assert result.candidate_href == "https://www.jobplanet.co.kr/community/posts/1001"
+    assert result.final_url == "https://www.jobplanet.co.kr/api/v5/community/posts/1001"
+    assert result.title == "JobPlanet detail title"
+    assert result.body_chars == len("Detailed JobPlanet content")
+    assert page.goto_urls == ["https://www.jobplanet.co.kr/api/v5/community/posts/1001"]
+
+
+@pytest.mark.asyncio
+async def test_click_first_post_reports_jobplanet_missing_api_candidate():
+    page = _FakeJobplanetApiPage(feed_payload={"data": {"items": [{"title": "missing id"}]}})
+    target = ProbeTarget(
+        source="jobplanet",
+        url="https://www.jobplanet.co.kr/api/v5/community/posts?limit=20&order_by=recent",
+    )
+
+    result = await _click_first_post(page, target, timeout_ms=12000, screenshot_dir=None)
+
+    assert result.ok is False
+    assert result.error == "no JobPlanet API post id candidates"
+    assert page.goto_urls == []
 
 
 @pytest.mark.asyncio
@@ -348,3 +405,40 @@ class _FakeBodyLocator:
 
     async def inner_text(self, **_kwargs):
         return self.page.body_text
+
+
+class _FakeResponse:
+    def __init__(self, status):
+        self.status = status
+
+
+class _FakeJobplanetApiPage:
+    def __init__(self, feed_payload=None, detail_payload=None):
+        self.url = "https://www.jobplanet.co.kr/api/v5/community/posts?limit=20&order_by=recent"
+        self.title_value = ""
+        self.goto_urls: list[str] = []
+        self.feed_payload = feed_payload or {"data": {"items": [{"id": 1001, "title": "JobPlanet post title"}]}}
+        self.detail_payload = detail_payload or {
+            "data": {
+                "title": "JobPlanet detail title",
+                "content": "Detailed JobPlanet content",
+            }
+        }
+        self.body_text = json.dumps(self.feed_payload)
+
+    def locator(self, selector):
+        if selector == "body":
+            return _FakeBodyLocator(self)
+        raise AssertionError(f"unexpected selector: {selector}")
+
+    async def goto(self, url, **_kwargs):
+        self.goto_urls.append(url)
+        self.url = url
+        self.body_text = json.dumps(self.detail_payload)
+        return _FakeResponse(200)
+
+    async def wait_for_timeout(self, *_args, **_kwargs):
+        return None
+
+    async def title(self):
+        return self.title_value

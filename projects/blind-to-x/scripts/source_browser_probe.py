@@ -23,6 +23,8 @@ DEFAULT_SOURCES: dict[str, str] = {
     "ppomppu": "https://www.ppomppu.co.kr/hot.php",
 }
 
+_JOBPLANET_BASE_URL = "https://www.jobplanet.co.kr"
+
 READY_STATUS = "ready"
 PROBLEM_STATUSES = {
     "blocked",
@@ -385,6 +387,16 @@ async def _click_first_post(
     timeout_ms: int,
     screenshot_dir: Path | None,
 ) -> ClickThroughResult:
+    if target.source == "jobplanet":
+        body_text = await _safe_body_text(page)
+        return await _verify_jobplanet_api_detail(
+            page,
+            target,
+            feed_body_text=body_text,
+            timeout_ms=timeout_ms,
+            screenshot_dir=screenshot_dir,
+        )
+
     candidate = None
     try:
         anchors = await page.locator("a[href]").evaluate_all(
@@ -431,6 +443,64 @@ async def _click_first_post(
             ok=False,
             candidate_text=(str(candidate.get("text", ""))[:160] if candidate else None),
             candidate_href=(str(candidate.get("href", "")) if candidate else None),
+            final_url=getattr(page, "url", ""),
+            title="",
+            body_chars=0,
+            error=str(exc)[:500],
+        )
+
+
+async def _verify_jobplanet_api_detail(
+    page: Any,
+    target: ProbeTarget,
+    *,
+    feed_body_text: str,
+    timeout_ms: int,
+    screenshot_dir: Path | None,
+) -> ClickThroughResult:
+    candidate = _select_jobplanet_api_candidate(feed_body_text)
+    if candidate is None:
+        return ClickThroughResult(
+            ok=False,
+            candidate_text=None,
+            candidate_href=None,
+            final_url=getattr(page, "url", ""),
+            title="",
+            body_chars=0,
+            error="no JobPlanet API post id candidates",
+        )
+
+    try:
+        response = await page.goto(str(candidate["api_href"]), wait_until="domcontentloaded", timeout=timeout_ms)
+        await page.wait_for_timeout(500)
+        title = await page.title()
+        body_text = await _safe_body_text(page)
+        detail_title, detail_content = _extract_jobplanet_detail_payload(body_text)
+        screenshot_path = await _safe_click_screenshot(page, target, screenshot_dir)
+        body_chars = len(_compact_text(detail_content or body_text))
+        http_status = response.status if response else None
+        ok = (http_status is None or http_status < 400) and len(_compact_text(detail_content)) >= 10
+        error = None
+        if not ok:
+            if http_status is not None and http_status >= 400:
+                error = f"JobPlanet detail API returned HTTP {http_status}"
+            else:
+                error = "JobPlanet detail API did not return readable post content"
+        return ClickThroughResult(
+            ok=ok,
+            candidate_text=str(candidate["text"])[:160],
+            candidate_href=str(candidate["href"]),
+            final_url=getattr(page, "url", ""),
+            title=_compact_text(detail_title or title)[:160],
+            body_chars=body_chars,
+            screenshot_path=str(screenshot_path) if screenshot_path else None,
+            error=error,
+        )
+    except Exception as exc:
+        return ClickThroughResult(
+            ok=False,
+            candidate_text=str(candidate["text"])[:160],
+            candidate_href=str(candidate["href"]),
             final_url=getattr(page, "url", ""),
             title="",
             body_chars=0,
@@ -496,6 +566,69 @@ def _select_click_through_candidate(anchors: list[dict[str, Any]]) -> dict[str, 
             continue
         return item
     return None
+
+
+def _select_jobplanet_api_candidate(body_text: str) -> dict[str, str] | None:
+    payload = _json_payload_from_body(body_text)
+    items = _nested_mapping_list(payload, "data", "items")
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        post_id = _coerce_jobplanet_post_id(item.get("id"))
+        if not post_id:
+            continue
+        title = _compact_text(str(item.get("title") or item.get("content") or ""))
+        return {
+            "id": post_id,
+            "text": title or f"JobPlanet post {post_id}",
+            "href": f"{_JOBPLANET_BASE_URL}/community/posts/{post_id}",
+            "api_href": f"{_JOBPLANET_BASE_URL}/api/v5/community/posts/{post_id}",
+        }
+    return None
+
+
+def _extract_jobplanet_detail_payload(body_text: str) -> tuple[str, str]:
+    payload = _json_payload_from_body(body_text)
+    data = payload.get("data") if isinstance(payload, dict) else None
+    if not isinstance(data, dict):
+        return "", ""
+    content = _compact_text(str(data.get("content") or ""))
+    title = _compact_text(str(data.get("title") or ""))
+    if not title and content:
+        title = content[:50]
+    return title, content
+
+
+def _json_payload_from_body(body_text: str) -> dict[str, Any]:
+    text = (body_text or "").strip()
+    if not text:
+        return {}
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        start = text.find("{")
+        end = text.rfind("}")
+        if start < 0 or end <= start:
+            return {}
+        try:
+            payload = json.loads(text[start : end + 1])
+        except json.JSONDecodeError:
+            return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _nested_mapping_list(payload: dict[str, Any], *keys: str) -> list[Any]:
+    current: Any = payload
+    for key in keys:
+        if not isinstance(current, dict):
+            return []
+        current = current.get(key)
+    return current if isinstance(current, list) else []
+
+
+def _coerce_jobplanet_post_id(value: Any) -> str | None:
+    text = str(value or "").strip()
+    return text if re.fullmatch(r"\d+", text) else None
 
 
 async def _safe_click_screenshot(page: Any, target: ProbeTarget, screenshot_dir: Path | None) -> Path | None:
@@ -627,7 +760,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--screenshot-dir", type=Path, default=None, help="Directory for full-page screenshots.")
     parser.add_argument("--headed", action="store_true", help="Run a visible browser.")
     parser.add_argument(
-        "--click-through", action="store_true", help="Click the first visible post and verify detail page readability."
+        "--click-through",
+        action="store_true",
+        help="Verify the first post detail; HTML sources click a visible post, API sources use a source-specific detail URL.",
     )
     parser.add_argument(
         "--viewport",
