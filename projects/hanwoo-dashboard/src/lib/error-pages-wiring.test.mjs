@@ -297,7 +297,15 @@ test("login credential fields expose stable labels and automation selectors", ()
 	);
 	assert.match(
 		source,
+		/<input[\s\S]*?id=\{usernameInputId\}[\s\S]*?autoComplete="username"[\s\S]*?inputMode="text"[\s\S]*?enterKeyHint="next"/,
+	);
+	assert.match(
+		source,
 		/<input[\s\S]*?id=\{passwordInputId\}[\s\S]*?name="password"[\s\S]*?aria-label="비밀번호"/,
+	);
+	assert.match(
+		source,
+		/<input[\s\S]*?id=\{passwordInputId\}[\s\S]*?autoComplete="current-password"[\s\S]*?enterKeyHint="go"/,
 	);
 	assert.doesNotMatch(source, /<label className="login-field">/);
 });

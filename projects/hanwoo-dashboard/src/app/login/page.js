@@ -163,6 +163,7 @@ export default function LoginPage() {
 								onChange={(event) => setUsername(event.target.value)}
 								autoComplete="username"
 								inputMode="text"
+								enterKeyHint="next"
 								placeholder="관리자 아이디"
 								aria-label="아이디"
 								aria-invalid={Boolean(error)}
@@ -189,6 +190,7 @@ export default function LoginPage() {
 								value={password}
 								onChange={(event) => setPassword(event.target.value)}
 								autoComplete="current-password"
+								enterKeyHint="go"
 								placeholder="비밀번호"
 								aria-label="비밀번호"
 								aria-invalid={Boolean(error)}
