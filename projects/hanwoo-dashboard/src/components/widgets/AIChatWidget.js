@@ -16,21 +16,39 @@ const INITIAL_MESSAGES = [
 const CHAT_CONNECTION_ERROR_MESSAGE =
 	"AI 비서 연결이 잠시 불안정합니다. 잠시 후 다시 질문해 주세요.";
 const STREAMING_PLACEHOLDER_MESSAGE = "답변 생성 중입니다...";
+const FALLBACK_GUIDE_PREFIX =
+	"AI 연결이 불안정해 기본 운영 가이드로 먼저 안내합니다. 최신 농장 정보 기반 답변은 잠시 후 다시 시도해 주세요.";
 
 const CHAT_PANEL_ID = "ai-farm-assistant-chat";
 
 function buildOfflineReply(question) {
 	const q = question.toLowerCase();
 	if (q.includes("발정")) {
-		return "발정 징후 체크리스트:\n- 활동량 증가\n- 울음 증가\n- 외음부 점액 확인\n- 12~18시간 이내 수정 적기 확인";
+		return "전제: 실시간 농장 정보가 연결되지 않아 일반적인 발정 확인 기준으로 안내합니다.\n오늘 확인할 것:\n- 승가 허용, 꼬리 들기, 외음부 점액, 활동량 증가를 같은 시간대에 2회 이상 확인하세요.\n- 이력번호와 마지막 관찰 시각을 기록하고, 12~18시간 내 수정 적기 여부를 점검하세요.\n- 발열, 식욕 저하, 통증처럼 질병 징후가 겹치면 수의사 상담을 우선하세요.\n다음에 확인할 정보: 개체 이력번호, 마지막 발정일, 분만/수정 이력";
 	}
 	if (q.includes("급여") || q.includes("사료")) {
-		return "급여 가이드:\n- 송아지: 초기 사료와 건초를 같이 관리\n- 번식우: 체형 유지 위주\n- 비육우: 후기 사료 비중을 단계적으로 조정";
+		return "전제: 실시간 사료 재고와 개체 체중을 확인하지 못해 일반 기준으로 안내합니다.\n바로 할 일:\n- 송아지는 초기 사료와 건초 섭취량을 함께 기록하세요.\n- 번식우는 과비를 피하도록 체형 점수와 섭취량을 같이 확인하세요.\n- 비육우는 후기 사료 비중을 급격히 바꾸지 말고 단계적으로 조정하세요.\n다음에 확인할 정보: 개체군, 평균 체중, 현재 급여량, 남은 사료 재고";
 	}
 	if (q.includes("안녕")) {
 		return "안녕하세요. 오늘 농장 운영에서 궁금한 부분을 질문해 주세요.";
 	}
-	return "지금은 기본 농장 운영 질문 위주로 안내합니다.\n발정, 급여, 건강관리처럼 구체적으로 질문해 주시면 더 정확히 안내합니다.";
+	return "전제: 실시간 농장 정보가 연결되지 않아 일반 운영 기준으로 안내합니다.\n바로 할 일:\n- 질문에 관련된 개체 이력번호, 날짜, 증상, 기록값을 먼저 정리하세요.\n- 발정, 급여, 건강관리, 출하, 재고처럼 한 가지 주제로 좁혀 다시 질문하면 더 정확합니다.\n- 응급 질병이나 통증 징후가 있으면 기록보다 수의사 상담을 우선하세요.\n다음에 확인할 정보: 주제, 개체 이력번호, 관찰 시각, 최근 변경 사항";
+}
+
+function shouldUseFallbackGuide(errorMsg) {
+	const message = typeof errorMsg === "string" ? errorMsg : "";
+	const nonRecoverableErrors = [
+		"로그인이 필요",
+		"질문은",
+		"대화 이력",
+		"요청 본문",
+	];
+
+	return !nonRecoverableErrors.some((token) => message.includes(token));
+}
+
+function buildFallbackGuide(question) {
+	return `${FALLBACK_GUIDE_PREFIX}\n\n${buildOfflineReply(question)}`;
 }
 
 function buildApiHistory(messages) {
@@ -79,7 +97,12 @@ async function streamChat(options = {}) {
 
 		if (!res.ok) {
 			const body = await res.json().catch(() => ({}));
-			throw new Error(body.error || `서버 오류 (${res.status})`);
+			handleError(
+				(typeof body.error === "string" && body.error.trim()) ||
+					(typeof body.message === "string" && body.message.trim()) ||
+					`서버 오류 (${res.status})`,
+			);
+			return;
 		}
 
 		if (!res.body) {
@@ -245,16 +268,14 @@ export default function AIChatWidget() {
 				}
 			},
 			onError: (errorMsg) => {
-				const isApiKeyError =
-					errorMsg.includes("API") ||
-					errorMsg.includes("AI 비서 설정") ||
-					errorMsg.includes("설정 키") ||
-					errorMsg.includes("설정되지") ||
-					errorMsg.includes("500");
-
-				const fallback = isApiKeyError
-					? buildOfflineReply(trimmed)
-					: `오류: ${errorMsg}`;
+				const useFallbackGuide = shouldUseFallbackGuide(errorMsg);
+				const fallbackMessage = useFallbackGuide
+					? {
+							role: "system",
+							content: buildFallbackGuide(trimmed),
+							retryQuestion: trimmed,
+						}
+					: { role: "system", content: `오류: ${errorMsg}` };
 
 				if (!isMountedRef.current) {
 					return;
@@ -262,10 +283,7 @@ export default function AIChatWidget() {
 
 				setMessages((prev) => {
 					const updated = [...prev];
-					updated[updated.length - 1] = {
-						role: "system",
-						content: fallback,
-					};
+					updated[updated.length - 1] = fallbackMessage;
 					return updated;
 				});
 				sendInFlightRef.current = false;
@@ -301,6 +319,20 @@ export default function AIChatWidget() {
 			handleSend();
 		}
 	};
+
+	const handleRetryQuestion = useCallback(
+		(question) => {
+			if (isStreaming || typeof question !== "string") return;
+			const nextQuestion = question.trim();
+			if (!nextQuestion) return;
+
+			setInput(nextQuestion);
+			requestAnimationFrame(() => {
+				focusElementSafely(inputRef.current);
+			});
+		},
+		[isStreaming],
+	);
 
 	const handlePanelKeyDown = (event) => {
 		if (event.key === "Escape") {
@@ -478,6 +510,28 @@ export default function AIChatWidget() {
 							(isStreaming && index === messages.length - 1
 								? STREAMING_PLACEHOLDER_MESSAGE
 								: "")}
+						{message.retryQuestion && !isStreaming ? (
+							<button
+								type="button"
+								onClick={() => handleRetryQuestion(message.retryQuestion)}
+								aria-label="같은 질문을 입력창에 다시 넣기"
+								title="같은 질문을 입력창에 다시 넣기"
+								style={{
+									marginTop: "10px",
+									width: "100%",
+									border: "1px solid var(--color-border)",
+									borderRadius: "var(--radius-md)",
+									background: "var(--color-bg-card)",
+									color: "var(--color-primary)",
+									fontWeight: 700,
+									fontSize: "12px",
+									padding: "8px 10px",
+									cursor: "pointer",
+								}}
+							>
+								같은 질문 다시 보내기
+							</button>
+						) : null}
 					</div>
 				))}
 			</div>

@@ -19,8 +19,8 @@ test("AI chat widget handles Korean configuration errors and exposes an accessib
 		/import \{ focusElementSafely \} from ["']@\/lib\/safeFocus["'];/,
 	);
 
-	assert.match(source, /AI 비서 설정/);
-	assert.match(source, /설정 키/);
+	assert.match(source, /AI 연결이 불안정해 기본 운영 가이드/);
+	assert.match(source, /shouldUseFallbackGuide/);
 	assert.match(
 		source,
 		/const STREAMING_PLACEHOLDER_MESSAGE = ["']답변 생성 중입니다\.\.\.["'];/,
@@ -86,12 +86,29 @@ test("AI chat widget handles Korean configuration errors and exposes an accessib
 	assert.doesNotMatch(source, /aria-label=\{isStreaming \? ["']답변 생성 중["']/);
 	assert.doesNotMatch(source, /title=\{isStreaming \? ["']답변 생성 중["']/);
 	assert.match(source, /AI 비서 연결이 잠시 불안정합니다/);
+	assert.match(source, /const FALLBACK_GUIDE_PREFIX/);
+	assert.match(source, /AI 연결이 불안정해 기본 운영 가이드로 먼저 안내합니다/);
+	assert.match(source, /최신 농장 정보 기반 답변은 잠시 후 다시 시도해 주세요/);
 	assert.match(source, /궁금한 점을 질문해 주세요/);
 	assert.doesNotMatch(source, /궁금한 점을 물어보세요/);
 	assert.match(source, /오늘 농장 운영에서 궁금한 부분을 질문해 주세요/);
 	assert.doesNotMatch(source, /오늘 농장 운영에서 어떤 부분이 궁금하신가요/);
-	assert.match(source, /기본 농장 운영 질문 위주로 안내합니다/);
-	assert.match(source, /구체적으로 질문해 주시면 더 정확히 안내합니다/);
+	assert.match(source, /전제: 실시간 농장 정보가 연결되지 않아 일반적인 발정 확인 기준으로 안내합니다/);
+	assert.match(source, /오늘 확인할 것/);
+	assert.match(source, /승가 허용/);
+	assert.match(source, /수의사 상담을 우선하세요/);
+	assert.match(source, /다음에 확인할 정보: 개체 이력번호/);
+	assert.match(source, /function shouldUseFallbackGuide\(errorMsg\) \{/);
+	assert.match(source, /const nonRecoverableErrors = \[/);
+	assert.match(source, /function buildFallbackGuide\(question\) \{/);
+	assert.match(source, /buildOfflineReply\(question\)/);
+	assert.match(
+		source,
+		/if \(!res\.ok\) \{[\s\S]*?handleError\([\s\S]*?body\.error[\s\S]*?body\.message[\s\S]*?`서버 오류 \(\$\{res\.status\}\)`[\s\S]*?return;[\s\S]*?\}/,
+	);
+	assert.doesNotMatch(source, /throw new Error\(body\.error/);
+	assert.doesNotMatch(source, /기본 농장 운영 질문 위주로 안내합니다/);
+	assert.doesNotMatch(source, /구체적으로 질문해 주시면 더 정확히 안내합니다/);
 	assert.doesNotMatch(source, /안내하고 있어요/);
 	assert.doesNotMatch(source, /물어보시면 더 정확히 도와드릴게요/);
 	assert.match(source, /<Bot size=\{25\} aria-hidden="true" \/>/);
@@ -158,6 +175,10 @@ test("AI chat send action is disabled until a question is ready", () => {
 		source,
 		/onError: \(errorMsg\) => \{[\s\S]*?if \(!isMountedRef\.current\) \{\s+return;\s+\}[\s\S]*?sendInFlightRef\.current = false;[\s\S]*?setIsStreaming\(false\);/,
 	);
+	assert.match(source, /const useFallbackGuide = shouldUseFallbackGuide\(errorMsg\);/);
+	assert.match(source, /content: buildFallbackGuide\(trimmed\)/);
+	assert.match(source, /retryQuestion: trimmed/);
+	assert.doesNotMatch(source, /const isApiKeyError =/);
 	assert.match(
 		source,
 		/sendInFlightRef\.current = false;\s+setIsStreaming\(false\);\s+shouldRestoreLauncherFocusRef\.current = true;\s+setIsOpen\(false\);/,
@@ -170,6 +191,12 @@ test("AI chat send action is disabled until a question is ready", () => {
 		source,
 		/if \(isMountedRef\.current && abortRef\.current === controller\) \{/,
 	);
+	assert.match(source, /const handleRetryQuestion = useCallback\(/);
+	assert.match(source, /setInput\(nextQuestion\);/);
+	assert.match(source, /focusElementSafely\(inputRef\.current\);/);
+	assert.match(source, /message\.retryQuestion && !isStreaming/);
+	assert.match(source, /aria-label="같은 질문을 입력창에 다시 넣기"/);
+	assert.match(source, /같은 질문 다시 보내기/);
 });
 
 test("AI chat route normalizes Gemini stream helper options before provider setup", () => {

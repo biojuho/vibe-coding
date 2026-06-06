@@ -151,7 +151,10 @@ test("handleAiChatRequest returns SSE for a valid authenticated request", async 
 	);
 
 	assert.equal(response.status, 200);
-	assert.match(response.headers.get("Content-Type"), /text\/event-stream/);
+	assert.match(
+		response.headers.get("Content-Type"),
+		/text\/event-stream; charset=utf-8/,
+	);
 	const output = await readStreamText(response.body);
 	assert.match(output, /hello:1:true/);
 	assert.match(output, /\[DONE\]/);
@@ -224,8 +227,8 @@ test("handleAiChatRequest normalizes malformed dependency input", async () => {
 
 		assert.equal(response.status, 500);
 		assert.equal(body.success, false);
-		assert.match(body.message, /AI/);
-		assert.match(body.message, /梨꾪똿/);
+		assert.match(body.message, /AI 채팅 설정이 올바르지 않습니다/);
+		assert.doesNotMatch(body.message, /梨꾪똿/);
 	}
 });
 
@@ -326,8 +329,19 @@ test("AI chat route farm context avoids English fallback copy", () => {
 		/\(\s*toFiniteNumber\(\s*sale\.price\s*\)\s*\/\s*10000\s*\)\s*\.\s*toFixed\(\s*0\s*,?\s*\)/,
 	);
 	assert.match(source, /Joolife AI 농장 비서/);
+	assert.match(source, /## 역할과 목표/);
+	assert.match(source, /## 답변 방식/);
+	assert.match(source, /## 안전과 한계/);
+	assert.match(source, /## 예시 형식/);
+	assert.match(source, /질문에 없는 개체명, 이력번호, 날짜, 수치, 진단명은 만들어내지 마세요/);
+	assert.match(source, /오늘 확인할 것/);
+	assert.match(source, /바로 할 일/);
+	assert.match(source, /다음에 확인할 정보:/);
+	assert.match(source, /치료제, 투약량, 확정 진단은 지시하지 말고/);
 	assert.match(source, /AI 농장 컨텍스트 구성 실패/);
 	assert.match(source, /현재 농장 정보/);
+	assert.match(source, /농장 정보 연결 상태: 실시간 조회 성공/);
+	assert.match(source, /농장 정보 연결 상태: 불러오기 실패/);
 	assert.match(source, /제공된 농장 정보를 근거로/);
 	assert.match(source, /정보가 없거나 불확실한 경우/);
 	assert.match(source, /확인이 필요하다고 명확히 말해 주세요/);

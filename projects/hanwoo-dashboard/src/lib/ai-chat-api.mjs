@@ -26,6 +26,15 @@ function isAuthenticationError(error) {
 	return error?.name === "AuthenticationError";
 }
 
+function normalizeProviderErrorMessage(error) {
+	const rawMessage = typeof error?.message === "string" ? error.message : "";
+	if (/api[_ -]?key|key/i.test(rawMessage)) {
+		return "AI 설정 키가 올바르지 않습니다.";
+	}
+
+	return "AI 답변을 생성하지 못했습니다.";
+}
+
 function normalizeAiChatStreamOptions(options) {
 	return options && typeof options === "object" && !Array.isArray(options)
 		? options
@@ -164,9 +173,7 @@ export function createAiChatSseStream(options = {}) {
 				controller.enqueue(encoder.encode("data: [DONE]\n\n"));
 				controller.close();
 			} catch (error) {
-				const message = error?.message?.includes("API_KEY")
-					? "AI 설정 키가 올바르지 않습니다."
-					: "AI 답변을 생성하지 못했습니다.";
+				const message = normalizeProviderErrorMessage(error);
 				controller.enqueue(
 					encoder.encode(`data: ${JSON.stringify({ error: message })}\n\n`),
 				);
@@ -180,7 +187,7 @@ export async function handleAiChatRequest(request, deps) {
 	const safeDeps = normalizeAiChatRequestDeps(deps);
 	if (!hasRequiredAiChatDeps(safeDeps)) {
 		return jsonError(
-			"AI 梨꾪똿 ?ㅼ젙???щ컮瑜댁? ?딆뒿?덈떎. 愿由ъ옄?먭쾶 臾몄쓽??二쇱꽭??",
+			"AI 채팅 설정이 올바르지 않습니다. 관리자에게 문의해 주세요.",
 			500,
 		);
 	}
@@ -231,7 +238,7 @@ export async function handleAiChatRequest(request, deps) {
 
 		return new Response(stream, {
 			headers: {
-				"Content-Type": "text/event-stream",
+				"Content-Type": "text/event-stream; charset=utf-8",
 				"Cache-Control": "no-cache",
 				Connection: "keep-alive",
 			},
