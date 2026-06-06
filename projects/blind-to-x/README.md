@@ -35,6 +35,9 @@ py -3 main.py --source auto --popular --review-only --limit 5
 py -3 main.py --source blind --popular --review-only --limit 5
 py -3 main.py --source multi --popular --review-only --limit 5
 
+# Source browser preflight before a multi-source run
+py -3 scripts/source_browser_probe.py --output .tmp/source_browser_probe.json --screenshot-dir screenshots/source_probe
+
 # 승인된 항목 재처리용 경로
 py -3 main.py --reprocess-approved --limit 5
 
