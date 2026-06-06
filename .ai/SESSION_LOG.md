@@ -1184,3 +1184,15 @@
 - Verification: focused Node tests passed `67/67`; `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed with Hanwoo tests `516/516`, lint, build, and smoke all green; `git diff --check` passed with CRLF warnings only; staged code-review gate returned advisory WARN `risk_score=0.40`, covered by focused/browser/project gates.
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp/ab-manifest-hanwoo-t1439.json --json` returned `adopt_candidate` with `score_delta=0.9476762080640198`.
 - Boundary: code commit `0a9a817c` is local only. No push was performed. T-251 was not retried.
+
+## 2026-06-07 - Codex
+
+- Closed T-1443 as a bounded `$auto-research` `hanwoo-dashboard` mobile Settings/diagnostics browser-click cycle.
+- Baseline browser QA: mobile authenticated `/` at 390px showed `.tab-bar { position: fixed }` was overridden by the later `.dashboard-container > * { position: relative; z-index: 1; }`, so the bottom tab bar rendered near `y=2970` instead of the first viewport. A normal Settings click did not activate the Settings tab, while forced Settings/diagnostics navigation surfaced React's `Received true for a non-boolean attribute glow` warning.
+- External/current research: checked official Material navigation bar guidance and Apple HIG tab bar guidance for persistent top-level destination navigation.
+- Changed `projects/hanwoo-dashboard/src/app/globals.css`: replaced `.dashboard-container > *` with `.dashboard-container > :not(.tab-bar)` so the dashboard stacking context no longer overrides the fixed mobile tab bar.
+- Changed `projects/hanwoo-dashboard/src/components/ui/premium-button.js`: destructures `glow: _glow` before `{...props}` so the visual-only prop is consumed and not forwarded to the DOM.
+- Changed tests: `src/lib/home-market-copy.test.mjs` locks the tab-bar stacking selector contract, and `src/lib/premium-button-semantics.test.mjs` locks the `glow` prop consumption contract.
+- Browser QA: candidate verified `.tab-bar` computed `position=fixed`, `zIndex=200`, `top=762.5`, `bottom=844`; normal Settings click activated `설정`; diagnostics link opened `http://127.0.0.1:3001/admin/diagnostics` authenticated with heading `시스템 상태 점검`; horizontal overflow was false; `badResponses=[]`; `unexpectedConsoleErrors=[]`; screenshot `output/playwright/hanwoo-t1443-settings-diagnostics-candidate.png`.
+- Verification: focused Node tests passed `56/56`; ESLint passed; `git diff --check` and staged `git diff --cached --check` passed with CRLF warnings only; Hanwoo project QC passed with `518` tests plus lint/build/smoke; code-review gate passed (`risk_score=0.0`); A/B decision `.agents/skills/auto-research/scripts/ab_decision.py .tmp/ab-manifest-hanwoo-t1443.json --json` returned `adopt_candidate` with `score_delta=0.7692307692307693`.
+- Boundary: code commit `8ac0beec` is local only. No push was performed. T-251 was not retried. Remaining release boundaries are explicit push authorization/user push plus current-head Actions, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E.
