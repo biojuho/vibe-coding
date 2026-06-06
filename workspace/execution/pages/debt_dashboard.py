@@ -63,6 +63,10 @@ def load_project_trend(project_name: str) -> list[dict]:
         return []
 
 
+def _render_line_chart(data) -> None:
+    st.line_chart(data, width="stretch")
+
+
 # ---------------------------------------------------------------------------
 # Main layout
 # ---------------------------------------------------------------------------
@@ -101,7 +105,7 @@ if trend:
         if not df.empty:
             df["date"] = pd.to_datetime(df["timestamp"]).dt.date
             chart_df = df[["date", "overall_tdr"]].set_index("date")
-            st.line_chart(chart_df, use_container_width=True)
+            _render_line_chart(chart_df)
     except ImportError:
         st.info("Install pandas for trend charts: pip install pandas")
 
@@ -206,10 +210,12 @@ if projects:
                 chart_cols = st.columns(2)
                 with chart_cols[0]:
                     st.markdown("**TDR %**")
-                    st.line_chart(df[["date", "tdr_percent"]].set_index("date"))
+                    tdr_chart = df[["date", "tdr_percent"]].set_index("date")
+                    _render_line_chart(tdr_chart)
                 with chart_cols[1]:
                     st.markdown("**Avg Debt Score**")
-                    st.line_chart(df[["date", "avg_score"]].set_index("date"))
+                    score_chart = df[["date", "avg_score"]].set_index("date")
+                    _render_line_chart(score_chart)
         except ImportError:
             pass
     else:
