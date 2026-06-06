@@ -17,6 +17,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from pipeline.draft_generator import TweetDraftGenerator  # noqa: E402
+from pipeline.draft_cache import DraftCache  # noqa: E402
 
 
 class FakeConfig:
@@ -159,6 +160,16 @@ def test_combined_score_handles_garbage_weight_config():
     assert breakdown["comment_weight"] == 0.5
 
 
+def test_quality_weight_clamps_bad_config():
+    too_low = _build_generator({"llm.best_of_n_quality_weight": -3.0})
+    too_high = _build_generator({"llm.best_of_n_quality_weight": 99.0})
+    garbage = _build_generator({"llm.best_of_n_quality_weight": "bad"})
+
+    assert too_low._best_of_n_quality_weight() == 0.0
+    assert too_high._best_of_n_quality_weight() == 1.0
+    assert garbage._best_of_n_quality_weight() == TweetDraftGenerator._DEFAULT_BEST_OF_N_QUALITY_WEIGHT
+
+
 def test_combined_score_picks_higher_combined_not_higher_avg():
     """이 테스트가 핵심: avg 가 살짝 낮지만 댓글 트리거가 훨씬 높은 후보가 이긴다."""
     gen = _build_generator()  # weight 0.5
@@ -242,6 +253,73 @@ def test_select_best_of_n_candidate_persists_comment_trigger_avg(monkeypatch):
     assert selected_drafts["id"] == "comment-winner"
     assert selected_drafts["_comment_trigger_avg"] == 8.5
     assert image_prompt == "image-b"
+
+
+def test_select_best_of_n_candidate_prefers_publishable_distinct_output(monkeypatch):
+    """A directly usable, less repetitive draft should beat a flashier near-duplicate."""
+    cache = DraftCache()
+    cache.clear()
+    repeated_text = "회의실 문 닫히자마자 다들 연봉 얘기를 멈췄다. 숫자보다 침묵이 더 오래 남았다."
+    cache.set("recent-repeat", {"twitter": repeated_text}, None)
+
+    gen = _build_generator({"llm.best_of_n_quality_weight": 0.35})
+
+    @dataclass
+    class FakeSelectionResult:
+        polished_drafts: dict[str, object]
+        avg_score: float
+        comment_trigger_scores: dict[str, float]
+
+    class FakeReviewer:
+        def __init__(self, config):
+            self.config = config
+
+        async def review_and_polish(self, drafts_dict, _post_data):
+            scores = {
+                "flashy-repeat": (9.5, {"twitter": 9.5}),
+                "usable-distinct": (8.0, {"twitter": 8.0}),
+            }
+            avg_score, comment_scores = scores[drafts_dict["id"]]
+            return FakeSelectionResult(
+                polished_drafts=drafts_dict,
+                avg_score=avg_score,
+                comment_trigger_scores=comment_scores,
+            )
+
+    monkeypatch.setattr("pipeline.editorial_reviewer.EditorialReviewer", FakeReviewer)
+
+    selected_drafts, image_prompt = asyncio.run(
+        gen._select_best_of_n_candidate(
+            [
+                (
+                    {
+                        "id": "flashy-repeat",
+                        "twitter": repeated_text,
+                        "_provider_used": "anthropic",
+                    },
+                    "image-repeat",
+                ),
+                (
+                    {
+                        "id": "usable-distinct",
+                        "twitter": "7년 차 동료가 회의 끝나고 한 말이 더 오래 남았다. 이직보다 먼저 확인할 건 연봉표가 아니라 협상 가능한 기준이었다.",
+                        "_provider_used": "anthropic",
+                    },
+                    "image-distinct",
+                ),
+            ],
+            {"title": "연봉 협상 이야기", "content": ""},
+            ["twitter"],
+        )
+    )
+
+    assert selected_drafts["id"] == "usable-distinct"
+    assert selected_drafts["_quality_gate_score"] >= 9.0
+    assert selected_drafts["_quality_gate_failures"] == 0
+    assert selected_drafts["_max_semantic_similarity"] < 0.70
+    assert selected_drafts["_best_of_n_selection_score"] > 8.0
+    assert image_prompt == "image-distinct"
+    cache.clear()
 
 
 def test_generate_drafts_single_candidate_caches_generated_result(monkeypatch):

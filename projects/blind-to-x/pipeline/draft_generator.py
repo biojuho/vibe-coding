@@ -9,6 +9,7 @@ from typing import Any
 
 import pipeline.draft_prompts as _draft_prompts_mod
 from pipeline.draft_cache import DraftCache
+from pipeline.draft_contract import iter_publishable_drafts
 from pipeline.draft_prompts import DraftPromptsMixin
 from pipeline.draft_prompts import _load_draft_rules as _load_draft_rules  # noqa: F401 — re-export for tests
 from pipeline.draft_providers import DEFAULT_PROVIDER_ORDER as DEFAULT_PROVIDER_ORDER  # noqa: F401 — re-export
@@ -211,6 +212,7 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
         raise RuntimeError(f"All providers failed to generate candidate: {error_text}")
 
     _DEFAULT_BEST_OF_N_COMMENT_WEIGHT = 0.5
+    _DEFAULT_BEST_OF_N_QUALITY_WEIGHT = 0.35
     _COMMENT_TRIGGER_PLATFORMS = ("twitter", "threads")
 
     def _best_of_n_comment_weight(self) -> float:
@@ -223,6 +225,23 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
             value = float(self.config.get("llm.best_of_n_comment_weight", self._DEFAULT_BEST_OF_N_COMMENT_WEIGHT))
         except (TypeError, ValueError):
             return self._DEFAULT_BEST_OF_N_COMMENT_WEIGHT
+        if value < 0.0:
+            return 0.0
+        if value > 1.0:
+            return 1.0
+        return value
+
+    def _best_of_n_quality_weight(self) -> float:
+        """Weight for deterministic publishability/novelty in Best-of-N selection.
+
+        EditorialReviewer scores whether a draft is good writing. The local
+        quality gate checks whether it is immediately usable: length, safety,
+        cliches, source-copying, and recent-draft similarity.
+        """
+        try:
+            value = float(self.config.get("llm.best_of_n_quality_weight", self._DEFAULT_BEST_OF_N_QUALITY_WEIGHT))
+        except (TypeError, ValueError):
+            return self._DEFAULT_BEST_OF_N_QUALITY_WEIGHT
         if value < 0.0:
             return 0.0
         if value > 1.0:
@@ -268,6 +287,64 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
         }
         return combined, breakdown
 
+    def _candidate_publishability_score(
+        self,
+        drafts_dict: dict[str, Any],
+        post_data: dict[str, Any],
+        output_formats: list[str] | None,
+    ) -> tuple[float, dict[str, float]]:
+        """Score how ready the candidate is for direct publishing.
+
+        Returns a 0-10 score so it can be blended with EditorialReviewer scores.
+        A candidate with hard gate failures is penalized more strongly than the
+        gate's raw 100-point score so Best-of-N prefers a slightly less flashy
+        but directly usable draft.
+        """
+        from pipeline.quality_gate import QualityGate
+
+        requested = {fmt.lower() for fmt in (output_formats or []) if isinstance(fmt, str)}
+        publishable = [
+            (platform, text)
+            for platform, text in iter_publishable_drafts(drafts_dict)
+            if not requested or platform.lower() in requested
+        ]
+        if not publishable:
+            return 10.0, {
+                "publishability_score": 10.0,
+                "quality_failures": 0.0,
+                "quality_warnings": 0.0,
+                "max_semantic_similarity": 0.0,
+            }
+
+        gate = QualityGate()
+        source_content = str((post_data or {}).get("content") or "")
+        scores: list[float] = []
+        failure_count = 0
+        warning_count = 0
+        max_similarity = 0.0
+
+        for platform, text in publishable:
+            result = gate.check(
+                text,
+                source_content=source_content,
+                platform=platform,
+                post_data=post_data,
+            )
+            failure_count += len(result.failures)
+            warning_count += len(result.warnings)
+            max_similarity = max(max_similarity, float(result.metrics.get("max_semantic_similarity", 0.0) or 0.0))
+            normalized = float(result.score) / 10.0
+            normalized -= min(6.0, len(result.failures) * 2.0 + len(result.warnings) * 0.5)
+            scores.append(max(0.0, normalized))
+
+        publishability_score = sum(scores) / len(scores)
+        return publishability_score, {
+            "publishability_score": publishability_score,
+            "quality_failures": float(failure_count),
+            "quality_warnings": float(warning_count),
+            "max_semantic_similarity": max_similarity,
+        }
+
     async def _generate_best_of_n_candidates(
         self,
         *,
@@ -301,17 +378,36 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
         best_combined = -1.0
         best_breakdown: dict[str, float] | None = None
         comment_weight = self._best_of_n_comment_weight()
+        quality_weight = self._best_of_n_quality_weight()
 
         for idx, (drafts_dict, image_prompt) in enumerate(candidates, start=1):
             result = await reviewer.review_and_polish(drafts_dict, post_data)
-            combined, breakdown = self._combined_candidate_score(result, output_formats, comment_weight=comment_weight)
+            editorial_score, breakdown = self._combined_candidate_score(
+                result,
+                output_formats,
+                comment_weight=comment_weight,
+            )
+            publishability_score, quality_breakdown = self._candidate_publishability_score(
+                result.polished_drafts,
+                post_data,
+                output_formats,
+            )
+            combined = editorial_score * (1.0 - quality_weight) + publishability_score * quality_weight
+            breakdown.update(quality_breakdown)
+            breakdown["editorial_combined"] = editorial_score
+            breakdown["quality_weight"] = quality_weight
+            breakdown["selection_score"] = combined
             logger.info(
-                "[Best-of-N] Candidate %d: combined=%.2f (avg=%.2f, ct_avg=%.2f, weight=%.2f)",
+                "[Best-of-N] Candidate %d: selection=%.2f (editorial=%.2f, publishability=%.2f, "
+                "avg=%.2f, ct_avg=%.2f, comment_w=%.2f, quality_w=%.2f)",
                 idx,
                 combined,
+                breakdown.get("editorial_combined", 0.0),
+                breakdown.get("publishability_score", 0.0),
                 breakdown.get("avg_score", 0.0),
                 breakdown.get("comment_trigger_avg", 0.0),
                 breakdown.get("comment_weight", 0.0),
+                breakdown.get("quality_weight", 0.0),
             )
             if combined > best_combined:
                 best_combined = combined
@@ -333,6 +429,15 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
         if isinstance(drafts_dict, dict):
             try:
                 drafts_dict["_comment_trigger_avg"] = float((best_breakdown or {}).get("comment_trigger_avg", 0.0))
+                drafts_dict["_quality_gate_score"] = float((best_breakdown or {}).get("publishability_score", 0.0))
+                drafts_dict["_quality_gate_failures"] = int((best_breakdown or {}).get("quality_failures", 0.0))
+                drafts_dict["_quality_gate_warnings"] = int((best_breakdown or {}).get("quality_warnings", 0.0))
+                drafts_dict["_max_semantic_similarity"] = float(
+                    (best_breakdown or {}).get("max_semantic_similarity", 0.0)
+                )
+                drafts_dict["_best_of_n_selection_score"] = float(
+                    (best_breakdown or {}).get("selection_score", best_combined)
+                )
             except (TypeError, ValueError):
                 pass
         return drafts_dict, image_prompt
