@@ -1,5 +1,5 @@
+/* eslint-disable @next/next/no-html-link-for-pages -- Dashboard recovery must use document navigation so auth proxy redirect fragments are preserved. */
 import { Compass } from "lucide-react";
-import Link from "next/link";
 
 export const metadata = {
 	title: "페이지를 찾을 수 없습니다 · Joolife",
@@ -30,14 +30,15 @@ export default function NotFound() {
 				</p>
 
 				<div className="status-actions">
-					<Link
+					{/* Use document navigation so the auth proxy owns protected redirects. */}
+					<a
 						href="/"
 						aria-label="대시보드로 돌아가기"
 						title="대시보드로 돌아가기"
 						className="login-submit status-submit-link"
 					>
 						대시보드로 돌아가기
-					</Link>
+					</a>
 				</div>
 			</section>
 		</main>

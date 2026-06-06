@@ -16,11 +16,21 @@ test("not-found page is a server component with a route home and title metadata"
 
 	assert.match(source, /export default function NotFound/);
 	assert.doesNotMatch(source, /["']use client["']/);
+	assert.doesNotMatch(source, /import Link from ["']next\/link["'];/);
 	assert.match(source, /export const metadata/);
 	assert.match(
 		source,
-		/<Link[\s\S]*?href="\/"[\s\S]*?aria-label="대시보드로 돌아가기"[\s\S]*?title="대시보드로 돌아가기"[\s\S]*?className="login-submit status-submit-link"/,
+		/Dashboard recovery must use document navigation so auth proxy redirect fragments are preserved\./,
 	);
+	assert.match(
+		source,
+		/Use document navigation so the auth proxy owns protected redirects\./,
+	);
+	assert.match(
+		source,
+		/<a[\s\S]*?href="\/"[\s\S]*?aria-label="대시보드로 돌아가기"[\s\S]*?title="대시보드로 돌아가기"[\s\S]*?className="login-submit status-submit-link"[\s\S]*?>[\s\S]*?대시보드로 돌아가기[\s\S]*?<\/a>/,
+	);
+	assert.doesNotMatch(source, /<Link[\s\S]*?href="\/"/);
 	assert.match(
 		source,
 		/<Compass size=\{26\} strokeWidth=\{2\.2\} aria-hidden="true" \/>/,
@@ -39,6 +49,11 @@ test("route error boundary is a client component exposing retry and home actions
 	const source = readSource("app/error.js");
 
 	assert.match(source, /^["']use client["'];/);
+	assert.doesNotMatch(source, /import Link from ["']next\/link["'];/);
+	assert.match(
+		source,
+		/Dashboard recovery must use document navigation so auth proxy redirect fragments are preserved\./,
+	);
 	assert.match(
 		source,
 		/function normalizeRouteErrorOptions\(options\) \{/,
@@ -67,8 +82,13 @@ test("route error boundary is a client component exposing retry and home actions
 	assert.doesNotMatch(source, /export default function RouteError\(\{ error, reset \}\)/);
 	assert.match(
 		source,
-		/<Link[\s\S]*?href="\/"[\s\S]*?aria-label="대시보드로 돌아가기"[\s\S]*?title="대시보드로 돌아가기"[\s\S]*?className="status-link"/,
+		/Use document navigation so the auth proxy owns protected redirects\./,
 	);
+	assert.match(
+		source,
+		/<a[\s\S]*?href="\/"[\s\S]*?aria-label="대시보드로 돌아가기"[\s\S]*?title="대시보드로 돌아가기"[\s\S]*?className="status-link"[\s\S]*?>[\s\S]*?대시보드로 돌아가기[\s\S]*?<\/a>/,
+	);
+	assert.doesNotMatch(source, /<Link[\s\S]*?href="\/"/);
 	assert.match(
 		source,
 		/<TriangleAlert size=\{26\} strokeWidth=\{2\.2\} aria-hidden="true" \/>/,

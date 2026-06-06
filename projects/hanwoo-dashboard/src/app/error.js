@@ -1,7 +1,7 @@
 "use client";
 
+/* eslint-disable @next/next/no-html-link-for-pages -- Dashboard recovery must use document navigation so auth proxy redirect fragments are preserved. */
 import { RotateCcw, TriangleAlert } from "lucide-react";
-import Link from "next/link";
 import { useEffect } from "react";
 
 function normalizeRouteErrorOptions(options) {
@@ -57,14 +57,15 @@ export default function RouteError(options = {}) {
 						<RotateCcw size={18} aria-hidden="true" />
 						{resetButtonLabel}
 					</button>
-					<Link
+					{/* Use document navigation so the auth proxy owns protected redirects. */}
+					<a
 						href="/"
 						aria-label="대시보드로 돌아가기"
 						title="대시보드로 돌아가기"
 						className="status-link"
 					>
 						대시보드로 돌아가기
-					</Link>
+					</a>
 				</div>
 			</section>
 		</main>
