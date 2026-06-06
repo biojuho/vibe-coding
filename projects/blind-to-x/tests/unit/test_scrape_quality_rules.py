@@ -8,6 +8,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import blind_scraper as bs  # noqa: E402
+from pipeline.scrape_integrity import DEFAULT_MIN_ARTICLE_CHARS  # noqa: E402
 
 
 class FakeConfig:
@@ -66,6 +67,23 @@ def test_scrape_quality_defaults_are_applied(tmp_path):
     assert abs(scraper.max_empty_field_ratio - 0.4) < 1e-9
     assert scraper.selector_timeout_ms == 5000
     assert scraper.direct_fallback_timeout_ms == 8000
+    assert scraper.integrity_check_enabled is True
+    assert scraper.min_article_chars == DEFAULT_MIN_ARTICLE_CHARS
+
+
+def test_assess_quality_exposes_integrity_failure_reason(tmp_path):
+    scraper = bs.BlindScraper(_build_config(tmp_path))
+
+    quality = scraper.assess_quality(
+        {
+            "title": "",
+            "content": "Access Denied. You do not have permission.",
+        }
+    )
+
+    assert quality["score"] == 0
+    assert quality["reasons"][0] == "scrape_blocked_page"
+    assert quality["integrity"]["failure_reason"] == "scrape_blocked_page"
 
 
 def test_calculate_run_metrics_quality_and_stage_counts():

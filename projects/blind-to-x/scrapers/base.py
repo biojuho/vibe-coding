@@ -18,6 +18,7 @@ except ImportError:
 from playwright_stealth import Stealth
 
 from config import ProxyManager
+from pipeline.scrape_integrity import DEFAULT_MIN_ARTICLE_CHARS, classify_scrape_integrity
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +95,8 @@ class BaseScraper:
         self.direct_fallback_timeout_ms = int(config.get("scrape_quality.direct_fallback_timeout_ms", 8000))
         self.save_failure_snapshot = bool(config.get("scrape_quality.save_failure_snapshot", True))
         self.failure_snapshot_dir = config.get("scrape_quality.failure_snapshot_dir", ".tmp/failures")
+        self.integrity_check_enabled = bool(config.get("scrape_quality.integrity_check_enabled", True))
+        self.min_article_chars = int(config.get("scrape_quality.min_article_chars", DEFAULT_MIN_ARTICLE_CHARS))
 
         # Feed fetch state
         self.last_feed_fetch_error = None
@@ -788,6 +791,13 @@ class BaseScraper:
         title = (post_data.get("title") or "").strip()
         content = (post_data.get("content") or "").strip()
         merged = f"{title}\n{content}".strip()
+        integrity = {"ok": True, "category": "article", "failure_reason": None, "matched": None}
+        if self.integrity_check_enabled:
+            integrity = classify_scrape_integrity(
+                title,
+                content,
+                min_article_chars=self.min_article_chars,
+            )
 
         metrics = {
             "content_length": len(content),
@@ -817,9 +827,14 @@ class BaseScraper:
         if metrics["empty_field_ratio"] > self.max_empty_field_ratio:
             score -= 20
             reasons.append("sparse_fields")
+        if not integrity.get("ok", True):
+            failure_reason = integrity.get("failure_reason") or "scrape_integrity_failed"
+            if failure_reason not in reasons:
+                reasons.insert(0, failure_reason)
+            score = 0 if integrity.get("category") == "blocked" else min(score, 25)
 
         score = max(0, min(100, int(score)))
-        return {"score": score, "reasons": reasons, "metrics": metrics}
+        return {"score": score, "reasons": reasons, "metrics": metrics, "integrity": integrity}
 
     # ── Crawl4AI LLM fallback ────────────────────────────────────────
     async def _extract_with_crawl4ai(self, url: str, html: str | None = None) -> dict | None:

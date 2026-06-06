@@ -73,6 +73,29 @@ async def test_quality_assessment_poor(mock_config):
 
 
 @pytest.mark.asyncio
+async def test_quality_assessment_marks_blocked_page_integrity(mock_config):
+    scraper = DummyScraper(mock_config)
+
+    result = scraper.assess_quality({"title": "", "content": "Access Denied. You do not have permission."})
+
+    assert result["score"] == 0
+    assert result["reasons"][0] == "scrape_blocked_page"
+    assert result["integrity"]["category"] == "blocked"
+
+
+@pytest.mark.asyncio
+async def test_quality_assessment_can_disable_integrity_policy(mock_config):
+    config = dict(mock_config)
+    config["scrape_quality.integrity_check_enabled"] = False
+    scraper = DummyScraper(config)
+
+    result = scraper.assess_quality({"title": "", "content": "Access Denied. You do not have permission."})
+
+    assert "scrape_blocked_page" not in result["reasons"]
+    assert result["integrity"]["ok"] is True
+
+
+@pytest.mark.asyncio
 async def test_suggest_selectors(mock_config):
     html = """
     <div class="post-content main-content">

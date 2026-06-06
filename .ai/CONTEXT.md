@@ -366,6 +366,8 @@
 
 ## Minefield
 
+- **`blind-to-x`**:
+  - **Ppomppu browser QA context**: Source preflight and manual click QA should share `scripts/source_browser_probe.py` context assumptions: `locale=ko-KR`, desktop viewport, and the configured desktop Chrome user agent. A vanilla Chromium context can return a false `403 Forbidden`/empty-anchor result on `https://www.ppomppu.co.kr/hot.php`, while the probe context loads the same page as HTTP `200` with readable HOT links.
 - **`hanwoo-dashboard`**:
   - **Next dev loopback QA**: Next 16 dev resources block cross-origin dev asset/HMR requests unless `allowedDevOrigins` includes the extra host. Hanwoo intentionally allows `127.0.0.1` in `next.config.mjs` so Codex/Playwright browser QA can use loopback without repeated `/_next/webpack-hmr` console errors. When testing protected Auth routes on a non-default port, align `NEXTAUTH_URL`/`AUTH_URL` with that port or use the default `3001`; otherwise the redirect may point at `localhost:3001`.
   - **소프트 삭제 계약**: 개체 삭제는 하드 딜리트가 아닌 소프트 아카이브(`isArchived`)로 동작합니다. 문구 및 기능 개발 시 파괴적인 '삭제' 대신 '보관 처리'를 일관되게 적용하십시오.

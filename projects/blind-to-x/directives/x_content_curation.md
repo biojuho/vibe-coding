@@ -105,3 +105,9 @@
 - **gh-projects-content-queue**: GitHub Issues = 포스트, 컬럼 = 워크플로우 단계 패턴
 - **n8n + Notion**: Notion을 콘텐츠 DB로, n8n을 자동화 백본으로 사용하는 패턴
 - **RSS-GPT**: 수집 → 중복제거 → AI 요약 → 배포 파이프라인 아키텍처
+
+## 9. Browser source QA note
+
+- Before a live run, use source preflight: `python main.py --source <source> --source-preflight --source-preflight-output .tmp/source_preflight_<task>.json --source-preflight-screenshot-dir screenshots/source_preflight_<task>`.
+- For manual click QA, reuse the same browser context assumptions as `scripts/source_browser_probe.py`: `locale=ko-KR`, desktop viewport, and the configured desktop Chrome user agent. A vanilla Chromium context can return false 403/empty results on Ppomppu.
+- If a page looks readable in source preflight but manual click QA fails, first compare context options before changing scraper selectors.
