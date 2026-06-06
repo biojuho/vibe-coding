@@ -1136,3 +1136,15 @@
 - External/current research: checked W3C WCAG 2.2 Understanding Language of Parts and used it as product/a11y rationale for keeping public legal page language cues consistent.
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-hanwoo-t1405.json --json` returned `adopt_candidate` with `score_delta=1.0`.
 - Boundary: code commit `0336fecf` is local only. No push was performed. T-251 was not retried. Remaining release boundaries are explicit push authorization/user push plus current-head Actions, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E.
+
+## 2026-06-07 - Codex
+
+- Closed T-1430 as a bounded `$auto-research` `hanwoo-dashboard` legal document return-affordance cycle.
+- Baseline browser QA: mobile `/terms?returnTo=login&callbackUrl=%2Fsubscription` had one legal return link, first link top `1632px`, first-viewport return affordance `false`, no horizontal overflow, and no replacement characters.
+- External/current research: GOV.UK Design System Back link guidance supports top-of-page back links that return users to the previous page state; W3C WCAG 2.2 Link Purpose guidance supports descriptive link text whose purpose is understandable in context.
+- Changed `projects/hanwoo-dashboard/src/components/layout/LegalDocumentLayout.js`: added a top `LegalReturnLink` under the document header inside `nav[aria-label="문서 상단 복귀"]` and converted the existing bottom wrapper to `nav[aria-label="문서 하단 복귀"]`.
+- Changed `projects/hanwoo-dashboard/src/lib/legal-pages-copy.test.mjs`: locked two `LegalReturnLink` instances, two Suspense fallbacks, and the top/bottom navigation labels.
+- Browser QA: candidate mobile page showed two return links, top link at `260px`, bottom link preserved, safe href `/login?callbackUrl=%2Fsubscription#login`, unsafe external callback downgraded to `/login`, top-link click returned to `/login?callbackUrl=%2Fsubscription#login`, no horizontal overflow, no replacement characters, console warnings/errors `0`, and screenshot `hanwoo-t1430-legal-top-return-candidate.png`.
+- Verification: `node --check` passed for the touched files; Hanwoo Node tests passed `512/512`; ESLint passed; path-limited diff-check passed with CRLF warnings only; Hanwoo project QC passed (`512 passed`, lint/build/smoke passed); staged code-review gate returned advisory WARN `risk_score=0.30` from graph test-gap heuristics, covered by source/browser/project gates.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-hanwoo-t1430.json --json` returned `adopt_candidate` with `score_delta=0.55`.
+- Boundary: code commit `21725a4e` is local only. No push was performed. T-251 was not retried. Remaining release boundaries are explicit push authorization/user push plus current-head Actions, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E.
