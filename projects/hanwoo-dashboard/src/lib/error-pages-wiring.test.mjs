@@ -302,6 +302,10 @@ test("login page recovers submit state when sign-in fails unexpectedly", () => {
 		/if \(submitInFlightRef\.current \|\| !canSubmit\) return;/,
 	);
 	assert.match(source, /submitInFlightRef\.current = true;/);
+	assert.match(
+		source,
+		/submitInFlightRef\.current = true;\s+setError\(""\);\s+setShowPassword\(false\);\s+setIsSubmitting\(true\);/,
+	);
 	assert.match(source, /setIsSubmitting\(true\);/);
 	assert.match(source, /try \{\s+const result = await signIn\(["']credentials["']/);
 	assert.match(

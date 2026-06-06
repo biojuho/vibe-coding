@@ -53,6 +53,7 @@ export default function LoginPage() {
 
 		submitInFlightRef.current = true;
 		setError("");
+		setShowPassword(false);
 		setIsSubmitting(true);
 
 		try {
