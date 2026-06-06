@@ -1060,3 +1060,14 @@
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1397.json --json` returned `adopt_candidate` with `score_delta=0.8333333333333334`.
 - Research: WHATWG HTML fragment processing selects an element whose ID equals the URL fragment and scrolls/focuses the indicated part, so the added `id="login"` completes the fragment contract.
 - Boundary: code commit `46f37d61` is local only. No push was performed. T-251 was not retried. Preserve unrelated blind-to-x T-1396 WIP outside T-1397.
+
+## 2026-06-06 - Codex
+
+- Closed T-1399 as a bounded `$auto-research` Cost Dashboard Plotly width API refresh for the shorts-maker-v2 cost monitoring workflow.
+- Research/current API check: official Streamlit docs and local Streamlit `1.54.0` expose `st.plotly_chart(..., width="stretch", ...)`; `use_container_width=True` is deprecated for Plotly charts.
+- Changed `workspace/execution/pages/cost_dashboard.py`: added `_render_plotly_chart()` and routed all 7 Plotly charts through `st.plotly_chart(fig, width="stretch")`, including blind-to-x and shorts-maker-v2 optional cost charts.
+- Added `workspace/tests/test_cost_dashboard.py`: fake Streamlit/import coverage for the helper contract plus a source guard against reintroducing deprecated Plotly width calls.
+- Browser QA: direct Streamlit/Playwright opened `http://127.0.0.1:8771`, clicked `Rerun` after the file change banner, verified Cost Dashboard sections through the shorts-maker-v2 cost block, saw browser console warnings/errors `0`, and captured nonblank `output/playwright/cost-dashboard-t1399-width-refresh.png`.
+- Verification: focused/related pytest passed `6/6`; Ruff check passed; Ruff format check passed; `py_compile` passed; `rg` found no `use_container_width=True` calls in `cost_dashboard.py`; path-limited diff-check passed with CRLF warnings only; rerun added no new Streamlit deprecation warnings; shorts-maker-v2 project QC passed (`1637 passed`, `12 skipped`, `29 warnings`, lint passed).
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1399.json --json` returned `adopt_candidate` with `score_delta=2.3333333333333335`.
+- Boundary: no push was performed. T-251 was not retried.

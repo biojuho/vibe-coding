@@ -59,6 +59,11 @@ _CHART_LAYOUT = dict(
 )
 _COLORS = ["#7c3aed", "#0ea5e9", "#f59e0b", "#10b981", "#f43f5e", "#8b5cf6", "#06b6d4"]
 
+
+def _render_plotly_chart(fig: object) -> None:
+    st.plotly_chart(fig, width="stretch")
+
+
 st.title("💰 Cost Dashboard")
 st.caption("LLM · TTS · Image — 전체 프로젝트 비용 통합 뷰")
 
@@ -161,7 +166,7 @@ with chart_col1:
             yaxis_title="USD",
             **_CHART_LAYOUT,
         )
-        st.plotly_chart(fig, use_container_width=True)
+        _render_plotly_chart(fig)
     else:
         st.info("월간 데이터가 아직 없습니다.")
 
@@ -192,7 +197,7 @@ with chart_col2:
             yaxis2=dict(title="호출 수", overlaying="y", side="right"),
             **_CHART_LAYOUT,
         )
-        st.plotly_chart(fig, use_container_width=True)
+        _render_plotly_chart(fig)
     else:
         st.info("일일 데이터가 아직 없습니다.")
 
@@ -212,7 +217,7 @@ with prov_col:
             color_discrete_sequence=_COLORS,
         )
         fig.update_layout(**_CHART_LAYOUT)
-        st.plotly_chart(fig, use_container_width=True)
+        _render_plotly_chart(fig)
 
         for p in providers:
             c1, c2, c3 = st.columns([3, 2, 2])
@@ -233,7 +238,7 @@ with model_col:
             color_discrete_sequence=_COLORS,
         )
         fig.update_layout(**_CHART_LAYOUT)
-        st.plotly_chart(fig, use_container_width=True)
+        _render_plotly_chart(fig)
 
         for m in models:
             c1, c2, c3 = st.columns([3, 2, 2])
@@ -257,7 +262,7 @@ if tasks:
         color_discrete_sequence=_COLORS,
     )
     fig.update_layout(xaxis_tickangle=-30, **_CHART_LAYOUT)
-    st.plotly_chart(fig, use_container_width=True)
+    _render_plotly_chart(fig)
 
     header = st.columns([4, 2, 2, 2])
     header[0].markdown("**스크립트**")
@@ -358,7 +363,7 @@ if _BTX_COST_DB:
             )
         )
         fig_btx.update_layout(barmode="stack", xaxis_title="날짜", yaxis_title="USD", **_CHART_LAYOUT)
-        st.plotly_chart(fig_btx, use_container_width=True)
+        _render_plotly_chart(fig_btx)
 else:
     st.info("BTX CostDB 로드 불가 — blind-to-x 파이프라인 실행 후 자동 연동됩니다.")
 
@@ -420,7 +425,7 @@ if _shorts_records:
             )
         )
         fig_shorts.update_layout(xaxis_title="날짜", yaxis_title="USD", **_CHART_LAYOUT)
-        st.plotly_chart(fig_shorts, use_container_width=True)
+        _render_plotly_chart(fig_shorts)
 else:
     st.info("shorts-maker-v2 비용 데이터 없음 — 영상 생성 후 자동 기록됩니다.")
 
