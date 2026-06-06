@@ -1014,3 +1014,15 @@
 - Code-review gate: staged gate returned advisory WARN `risk_score=0.40`, covered by focused tests, live click-through preflight, browser QA inventory, and full blind-to-x project QC.
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1393.json --json` returned `adopt_candidate` with `score_delta=1.7073170731707314`.
 - Boundary: no push was performed. T-251 was not retried. Preserve unrelated Hanwoo auth hash WIP outside T-1393.
+
+## 2026-06-06 - Codex
+
+- Closed T-1394 as a bounded `$auto-research` `hanwoo-dashboard` protected-route login fragment browser-QA cycle.
+- Browser baseline: `http://127.0.0.1:3001/admin/diagnostics?tab=health#db` reached `http://127.0.0.1:3001/login?callbackUrl=http%3A%2F%2F127.0.0.1%3A3001%2Fadmin%2Fdiagnostics%3Ftab%3Dhealth#db`, so the protected route hash polluted the login URL.
+- Research note: RFC 9110 redirect semantics say a 3xx `Location` without a fragment inherits the original request fragment; including an explicit fragment blocks that inheritance.
+- Changed `projects/hanwoo-dashboard/src/auth.js`: unauthenticated protected-route redirects now use `${loginUrl.href}#login`, preserving the safe same-origin callback while replacing inherited protected-route hashes with an owned login fragment.
+- Changed `projects/hanwoo-dashboard/src/lib/error-pages-wiring.test.mjs`: added source-contract coverage for the `#login` redirect target.
+- Browser QA: final URL ended at `http://127.0.0.1:3001/login?callbackUrl=http%3A%2F%2F127.0.0.1%3A3001%2Fadmin%2Fdiagnostics%3Ftab%3Dhealth#login`, console warnings/errors were `0`, and screenshot artifact is `output/playwright/hanwoo-t1394-fragment-cleared.png`.
+- Verification: manual header check returned `307` with `Location: /login?...#login`; focused Node tests passed `15/15`; ESLint passed; full Hanwoo `npm.cmd test` passed `510/510`; Hanwoo project QC passed test/lint/build/smoke; path-limited `git diff --check` passed with CRLF warnings only.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1394.json --json` returned `adopt_candidate` with `score_delta=1.2727272727272727`.
+- Commit closeout: `eec15103 fix(hanwoo): T-1394 clear inherited login fragments` is local only; no push was performed and T-251 was not retried. Preserve unrelated workspace Shorts Analytics WIP outside T-1394.
