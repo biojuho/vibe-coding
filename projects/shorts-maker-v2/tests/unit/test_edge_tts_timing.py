@@ -15,7 +15,9 @@ from shorts_maker_v2.providers.edge_tts_client import (
     _approximate_word_timings,
     _get_role_prosody,
     _run_coroutine,
+    _shift_saved_word_timings,
     _speed_to_rate,
+    _word_timing_from_boundary,
 )
 
 # ─── speed → rate 변환 ─────────────────────────────────────────────────────
@@ -234,6 +236,35 @@ def test_add_silence_padding_pydub_error(tmp_path: Path) -> None:
 
 
 # ─── _run_coroutine ─────────────────────────────────────────────────────
+
+
+def test_word_timing_from_boundary_rounds_edge_ticks() -> None:
+    result = _word_timing_from_boundary(
+        {
+            "type": "WordBoundary",
+            "text": "hello",
+            "offset": 1_234_567,
+            "duration": 2_345_678,
+        }
+    )
+
+    assert result == {"word": "hello", "start": 0.1235, "end": 0.358}
+
+
+def test_shift_saved_word_timings_offsets_existing_file(tmp_path: Path) -> None:
+    words_json = tmp_path / "words.json"
+    words_json.write_text(
+        json.dumps([{"word": "hello", "start": 0.1, "end": 0.4}], ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    _shift_saved_word_timings(words_json, offset_sec=0.05)
+
+    assert json.loads(words_json.read_text(encoding="utf-8")) == [{"word": "hello", "start": 0.15, "end": 0.45}]
+
+
+def test_shift_saved_word_timings_ignores_missing_file(tmp_path: Path) -> None:
+    _shift_saved_word_timings(tmp_path / "missing.json")
 
 
 def test_run_coroutine_normal() -> None:

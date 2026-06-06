@@ -236,6 +236,113 @@ def _add_silence_padding(audio_path: Path, pad_ms: int = 50) -> None:
         logger.debug("EdgeTTS: silence padding failed: %s", exc)
 
 
+_EDGE_TTS_PADDING_SECONDS = 0.05
+
+
+def _word_timing_from_boundary(chunk: dict[str, Any]) -> dict[str, Any]:
+    offset_sec = chunk["offset"] / 10_000_000
+    duration_sec = chunk["duration"] / 10_000_000
+    return {
+        "word": chunk["text"],
+        "start": round(offset_sec, 4),
+        "end": round(offset_sec + duration_sec, 4),
+    }
+
+
+async def _collect_edge_stream(communicate: Any) -> tuple[list[bytes], list[dict[str, Any]]]:
+    words: list[dict[str, Any]] = []
+    audio_chunks: list[bytes] = []
+
+    async for chunk in communicate.stream():
+        if chunk["type"] == "audio":
+            audio_chunks.append(chunk["data"])
+        elif chunk["type"] == "WordBoundary":
+            words.append(_word_timing_from_boundary(chunk))
+
+    return audio_chunks, words
+
+
+def _save_audio_chunks(output_path: Path, audio_chunks: list[bytes]) -> None:
+    with output_path.open("wb") as handle:
+        for data in audio_chunks:
+            handle.write(data)
+
+
+def _write_word_timings(words_json_path: Path, words: list[dict[str, Any]], log_template: str) -> None:
+    words_json_path.write_text(
+        json.dumps(words, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    logger.info(log_template, len(words), words_json_path)
+
+
+def _load_whisper_fallback_words(output_path: Path, language: str) -> list[dict[str, Any]]:
+    try:
+        from shorts_maker_v2.providers.whisper_aligner import (
+            is_whisper_available,
+            transcribe_to_word_timings,
+        )
+
+        if is_whisper_available():
+            logger.info("EdgeTTS: WordBoundary 없음 → faster-whisper fallback 시도")
+            return transcribe_to_word_timings(output_path, language=language) or []
+    except Exception as whisper_exc:
+        logger.debug("EdgeTTS: whisper_aligner 호출 실패 (%s) — 근사치로 진행", whisper_exc)
+
+    return []
+
+
+def _persist_fallback_word_timings(
+    text: str,
+    output_path: Path,
+    words_json_path: Path,
+    language: str,
+) -> None:
+    whisper_words = _load_whisper_fallback_words(output_path, language)
+    if whisper_words:
+        _write_word_timings(
+            words_json_path,
+            whisper_words,
+            "EdgeTTS: whisper word timings saved for %d words: %s",
+        )
+        return
+
+    approx = _approximate_word_timings(text, output_path)
+    if approx:
+        _write_word_timings(
+            words_json_path,
+            approx,
+            "EdgeTTS: approximate timings saved for %d words: %s",
+        )
+
+
+def _shift_saved_word_timings(
+    words_json_path: Path,
+    offset_sec: float = _EDGE_TTS_PADDING_SECONDS,
+) -> None:
+    if not words_json_path.exists():
+        return
+
+    try:
+        saved_words = json.loads(words_json_path.read_text(encoding="utf-8"))
+        for word_timing in saved_words:
+            word_timing["start"] = round(word_timing["start"] + offset_sec, 4)
+            word_timing["end"] = round(word_timing["end"] + offset_sec, 4)
+        words_json_path.write_text(
+            json.dumps(saved_words, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+    except Exception:
+        pass
+
+
+def _write_plain_tts_text(words_json_path: Path, text: str) -> None:
+    (words_json_path.parent / f"{words_json_path.stem}_ssml.txt").write_text(
+        text,
+        encoding="utf-8",
+    )
+
+
 # ── 비동기 TTS 생성 ──────────────────────────────────────────────────────────
 
 
@@ -265,95 +372,22 @@ async def _generate_async_with_timing(
     words_json_path.parent.mkdir(parents=True, exist_ok=True)
 
     communicate = edge_tts.Communicate(text, voice=voice, rate=rate, pitch=pitch)
-    words: list[dict] = []
-    audio_chunks: list[bytes] = []
-
-    async for chunk in communicate.stream():
-        if chunk["type"] == "audio":
-            audio_chunks.append(chunk["data"])
-        elif chunk["type"] == "WordBoundary":
-            offset_sec = chunk["offset"] / 10_000_000
-            duration_sec = chunk["duration"] / 10_000_000
-            words.append(
-                {
-                    "word": chunk["text"],
-                    "start": round(offset_sec, 4),
-                    "end": round(offset_sec + duration_sec, 4),
-                }
-            )
-
-    with output_path.open("wb") as handle:
-        for data in audio_chunks:
-            handle.write(data)
+    audio_chunks, words = await _collect_edge_stream(communicate)
+    _save_audio_chunks(output_path, audio_chunks)
 
     if words:
-        words_json_path.write_text(
-            json.dumps(words, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-        logger.info("EdgeTTS: %d word timings saved to %s", len(words), words_json_path)
+        _write_word_timings(words_json_path, words, "EdgeTTS: %d word timings saved to %s")
     else:
-        # 1순위 fallback: faster-whisper로 TTS 오디오 재분석 (정밀)
-        whisper_words: list[dict] = []
-        try:
-            from shorts_maker_v2.providers.whisper_aligner import (
-                is_whisper_available,
-                transcribe_to_word_timings,
-            )
-
-            if is_whisper_available():
-                logger.info("EdgeTTS: WordBoundary 없음 → faster-whisper fallback 시도")
-                whisper_words = transcribe_to_word_timings(output_path, language=language)
-        except Exception as _whisper_exc:
-            logger.debug("EdgeTTS: whisper_aligner 호출 실패 (%s) — 근사치로 진행", _whisper_exc)
-
-        if whisper_words:
-            words_json_path.write_text(
-                json.dumps(whisper_words, ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
-            logger.info(
-                "EdgeTTS: whisper word timings saved for %d words: %s",
-                len(whisper_words),
-                words_json_path,
-            )
-        else:
-            # 2순위 fallback: 음절 가중치 기반 근사치
-            approx = _approximate_word_timings(text, output_path)
-            if approx:
-                words_json_path.write_text(
-                    json.dumps(approx, ensure_ascii=False, indent=2),
-                    encoding="utf-8",
-                )
-                logger.info(
-                    "EdgeTTS: approximate timings saved for %d words: %s",
-                    len(approx),
-                    words_json_path,
-                )
+        _persist_fallback_word_timings(text, output_path, words_json_path, language)
 
     # silence padding 적용 (씬 전환 팝/클릭 방지)
     _add_silence_padding(output_path)
 
     # padding offset 적용: word timing을 0.05s 시프트 (앞 50ms 패딩)
-    _pad_sec = 0.05
-    if words_json_path.exists():
-        try:
-            _saved_words = json.loads(words_json_path.read_text(encoding="utf-8"))
-            for w in _saved_words:
-                w["start"] = round(w["start"] + _pad_sec, 4)
-                w["end"] = round(w["end"] + _pad_sec, 4)
-            words_json_path.write_text(
-                json.dumps(_saved_words, ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
-        except Exception:
-            pass
+    _shift_saved_word_timings(words_json_path)
 
     # plain text 저장 (이전 SSML 호환: render_step의 break 보정에 사용)
-    (words_json_path.parent / f"{words_json_path.stem}_ssml.txt").write_text(
-        text,
-        encoding="utf-8",
-    )
+    _write_plain_tts_text(words_json_path, text)
 
 
 def _run_coroutine(coro_factory) -> None:

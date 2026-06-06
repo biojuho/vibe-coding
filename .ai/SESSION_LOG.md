@@ -901,3 +901,14 @@
 - Code-review gate: staged gate returned advisory WARN `risk_score=0.30` for `FailContent/handleRetry` graph test-gap heuristics, covered by browser QA, source regression tests, and full Hanwoo project QC.
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1377.json --json` returned `adopt_candidate` with `score_delta=0.8`.
 - Boundary: no push was performed. T-251 was not retried. Remaining release blockers are explicit push authorization/user push plus current-head Actions, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E.
+
+## 2026-06-06 - Codex
+
+- Closed T-1378 as a bounded `$auto-research` `shorts-maker-v2` Edge TTS timing maintainability cycle.
+- Changed `projects/shorts-maker-v2/src/shorts_maker_v2/providers/edge_tts_client.py`: `_generate_async_with_timing()` now delegates Edge stream collection, WordBoundary tick conversion, audio chunk writes, whisper/approximate fallback timing persistence, padding offset shifting, and plain-text audit output to focused helpers while preserving `EdgeTTSClient` behavior.
+- Changed `projects/shorts-maker-v2/tests/unit/test_edge_tts_timing.py`: added direct helper coverage for WordBoundary tick rounding and saved word-timing offset handling.
+- Verification: `py_compile` passed; focused Edge TTS pytest passed `53/53`; related TTS provider pytest passed `78/78`; Ruff check passed; Ruff format check passed; path-limited diff-check passed; shorts-maker-v2 project QC passed with `1637 passed`, `12 skipped`, and lint passed.
+- VibeDebt proof: `edge_tts_client.py` score moved `35.3 -> 33.7`; `_generate_async_with_timing` length moved `102 -> 29`; focused Edge TTS tests moved `50 -> 53`.
+- Code-review gate: staged gate returned advisory WARN `risk_score=0.35` from graph test-gap heuristics, covered by focused Edge TTS tests, related TTS provider tests, and shorts-maker-v2 project QC.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1378.json --json` returned `adopt_candidate` with `score_delta=0.927004`.
+- Boundary: no push was performed. T-251 was not retried. Preserve unrelated current WIP outside T-1378 in blind-to-x and Hanwoo files. Remaining release blockers are explicit push authorization/user push plus current-head Actions, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E.
