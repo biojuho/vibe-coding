@@ -27,6 +27,8 @@ export default function NotificationModal(options = {}) {
 	const dialogRef = useRef(null);
 	const isMountedRef = useRef(false);
 	const [isTestingSMS, setIsTestingSMS] = useState(false);
+	const [smsTestStatus, setSmsTestStatus] = useState("");
+	const [smsTestStatusVariant, setSmsTestStatusVariant] = useState("success");
 	const visibleNotifications = normalizeModalNotifications(notifications);
 	const handleClose =
 		typeof onClose === "function" ? onClose : () => undefined;
@@ -36,6 +38,7 @@ export default function NotificationModal(options = {}) {
 	const smsTestButtonLabel = isTestingSMS
 		? "문자 알림 테스트 전송 중"
 		: "문자 알림 테스트 전송";
+	const smsTestStatusId = "notification-sms-test-status";
 	const notificationTimeFallback = "알림 시간 확인 불가";
 
 	useEffect(() => {
@@ -62,10 +65,23 @@ export default function NotificationModal(options = {}) {
 			return;
 		}
 
+		setSmsTestStatus("");
+		setSmsTestStatusVariant("success");
 		setIsTestingSMS(true);
 
 		try {
 			await Promise.resolve(onTestSMS?.());
+			if (isMountedRef.current) {
+				setSmsTestStatusVariant("success");
+				setSmsTestStatus("문자 알림 테스트 전송을 완료했습니다.");
+			}
+		} catch {
+			if (isMountedRef.current) {
+				setSmsTestStatusVariant("error");
+				setSmsTestStatus(
+					"문자 알림 테스트 전송 상태를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+				);
+			}
 		} finally {
 			if (isMountedRef.current) {
 				setIsTestingSMS(false);
@@ -284,6 +300,7 @@ export default function NotificationModal(options = {}) {
 							onClick={handleTestSMSClick}
 							disabled={isTestingSMS}
 							aria-busy={isTestingSMS}
+							aria-describedby={smsTestStatus ? smsTestStatusId : undefined}
 							aria-label={smsTestButtonLabel}
 							title={smsTestButtonLabel}
 							className="btn btn-primary"
@@ -297,6 +314,24 @@ export default function NotificationModal(options = {}) {
 						>
 							{isTestingSMS ? "문자 알림 테스트 전송 중..." : "문자 알림 테스트 전송"}
 						</button>
+					</div>
+					<div
+						id={smsTestStatusId}
+						role="status"
+						aria-live="polite"
+						aria-atomic="true"
+						style={{
+							minHeight: "18px",
+							fontSize: "12px",
+							color:
+								smsTestStatusVariant === "error"
+									? "var(--color-danger)"
+									: "var(--color-success)",
+							fontWeight: 700,
+							marginTop: "8px",
+						}}
+					>
+						{smsTestStatus}
 					</div>
 					<div
 						style={{

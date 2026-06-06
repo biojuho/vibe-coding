@@ -175,7 +175,7 @@ export function FeedbackProvider(options = {}) {
 		<FeedbackContext.Provider value={contextValue}>
 			{children}
 
-			<div className="pointer-events-none fixed inset-x-0 bottom-4 z-[70] flex justify-center px-4 sm:justify-end">
+			<div className="pointer-events-none fixed inset-x-0 bottom-4 z-[360] flex justify-center px-4 sm:justify-end">
 				<div className="flex w-full max-w-sm flex-col gap-3">
 					{toasts.map((toast) => {
 						const style = TOAST_STYLES[toast.variant] || TOAST_STYLES.info;

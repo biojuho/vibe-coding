@@ -135,6 +135,44 @@ test("notification modal SMS action uses safe button semantics and Korean copy",
 	assert.doesNotMatch(dashboardSource, /테스트 SMS를 발송했습니다/);
 });
 
+test("notification modal SMS test action announces completion status", () => {
+	const source = readSource("components/ui/NotificationModal.js");
+
+	assert.match(
+		source,
+		/const \[smsTestStatus, setSmsTestStatus\] = useState\(""\);/,
+	);
+	assert.match(
+		source,
+		/const \[smsTestStatusVariant, setSmsTestStatusVariant\] = useState\("success"\);/,
+	);
+	assert.match(
+		source,
+		/setSmsTestStatus\(""\);\s+setSmsTestStatusVariant\("success"\);\s+setIsTestingSMS\(true\);/,
+	);
+	assert.match(
+		source,
+		/await Promise\.resolve\(onTestSMS\?\.\(\)\);\s+if \(isMountedRef\.current\) \{\s+setSmsTestStatusVariant\("success"\);\s+setSmsTestStatus\(/,
+	);
+	assert.match(
+		source,
+		/\} catch \{\s+if \(isMountedRef\.current\) \{\s+setSmsTestStatusVariant\("error"\);\s+setSmsTestStatus\(/,
+	);
+	assert.match(
+		source,
+		/aria-describedby=\{smsTestStatus \? smsTestStatusId : undefined\}/,
+	);
+	assert.match(
+		source,
+		/id=\{smsTestStatusId\}[\s\S]*role="status"[\s\S]*aria-live="polite"[\s\S]*aria-atomic="true"/,
+	);
+	assert.match(
+		source,
+		/smsTestStatusVariant === "error"\s+\? "var\(--color-danger\)"\s+:\s+"var\(--color-success\)"/,
+	);
+	assert.doesNotMatch(source, /catch \(error\)/);
+});
+
 test("notification modal SMS test action waits for async sends before re-enabling", () => {
 	const source = readSource("components/ui/NotificationModal.js");
 
@@ -148,12 +186,29 @@ test("notification modal SMS test action waits for async sends before re-enablin
 	);
 	assert.match(
 		source,
+		/const \[smsTestStatus, setSmsTestStatus\] = useState\(["']["']\)/,
+	);
+	assert.match(
+		source,
+		/const smsTestStatusId = ["']notification-sms-test-status["'];/,
+	);
+	assert.match(
+		source,
 		/const handleClose =\s+typeof onClose === ["']function["'] \? onClose : \(\) => undefined;/,
 	);
 	assert.match(source, /const handleTestSMSClick = async \(\) => \{/);
 	assert.match(source, /if \(isTestingSMS\) \{\s+return;\s+\}/);
+	assert.match(source, /setSmsTestStatus\(["']["']\);/);
 	assert.match(source, /setIsTestingSMS\(true\);/);
 	assert.match(source, /await Promise\.resolve\(onTestSMS\?\.\(\)\);/);
+	assert.match(
+		source,
+		/setSmsTestStatus\(["']문자 알림 테스트 전송을 완료했습니다\.["']\);/,
+	);
+	assert.match(
+		source,
+		/setSmsTestStatus\(\s+["']문자 알림 테스트 전송 상태를 확인하지 못했습니다\. 잠시 후 다시 시도해 주세요\.["'],\s+\);/,
+	);
 	assert.match(source, /const isMountedRef = useRef\(false\);/);
 	assert.match(source, /isMountedRef\.current = true;/);
 	assert.match(source, /return \(\) => \{\s+isMountedRef\.current = false;/);
@@ -164,8 +219,17 @@ test("notification modal SMS test action waits for async sends before re-enablin
 	assert.doesNotMatch(source, /finally \{\s+setIsTestingSMS\(false\);/);
 	assert.match(source, /disabled=\{isTestingSMS\}/);
 	assert.match(source, /aria-busy=\{isTestingSMS\}/);
+	assert.match(
+		source,
+		/aria-describedby=\{smsTestStatus \? smsTestStatusId : undefined\}/,
+	);
 	assert.match(source, /aria-label=\{smsTestButtonLabel\}/);
 	assert.match(source, /title=\{smsTestButtonLabel\}/);
+	assert.match(
+		source,
+		/id=\{smsTestStatusId\}\s+role="status"\s+aria-live="polite"\s+aria-atomic="true"/,
+	);
+	assert.match(source, /\{smsTestStatus\}/);
 	assert.match(
 		source,
 		/onClick=\{\(\) => \{\s+if \(!isTestingSMS\) \{\s+handleClose\(\);\s+\}\s+\}\}/,
