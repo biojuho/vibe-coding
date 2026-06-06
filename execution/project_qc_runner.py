@@ -15,6 +15,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -24,6 +25,7 @@ from typing import Iterable
 REPO_ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_TAIL_CHARS = 4000
 PROJECT_QC_RUN_ID = f"{os.getpid()}-{time.time_ns()}"
+PROJECT_QC_HEARTBEAT_SECONDS = max(0, int(os.environ.get("PROJECT_QC_HEARTBEAT_SECONDS", "10")))
 DEFAULT_ARTIFACT_PATH = REPO_ROOT / ".tmp" / "project_qc_runner_latest.json"
 DEFAULT_PARTIAL_ARTIFACT_PATH = REPO_ROOT / ".tmp" / "project_qc_runner_partial_latest.json"
 READINESS_ARTIFACT_SCHEMA_VERSION = 3
@@ -64,11 +66,12 @@ PROJECTS: dict[str, ProjectChecks] = {
         checks=(
             CheckCommand(
                 id="test",
-                description="unit pytest with coverage addopts disabled and repo-local basetemp",
+                description="unit pytest with coverage disabled and repo-local basetemp",
                 command=(
                     "python",
                     "-m",
                     "pytest",
+                    "--no-cov",
                     "tests/unit",
                     "-q",
                     "--tb=short",
@@ -92,11 +95,12 @@ PROJECTS: dict[str, ProjectChecks] = {
         checks=(
             CheckCommand(
                 id="test",
-                description="unit and integration pytest with coverage addopts disabled and repo-local basetemp",
+                description="unit and integration pytest with coverage disabled and repo-local basetemp",
                 command=(
                     "python",
                     "-m",
                     "pytest",
+                    "--no-cov",
                     "tests/unit",
                     "tests/integration",
                     "-q",
@@ -257,6 +261,56 @@ def build_subprocess_env(item: PlanItem) -> dict[str, str]:
     return env
 
 
+def run_subprocess_capture(
+    command: tuple[str, ...],
+    *,
+    cwd: Path,
+    env: dict[str, str],
+    timeout: int,
+) -> subprocess.CompletedProcess[str]:
+    stdout_parts: list[str] = []
+    stderr_parts: list[str] = []
+    process = subprocess.Popen(
+        command,
+        cwd=cwd,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        bufsize=1,
+    )
+
+    stdout_thread = threading.Thread(target=_drain_stream, args=(process.stdout, stdout_parts), daemon=True)
+    stderr_thread = threading.Thread(target=_drain_stream, args=(process.stderr, stderr_parts), daemon=True)
+    stdout_thread.start()
+    stderr_thread.start()
+    try:
+        returncode = process.wait(timeout=timeout)
+    except subprocess.TimeoutExpired as exc:
+        process.kill()
+        returncode = process.wait()
+        stdout_thread.join(timeout=1)
+        stderr_thread.join(timeout=1)
+        raise subprocess.TimeoutExpired(command, timeout, "".join(stdout_parts), "".join(stderr_parts)) from exc
+
+    stdout_thread.join(timeout=1)
+    stderr_thread.join(timeout=1)
+    return subprocess.CompletedProcess(command, returncode, "".join(stdout_parts), "".join(stderr_parts))
+
+
+def _drain_stream(stream, output: list[str]) -> None:
+    if stream is None:
+        return
+    with stream:
+        while True:
+            chunk = stream.read(4096)
+            if not chunk:
+                break
+            output.append(chunk)
+
+
 def tail_text(text: str | None, limit: int = OUTPUT_TAIL_CHARS) -> str:
     if not text:
         return ""
@@ -281,15 +335,20 @@ def serialize_plan(plan: list[PlanItem]) -> list[dict[str, str]]:
 def run_item(item: PlanItem, timeout_seconds: int) -> dict[str, object]:
     started = time.monotonic()
     resolved_command = resolve_command(item.check.command, item.cwd)
+    heartbeat_stop = threading.Event()
+    heartbeat_thread: threading.Thread | None = None
+    if PROJECT_QC_HEARTBEAT_SECONDS:
+        heartbeat_thread = threading.Thread(
+            target=_emit_subprocess_heartbeat,
+            args=(heartbeat_stop, item),
+            daemon=True,
+        )
+        heartbeat_thread.start()
     try:
-        completed = subprocess.run(
+        completed = run_subprocess_capture(
             resolved_command,
             cwd=item.cwd,
             env=build_subprocess_env(item),
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
             timeout=timeout_seconds,
         )
         duration = time.monotonic() - started
@@ -331,6 +390,19 @@ def run_item(item: PlanItem, timeout_seconds: int) -> dict[str, object]:
             "stdout_tail": "",
             "stderr_tail": str(exc),
         }
+    finally:
+        heartbeat_stop.set()
+        if heartbeat_thread:
+            heartbeat_thread.join(timeout=1)
+
+
+def _emit_subprocess_heartbeat(stop: threading.Event, item: PlanItem) -> None:
+    while not stop.wait(PROJECT_QC_HEARTBEAT_SECONDS):
+        print(
+            f"[project-qc] {item.project}/{item.check.id} still running",
+            file=sys.stderr,
+            flush=True,
+        )
 
 
 def run_plan(plan: list[PlanItem], timeout_seconds: int, stop_on_failure: bool) -> list[dict[str, object]]:

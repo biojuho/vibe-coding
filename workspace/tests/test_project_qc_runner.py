@@ -69,7 +69,7 @@ def test_json_dry_run_prints_commands_without_executing() -> None:
     assert payload["status"] == "planned"
     assert payload["plan"][0]["project"] == "blind-to-x"
     assert "pytest" in payload["plan"][0]["command"]
-    assert "--no-cov" not in payload["plan"][0]["command"]
+    assert "--no-cov" in payload["plan"][0]["command"]
     assert "-o addopts=" in payload["plan"][0]["command"]
     assert "--basetemp" in payload["plan"][0]["command"]
     assert str(Path(".tmp") / "project-qc-temp" / "blind-to-x") in payload["plan"][0]["command"]
@@ -120,7 +120,7 @@ def test_run_plan_reports_subprocess_failures(monkeypatch) -> None:
     def fake_run(*args, **kwargs):
         return MODULE.subprocess.CompletedProcess(args[0], 1, stdout="failed stdout", stderr="failed stderr")
 
-    monkeypatch.setattr(MODULE.subprocess, "run", fake_run)
+    monkeypatch.setattr(MODULE, "run_subprocess_capture", fake_run)
 
     results = MODULE.run_plan(plan, timeout_seconds=5, stop_on_failure=False)
 
@@ -137,7 +137,7 @@ def test_pytest_checks_use_repo_local_temp(monkeypatch) -> None:
         captured["env"] = kwargs["env"]
         return MODULE.subprocess.CompletedProcess(args[0], 0, stdout="ok", stderr="")
 
-    monkeypatch.setattr(MODULE.subprocess, "run", fake_run)
+    monkeypatch.setattr(MODULE, "run_subprocess_capture", fake_run)
     monkeypatch.setattr(MODULE, "python_has_module", lambda python_path, module_name: True)
 
     results = MODULE.run_plan(plan, timeout_seconds=5, stop_on_failure=False)
@@ -153,7 +153,7 @@ def test_run_plan_reports_missing_executable(monkeypatch) -> None:
 
     monkeypatch.setattr(MODULE, "resolve_command", lambda command, cwd=None: command)
     monkeypatch.setattr(
-        MODULE.subprocess, "run", lambda *args, **kwargs: (_ for _ in ()).throw(FileNotFoundError("nope"))
+        MODULE, "run_subprocess_capture", lambda *args, **kwargs: (_ for _ in ()).throw(FileNotFoundError("nope"))
     )
 
     results = MODULE.run_plan(plan, timeout_seconds=5, stop_on_failure=False)

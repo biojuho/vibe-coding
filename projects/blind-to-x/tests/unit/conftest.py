@@ -25,6 +25,26 @@ if any(ord(c) > 127 for c in _os.path.expanduser("~")):
         pass
 
 
+EXTERNAL_API_ENV_VARS = (
+    "EXA_API_KEY",
+    "PERPLEXITY_API_KEY",
+    "GEMINI_API_KEY",
+    "GOOGLE_AI_API_KEY",
+    "GOOGLE_API_KEY",
+    "DEEPSEEK_API_KEY",
+    "GROQ_API_KEY",
+    "ZHIPUAI_API_KEY",
+    "OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "XAI_API_KEY",
+    "GROK_API_KEY",
+    "NOTION_API_KEY",
+    "NOTION_DATABASE_ID",
+    "TELEGRAM_BOT_TOKEN",
+    "SUPABASE_KEY",
+)
+
+
 @pytest.fixture(autouse=True)
 def _isolate_logging_handlers():
     """Windows + Python 3.14에서 logging.shutdown() 중 KeyboardInterrupt 방지.
@@ -64,15 +84,8 @@ def _block_external_api_keys(monkeypatch):
     실제 네트워크 호출이 발생해 테스트가 느려질 수 있다.
     이 픽스처로 모든 테스트에서 Fallback 경로(즉시 반환)를 강제한다.
     """
-    monkeypatch.delenv("EXA_API_KEY", raising=False)
-    monkeypatch.delenv("PERPLEXITY_API_KEY", raising=False)
-    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    monkeypatch.delenv("NOTION_API_KEY", raising=False)
-    monkeypatch.delenv("NOTION_DATABASE_ID", raising=False)
-    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
-    monkeypatch.delenv("SUPABASE_KEY", raising=False)
+    for env_name in EXTERNAL_API_ENV_VARS:
+        monkeypatch.delenv(env_name, raising=False)
     for env_name in tuple(_os.environ):
         if env_name.startswith("NOTION_PROP_"):
             monkeypatch.delenv(env_name, raising=False)

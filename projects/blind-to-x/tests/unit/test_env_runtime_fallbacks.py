@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 import config as config_module
 from pipeline import analytics_tracker as analytics_module
 from pipeline import image_generator as image_module
@@ -12,6 +14,17 @@ class DummyConfig:
 
     def get(self, key, default=None):
         return self.values.get(key, default)
+
+
+def test_unit_fixture_removes_llm_provider_env_aliases():
+    for env_name in (
+        "GOOGLE_AI_API_KEY",
+        "GOOGLE_API_KEY",
+        "DEEPSEEK_API_KEY",
+        "XAI_API_KEY",
+        "GROK_API_KEY",
+    ):
+        assert env_name not in os.environ
 
 
 def test_twitter_poster_uses_env_credentials(monkeypatch):
