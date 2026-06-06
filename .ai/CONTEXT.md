@@ -479,6 +479,7 @@
   - **Pytest 모의 오염**: Pytest 런타임에서 특정 테스트 모듈이 `sys.modules`에 MagicMock을 직접 주입하면 다른 테스트에 영향을 주므로, 반드시 setup/teardown 격리 또는 mock wrapper를 사용하십시오.
 - **Windows 실행 장벽**:
   - 파이썬 및 Node 프로세스 실행 시 Windows 환경에서는 쉘 실행 바이너리(`.cmd`, `.bat`) 확장자를 명시하거나 `PATHEXT`를 존중하도록 코딩하십시오.
+  - Knowledge Dashboard `npm.cmd run build` can transiently fail on this Windows workspace with `EBUSY: resource busy or locked, rmdir ...\.next\standalone\projects\knowledge-dashboard`. If full active-project QC fails only on that signature, first wait/retry direct `npm.cmd run build` and `npm.cmd run smoke` in `projects/knowledge-dashboard`; a successful direct retry means the canonical QC failure is a local file-lock boundary, not confirmed code breakage.
   - `Get-ChildItem -Recurse` 등을 수행할 때 존재하지 않는 디렉토리를 탐색하면 에러가 발생하므로, 탐색 전 타깃 존재 여부를 반드시 체크하십시오.
   - Windows의 CP949 인코딩 콘솔 한글 깨짐 현상이 있어도 실제 파일 및 데이터는 항상 UTF-8 클린하게 저장해야 합니다.
   - auto-research 증거 JSON처럼 PowerShell `Get-Content`로 다시 읽는 파일은 UTF-8 저장만으로 부족할 수 있습니다. 한글 프로필 경로가 포함되는 JSON은 `ensure_ascii=True` 등으로 ASCII-escape하여 기본 PowerShell 읽기에서도 `ConvertFrom-Json`이 깨지지 않게 하십시오.
