@@ -1,9 +1,11 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+_WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
+if str(_WORKSPACE_ROOT) not in sys.path:
+    sys.path.insert(0, str(_WORKSPACE_ROOT))
 
-import streamlit as st
+import streamlit as st  # noqa: E402
 
 try:
     import plotly.graph_objects as go
@@ -29,6 +31,11 @@ init_result_db()
 
 st.title("💰 Content ROI Dashboard")
 st.caption("콘텐츠 비용 vs 수익 분석 · 채널별 ROI · 손익분기점 시각화")
+
+
+def _render_plotly_chart(fig) -> None:
+    st.plotly_chart(fig, width="stretch")
+
 
 # ── RPM 설정 ──
 rpm = st.sidebar.number_input(
@@ -103,7 +110,7 @@ if channel_data:
             paper_bgcolor="rgba(0,0,0,0)",
             font_color="#e0e0e0",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        _render_plotly_chart(fig)
 
     st.divider()
 

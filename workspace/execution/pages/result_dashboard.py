@@ -71,13 +71,26 @@ COLORS = {
     "channels": ["#f472b6", "#38bdf8", "#facc15", "#4ade80", "#fb923c"],
 }
 
+
+def _stretch_button_kwargs() -> dict[str, str]:
+    return {"width": "stretch"}
+
+
+def _render_plotly_chart(fig) -> None:
+    st.plotly_chart(fig, width="stretch")
+
+
+def _render_dataframe(data) -> None:
+    st.dataframe(data, width="stretch", hide_index=True)
+
+
 # ===========================================================================
 # 사이드바: 통계 수집 + 요약
 # ===========================================================================
 with st.sidebar:
     st.header("⚙️ 도구")
 
-    if st.button("🔄 YouTube 통계 수집", use_container_width=True, type="primary"):
+    if st.button("🔄 YouTube 통계 수집", type="primary", **_stretch_button_kwargs()):
         with st.spinner("YouTube API에서 통계 수집 중..."):
             result = collect_youtube_stats()
         if "error" in result:
@@ -142,7 +155,7 @@ with tab_register:
             published_at = st.date_input("게시일")
             memo = st.text_area("메모", placeholder="선택 사항", height=68)
 
-        submitted = st.form_submit_button("📝 등록", type="primary", use_container_width=True)
+        submitted = st.form_submit_button("📝 등록", type="primary", **_stretch_button_kwargs())
 
         if submitted:
             if not url or not title:
@@ -227,7 +240,7 @@ with tab_overview:
                     color_discrete_sequence=[COLORS.get(p["platform"], "#888") for p in platform_data],
                 )
                 fig_pie.update_layout(**CHART_LAYOUT)
-                st.plotly_chart(fig_pie, use_container_width=True)
+                _render_plotly_chart(fig_pie)
 
             with col_bar:
                 fig_bar = go.Figure()
@@ -241,7 +254,7 @@ with tab_overview:
                     )
                 )
                 fig_bar.update_layout(title="플랫폼별 총 조회수", yaxis_title="조회수", **CHART_LAYOUT)
-                st.plotly_chart(fig_bar, use_container_width=True)
+                _render_plotly_chart(fig_bar)
 
         st.divider()
 
@@ -261,7 +274,7 @@ with tab_overview:
                 )
             )
             fig_ch.update_layout(title="채널별 평균 조회수", yaxis_title="평균 조회수", **CHART_LAYOUT)
-            st.plotly_chart(fig_ch, use_container_width=True)
+            _render_plotly_chart(fig_ch)
 
             # 채널 테이블
             ch_table = []
@@ -276,7 +289,7 @@ with tab_overview:
                         "총 좋아요": f"{c['total_likes']:,}",
                     }
                 )
-            st.dataframe(ch_table, use_container_width=True)
+            _render_dataframe(ch_table)
 
         st.divider()
 
@@ -415,7 +428,7 @@ with tab_detail:
                         )
                     )
                     fig_h.update_layout(**CHART_LAYOUT, height=200)
-                    st.plotly_chart(fig_h, use_container_width=True)
+                    _render_plotly_chart(fig_h)
 
                 # [QA 수정] 삭제 확인 절차 추가
                 confirm = st.checkbox("삭제 확인", key=f"confirm_del_{item['id']}")
@@ -452,7 +465,7 @@ with tab_trend:
                 )
             )
             fig_cnt.update_layout(**CHART_LAYOUT)
-            st.plotly_chart(fig_cnt, use_container_width=True)
+            _render_plotly_chart(fig_cnt)
 
         with col_views:
             st.subheader("일별 조회수")
@@ -468,7 +481,7 @@ with tab_trend:
                 )
             )
             fig_views.update_layout(**CHART_LAYOUT)
-            st.plotly_chart(fig_views, use_container_width=True)
+            _render_plotly_chart(fig_views)
 
         st.divider()
 
@@ -492,7 +505,7 @@ with tab_trend:
             )
         )
         fig_cum.update_layout(**CHART_LAYOUT, height=280)
-        st.plotly_chart(fig_cum, use_container_width=True)
+        _render_plotly_chart(fig_cum)
 
         # ── 성장률 ───────────────────────────────────────────
         if len(trend) >= 2:
