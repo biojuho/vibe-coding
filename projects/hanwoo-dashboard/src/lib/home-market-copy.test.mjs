@@ -480,12 +480,15 @@ test("home building navigation uses semantic buttons", () => {
 	const css = readSource("app/globals.css");
 
 	assert.match(source, /<button\s+type="button"\s+className="empty-state-cta/);
-	assert.match(source, /onClick=\{\(\) => handleTabChange\(["']settings["']\)\}/);
+	assert.match(
+		source,
+		/onClick=\{\(\) =>\s+handleQuickAction\(\{\s+id: ["']add-building["'],\s+targetTab: ["']settings["'],\s+\}\)\s+\}/,
+	);
 	assert.match(source, /첫 번째 축사를 추가해 주세요/);
 	assert.doesNotMatch(source, /첫 번째 축사를 추가해보세요/);
 	assert.match(
 		source,
-		/onClick=\{\(\) => handleTabChange\(["']settings["']\)\}[\s\S]*?aria-label="설정에서 첫 번째 축사를 추가해 주세요"[\s\S]*?title="설정에서 첫 번째 축사를 추가해 주세요"/,
+		/id: ["']add-building["'][\s\S]*?aria-label="설정에서 첫 번째 축사를 추가해 주세요"[\s\S]*?title="설정에서 첫 번째 축사를 추가해 주세요"/,
 	);
 	assert.doesNotMatch(source, /설정에서 첫 번째 축사 추가하기/);
 	assert.match(

@@ -2019,7 +2019,12 @@ export default function DashboardClient(options = {}) {
 								type="button"
 								className="empty-state-cta animate-fadeInUp block w-full"
 								style={{ animationDelay: "250ms" }}
-								onClick={() => handleTabChange("settings")}
+								onClick={() =>
+									handleQuickAction({
+										id: "add-building",
+										targetTab: "settings",
+									})
+								}
 								aria-label="설정에서 첫 번째 축사를 추가해 주세요"
 								title="설정에서 첫 번째 축사를 추가해 주세요"
 							>
