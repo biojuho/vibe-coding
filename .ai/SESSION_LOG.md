@@ -810,3 +810,11 @@
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1359.json --json` returned `adopt_candidate` with `score_delta=2.809954751131222`.
 - Commit closeout: `0a2fd4f1 refactor(blind-to-x): T-1359 split Notion payload builders` is local only; no push was performed.
 - Current boundary: after the relay/doc commit, regenerate exact-head full active-project QC and launch evidence. Product launch remains incomplete until explicit push authorization/user push plus current-head Actions, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
+
+## 2026-06-06 - Codex
+
+- Refreshed exact-head launch evidence after the T-1359 code/context/goal commits.
+- Current checked head is `c44791b0`; worktree is clean; `main` is ahead of `origin/main` by `206`; code-review graph is current.
+- Full active-project QC passed and rewrote `.tmp/project_qc_runner_latest.json`: total `3918 passed`, `21 skipped`; blind-to-x `1756 passed`, `9 skipped`; shorts-maker-v2 `1597 passed`, `12 skipped`; Hanwoo `504 passed`; Knowledge `61 passed`; lint/build/smoke gates passed where applicable.
+- Runtime proof: `product_readiness_score.py --json` reports score `96`, state `blocked`, local blockers `0`, publish blockers `1`, external blockers `1`; `release_authorization_packet.py --json` is `ready_for_authorization`; selector is `blocked_publish_only`; launch audit has complete coverage; completion audit is `incomplete` with `9/14` complete and 5 blocked issues.
+- Boundary: no local auto-research candidate remains. No push was performed. Product launch remains incomplete until explicit push authorization/user push plus current-head `root-quality-gate` and `active-project-matrix`, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
