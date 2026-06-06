@@ -1075,3 +1075,15 @@
 - Verification: focused/related pytest passed `6/6`; Ruff check passed; Ruff format check passed; `py_compile` passed; `rg` found no `use_container_width=True` calls in `cost_dashboard.py`; path-limited diff-check passed with CRLF warnings only; shorts-maker-v2 project QC passed (`1637 passed`, `12 skipped`, `29 warnings`, lint passed).
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1399.json --json` returned `adopt_candidate` with `score_delta=2.3333333333333335`.
 - Boundary: no push was performed. T-251 was not retried.
+
+## 2026-06-06 - Codex
+
+- Closed T-1403 as a bounded `$auto-research` Channel Growth Streamlit workflow repair and Plotly width refresh.
+- Research/current API check: official Streamlit docs for `st.plotly_chart` v1.56.0 expose `width="stretch"` and state that `use_container_width=True` is deprecated in favor of `width="stretch"`.
+- Baseline browser QA: direct Streamlit/Playwright on `http://127.0.0.1:8772` rendered only `Channel Growth 모듈을 불러올 수 없습니다: No module named 'execution.channel_growth_tracker'`.
+- Changed `workspace/execution/pages/channel_growth.py`: now inserts `Path(__file__).resolve().parents[2]` into `sys.path`, adds `_render_plotly_chart()`, and routes all 3 Plotly charts through `st.plotly_chart(fig, width="stretch")`.
+- Added `workspace/tests/test_channel_growth_page.py`: fake Streamlit/import coverage for the workspace-root contract, helper contract, and deprecated Plotly width source guard.
+- Browser QA: direct Playwright filled the Channel Growth form with probe channel `UCt1401ChannelGrowthProbe` / `T1401 Probe`, verified `3` Plotly charts rendered, browser console warnings/errors `0`, server warning/error/deprecated matches `0`, and captured nonblank `output/playwright/channel-growth-t1403-import-width-refresh.png`.
+- Verification: focused pytest passed `3/3`; related pytest passed `13/13`; width-related pytest passed `12/12`; Ruff check passed; Ruff format check passed; `py_compile` passed; `rg` found no `use_container_width=True` calls in `channel_growth.py`; path-limited diff-check passed; shorts-maker-v2 project QC passed (`1637 passed`, `12 skipped`, `29 warnings`, lint passed); staged code-review gate passed (`risk_score=0.0`).
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1403.json --json` returned `adopt_candidate` with `score_delta=1.6`.
+- Boundary: code commit `d7ba1ec2` is local only. No push was performed. T-251 was not retried.
