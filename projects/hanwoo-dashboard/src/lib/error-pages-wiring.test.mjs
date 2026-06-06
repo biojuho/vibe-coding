@@ -334,3 +334,44 @@ test("login page recovers submit state when sign-in fails unexpectedly", () => {
 		/disabled=\{!canSubmit\}[\s\S]*?aria-busy=\{isSubmitting\}[\s\S]*?aria-label=\{loginSubmitLabel\}[\s\S]*?title=\{loginSubmitLabel\}/,
 	);
 });
+
+test("auth proxy preserves request origin in protected-route callback urls", () => {
+	const source = readSource("auth.js");
+
+	assert.match(source, /import \{ NextResponse \} from ["']next\/server["'];/);
+	assert.match(source, /authorized\(\{ auth, request \}\) \{/);
+	assert.match(
+		source,
+		/if \(auth\?\.user\) \{\s+return true;\s+\}/,
+	);
+	assert.match(
+		source,
+		/function firstHeaderValue\(value\) \{\s+return value\?\.split\(["'],["']\)\[0\]\?\.trim\(\);/,
+	);
+	assert.match(
+		source,
+		/firstHeaderValue\(request\.headers\.get\(["']x-forwarded-proto["']\)\) \?\?\s+request\.nextUrl\.protocol\.replace\(/,
+	);
+	assert.match(
+		source,
+		/firstHeaderValue\(request\.headers\.get\(["']x-forwarded-host["']\)\) \?\?\s+firstHeaderValue\(request\.headers\.get\(["']host["']\)\)/,
+	);
+	assert.match(source, /return `\$\{protocol\}:\/\/\$\{host\}`;/);
+	assert.match(
+		source,
+		/function getRequestHref\(request, origin\) \{\s+return new URL\(`\$\{request\.nextUrl\.pathname\}\$\{request\.nextUrl\.search\}`, origin\)\s+\.href;/,
+	);
+	assert.match(source, /const requestOrigin = getRequestOrigin\(request\);/);
+	assert.match(
+		source,
+		/const loginUrl = new URL\(["']\/login["'], requestOrigin\);/,
+	);
+	assert.match(
+		source,
+		/loginUrl\.searchParams\.set\(\s+["']callbackUrl["'],\s+getRequestHref\(request, requestOrigin\),\s+\);/,
+	);
+	assert.match(source, /return NextResponse\.redirect\(loginUrl\);/);
+	assert.doesNotMatch(source, /callbackUrl["'], request\.nextUrl\.href/);
+	assert.doesNotMatch(source, /new URL\(["']\/login["'], request\.nextUrl\.origin\)/);
+	assert.doesNotMatch(source, /authorized\(\{ auth \}\) \{\s+return !!auth\?\.user;/);
+});

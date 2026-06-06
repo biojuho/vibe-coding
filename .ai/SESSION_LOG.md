@@ -954,3 +954,16 @@
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1386.json --json` returned `adopt_candidate` with `score_delta=9.0`.
 - Commit closeout: `a8c8ef1b refactor(blind-to-x): T-1386 guard performance weights` is local only; no push was performed and T-251 was not retried.
 - Boundary: preserve unrelated dirty Hanwoo login WIP plus workspace dashboard WIP outside T-1386. Remaining release blockers are explicit push authorization/user push plus current-head Actions, and external/user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E.
+
+## 2026-06-06 - Codex
+
+- Closed T-1389 as a bounded `$auto-research` `hanwoo-dashboard` protected-route callback-origin browser-QA cycle.
+- Browser baseline: `http://127.0.0.1:3001/subscription/success` redirected to `http://127.0.0.1:3001/login?callbackUrl=http%3A%2F%2Flocalhost%3A3001%2Fsubscription%2Fsuccess`, so the protected route returned to `localhost` instead of the request host.
+- Research: official Auth.js docs confirm `callbacks.authorized({ request, auth })` is invoked from middleware and may return a custom `NextResponse`; installed `next-auth` source showed `AUTH_URL`/`NEXTAUTH_URL` rewrites `request.nextUrl` origin before default callback URL construction.
+- Changed `projects/hanwoo-dashboard/src/auth.js`: unauthenticated protected routes now return an explicit login `NextResponse.redirect()` and reconstruct callback origin from `x-forwarded-proto`, `x-forwarded-host`, and `host` headers before setting `callbackUrl`.
+- Changed `projects/hanwoo-dashboard/src/lib/error-pages-wiring.test.mjs`: added source-contract coverage so the auth proxy cannot regress to `request.nextUrl.origin` or `request.nextUrl.href` callback construction.
+- Browser QA: candidate redirect kept `callbackHost=127.0.0.1:3001`, protected-route login redirect still worked, console warnings/errors were `0`, and screenshot artifact is `output/playwright/hanwoo-t1389-callback-origin.png`.
+- Verification: focused source test passed `13/13`; full Hanwoo `npm test` passed `508/508`; ESLint passed; Hanwoo project QC passed test/lint/build/smoke; path-limited diff-check passed with CRLF warnings only.
+- Code-review gate: `py -3.13 execution\code_review_gate.py --staged --json` returned advisory WARN `risk_score=0.50`, covered by focused/full tests and browser QA. The first `python execution\code_review_gate.py --staged --json` failed only because that interpreter could not import `code_review_graph`.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1389.json --json` returned `adopt_candidate` with `score_delta=0.7142857142857143`.
+- Boundary: no push was performed. T-251 was not retried. Preserve unrelated blind-to-x WIP outside T-1389 (`projects/blind-to-x/scrapers/base.py`, `projects/blind-to-x/tests/unit/test_scrape_quality_rules.py`, `projects/blind-to-x/tests/unit/test_scrapers_base.py`, and `projects/blind-to-x/.pytest-tmp-t1389-adjacent/`).
