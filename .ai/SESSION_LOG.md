@@ -1263,3 +1263,13 @@
 - Verification: focused cattle detail/form wiring tests passed `17/17`; direct `npm.cmd run build` passed; Hanwoo project QC passed (`521 passed`, lint/build/smoke passed); `git diff --check` passed with CRLF warnings only; staged and commit-time code-review gate returned advisory WARN `risk_score=0.40`, covered by focused/browser/project gates.
 - Minefield update: stop local `next dev` before Hanwoo project QC/build runs. The first QC attempt failed only because the browser QA dev server held `.next/dev/lock`; direct build and a rerun of project QC passed after stopping it.
 - Boundary: code commit `1a0a9869` is local only. No push was performed. T-251 was not retried. Remaining release boundaries are explicit push authorization/user push plus current-head Actions, and external/user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E.
+
+## 2026-06-07 - Codex
+
+- Closed T-1466 as a current-head full launch-gate refresh after T-1462/T-1463 and follow-up context/docs commits.
+- Full canonical active-project QC: `python execution/project_qc_runner.py --json --artifact .tmp/project_qc_runner_latest.json` passed at checked local HEAD `98a562ac`.
+- QC totals by project: Blind-to-X `1838 passed`, `9 skipped`, lint pass; Shorts Maker V2 `1640 passed`, `12 skipped`, `29 warnings`, lint pass; Hanwoo `525 passed`, lint/build/smoke pass; Knowledge `62 passed`, lint/build/smoke pass.
+- Readiness: `python execution/product_readiness_score.py --json` reported score `96`, state `blocked`, local blockers `0`, publish blockers `1`, external blockers `1`, agent blockers `0`, clean worktree, and no open PRs.
+- Graph/orientation: `py -3.13 -m code_review_graph update --repo . --skip-flows` refreshed the graph; `python execution/session_orient.py --json` confirmed graph current at `98a562ac`, clean worktree, and `main` ahead of `origin/main` by `508`.
+- Release/audit: release packet is `ready_for_authorization` with suggested `git push origin main`, but explicit authorization is required and current-head Actions are unavailable until push/user push. Launch objective audit local coverage is complete; completion audit remains `incomplete` with `9/14` complete and `5` blocked.
+- Boundary: no push was performed. T-251 was not retried. Remaining blockers are explicit push/current-head GitHub Actions (`root-quality-gate`, `active-project-matrix`) plus external/user-owned Hanwoo T-251 Supabase credential reset and live Prisma CRUD E2E.
