@@ -63,16 +63,30 @@ test("legal pages expose stable support channels without personal contact detail
 	assert.doesNotMatch(layoutSource, /홈으로 돌아가기/);
 
 	assert.match(returnLinkSource, /"use client";/);
+	assert.match(
+		returnLinkSource,
+		/Dashboard legal return must use document navigation so auth proxy redirect fragments are preserved\./,
+	);
 	assert.match(returnLinkSource, /import \{ useSearchParams \} from ["']next\/navigation["'];/);
 	assert.match(
 		returnLinkSource,
-		/dashboard:\s*\{\s*href: "\/",\s*label: "대시보드로 돌아가기"/,
+		/dashboard:\s*\{\s*href: "\/",[\s\S]*?label: "대시보드로 돌아가기"/,
 	);
+	assert.match(returnLinkSource, /requiresDocumentNavigation: true/);
 	assert.match(
 		returnLinkSource,
 		/login:\s*\{\s*href: "\/login",\s*label: "로그인 화면으로 돌아가기"/,
 	);
 	assert.match(returnLinkSource, /returnTo === "dashboard"/);
+	assert.match(
+		returnLinkSource,
+		/function LegalReturnAnchor\(\{ href, label, requiresDocumentNavigation = false \}\) \{/,
+	);
+	assert.match(returnLinkSource, /if \(requiresDocumentNavigation\) \{/);
+	assert.match(
+		returnLinkSource,
+		/<a[\s\S]*?href=\{href\}[\s\S]*?aria-label=\{label\}[\s\S]*?title=\{label\}[\s\S]*?className="clay-pressable/,
+	);
 	assert.match(returnLinkSource, /export function LegalReturnLinkFallback\(\)/);
 	assert.match(returnLinkSource, /const searchParams = useSearchParams\(\);/);
 	assert.match(

@@ -7,6 +7,7 @@ import { useSearchParams } from "next/navigation";
 const LEGAL_RETURN_TARGETS = {
 	dashboard: {
 		href: "/",
+		requiresDocumentNavigation: true,
 		label: "대시보드로 돌아가기",
 	},
 	login: {
@@ -22,7 +23,22 @@ function resolveLegalReturnTarget(searchParams) {
 		: LEGAL_RETURN_TARGETS.login;
 }
 
-function LegalReturnAnchor({ href, label }) {
+function LegalReturnAnchor({ href, label, requiresDocumentNavigation = false }) {
+	if (requiresDocumentNavigation) {
+		// Dashboard legal return must use document navigation so auth proxy redirect fragments are preserved.
+		return (
+			<a
+				href={href}
+				aria-label={label}
+				title={label}
+				className="clay-pressable inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-[color:var(--color-text)] no-underline"
+			>
+				<ArrowLeft className="h-4 w-4" aria-hidden="true" />
+				{label}
+			</a>
+		);
+	}
+
 	return (
 		<Link
 			href={href}
