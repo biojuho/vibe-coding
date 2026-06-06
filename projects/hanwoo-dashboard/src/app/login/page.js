@@ -35,6 +35,8 @@ export default function LoginPage() {
 				: "한우 대시보드 열기";
 	const passwordToggleLabel = showPassword ? "비밀번호 숨기기" : "비밀번호 보기";
 	const loginErrorId = "login-error-message";
+	const usernameInputId = "login-username";
+	const passwordInputId = "login-password";
 	const isMountedRef = useRef(false);
 
 	useEffect(() => {
@@ -127,8 +129,10 @@ export default function LoginPage() {
 				</div>
 
 				<form className="login-form" onSubmit={handleSubmit}>
-					<label className="login-field">
-						<span className="login-label">아이디</span>
+					<div className="login-field">
+						<label className="login-label" htmlFor={usernameInputId}>
+							아이디
+						</label>
 						<span className="login-input-wrap">
 							<UserRound
 								className="login-input-icon"
@@ -136,21 +140,26 @@ export default function LoginPage() {
 								aria-hidden="true"
 							/>
 							<input
+								id={usernameInputId}
+								name="username"
 								type="text"
 								value={username}
 								onChange={(event) => setUsername(event.target.value)}
 								autoComplete="username"
 								inputMode="text"
 								placeholder="관리자 아이디"
+								aria-label="아이디"
 								aria-invalid={Boolean(error)}
 								aria-describedby={error ? loginErrorId : undefined}
 								className="login-input"
 							/>
 						</span>
-					</label>
+					</div>
 
-					<label className="login-field">
-						<span className="login-label">비밀번호</span>
+					<div className="login-field">
+						<label className="login-label" htmlFor={passwordInputId}>
+							비밀번호
+						</label>
 						<span className="login-input-wrap">
 							<LockKeyhole
 								className="login-input-icon"
@@ -158,11 +167,14 @@ export default function LoginPage() {
 								aria-hidden="true"
 							/>
 							<input
+								id={passwordInputId}
+								name="password"
 								type={showPassword ? "text" : "password"}
 								value={password}
 								onChange={(event) => setPassword(event.target.value)}
 								autoComplete="current-password"
 								placeholder="비밀번호"
+								aria-label="비밀번호"
 								aria-invalid={Boolean(error)}
 								aria-describedby={error ? loginErrorId : undefined}
 								className="login-input login-input-password"
@@ -181,7 +193,7 @@ export default function LoginPage() {
 								)}
 							</button>
 						</span>
-					</label>
+					</div>
 
 					{error ? (
 						<div id={loginErrorId} className="login-error" role="alert">

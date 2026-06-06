@@ -5,6 +5,7 @@ const enablePWA = process.env.NEXT_ENABLE_PWA === "1";
 /** @type {import('next').NextConfig} */
 const nextConfig = {
 	reactStrictMode: true,
+	allowedDevOrigins: ["127.0.0.1"],
 	serverExternalPackages: ["bcrypt", "@prisma/adapter-pg"],
 	cacheComponents: true,
 	experimental: {

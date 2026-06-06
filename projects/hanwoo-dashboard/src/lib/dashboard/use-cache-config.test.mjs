@@ -27,6 +27,18 @@ describe("use cache — configuration", () => {
 			"cacheComponents must be enabled in next.config.mjs",
 		);
 	});
+
+	it("next.config.mjs allows 127.0.0.1 dev browser QA origin", () => {
+		const configContent = readFileSync(
+			resolve(ROOT, "next.config.mjs"),
+			"utf-8",
+		);
+		assert.match(
+			configContent,
+			/allowedDevOrigins:\s*\[\s*["']127\.0\.0\.1["']\s*\]/,
+			"Next dev server should accept Playwright QA sessions opened through 127.0.0.1",
+		);
+	});
 });
 
 describe("use cache — cached-queries module", () => {

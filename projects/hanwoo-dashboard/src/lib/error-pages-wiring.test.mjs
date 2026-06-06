@@ -238,6 +238,30 @@ test("login page links authentication errors to both credential fields", () => {
 	);
 });
 
+test("login credential fields expose stable labels and automation selectors", () => {
+	const source = readSource("app/login/page.js");
+
+	assert.match(source, /const usernameInputId = ["']login-username["']/);
+	assert.match(source, /const passwordInputId = ["']login-password["']/);
+	assert.match(
+		source,
+		/<label className="login-label" htmlFor=\{usernameInputId\}>[\s\S]*?아이디[\s\S]*?<\/label>/,
+	);
+	assert.match(
+		source,
+		/<label className="login-label" htmlFor=\{passwordInputId\}>[\s\S]*?비밀번호[\s\S]*?<\/label>/,
+	);
+	assert.match(
+		source,
+		/<input[\s\S]*?id=\{usernameInputId\}[\s\S]*?name="username"[\s\S]*?aria-label="아이디"/,
+	);
+	assert.match(
+		source,
+		/<input[\s\S]*?id=\{passwordInputId\}[\s\S]*?name="password"[\s\S]*?aria-label="비밀번호"/,
+	);
+	assert.doesNotMatch(source, /<label className="login-field">/);
+});
+
 test("login password visibility toggle exposes matching accessible and title copy", () => {
 	const source = readSource("app/login/page.js");
 
