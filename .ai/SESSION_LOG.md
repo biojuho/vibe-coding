@@ -979,3 +979,14 @@
 - Research note: official Playwright docs confirm browser context emulation for user agent, viewport, and locale; this supports keeping source preflight and manual click QA on the same context assumptions.
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1390.json --json` returned `adopt_candidate` with `score_delta=2.0225563909774436`.
 - Boundary: no push was performed. T-251 was not retried. Remaining release blockers are explicit push authorization/user push plus current-head Actions, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E.
+
+## 2026-06-06 - Codex
+
+- Closed T-1391 as a bounded `$auto-research` `hanwoo-dashboard` login callback target browser-QA cycle.
+- Changed `projects/hanwoo-dashboard/src/lib/login-redirect.mjs`: added `getSafeLoginRedirectTarget()` so login success redirects resolve `callbackUrl` against the current origin, accept only same-origin non-login/non-internal paths, preserve query/hash, and fall back to `/` for unsafe or malformed values.
+- Changed `projects/hanwoo-dashboard/src/app/login/page.js`: successful credential sign-in now pushes the sanitized callback target instead of always returning to `/`.
+- Added/updated `projects/hanwoo-dashboard/src/lib/login-redirect.test.mjs` and `projects/hanwoo-dashboard/src/lib/error-pages-wiring.test.mjs`: locked same-origin absolute callbacks, relative callbacks with query/hash, external/login/internal/malformed fallbacks, and login-page source wiring.
+- Browser QA: `/subscription/success` redirected to login with `callbackUrl=http://127.0.0.1:3001/subscription/success`; invalid-login recovery kept that callback intact, showed the Korean invalid-credential alert, left the submit button enabled, and console warnings/errors were `0`. Screenshot artifact: `output/playwright/hanwoo-t1391-login-callback-failure.png`.
+- Verification: focused Node tests passed `15/15`; ESLint passed; full Hanwoo `npm.cmd test` passed `510/510`; Hanwoo project QC passed test/lint/build/smoke; `git diff --check` passed; staged code-review gate returned advisory WARN `risk_score=0.50`, covered by focused/full/browser/project tests.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1391.json --json` returned `adopt_candidate` with `score_delta=0.7142857142857143`.
+- Commit closeout: `702f85a3 fix(hanwoo): T-1391 honor login callback target` is local only; no push was performed and T-251 was not retried. Preserve unrelated shorts-manager WIP outside T-1391.
