@@ -1159,6 +1159,17 @@
 
 ## 2026-06-07 - Codex
 
+- Closed T-1440 as a bounded `$auto-research` `blind-to-x` ready-source preflight warning cycle.
+- Baseline browser proof: all-source Playwright click-through preflight had `ready_count=2`, `problem_count=2`, `ready_sources=["jobplanet","ppomppu"]`, and `recommended_source=ppomppu`; Ppomppu clicked through successfully but carried a console `424 Failed Dependency` resource error that was only visible in the per-result details.
+- Changed `projects/blind-to-x/scripts/source_browser_probe.py`: `_build_summary()` now emits `summary.ready_warning_count` and `summary.ready_warnings` for ready sources with console/page errors while preserving ready/problem classification, `ok`, and recommended-source behavior.
+- Changed `projects/blind-to-x/tests/unit/test_source_browser_probe.py`: added regression coverage that ready-source warnings do not block a usable source or change the recommendation.
+- Candidate live preflight: `.tmp/t1440-source-preflight-candidate.json` reports `ready_warning_count=1` for Ppomppu, `ready_count=2`, `problem_count=2`, and `recommended_source=ppomppu`; screenshots are under `projects/blind-to-x/screenshots/t1440-source-preflight-candidate/`.
+- Verification: focused source-browser tests passed `28/28`; related source/main tests passed `66/66`; `py_compile` passed; Ruff check/format passed; blind-to-x project QC passed (`1829 passed`, `9 skipped`, lint passed); `git diff --check` passed with CRLF warnings only; code-review gate returned advisory WARN `risk_score=0.35`, covered by focused/live/project gates.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp/ab-manifest-blind-t1440.json --json` returned `adopt_candidate` with `score_delta=0.42857142857142855`.
+- Boundary: code commit `736e548b` is local only. No push was performed. T-251 was not retried. Remaining release boundaries are explicit push authorization/user push plus current-head Actions, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E.
+
+## 2026-06-07 - Codex
+
 - Closed T-1439 as a bounded `$auto-research` `hanwoo-dashboard` authenticated home DB-degraded-shell cycle.
 - Baseline browser QA: authenticated `/` at 390px hit the known external Supabase credential signature (`DriverAdapterError: (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`) and rendered only the generic error boundary. Header controls and the 8-item bottom tab bar also contributed mobile horizontal overflow, and field-mode entry attempted an extra `/api/dashboard/cattle?limit=100` request that returned 500.
 - External/current research: official Next.js App Router error-handling docs distinguish expected errors from uncaught exceptions; official redirect docs note redirect throws internally, so the candidate preserves redirect/notFound control-flow instead of converting those to data fallbacks.
