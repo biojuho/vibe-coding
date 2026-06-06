@@ -12,7 +12,29 @@ def generate_dashboard(logs_dir: str | Path, output_file: str | Path = "dashboar
     # costs.jsonl + 개별 job .jsonl 모두 스캔
     jsonl_files = sorted(logs_dir.glob("*.jsonl"))
     if not jsonl_files:
-        html = "<html><body><h1>데이터가 없습니다.</h1><p>.jsonl 파일을 찾을 수 없습니다.</p></body></html>"
+        html = """<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="data:,">
+    <title>Shorts Maker V2 Dashboard</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; background: #f8f9fa; color: #1f2933; }
+        main { width: min(1120px, calc(100% - 32px)); margin: 32px auto; }
+        .empty { background: white; border-radius: 8px; border: 1px solid #dde3ea; padding: 24px; }
+    </style>
+</head>
+<body>
+    <main>
+        <section class="empty" aria-labelledby="dashboard-title">
+            <h1 id="dashboard-title">데이터가 없습니다.</h1>
+            <p>.jsonl 파일을 찾을 수 없습니다.</p>
+        </section>
+    </main>
+</body>
+</html>"""
         out_path.write_text(html, encoding="utf-8")
         return out_path
 
@@ -107,24 +129,36 @@ def generate_dashboard(logs_dir: str | Path, output_file: str | Path = "dashboar
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="data:,">
     <title>Shorts Maker V2 Dashboard</title>
     <style>
-        body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 2rem; background: #f8f9fa; color: #333; }}
+        * {{ box-sizing: border-box; }}
+        body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; background: #f8f9fa; color: #1f2933; }}
+        main {{ width: min(1120px, calc(100% - 32px)); margin: 32px auto; }}
         h1 {{ border-bottom: 2px solid #ddd; padding-bottom: 0.5rem; }}
-        .summary {{ display: flex; gap: 1rem; margin-bottom: 2rem; }}
-        .card {{ background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); flex: 1; text-align: center; }}
+        .summary {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 2rem; }}
+        .card {{ background: white; padding: 1.5rem; border-radius: 8px; border: 1px solid #dde3ea; box-shadow: 0 2px 4px rgba(0,0,0,0.08); text-align: center; min-width: 0; }}
         .card h2 {{ font-size: 1rem; color: #666; margin: 0 0 0.5rem 0; }}
         .card .value {{ font-size: 2rem; font-weight: bold; margin: 0; }}
         .fail-rate {{ color: {"red" if fail_rate > 10 else "green"}; }}
-        table {{ width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; }}
+        .table-wrap {{ width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; background: white; border: 1px solid #dde3ea; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); }}
+        table {{ width: 100%; min-width: 620px; border-collapse: collapse; background: white; }}
         th, td {{ padding: 1rem; text-align: left; border-bottom: 1px solid #ddd; }}
         th {{ background: #f1f3f5; font-weight: bold; }}
         tr:last-child td {{ border-bottom: none; }}
+        @media (max-width: 520px) {{
+            main {{ width: min(100% - 24px, 1120px); margin: 24px auto; }}
+            .summary {{ grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; }}
+            .card {{ padding: 1rem; }}
+            .card .value {{ font-size: 1.6rem; }}
+        }}
     </style>
 </head>
 <body>
+    <main>
     <h1>Shorts Maker V2 통계 대시보드</h1>
-    <p>업데이트: {datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")} (UTC)</p>
+    <p id="dashboard-updated">업데이트: {datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")} (UTC)</p>
 
     <div class="summary">
         <div class="card">
@@ -150,7 +184,8 @@ def generate_dashboard(logs_dir: str | Path, output_file: str | Path = "dashboar
     </div>
 
     <h2>일별 통계</h2>
-    <table>
+    <div class="table-wrap" role="region" aria-label="일별 통계 표" tabindex="0">
+    <table aria-describedby="dashboard-updated">
         <thead>
             <tr>
                 <th>날짜</th>
@@ -178,6 +213,8 @@ def generate_dashboard(logs_dir: str | Path, output_file: str | Path = "dashboar
     html += """
         </tbody>
     </table>
+    </div>
+    </main>
 </body>
 </html>
 """

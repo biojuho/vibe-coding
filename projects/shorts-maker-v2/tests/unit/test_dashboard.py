@@ -15,6 +15,8 @@ class TestGenerateDashboard:
         assert result.exists()
         content = result.read_text(encoding="utf-8")
         assert "데이터가 없습니다" in content
+        assert 'name="viewport" content="width=device-width, initial-scale=1"' in content
+        assert '<link rel="icon" href="data:,' in content
 
     def test_with_cost_data(self, tmp_path: Path):
         logs = tmp_path / "logs"
@@ -34,6 +36,57 @@ class TestGenerateDashboard:
         assert result.exists()
         content = result.read_text(encoding="utf-8")
         assert "html" in content.lower()
+        assert 'class="table-wrap" role="region" aria-label="일별 통계 표"' in content
+        assert "grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));" in content
+        assert "overflow-x: auto;" in content
+
+    def test_responsive_browser_contract(self, tmp_path: Path):
+        logs = tmp_path / "logs"
+        logs.mkdir()
+        costs_file = logs / "costs.jsonl"
+        costs_file.write_text(
+            "\n".join(
+                [
+                    json.dumps(
+                        {
+                            "job_id": "j1",
+                            "timestamp": "2026-03-23T10:00:00+00:00",
+                            "status": "success",
+                            "cost_usd": 0.25,
+                        }
+                    ),
+                    json.dumps(
+                        {
+                            "job_id": "j2",
+                            "timestamp": "2026-03-23T11:00:00+00:00",
+                            "status": "failed",
+                            "cost_usd": 0.10,
+                        }
+                    ),
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        out = tmp_path / "out.html"
+        content = generate_dashboard(logs, out).read_text(encoding="utf-8")
+
+        assert "<main>" in content
+        assert 'id="dashboard-updated"' in content
+        assert 'aria-describedby="dashboard-updated"' in content
+        assert "min-width: 620px;" in content
+        assert "-webkit-overflow-scrolling: touch;" in content
+        assert 'tabindex="0"' in content
+
+    def test_docs_dashboard_sample_matches_responsive_contract(self):
+        sample = Path(__file__).resolve().parents[2] / "docs" / "dashboard.html"
+        content = sample.read_text(encoding="utf-8")
+
+        assert 'name="viewport" content="width=device-width, initial-scale=1"' in content
+        assert '<link rel="icon" href="data:,' in content
+        assert "grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));" in content
+        assert 'class="table-wrap" role="region" aria-label="일별 통계 표"' in content
 
     def test_deduplicates_job_ids(self, tmp_path: Path):
         logs = tmp_path / "logs"
