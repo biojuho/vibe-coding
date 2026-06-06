@@ -26,6 +26,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_TAIL_CHARS = 4000
 PROJECT_QC_RUN_ID = f"{os.getpid()}-{time.time_ns()}"
 PROJECT_QC_HEARTBEAT_SECONDS = max(0, int(os.environ.get("PROJECT_QC_HEARTBEAT_SECONDS", "10")))
+PROJECT_QC_HEARTBEAT_STREAM = os.environ.get("PROJECT_QC_HEARTBEAT_STREAM", "stderr").strip().lower()
 DEFAULT_ARTIFACT_PATH = REPO_ROOT / ".tmp" / "project_qc_runner_latest.json"
 DEFAULT_PARTIAL_ARTIFACT_PATH = REPO_ROOT / ".tmp" / "project_qc_runner_partial_latest.json"
 READINESS_ARTIFACT_SCHEMA_VERSION = 3
@@ -397,10 +398,11 @@ def run_item(item: PlanItem, timeout_seconds: int) -> dict[str, object]:
 
 
 def _emit_subprocess_heartbeat(stop: threading.Event, item: PlanItem) -> None:
+    stream = sys.stdout if PROJECT_QC_HEARTBEAT_STREAM == "stdout" else sys.stderr
     while not stop.wait(PROJECT_QC_HEARTBEAT_SECONDS):
         print(
             f"[project-qc] {item.project}/{item.check.id} still running",
-            file=sys.stderr,
+            file=stream,
             flush=True,
         )
 
