@@ -170,12 +170,23 @@ export default function FieldModeView(options = {}) {
 	);
 	const [showCelebration, setShowCelebration] = useState(false);
 	const celebrationCanvasRef = useRef(null);
+	const searchInputRef = useRef(null);
 
 	// Get current date string (YYYY-MM-DD) for local checklist key
 	const getTodayKey = () => {
 		const d = new Date();
 		return `joolife-field-checklist-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 	};
+
+	useEffect(() => {
+		const focusFrame = scheduleFieldModeAnimationFrame(() => {
+			searchInputRef.current?.focus();
+		});
+
+		return () => {
+			cancelFieldModeAnimationFrame(focusFrame);
+		};
+	}, []);
 
 	// Load checklist from localStorage on mount
 	useEffect(() => {
@@ -571,6 +582,7 @@ export default function FieldModeView(options = {}) {
 					<div className="flex gap-2">
 						<div className="relative flex-1">
 							<input
+								ref={searchInputRef}
 								type="text"
 								value={searchQuery}
 								onChange={(e) => setSearchQuery(e.target.value)}

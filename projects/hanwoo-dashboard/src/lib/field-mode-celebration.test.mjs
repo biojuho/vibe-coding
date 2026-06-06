@@ -215,6 +215,24 @@ test("FieldModeView announces full-list loading in search results", () => {
 	);
 });
 
+test("FieldModeView focuses the quick search input on mount", () => {
+	const source = readSource("components/widgets/FieldModeView.js");
+
+	assert.match(source, /const searchInputRef = useRef\(null\);/);
+	assert.match(
+		source,
+		/const focusFrame = scheduleFieldModeAnimationFrame\(\(\) => \{\s+searchInputRef\.current\?\.focus\(\);\s+\}\);/,
+	);
+	assert.match(
+		source,
+		/return \(\) => \{\s+cancelFieldModeAnimationFrame\(focusFrame\);\s+\};/,
+	);
+	assert.match(
+		source,
+		/ref=\{searchInputRef\}[\s\S]*?type="text"[\s\S]*?value=\{searchQuery\}/,
+	);
+});
+
 test("FieldModeView controls expose matching title copy", () => {
 	const source = readSource("components/widgets/FieldModeView.js");
 
