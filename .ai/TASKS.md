@@ -4,7 +4,7 @@
 
 ## TODO
 
-> Latest evidence refresh: 2026-06-07 T-1458 Hanwoo AI chat prompt/fallback guidance passed at local commit `2ada2543` (`524 passed`, lint/build/smoke passed) after focused AI chat tests, mobile browser-click QA, diff-check, code-review gate advisory WARN covered by focused/browser/project gates, and A/B `adopt_candidate` score_delta `1.1904761904761907`. T-251 remains external/user-owned and was not retried. Full canonical active-project QC should be refreshed before release-current claims because recent Hanwoo/Shorts commits landed after the last full artifact.
+> Latest evidence refresh: 2026-06-07 current-head local gates passed at `c73e8427` after T-1458. Full canonical active-project QC PASS: Blind-to-X `1834 passed`, `9 skipped`; Shorts Maker V2 `1640 passed`, `12 skipped`, `29 warnings`; Hanwoo `524 passed`; Knowledge `62 passed`; lint/build/smoke gates passed where applicable. Readiness score `96` with local blockers `0`, publish blockers `1`, external blockers `1`; launch audit complete coverage; completion audit remains incomplete `9/14` with `5` blocked issues. T-251 remains external/user-owned and was not retried.
 
 | ID | Task | Owner | Priority | Auto | Created |
 | --- | --- | --- | --- | --- | --- |
