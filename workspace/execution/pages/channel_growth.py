@@ -1,9 +1,11 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
+if str(WORKSPACE_ROOT) not in sys.path:
+    sys.path.insert(0, str(WORKSPACE_ROOT))
 
-import streamlit as st
+import streamlit as st  # noqa: E402
 
 try:
     import plotly.graph_objects as go
@@ -26,6 +28,11 @@ st.set_page_config(page_title="Channel Growth - Joolife", page_icon="📈", layo
 if not _MODULE_OK:
     st.error(f"Channel Growth 모듈을 불러올 수 없습니다: {_MODULE_ERR}")
     st.stop()
+
+
+def _render_plotly_chart(fig: object) -> None:
+    st.plotly_chart(fig, width="stretch")
+
 
 init_db()
 
@@ -78,7 +85,7 @@ if comparison:
             paper_bgcolor="rgba(0,0,0,0)",
             font_color="#e0e0e0",
         )
-        st.plotly_chart(fig_sub, use_container_width=True)
+        _render_plotly_chart(fig_sub)
 
     with chart_col2:
         fig_views = go.Figure()
@@ -101,7 +108,7 @@ if comparison:
             paper_bgcolor="rgba(0,0,0,0)",
             font_color="#e0e0e0",
         )
-        st.plotly_chart(fig_views, use_container_width=True)
+        _render_plotly_chart(fig_views)
 
     st.divider()
 
@@ -129,7 +136,7 @@ if comparison:
         paper_bgcolor="rgba(0,0,0,0)",
         font_color="#e0e0e0",
     )
-    st.plotly_chart(fig_bar, use_container_width=True)
+    _render_plotly_chart(fig_bar)
 
 else:
     st.info("등록된 채널이 없습니다. 아래에서 채널을 추가하세요.")
