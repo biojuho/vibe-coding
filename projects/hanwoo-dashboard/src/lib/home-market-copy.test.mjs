@@ -726,6 +726,36 @@ test("notification center trigger exposes its dialog relationship", () => {
 	assert.match(source, /<NotificationModal\s+id=\{NOTIFICATION_MODAL_ID\}/);
 });
 
+test("notification center restores focus to the opener after dismissal", () => {
+	const source = readSource("components/DashboardClient.js");
+
+	assert.match(
+		source,
+		/import \{ focusElementSafely \} from ["']@\/lib\/safeFocus["'];/,
+	);
+	assert.match(source, /const notificationTriggerRef = useRef\(null\);/);
+	assert.match(source, /const notificationReturnFocusRef = useRef\(null\);/);
+	assert.match(source, /const openNotificationCenter = useCallback\(\(\) => \{/);
+	assert.match(
+		source,
+		/activeElement !== doc\.body &&\s+activeElement !== doc\.documentElement &&\s+typeof activeElement\.focus === ["']function["']/,
+	);
+	assert.match(
+		source,
+		/notificationReturnFocusRef\.current = activeElementCanReceiveFocus\s+\? activeElement\s+:\s+notificationTriggerRef\.current;/,
+	);
+	assert.match(source, /const closeNotificationCenter = useCallback\(\(\) => \{/);
+	assert.match(
+		source,
+		/window\.requestAnimationFrame\(\(\) => focusElementSafely\(returnTarget\)\);/,
+	);
+	assert.match(source, /ref=\{notificationTriggerRef\}/);
+	assert.match(source, /onClick=\{openNotificationCenter\}/);
+	assert.match(source, /onOpenNotifications=\{openNotificationCenter\}/);
+	assert.match(source, /onClose=\{closeNotificationCenter\}/);
+	assert.doesNotMatch(source, /onClose=\{\(\) => setShowNotifications\(false\)\}/);
+});
+
 test("market price widget uses Korean product copy for visible states", () => {
 	const source = readSource("components/widgets/MarketPriceWidget.js");
 

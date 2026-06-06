@@ -65,6 +65,7 @@ import { buildSetupProgressItems } from "@/lib/dashboard/setup-progress.mjs";
 import { buildTodayFocusItems } from "@/lib/dashboard/today-focus.mjs";
 import { fetchWithTimeout, isTimeoutError } from "@/lib/fetchWithTimeout";
 import { normalizeDashboardInitialDataLoadStatus } from "@/lib/dashboard/initial-data-fallback.mjs";
+import { focusElementSafely } from "@/lib/safeFocus";
 import { useCattlePagination } from "@/lib/hooks/useCattlePagination";
 import { useSalesPagination } from "@/lib/hooks/useSalesPagination";
 import { useDashboardModals } from "@/lib/hooks/useDashboardModals";
@@ -492,6 +493,8 @@ export default function DashboardClient(options = {}) {
 	const fullCattleLoadRef = useRef(null);
 	const fullSalesLoadRef = useRef(null);
 	const movingCattleIdRef = useRef(null);
+	const notificationTriggerRef = useRef(null);
+	const notificationReturnFocusRef = useRef(null);
 	const {
 		items: pagedCattleItems,
 		setItems: setPagedCattleItems,
@@ -508,6 +511,40 @@ export default function DashboardClient(options = {}) {
 		initialItems: initialSalesPage?.items ?? [],
 		initialPageInfo: initialSalesPage?.pageInfo ?? null,
 	});
+
+	const openNotificationCenter = useCallback(() => {
+		const doc = typeof document === "undefined" ? null : document;
+		const activeElement = doc?.activeElement;
+		const activeElementCanReceiveFocus =
+			doc &&
+			activeElement &&
+			activeElement !== doc.body &&
+			activeElement !== doc.documentElement &&
+			typeof activeElement.focus === "function";
+
+		notificationReturnFocusRef.current = activeElementCanReceiveFocus
+			? activeElement
+			: notificationTriggerRef.current;
+		setShowNotifications(true);
+	}, [setShowNotifications]);
+
+	const closeNotificationCenter = useCallback(() => {
+		const returnTarget =
+			notificationReturnFocusRef.current || notificationTriggerRef.current;
+
+		setShowNotifications(false);
+
+		if (!returnTarget) {
+			return;
+		}
+
+		if (typeof window === "undefined") {
+			focusElementSafely(returnTarget);
+			return;
+		}
+
+		window.requestAnimationFrame(() => focusElementSafely(returnTarget));
+	}, [setShowNotifications]);
 
 	// Full registries remain optional and are loaded only when a view truly needs them.
 	const cattleList = useMemo(
@@ -1902,9 +1939,10 @@ export default function DashboardClient(options = {}) {
 							resolveCattleList={ensureAllCattleLoaded}
 						/>
 						<PremiumButton
+							ref={notificationTriggerRef}
 							variant="outline"
 							size="icon"
-							onClick={() => setShowNotifications(true)}
+							onClick={openNotificationCenter}
 							aria-haspopup="dialog"
 							aria-expanded={showNotifications}
 							aria-controls={NOTIFICATION_MODAL_ID}
@@ -1936,7 +1974,7 @@ export default function DashboardClient(options = {}) {
 
 				<TodayFocusPanel
 					items={todayFocusItems}
-					onOpenNotifications={() => setShowNotifications(true)}
+					onOpenNotifications={openNotificationCenter}
 					onNavigate={handleTabChange}
 					onAction={handleQuickAction}
 				/>
@@ -2260,7 +2298,7 @@ export default function DashboardClient(options = {}) {
 				<NotificationModal
 					id={NOTIFICATION_MODAL_ID}
 					notifications={notifications}
-					onClose={() => setShowNotifications(false)}
+					onClose={closeNotificationCenter}
 					onTestSMS={handleTestSMS}
 				/>
 			)}
