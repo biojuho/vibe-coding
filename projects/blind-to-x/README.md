@@ -51,6 +51,9 @@ py -3 main.py --source ppomppu --popular --review-only --limit 5 --require-sourc
 # Source browser gate with first-post click-through before a paid/LLM run
 py -3 main.py --source ppomppu --popular --review-only --limit 5 --require-source-ready --source-preflight-click-through --source-preflight-output .tmp/source_browser_preflight.json --source-preflight-screenshot-dir screenshots/source_preflight
 
+# Multi-source gate that continues with the strongest ready source when some sources are blocked
+py -3 main.py --source multi --popular --review-only --limit 5 --require-source-ready --source-preflight-click-through --source-preflight-use-recommended --source-preflight-output .tmp/source_browser_preflight.json --source-preflight-screenshot-dir screenshots/source_preflight
+
 # 승인된 항목 재처리용 경로
 py -3 main.py --reprocess-approved --limit 5
 

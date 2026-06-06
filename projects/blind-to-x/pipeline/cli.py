@@ -79,6 +79,14 @@ def build_parser():
         help="During source preflight, click the first visible post and verify detail page readability.",
     )
     parser.add_argument(
+        "--source-preflight-use-recommended",
+        action="store_true",
+        help=(
+            "With --require-source-ready, continue with summary.recommended_source when at least one "
+            "source is ready even if other configured sources are blocked."
+        ),
+    )
+    parser.add_argument(
         "--source-preflight-viewport",
         choices=("desktop", "mobile"),
         default="desktop",
@@ -150,6 +158,22 @@ def _source_preflight_should_continue(args, exit_code: int) -> bool:
     return bool(getattr(args, "require_source_ready", False) and exit_code == 0)
 
 
+def _apply_recommended_source_fallback(args, report: dict) -> str | None:
+    if not getattr(args, "require_source_ready", False):
+        return None
+    if not getattr(args, "source_preflight_use_recommended", False):
+        return None
+
+    summary = report.get("summary", {})
+    recommended_source = summary.get("recommended_source") if isinstance(summary, dict) else None
+    if not isinstance(recommended_source, str) or not recommended_source:
+        return None
+
+    setattr(args, "source", recommended_source)
+    logger.info("Continuing with source preflight recommended source: %s", recommended_source)
+    return recommended_source
+
+
 async def run_source_preflight_command(config_mgr, args) -> int | None:
     if not _source_preflight_requested(args):
         return None
@@ -169,6 +193,9 @@ async def run_source_preflight_command(config_mgr, args) -> int | None:
         viewport=getattr(args, "source_preflight_viewport", "desktop"),
         click_through=getattr(args, "source_preflight_click_through", False),
     )
+    if _apply_recommended_source_fallback(args, report):
+        return 0
+
     fail_on_problem = getattr(args, "source_preflight_fail_on_problem", False) or getattr(
         args, "require_source_ready", False
     )
@@ -224,6 +251,7 @@ async def run_main():
         logger.warning("Harness preflight check error (non-fatal): %s", exc)
 
     if await handle_single_commands(args, config_mgr, notifier, notion_uploader, twitter_poster):
+        _LOCK_FILE.unlink(missing_ok=True)
         return
 
     scrapers = init_scrapers(config_mgr, args)

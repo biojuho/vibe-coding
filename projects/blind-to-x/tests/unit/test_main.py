@@ -18,6 +18,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from pipeline.cli import (
+    _apply_recommended_source_fallback,
     _resolve_source_preflight_sources,
     acquire_lock as _acquire_lock,
     _is_process_alive,
@@ -87,6 +88,7 @@ class TestBuildParser:
                 "--source-preflight-screenshot-dir",
                 "screenshots/preflight",
                 "--source-preflight-click-through",
+                "--source-preflight-use-recommended",
                 "--source-preflight-viewport",
                 "mobile",
             ]
@@ -99,6 +101,7 @@ class TestBuildParser:
         assert args.source_preflight_output == Path(".tmp/preflight.json")
         assert args.source_preflight_screenshot_dir == Path("screenshots/preflight")
         assert args.source_preflight_click_through is True
+        assert args.source_preflight_use_recommended is True
         assert args.source_preflight_viewport == "mobile"
 
     def test_require_source_ready_args(self):
@@ -200,6 +203,50 @@ class TestSourcePreflight:
         assert _source_preflight_should_continue(SimpleNamespace(require_source_ready=True), 0) is True
         assert _source_preflight_should_continue(SimpleNamespace(require_source_ready=True), 1) is False
 
+    def test_recommended_source_fallback_rewrites_source_only_when_enabled(self):
+        report = {
+            "summary": {
+                "ok": False,
+                "ready_sources": ["jobplanet", "ppomppu"],
+                "recommended_source": "ppomppu",
+            }
+        }
+        args = SimpleNamespace(
+            require_source_ready=True,
+            source_preflight_use_recommended=True,
+            source="multi",
+        )
+
+        selected = _apply_recommended_source_fallback(args, report)
+
+        assert selected == "ppomppu"
+        assert args.source == "ppomppu"
+
+    def test_recommended_source_fallback_ignores_report_only_preflight(self):
+        report = {"summary": {"recommended_source": "ppomppu"}}
+        args = SimpleNamespace(
+            require_source_ready=False,
+            source_preflight_use_recommended=True,
+            source="multi",
+        )
+
+        selected = _apply_recommended_source_fallback(args, report)
+
+        assert selected is None
+        assert args.source == "multi"
+
+    def test_recommended_source_fallback_requires_recommendation(self):
+        args = SimpleNamespace(
+            require_source_ready=True,
+            source_preflight_use_recommended=True,
+            source="multi",
+        )
+
+        selected = _apply_recommended_source_fallback(args, {"summary": {"recommended_source": None}})
+
+        assert selected is None
+        assert args.source == "multi"
+
     def test_resolve_source_preflight_sources_filters_unsupported(self):
         config = MagicMock()
         config.get.side_effect = lambda key, default=None: {
@@ -241,6 +288,7 @@ class TestSourcePreflight:
             source_preflight_screenshot_dir=tmp_path / "screens",
             source_preflight_headed=True,
             source_preflight_click_through=True,
+            source_preflight_use_recommended=False,
             source_preflight_viewport="mobile",
         )
 
@@ -293,6 +341,7 @@ class TestSourcePreflight:
             source_preflight_screenshot_dir=tmp_path / "screens",
             source_preflight_headed=False,
             source_preflight_click_through=False,
+            source_preflight_use_recommended=False,
             source_preflight_viewport="desktop",
         )
 
@@ -300,6 +349,47 @@ class TestSourcePreflight:
 
         assert result == 1
         assert calls["sources"] == ["ppomppu"]
+
+    @pytest.mark.asyncio
+    async def test_require_source_ready_can_continue_with_recommended_source(self, monkeypatch, tmp_path):
+        calls = {}
+
+        async def fake_run_source_preflight(**kwargs):
+            calls.update(kwargs)
+            return {
+                "summary": {
+                    "ok": False,
+                    "ready_sources": ["jobplanet", "ppomppu"],
+                    "problem_sources": [{"source": "blind", "status": "blocked"}],
+                    "recommended_source": "ppomppu",
+                }
+            }
+
+        monkeypatch.setattr("pipeline.cli.run_source_preflight", fake_run_source_preflight)
+        config = MagicMock()
+        config.get.side_effect = lambda key, default=None: {
+            "input_sources": ["blind", "jobplanet", "ppomppu"],
+            "content_strategy.primary_source": "multi",
+        }.get(key, default)
+        args = SimpleNamespace(
+            source_preflight=False,
+            require_source_ready=True,
+            source="multi",
+            source_preflight_fail_on_problem=False,
+            source_preflight_timeout_ms=500,
+            source_preflight_output=tmp_path / "preflight.json",
+            source_preflight_screenshot_dir=tmp_path / "screens",
+            source_preflight_headed=False,
+            source_preflight_click_through=True,
+            source_preflight_use_recommended=True,
+            source_preflight_viewport="desktop",
+        )
+
+        result = await _run_source_preflight_command(config, args)
+
+        assert result == 0
+        assert calls["sources"] == ["blind", "jobplanet", "ppomppu"]
+        assert args.source == "ppomppu"
 
 
 class TestRunMainSourcePreflight:
@@ -354,6 +444,40 @@ class TestRunMainSourcePreflight:
             await _run_main()
 
         assert exc_info.value.code == 1
+        execute_pipeline.assert_not_awaited()
+        assert not lock_file.exists()
+
+    @pytest.mark.asyncio
+    async def test_recommended_source_single_command_releases_lock(self, monkeypatch, tmp_path):
+        lock_file, execute_pipeline = self._patch_run_main_dependencies(monkeypatch, tmp_path, preflight_exit=0)
+
+        async def fake_run_source_preflight_command(config_mgr, args):
+            assert args.require_source_ready is True
+            assert args.source_preflight_use_recommended is True
+            args.source = "ppomppu"
+            return 0
+
+        handle_single_commands = AsyncMock(return_value=True)
+        monkeypatch.setattr("pipeline.cli.run_source_preflight_command", fake_run_source_preflight_command)
+        monkeypatch.setattr("pipeline.cli.handle_single_commands", handle_single_commands)
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "main.py",
+                "--require-source-ready",
+                "--source",
+                "multi",
+                "--source-preflight-use-recommended",
+                "--sentiment-report",
+            ],
+        )
+
+        await _run_main()
+
+        handle_single_commands.assert_awaited_once()
+        handled_args = handle_single_commands.await_args.args[0]
+        assert handled_args.source == "ppomppu"
         execute_pipeline.assert_not_awaited()
         assert not lock_file.exists()
 
