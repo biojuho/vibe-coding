@@ -139,6 +139,7 @@ export default function AIChatWidget() {
 	const scrollRef = useRef(null);
 	const launcherRef = useRef(null);
 	const panelRef = useRef(null);
+	const inputRef = useRef(null);
 	const abortRef = useRef(null);
 	const isMountedRef = useRef(false);
 	const sendInFlightRef = useRef(false);
@@ -174,7 +175,7 @@ export default function AIChatWidget() {
 
 	useEffect(() => {
 		if (isOpen) {
-			focusElementSafely(panelRef.current);
+			focusElementSafely(inputRef.current || panelRef.current);
 			return;
 		}
 
@@ -492,6 +493,7 @@ export default function AIChatWidget() {
 				}}
 			>
 				<input
+					ref={inputRef}
 					type="text"
 					value={input}
 					onChange={(event) => setInput(event.target.value)}

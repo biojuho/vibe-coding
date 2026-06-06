@@ -45,7 +45,8 @@ test("AI chat widget handles Korean configuration errors and exposes an accessib
 	);
 	assert.match(source, /aria-label="AI 농장 비서 채팅"/);
 	assert.match(source, /const panelRef = useRef\(null\)/);
-	assert.match(source, /focusElementSafely\(panelRef\.current\);/);
+	assert.match(source, /const inputRef = useRef\(null\)/);
+	assert.match(source, /focusElementSafely\(inputRef\.current \|\| panelRef\.current\);/);
 	assert.match(source, /ref=\{panelRef\}/);
 	assert.match(source, /const isMountedRef = useRef\(false\)/);
 	assert.match(source, /isMountedRef\.current = true;/);
@@ -72,6 +73,7 @@ test("AI chat widget handles Korean configuration errors and exposes an accessib
 	assert.match(source, /AI 농장 비서에게 보낼 질문/);
 	assert.match(source, /aria-label=\{inputLabel\}/);
 	assert.match(source, /title=\{inputLabel\}/);
+	assert.match(source, /ref=\{inputRef\}/);
 	assert.match(source, /const sendButtonLabel = isStreaming/);
 	assert.match(source, /input\.trim\(\)\.length === 0/);
 	assert.match(source, /질문을 입력하면 보낼 수 있습니다/);
