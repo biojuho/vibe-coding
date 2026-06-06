@@ -230,6 +230,33 @@ test("subscription result pages avoid bare English loading and status copy", () 
 	assert.match(failSource, /결제를 완료하지 못했습니다/);
 	assert.match(failSource, /결제 실패 정보를 불러오는 중입니다/);
 	assert.match(failSource, /오류 코드/);
+	assert.match(failSource, /const PAYMENT_FAILURE_GENERIC_MESSAGE/);
+	assert.match(failSource, /const PAYMENT_FAILURE_MESSAGES = \{/);
+	assert.match(failSource, /PAY_PROCESS_CANCELED:/);
+	assert.match(
+		failSource,
+		/결제 진행이 취소되어 완료되지 않았습니다\. 필요하면 다시 시도해 주세요\./,
+	);
+	assert.match(failSource, /PAY_PROCESS_ABORTED:/);
+	assert.match(
+		failSource,
+		/결제 요청 또는 결제 수단 인증 중 문제가 발생했습니다\./,
+	);
+	assert.match(failSource, /REJECT_CARD_COMPANY:/);
+	assert.match(
+		failSource,
+		/카드사에서 결제를 승인하지 않았습니다\. 카드 정보를 확인하거나 다른 결제 수단을 선택해 주세요\./,
+	);
+	assert.match(failSource, /function normalizePaymentFailureCode\(value\) \{/);
+	assert.match(
+		failSource,
+		/typeof value === ["']string["'] && value\.trim\(\)/,
+	);
+	assert.match(failSource, /function getPaymentFailureMessage\(code\) \{/);
+	assert.match(
+		failSource,
+		/PAYMENT_FAILURE_MESSAGES\[code\] \|\| PAYMENT_FAILURE_GENERIC_MESSAGE/,
+	);
 	assert.match(failSource, /overflowWrap: ["']anywhere["']/);
 	assert.match(
 		failSource,
@@ -255,7 +282,7 @@ test("subscription result pages avoid bare English loading and status copy", () 
 	);
 	assert.match(
 		failSource,
-		/const PAYMENT_FAILURE_CODE_FALLBACK = ["']오류 코드 미전달["'];/,
+		/const PAYMENT_FAILURE_CODE_FALLBACK = ["']미전달["'];/,
 	);
 	assert.doesNotMatch(failSource, /useRouter/);
 	assert.match(
@@ -268,9 +295,14 @@ test("subscription result pages avoid bare English loading and status copy", () 
 	);
 	assert.match(
 		failSource,
-		/searchParams\.get\(["']code["']\) \|\| PAYMENT_FAILURE_CODE_FALLBACK/,
+		/const errorCode = normalizePaymentFailureCode\(searchParams\.get\(["']code["']\)\);/,
 	);
-	assert.match(failSource, /const PAYMENT_FAILURE_MESSAGE/);
+	assert.match(
+		failSource,
+		/const failureMessage = getPaymentFailureMessage\(errorCode\);/,
+	);
+	assert.match(failSource, /\{failureMessage\}/);
+	assert.doesNotMatch(failSource, /오류 코드 미전달/);
 	assert.match(
 		failSource,
 		/const handleRetry = \(\) => \{\s+setRetryStatus\(["']["']\);\s+try \{\s+navigateToPaymentRetry\(\);\s+\} catch \(error\) \{/,

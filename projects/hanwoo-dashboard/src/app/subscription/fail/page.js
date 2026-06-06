@@ -3,13 +3,31 @@
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
-const PAYMENT_FAILURE_MESSAGE =
+const PAYMENT_FAILURE_GENERIC_MESSAGE =
 	"결제 상태를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.";
 const PAYMENT_FAILURE_LOADING_MESSAGE = "결제 실패 정보를 불러오는 중입니다.";
-const PAYMENT_FAILURE_CODE_FALLBACK = "오류 코드 미전달";
+const PAYMENT_FAILURE_CODE_FALLBACK = "미전달";
+const PAYMENT_FAILURE_MESSAGES = {
+	PAY_PROCESS_CANCELED:
+		"결제 진행이 취소되어 완료되지 않았습니다. 필요하면 다시 시도해 주세요.",
+	PAY_PROCESS_ABORTED:
+		"결제 요청 또는 결제 수단 인증 중 문제가 발생했습니다. 잠시 후 다시 시도하거나 다른 결제 수단을 선택해 주세요.",
+	REJECT_CARD_COMPANY:
+		"카드사에서 결제를 승인하지 않았습니다. 카드 정보를 확인하거나 다른 결제 수단을 선택해 주세요.",
+};
 const PAYMENT_RETRY_PATH = "/subscription";
 const PAYMENT_RETRY_NAVIGATION_ERROR_MESSAGE =
 	"결제 화면으로 자동 이동하지 못했습니다. 주소창에서 구독 화면으로 다시 이동해 주세요.";
+
+function normalizePaymentFailureCode(value) {
+	return typeof value === "string" && value.trim()
+		? value.trim()
+		: PAYMENT_FAILURE_CODE_FALLBACK;
+}
+
+function getPaymentFailureMessage(code) {
+	return PAYMENT_FAILURE_MESSAGES[code] || PAYMENT_FAILURE_GENERIC_MESSAGE;
+}
 
 function navigateToPaymentRetry() {
 	if (typeof window === "undefined") {
@@ -21,7 +39,8 @@ function navigateToPaymentRetry() {
 function FailContent() {
 	const searchParams = useSearchParams();
 	const [retryStatus, setRetryStatus] = useState("");
-	const errorCode = searchParams.get("code") || PAYMENT_FAILURE_CODE_FALLBACK;
+	const errorCode = normalizePaymentFailureCode(searchParams.get("code"));
+	const failureMessage = getPaymentFailureMessage(errorCode);
 	const handleRetry = () => {
 		setRetryStatus("");
 		try {
@@ -52,7 +71,7 @@ function FailContent() {
 				결제를 완료하지 못했습니다
 			</h1>
 			<p style={{ marginTop: "10px", color: "var(--color-text-secondary)" }}>
-				{PAYMENT_FAILURE_MESSAGE}
+				{failureMessage}
 			</p>
 			<p
 				style={{
