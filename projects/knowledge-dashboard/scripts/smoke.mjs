@@ -4,22 +4,12 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+import { resolveStandaloneServer } from "./start-standalone.mjs";
 
 const HOST = "127.0.0.1";
 const API_KEY = process.env.DASHBOARD_API_KEY ?? "smoke-dashboard-key";
 const DATA_DIR = path.join(process.cwd(), "data");
-const DATA_DIRS = [
-	DATA_DIR,
-	path.join(process.cwd(), ".next", "standalone", "data"),
-	path.join(
-		process.cwd(),
-		".next",
-		"standalone",
-		"projects",
-		"knowledge-dashboard",
-		"data",
-	),
-];
+const DATA_DIRS = [DATA_DIR];
 
 // Fixtures shaped to satisfy the hardened payload guards in src/lib/dashboard-payload.ts.
 const FIXTURES = {
@@ -133,23 +123,20 @@ async function resolveSmokePort() {
 	return port;
 }
 
-function startServer(port) {
+async function startServer(port) {
 	const env = {
 		...process.env,
 		PORT: port,
 		HOSTNAME: HOST,
 		DASHBOARD_API_KEY: API_KEY,
+		KNOWLEDGE_DASHBOARD_DATA_DIR: DATA_DIR,
 	};
-	const standaloneStart = path.join(
-		process.cwd(),
-		"scripts",
-		"start-standalone.mjs",
-	);
-	const child = spawn(
-		process.execPath,
-		[standaloneStart],
-		{ cwd: process.cwd(), env, stdio: ["ignore", "pipe", "pipe"] },
-	);
+	const serverPath = await resolveStandaloneServer();
+	const child = spawn(process.execPath, [serverPath], {
+		cwd: process.cwd(),
+		env,
+		stdio: ["ignore", "pipe", "pipe"],
+	});
 	child.stdout?.on("data", (chunk) =>
 		process.stdout.write(`[knowledge-smoke] ${chunk}`),
 	);
@@ -201,7 +188,7 @@ const DATA_ROUTES = [
 async function run() {
 	const port = await resolveSmokePort();
 	const baseUrl = baseUrlForPort(port);
-	const server = startServer(port);
+	const server = await startServer(port);
 	try {
 		await waitForServer(baseUrl, server);
 
