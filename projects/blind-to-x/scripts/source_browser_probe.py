@@ -239,14 +239,17 @@ def _build_summary(results: list[ProbeResult]) -> dict[str, Any]:
         for result in results
         if result.classification.status != READY_STATUS
     ]
+    ready_warnings = [warning for result in ready_results for warning in _build_ready_warnings(result)]
     recommended_source = _recommend_ready_source(ready_results)
     return {
         "source_count": len(results),
         "ready_count": len(ready_sources),
         "problem_count": len(problem_sources),
+        "ready_warning_count": len(ready_warnings),
         "ok": len(ready_sources) == len(results),
         "statuses": dict(sorted(statuses.items())),
         "ready_sources": ready_sources,
+        "ready_warnings": ready_warnings,
         "problem_sources": problem_sources,
         "recommended_source": recommended_source,
         "recommended_command": _build_recommended_command(recommended_source),
@@ -254,6 +257,35 @@ def _build_summary(results: list[ProbeResult]) -> dict[str, Any]:
             _build_problem_action(result) for result in results if result.classification.status != READY_STATUS
         ],
     }
+
+
+def _build_ready_warnings(result: ProbeResult) -> list[dict[str, Any]]:
+    warnings: list[dict[str, Any]] = []
+    if result.console_errors:
+        warnings.append(
+            {
+                "source": result.source,
+                "type": "console_error",
+                "count": len(result.console_errors),
+                "sample": result.console_errors[0],
+                "action": (
+                    "Source is usable, but inspect console errors before treating browser evidence as fully clean."
+                ),
+            }
+        )
+    if result.page_errors:
+        warnings.append(
+            {
+                "source": result.source,
+                "type": "page_error",
+                "count": len(result.page_errors),
+                "sample": result.page_errors[0],
+                "action": (
+                    "Source is usable, but inspect page errors before treating browser evidence as fully clean."
+                ),
+            }
+        )
+    return warnings
 
 
 def _recommend_ready_source(ready_results: list[ProbeResult]) -> str | None:

@@ -175,9 +175,11 @@ def test_build_report_counts_problem_statuses_and_exit_code():
         "source_count": 2,
         "ready_count": 1,
         "problem_count": 1,
+        "ready_warning_count": 0,
         "ok": False,
         "statuses": {"blocked": 1, "ready": 1},
         "ready_sources": ["fmkorea"],
+        "ready_warnings": [],
         "problem_sources": [
             {
                 "source": "blind",
@@ -200,6 +202,48 @@ def test_build_report_counts_problem_statuses_and_exit_code():
     }
     assert exit_code_for_report(report, fail_on_problem=False) == 0
     assert exit_code_for_report(report, fail_on_problem=True) == 1
+
+
+def test_build_report_surfaces_ready_source_warnings_without_blocking():
+    results = [
+        ProbeResult(
+            source="ppomppu",
+            url="https://www.ppomppu.co.kr/hot.php",
+            final_url="https://www.ppomppu.co.kr/zboard/view.php?id=free_gallery&no=1",
+            http_status=200,
+            title="Hot",
+            body_chars=1700,
+            classification=ProbeClassification(READY_STATUS, "ok", []),
+            console_errors=["Failed to load resource: the server responded with a status of 424 (Failed Dependency)"],
+            page_errors=[],
+            click_through=ClickThroughResult(
+                ok=True,
+                candidate_text="Readable post",
+                candidate_href="https://www.ppomppu.co.kr/zboard/view.php?id=free_gallery&no=1",
+                final_url="https://www.ppomppu.co.kr/zboard/view.php?id=free_gallery&no=1",
+                title="Readable post",
+                body_chars=900,
+            ),
+        )
+    ]
+
+    report = build_report(results)
+
+    assert report["summary"]["ok"] is True
+    assert report["summary"]["problem_count"] == 0
+    assert report["summary"]["ready_count"] == 1
+    assert report["summary"]["ready_warning_count"] == 1
+    assert report["summary"]["ready_warnings"] == [
+        {
+            "source": "ppomppu",
+            "type": "console_error",
+            "count": 1,
+            "sample": "Failed to load resource: the server responded with a status of 424 (Failed Dependency)",
+            "action": ("Source is usable, but inspect console errors before treating browser evidence as fully clean."),
+        }
+    ]
+    assert report["summary"]["recommended_source"] == "ppomppu"
+    assert exit_code_for_report(report, fail_on_problem=True) == 0
 
 
 def test_build_report_counts_click_error_as_problem():
