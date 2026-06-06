@@ -1277,6 +1277,26 @@ test("tab navigation buttons expose Korean action labels and selected state", ()
 	assert.doesNotMatch(source, /onClick=\{\(\) => onTabChange\(t\.id\)\}/);
 });
 
+test("direct dashboard tab changes reset scroll before rendering target content", () => {
+	const source = readSource("components/DashboardClient.js");
+
+	assert.match(source, /function resetDashboardScroll\(\) \{/);
+	assert.match(source, /typeof window === "undefined"/);
+	assert.match(source, /window\.requestAnimationFrame\(\(\) => \{/);
+	assert.match(
+		source,
+		/window\.scrollTo\(\{\s+top: 0,\s+left: 0,\s+behavior: "auto",\s+\}\);/,
+	);
+	assert.match(
+		source,
+		/const handleTabChange = useCallback\(\s+\(nextTab\) => \{\s+setActiveTab\(nextTab\);\s+preloadForTab\(nextTab\);\s+resetDashboardScroll\(\);/,
+	);
+	assert.doesNotMatch(
+		source,
+		/const handleQuickAction = useCallback\([\s\S]{0,900}?resetDashboardScroll\(\);/,
+	);
+});
+
 test("sales tab missing cattle fallback copy stays Korean", () => {
 	const source = readSource("components/tabs/SalesTab.js");
 

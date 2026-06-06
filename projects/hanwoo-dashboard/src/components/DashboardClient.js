@@ -139,6 +139,20 @@ function toStrictIsoDateOrNull(value) {
 		: date.toISOString();
 }
 
+function resetDashboardScroll() {
+	if (typeof window === "undefined") {
+		return;
+	}
+
+	window.requestAnimationFrame(() => {
+		window.scrollTo({
+			top: 0,
+			left: 0,
+			behavior: "auto",
+		});
+	});
+}
+
 const FOCUS_ICON_BY_TYPE = {
 	alert: AlertTriangle,
 	offline: WifiOff,
@@ -1055,6 +1069,7 @@ export default function DashboardClient(options = {}) {
 		(nextTab) => {
 			setActiveTab(nextTab);
 			preloadForTab(nextTab);
+			resetDashboardScroll();
 		},
 		[preloadForTab],
 	);
