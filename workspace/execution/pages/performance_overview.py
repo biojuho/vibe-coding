@@ -13,10 +13,12 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
+if str(WORKSPACE_ROOT) not in sys.path:
+    sys.path.insert(0, str(WORKSPACE_ROOT))
 
-import streamlit as st
-import pandas as pd
+import streamlit as st  # noqa: E402
+import pandas as pd  # noqa: E402
 
 # ── Graceful imports ──────────────────────────────────────────
 
@@ -77,7 +79,7 @@ st.set_page_config(
 st.title("📈 Performance Overview")
 st.caption("Cross-project KPI dashboard — content, costs, platform metrics, system health")
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+PROJECT_ROOT = WORKSPACE_ROOT
 TMP_DIR = PROJECT_ROOT / ".tmp"
 
 
@@ -89,6 +91,18 @@ def _load_json(path: Path) -> dict | list | None:
     except (json.JSONDecodeError, OSError):
         pass
     return None
+
+
+def _render_line_chart(data) -> None:
+    st.line_chart(data, width="stretch")
+
+
+def _render_bar_chart(data) -> None:
+    st.bar_chart(data, width="stretch")
+
+
+def _render_dataframe(data, **kwargs) -> None:
+    st.dataframe(data, width="stretch", **kwargs)
 
 
 # ── Helper: watchdog stats ───────────────────────────────────
@@ -202,7 +216,7 @@ if _RT_OK:
         df_trend = pd.DataFrame(trend)
         df_trend["day"] = pd.to_datetime(df_trend["day"])
         df_trend = df_trend.set_index("day")
-        st.line_chart(df_trend[["count"]], use_container_width=True)
+        _render_line_chart(df_trend[["count"]])
     else:
         st.info("No publishing data found for the last 30 days.")
 else:
@@ -225,7 +239,7 @@ if _API_OK:
             df_daily = pd.DataFrame(daily)
             df_daily["day"] = pd.to_datetime(df_daily["day"])
             df_daily = df_daily.set_index("day")
-            st.bar_chart(df_daily[["cost"]], use_container_width=True)
+            _render_bar_chart(df_daily[["cost"]])
         else:
             st.info("No API cost data for the last 30 days.")
 
@@ -236,7 +250,7 @@ if _API_OK:
             df_prov = pd.DataFrame(providers)
             df_prov = df_prov[["provider", "calls", "tokens", "cost"]]
             df_prov["cost"] = df_prov["cost"].apply(lambda x: round(x, 4))
-            st.dataframe(df_prov, use_container_width=True, hide_index=True)
+            _render_dataframe(df_prov, hide_index=True)
         else:
             st.info("No provider data available.")
 else:
@@ -270,7 +284,7 @@ if _RT_OK:
                 }
             )
         df_platform = pd.DataFrame(rows)
-        st.dataframe(df_platform, use_container_width=True, hide_index=True)
+        _render_dataframe(df_platform, hide_index=True)
     else:
         st.info("No platform data available yet. Register content in the Result Dashboard.")
 else:
