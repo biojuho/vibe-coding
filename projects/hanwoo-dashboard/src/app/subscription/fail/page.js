@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
 const PAYMENT_FAILURE_MESSAGE =
@@ -11,15 +11,21 @@ const PAYMENT_RETRY_PATH = "/subscription";
 const PAYMENT_RETRY_NAVIGATION_ERROR_MESSAGE =
 	"결제 화면으로 자동 이동하지 못했습니다. 주소창에서 구독 화면으로 다시 이동해 주세요.";
 
+function navigateToPaymentRetry() {
+	if (typeof window === "undefined") {
+		throw new Error("Browser navigation is unavailable");
+	}
+	window.location.assign(PAYMENT_RETRY_PATH);
+}
+
 function FailContent() {
 	const searchParams = useSearchParams();
-	const router = useRouter();
 	const [retryStatus, setRetryStatus] = useState("");
 	const errorCode = searchParams.get("code") || PAYMENT_FAILURE_CODE_FALLBACK;
 	const handleRetry = () => {
 		setRetryStatus("");
 		try {
-			router.push(PAYMENT_RETRY_PATH);
+			navigateToPaymentRetry();
 		} catch (error) {
 			console.error("Payment retry navigation failed:", error);
 			setRetryStatus(PAYMENT_RETRY_NAVIGATION_ERROR_MESSAGE);

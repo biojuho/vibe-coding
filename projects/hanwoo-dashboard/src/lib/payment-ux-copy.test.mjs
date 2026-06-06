@@ -256,6 +256,15 @@ test("subscription result pages avoid bare English loading and status copy", () 
 		failSource,
 		/const PAYMENT_FAILURE_CODE_FALLBACK = ["']오류 코드 미전달["'];/,
 	);
+	assert.doesNotMatch(failSource, /useRouter/);
+	assert.match(
+		failSource,
+		/function navigateToPaymentRetry\(\) \{\s+if \(typeof window === ["']undefined["']\) \{/,
+	);
+	assert.match(
+		failSource,
+		/window\.location\.assign\(PAYMENT_RETRY_PATH\);/,
+	);
 	assert.match(
 		failSource,
 		/searchParams\.get\(["']code["']\) \|\| PAYMENT_FAILURE_CODE_FALLBACK/,
@@ -263,8 +272,9 @@ test("subscription result pages avoid bare English loading and status copy", () 
 	assert.match(failSource, /const PAYMENT_FAILURE_MESSAGE/);
 	assert.match(
 		failSource,
-		/const handleRetry = \(\) => \{\s+setRetryStatus\(["']["']\);\s+try \{\s+router\.push\(PAYMENT_RETRY_PATH\);\s+\} catch \(error\) \{/,
+		/const handleRetry = \(\) => \{\s+setRetryStatus\(["']["']\);\s+try \{\s+navigateToPaymentRetry\(\);\s+\} catch \(error\) \{/,
 	);
+	assert.doesNotMatch(failSource, /router\.push\(PAYMENT_RETRY_PATH\)/);
 	assert.match(
 		failSource,
 		/console\.error\(["']Payment retry navigation failed:/,
