@@ -189,6 +189,10 @@ test("subscription result pages avoid bare English loading and status copy", () 
 	assert.match(successSource, /대시보드로 자동 이동하지 못했습니다/);
 	assert.match(
 		successSource,
+		/import \{ normalizePaymentKey, normalizePaymentOrderId \} from ["']@\/lib\/subscription["'];/,
+	);
+	assert.match(
+		successSource,
 		/function normalizeSubscriptionFallbackOptions\(options\) \{/,
 	);
 	assert.match(
@@ -200,10 +204,19 @@ test("subscription result pages avoid bare English loading and status copy", () 
 		/const \{ message \} = normalizeSubscriptionFallbackOptions\(options\);/,
 	);
 	assert.match(successSource, /const AMOUNT_INPUT_PATTERN = \/\^\\d\+\$\/;/);
+	assert.match(successSource, /const PAYMENT_INVALID_REDIRECT_MESSAGE/);
 	assert.match(successSource, /function parsePaymentAmount\(value\)/);
 	assert.match(
 		successSource,
 		/const paymentAmount = parsePaymentAmount\(amount\);/,
+	);
+	assert.match(
+		successSource,
+		/const paymentKey = normalizePaymentKey\(searchParams\.get\("paymentKey"\)\);/,
+	);
+	assert.match(
+		successSource,
+		/const orderId = normalizePaymentOrderId\(searchParams\.get\("orderId"\)\);/,
 	);
 	assert.match(successSource, /amount: paymentAmount/);
 	assert.doesNotMatch(successSource, /Loading\.\.\./);
@@ -414,6 +427,10 @@ test("subscription success page recovers missing redirect parameters", () => {
 		source,
 		/const PAYMENT_MISSING_REDIRECT_MESSAGE =\s+["']결제 확인에 필요한 정보가 부족합니다\. 결제 화면으로 돌아가 다시 시도해 주세요\.["'];/,
 	);
+	assert.match(
+		source,
+		/const PAYMENT_INVALID_REDIRECT_MESSAGE =\s+["']결제 식별자 정보를 확인해 주세요\. 결제 화면으로 돌아가 다시 시도해 주세요\.["'];/,
+	);
 	assert.match(source, /const PAYMENT_RETRY_PATH = ["']\/subscription["'];/);
 	assert.match(source, /const PAYMENT_SUCCESS_STATUS = ["']success["'];/);
 	assert.match(
@@ -422,11 +439,36 @@ test("subscription success page recovers missing redirect parameters", () => {
 	);
 	assert.match(
 		source,
-		/const hasPaymentRedirectParameters = Boolean\(\s+searchParams\.get\("paymentKey"\) &&\s+searchParams\.get\("orderId"\) &&\s+searchParams\.get\("amount"\),\s+\);/,
+		/const paymentKeyParam = searchParams\.get\("paymentKey"\);/,
 	);
 	assert.match(
 		source,
-		/const visibleStatus = hasPaymentRedirectParameters\s+\? status\s+: PAYMENT_MISSING_REDIRECT_MESSAGE;/,
+		/const orderIdParam = searchParams\.get\("orderId"\);/,
+	);
+	assert.match(source, /const amountParam = searchParams\.get\("amount"\);/);
+	assert.match(
+		source,
+		/const normalizedPaymentKey = normalizePaymentKey\(paymentKeyParam\);/,
+	);
+	assert.match(
+		source,
+		/const normalizedOrderId = normalizePaymentOrderId\(orderIdParam\);/,
+	);
+	assert.match(
+		source,
+		/const hasPaymentRedirectParameters = Boolean\(\s+paymentKeyParam && orderIdParam && amountParam,\s+\);/,
+	);
+	assert.match(
+		source,
+		/const hasInvalidPaymentRedirectIdentifiers = Boolean\(\s+hasPaymentRedirectParameters && \(!normalizedPaymentKey \|\| !normalizedOrderId\),\s+\);/,
+	);
+	assert.match(
+		source,
+		/const visibleStatus = !hasPaymentRedirectParameters\s+\? PAYMENT_MISSING_REDIRECT_MESSAGE\s+: hasInvalidPaymentRedirectIdentifiers\s+\? PAYMENT_INVALID_REDIRECT_MESSAGE\s+: status;/,
+	);
+	assert.match(
+		source,
+		/const shouldShowPaymentRetryLink =\s+visibleStatus === PAYMENT_MISSING_REDIRECT_MESSAGE \|\|\s+visibleStatus === PAYMENT_INVALID_REDIRECT_MESSAGE;/,
 	);
 	assert.match(
 		source,
@@ -438,7 +480,7 @@ test("subscription success page recovers missing redirect parameters", () => {
 		/if \(!paymentKey \|\| !orderId \|\| !amount\) \{\s+setStatus\(PAYMENT_MISSING_REDIRECT_MESSAGE\);/,
 	);
 	assert.match(source, /visibleStatus === PAYMENT_SUCCESS_STATUS/);
-	assert.match(source, /visibleStatus === PAYMENT_MISSING_REDIRECT_MESSAGE/);
+	assert.match(source, /shouldShowPaymentRetryLink \? \(/);
 	assert.match(
 		source,
 		/<a[\s\S]*?href=\{PAYMENT_RETRY_PATH\}[\s\S]*?aria-label="결제 화면으로 돌아가기"[\s\S]*?title="결제 화면으로 돌아가기"/,
@@ -524,6 +566,8 @@ test("payment API routes avoid English fallback copy in user responses", () => {
 	assert.match(confirmRoute, /결제 승인에 필요한 정보가 부족합니다/);
 	assert.match(confirmRoute, /결제 확인을 완료하지 못했습니다/);
 	assert.match(confirmRoute, /function parsePaymentAmount\(value\)/);
+	assert.match(confirmRoute, /normalizePaymentKey,/);
+	assert.match(confirmRoute, /normalizePaymentOrderId,/);
 	assert.match(
 		confirmRoute,
 		/function normalizePaymentConfirmBody\(body\) \{/,
@@ -539,6 +583,14 @@ test("payment API routes avoid English fallback copy in user responses", () => {
 	assert.match(
 		confirmRoute,
 		/const body = normalizePaymentConfirmBody\(await req\.json\(\)\);/,
+	);
+	assert.match(
+		confirmRoute,
+		/const paymentKey = normalizePaymentKey\(body\?\.paymentKey\);/,
+	);
+	assert.match(
+		confirmRoute,
+		/const orderId = normalizePaymentOrderId\(body\?\.orderId\);/,
 	);
 	assert.match(confirmRoute, /async function markPaymentLogFailed\(options = \{\}\) \{/);
 	assert.match(confirmRoute, /normalizePaymentLogFailureOptions\(options\)/);
@@ -566,6 +618,10 @@ test("payment API routes avoid English fallback copy in user responses", () => {
 	);
 	assert.doesNotMatch(confirmRoute, /message: error\.message/);
 	assert.doesNotMatch(confirmRoute, /const amount = Number\(body\?\.amount\)/);
+	assert.doesNotMatch(
+		confirmRoute,
+		/const \{ paymentKey, orderId \} = body;/,
+	);
 	assert.doesNotMatch(
 		confirmRoute,
 		/const body = await req\.json\(\);\s+const \{ paymentKey, orderId \} = body;/,

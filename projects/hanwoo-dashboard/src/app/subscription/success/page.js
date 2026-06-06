@@ -8,6 +8,7 @@ import {
 	PAYMENT_CONFIRMATION_PENDING_MESSAGE,
 	readJsonResponseSafely,
 } from "@/lib/payment-confirmation.mjs";
+import { normalizePaymentKey, normalizePaymentOrderId } from "@/lib/subscription";
 
 const CONFIRM_RETRY_DELAY_MS = 3000;
 const CONFIRM_RETRY_LIMIT = 3;
@@ -19,6 +20,8 @@ const PAYMENT_REDIRECT_ERROR_MESSAGE =
 	"대시보드로 자동 이동하지 못했습니다. 대시보드로 돌아가 다시 확인해 주세요.";
 const PAYMENT_MISSING_REDIRECT_MESSAGE =
 	"결제 확인에 필요한 정보가 부족합니다. 결제 화면으로 돌아가 다시 시도해 주세요.";
+const PAYMENT_INVALID_REDIRECT_MESSAGE =
+	"결제 식별자 정보를 확인해 주세요. 결제 화면으로 돌아가 다시 시도해 주세요.";
 const PAYMENT_RETRY_PATH = "/subscription";
 const PAYMENT_SUCCESS_STATUS = "success";
 
@@ -57,18 +60,29 @@ function SuccessContent() {
 	const searchParams = useSearchParams();
 	const router = useRouter();
 	const [status, setStatus] = useState(PAYMENT_CONFIRMATION_INITIAL_MESSAGE);
+	const paymentKeyParam = searchParams.get("paymentKey");
+	const orderIdParam = searchParams.get("orderId");
+	const amountParam = searchParams.get("amount");
+	const normalizedPaymentKey = normalizePaymentKey(paymentKeyParam);
+	const normalizedOrderId = normalizePaymentOrderId(orderIdParam);
 	const hasPaymentRedirectParameters = Boolean(
-		searchParams.get("paymentKey") &&
-			searchParams.get("orderId") &&
-			searchParams.get("amount"),
+		paymentKeyParam && orderIdParam && amountParam,
 	);
-	const visibleStatus = hasPaymentRedirectParameters
-		? status
-		: PAYMENT_MISSING_REDIRECT_MESSAGE;
+	const hasInvalidPaymentRedirectIdentifiers = Boolean(
+		hasPaymentRedirectParameters && (!normalizedPaymentKey || !normalizedOrderId),
+	);
+	const visibleStatus = !hasPaymentRedirectParameters
+		? PAYMENT_MISSING_REDIRECT_MESSAGE
+		: hasInvalidPaymentRedirectIdentifiers
+			? PAYMENT_INVALID_REDIRECT_MESSAGE
+			: status;
+	const shouldShowPaymentRetryLink =
+		visibleStatus === PAYMENT_MISSING_REDIRECT_MESSAGE ||
+		visibleStatus === PAYMENT_INVALID_REDIRECT_MESSAGE;
 
 	useEffect(() => {
-		const paymentKey = searchParams.get("paymentKey");
-		const orderId = searchParams.get("orderId");
+		const paymentKey = normalizePaymentKey(searchParams.get("paymentKey"));
+		const orderId = normalizePaymentOrderId(searchParams.get("orderId"));
 		const amount = searchParams.get("amount");
 		let cancelled = false;
 
@@ -225,7 +239,7 @@ function SuccessContent() {
 					>
 						{visibleStatus}
 					</h1>
-					{visibleStatus === PAYMENT_MISSING_REDIRECT_MESSAGE ? (
+					{shouldShowPaymentRetryLink ? (
 						<a
 							href={PAYMENT_RETRY_PATH}
 							aria-label="결제 화면으로 돌아가기"

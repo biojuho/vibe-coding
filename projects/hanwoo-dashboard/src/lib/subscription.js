@@ -1,5 +1,7 @@
 const ORDER_PREFIX = "sub";
 const CUSTOMER_PREFIX = "user";
+const PAYMENT_ORDER_ID_PATTERN = /^[A-Za-z0-9_-]{6,64}$/;
+const PAYMENT_KEY_MAX_LENGTH = 200;
 
 export const PREMIUM_SUBSCRIPTION = {
 	amount: 9900,
@@ -15,8 +17,34 @@ export function buildOrderId(customerKey, timestamp = Date.now()) {
 	return `${ORDER_PREFIX}_${customerKey}_${timestamp}`;
 }
 
+export function normalizePaymentOrderId(value) {
+	if (typeof value !== "string") {
+		return "";
+	}
+
+	const orderId = value.trim();
+	return PAYMENT_ORDER_ID_PATTERN.test(orderId) ? orderId : "";
+}
+
+export function normalizePaymentKey(value) {
+	if (typeof value !== "string") {
+		return "";
+	}
+
+	const paymentKey = value.trim();
+	if (
+		paymentKey.length === 0 ||
+		paymentKey.length > PAYMENT_KEY_MAX_LENGTH ||
+		/\s/.test(paymentKey)
+	) {
+		return "";
+	}
+
+	return paymentKey;
+}
+
 export function parseCustomerKeyFromOrderId(orderId) {
-	const match = /^sub_(.+)_(\d+)$/.exec(String(orderId || ""));
+	const match = /^sub_(.+)_(\d+)$/.exec(normalizePaymentOrderId(orderId));
 	return match ? match[1] : null;
 }
 

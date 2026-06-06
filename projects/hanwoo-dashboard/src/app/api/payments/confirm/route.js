@@ -14,6 +14,8 @@ import {
 import {
 	addDays,
 	buildCustomerKey,
+	normalizePaymentKey,
+	normalizePaymentOrderId,
 	PREMIUM_SUBSCRIPTION,
 	parseCustomerKeyFromOrderId,
 } from "@/lib/subscription";
@@ -78,7 +80,8 @@ export async function POST(req) {
 	try {
 		const session = await requireAuthenticatedSession();
 		const body = normalizePaymentConfirmBody(await req.json());
-		const { paymentKey, orderId } = body;
+		const paymentKey = normalizePaymentKey(body?.paymentKey);
+		const orderId = normalizePaymentOrderId(body?.orderId);
 		const amount = parsePaymentAmount(body?.amount);
 
 		if (!paymentKey || !orderId || !Number.isSafeInteger(amount)) {
