@@ -12,10 +12,15 @@ import {
 const CONFIRM_RETRY_DELAY_MS = 3000;
 const CONFIRM_RETRY_LIMIT = 3;
 const AMOUNT_INPUT_PATTERN = /^\d+$/;
+const PAYMENT_CONFIRMATION_INITIAL_MESSAGE = "결제를 확인하고 있습니다.";
 const PAYMENT_CONFIRMATION_ERROR_MESSAGE =
 	"결제 확인 중 오류가 발생했습니다. 잠시 후 다시 확인해 주세요.";
 const PAYMENT_REDIRECT_ERROR_MESSAGE =
 	"대시보드로 자동 이동하지 못했습니다. 대시보드로 돌아가 다시 확인해 주세요.";
+const PAYMENT_MISSING_REDIRECT_MESSAGE =
+	"결제 확인에 필요한 정보가 부족합니다. 결제 화면으로 돌아가 다시 시도해 주세요.";
+const PAYMENT_RETRY_PATH = "/subscription";
+const PAYMENT_SUCCESS_STATUS = "success";
 
 const PAYMENT_AMOUNT_ERROR_MESSAGE = "결제 금액 정보를 확인해 주세요.";
 
@@ -51,7 +56,15 @@ function clearPaymentStatusTimer(timeoutId) {
 function SuccessContent() {
 	const searchParams = useSearchParams();
 	const router = useRouter();
-	const [status, setStatus] = useState("결제를 확인하고 있습니다.");
+	const [status, setStatus] = useState(PAYMENT_CONFIRMATION_INITIAL_MESSAGE);
+	const hasPaymentRedirectParameters = Boolean(
+		searchParams.get("paymentKey") &&
+			searchParams.get("orderId") &&
+			searchParams.get("amount"),
+	);
+	const visibleStatus = hasPaymentRedirectParameters
+		? status
+		: PAYMENT_MISSING_REDIRECT_MESSAGE;
 
 	useEffect(() => {
 		const paymentKey = searchParams.get("paymentKey");
@@ -107,7 +120,7 @@ function SuccessContent() {
 				}
 
 				if (data?.success) {
-					setStatus("success");
+					setStatus(PAYMENT_SUCCESS_STATUS);
 					retryTimer = schedulePaymentStatusTimer(() => {
 						if (cancelled) {
 							return;
@@ -182,7 +195,7 @@ function SuccessContent() {
 				color: "var(--color-text)",
 			}}
 		>
-			{status === "success" ? (
+			{visibleStatus === PAYMENT_SUCCESS_STATUS ? (
 				<div>
 					<h1
 						aria-live="polite"
@@ -202,14 +215,39 @@ function SuccessContent() {
 			) : (
 				<div>
 					<h1
+						aria-live="polite"
+						aria-atomic="true"
 						style={{
 							fontSize: "28px",
 							fontWeight: 700,
 							fontFamily: "var(--font-display-custom)",
 						}}
 					>
-						{status}
+						{visibleStatus}
 					</h1>
+					{visibleStatus === PAYMENT_MISSING_REDIRECT_MESSAGE ? (
+						<a
+							href={PAYMENT_RETRY_PATH}
+							aria-label="결제 화면으로 돌아가기"
+							title="결제 화면으로 돌아가기"
+							style={{
+								display: "inline-flex",
+								alignItems: "center",
+								justifyContent: "center",
+								marginTop: "22px",
+								padding: "14px 18px",
+								borderRadius: "16px",
+								background: "var(--surface-gradient-primary)",
+								color: "white",
+								fontSize: "15px",
+								fontWeight: 700,
+								textDecoration: "none",
+								boxShadow: "var(--shadow-button-primary)",
+							}}
+						>
+							결제 화면으로 돌아가기
+						</a>
+					) : null}
 				</div>
 			)}
 		</div>

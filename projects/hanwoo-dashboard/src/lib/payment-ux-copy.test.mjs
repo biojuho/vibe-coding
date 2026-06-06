@@ -372,6 +372,49 @@ test("subscription success timers are guarded", () => {
 	assert.doesNotMatch(source, /clearTimeout\(retryTimer\)/);
 });
 
+test("subscription success page recovers missing redirect parameters", () => {
+	const source = readSource("app/subscription/success/page.js");
+
+	assert.match(
+		source,
+		/const PAYMENT_CONFIRMATION_INITIAL_MESSAGE = ["']결제를 확인하고 있습니다\.["'];/,
+	);
+	assert.match(
+		source,
+		/const PAYMENT_MISSING_REDIRECT_MESSAGE =\s+["']결제 확인에 필요한 정보가 부족합니다\. 결제 화면으로 돌아가 다시 시도해 주세요\.["'];/,
+	);
+	assert.match(source, /const PAYMENT_RETRY_PATH = ["']\/subscription["'];/);
+	assert.match(source, /const PAYMENT_SUCCESS_STATUS = ["']success["'];/);
+	assert.match(
+		source,
+		/const \[status, setStatus\] = useState\(PAYMENT_CONFIRMATION_INITIAL_MESSAGE\);/,
+	);
+	assert.match(
+		source,
+		/const hasPaymentRedirectParameters = Boolean\(\s+searchParams\.get\("paymentKey"\) &&\s+searchParams\.get\("orderId"\) &&\s+searchParams\.get\("amount"\),\s+\);/,
+	);
+	assert.match(
+		source,
+		/const visibleStatus = hasPaymentRedirectParameters\s+\? status\s+: PAYMENT_MISSING_REDIRECT_MESSAGE;/,
+	);
+	assert.match(
+		source,
+		/if \(!paymentKey \|\| !orderId \|\| !amount\) \{\s+return;\s+\}/,
+	);
+	assert.match(source, /setStatus\(PAYMENT_SUCCESS_STATUS\);/);
+	assert.doesNotMatch(
+		source,
+		/if \(!paymentKey \|\| !orderId \|\| !amount\) \{\s+setStatus\(PAYMENT_MISSING_REDIRECT_MESSAGE\);/,
+	);
+	assert.match(source, /visibleStatus === PAYMENT_SUCCESS_STATUS/);
+	assert.match(source, /visibleStatus === PAYMENT_MISSING_REDIRECT_MESSAGE/);
+	assert.match(
+		source,
+		/<a[\s\S]*?href=\{PAYMENT_RETRY_PATH\}[\s\S]*?aria-label="결제 화면으로 돌아가기"[\s\S]*?title="결제 화면으로 돌아가기"/,
+	);
+	assert.match(source, />\s*결제 화면으로 돌아가기\s*<\/a>/);
+});
+
 test("subscription success timer callbacks ignore stale cleanup completions", () => {
 	const source = readSource("app/subscription/success/page.js");
 
