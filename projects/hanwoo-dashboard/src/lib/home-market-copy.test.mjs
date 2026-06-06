@@ -647,11 +647,27 @@ test("today focus action buttons expose consolidated task labels", () => {
 	assert.match(source, /function TodayFocusPanel\(options = \{\}\) \{/);
 	assert.match(
 		source,
+		/<TodayFocusPanel[\s\S]*?onNavigate=\{handleTabChange\}[\s\S]*?onAction=\{handleQuickAction\}/,
+	);
+	assert.match(
+		source,
+		/const \{ items, onOpenNotifications, onNavigate, onAction \} =\s+normalizeDashboardHelperOptions\(options\);/,
+	);
+	assert.match(
+		source,
 		/const visibleItems = normalizeDashboardHelperItems\(items\);/,
 	);
 	assert.match(
 		source,
 		/const handleNavigate = typeof onNavigate === ["']function["'] \? onNavigate : \(\) => \{\};/,
+	);
+	assert.match(
+		source,
+		/const handleAction = typeof onAction === ["']function["'] \? onAction : \(\) => \{\};/,
+	);
+	assert.match(
+		source,
+		/if \(item\.actionId\) \{\s+handleAction\(\{\s+id: item\.actionId,\s+targetTab: item\.targetTab,/,
 	);
 	assert.match(source, /if \(!visibleItems\.length\) \{/);
 	assert.match(source, /\{visibleItems\.length\}개/);
@@ -1600,6 +1616,32 @@ test("sales form validation messages are announced by their controls", () => {
 			new RegExp(`<div\\s+[\\s\\S]*?id="${errorId}"[\\s\\S]*?role="alert"`),
 		);
 	}
+});
+
+test("sales quick action opens and focuses the sale form", () => {
+	const source = readSource("components/tabs/SalesTab.js");
+
+	assert.match(source, /import \{ focusElementSafely \} from ["']@\/lib\/safeFocus["'];/);
+	assert.match(source, /const salesFormRef = useRef\(null\);/);
+	assert.match(source, /const saleDateInputRef = useRef\(null\);/);
+	assert.match(source, /const saleDateRegistration = register\("saleDate"\);/);
+	assert.match(
+		source,
+		/useEffect\(\(\) => \{\s+if \(quickActionIntent\?\.actionId === ["']record-sale["']\) \{\s+setIsAdding\(true\);/,
+	);
+	assert.match(
+		source,
+		/salesFormRef\.current\?\.scrollIntoView\(\{\s+behavior: "smooth",\s+block: "start",\s+inline: "nearest",/,
+	);
+	assert.match(source, /focusElementSafely\(saleDateInputRef\.current\);/);
+	assert.match(
+		source,
+		/<form ref=\{salesFormRef\} onSubmit=\{handleSaleSubmit\} className="mb-4">/,
+	);
+	assert.match(
+		source,
+		/\{\.\.\.saleDateRegistration\}[\s\S]*?saleDateRegistration\.ref\(element\);[\s\S]*?saleDateInputRef\.current = element;/,
+	);
 });
 
 test("sales form waits for async saves before re-enabling actions", () => {

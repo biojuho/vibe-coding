@@ -183,6 +183,7 @@ test("buildTodayFocusItems keeps a useful sales prompt when no urgent work exist
 	);
 	assert.equal(items[0].type, "sales");
 	assert.equal(items[0].targetTab, "sales");
+	assert.equal(items[0].actionId, "record-sale");
 	assert.equal(items[0].tone, "neutral");
 });
 
@@ -196,6 +197,7 @@ test("buildTodayFocusItems uses sales terminology for monthly sales analysis", (
 	assert.equal(item?.detail, "판매 흐름을 분석 탭에서 확인해 주세요.");
 	assert.equal(item?.meta, "분석 보기");
 	assert.equal(item?.targetTab, "analysis");
+	assert.equal(item?.actionId, undefined);
 	assert.notEqual(item?.detail, "매출 흐름을 분석 탭에서 확인하세요.");
 	assert.notEqual(item?.detail, "판매 흐름을 분석 탭에서 확인하세요.");
 });

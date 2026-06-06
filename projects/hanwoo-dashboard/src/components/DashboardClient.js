@@ -1923,6 +1923,7 @@ export default function DashboardClient(options = {}) {
 					items={todayFocusItems}
 					onOpenNotifications={() => setShowNotifications(true)}
 					onNavigate={handleTabChange}
+					onAction={handleQuickAction}
 				/>
 
 				<QuickActionPanel
@@ -2320,9 +2321,11 @@ export default function DashboardClient(options = {}) {
 }
 
 function TodayFocusPanel(options = {}) {
-	const { items, onOpenNotifications, onNavigate } = normalizeDashboardHelperOptions(options);
+	const { items, onOpenNotifications, onNavigate, onAction } =
+		normalizeDashboardHelperOptions(options);
 	const visibleItems = normalizeDashboardHelperItems(items);
 	const handleNavigate = typeof onNavigate === "function" ? onNavigate : () => {};
+	const handleAction = typeof onAction === "function" ? onAction : () => {};
 	const handleOpenNotifications =
 		typeof onOpenNotifications === "function" ? onOpenNotifications : () => {};
 
@@ -2333,6 +2336,14 @@ function TodayFocusPanel(options = {}) {
 	const handleClick = (item) => {
 		if (item.type === "alert") {
 			handleOpenNotifications();
+			return;
+		}
+
+		if (item.actionId) {
+			handleAction({
+				id: item.actionId,
+				targetTab: item.targetTab,
+			});
 			return;
 		}
 

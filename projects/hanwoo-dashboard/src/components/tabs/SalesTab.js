@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/premium-input";
 import MarketPriceWidget from "@/components/widgets/MarketPriceWidget";
 import { createSalesFormValues, salesFormSchema } from "@/lib/formSchemas";
+import { focusElementSafely } from "@/lib/safeFocus";
 import { formatMoney, toFiniteNumber } from "@/lib/utils";
 
 const errorTextStyle = {
@@ -82,6 +83,8 @@ export default function SalesTab(options = {}) {
 	);
 	const [isSaving, setIsSaving] = useState(false);
 	const isMountedRef = useRef(false);
+	const salesFormRef = useRef(null);
+	const saleDateInputRef = useRef(null);
 	const saveInFlightRef = useRef(false);
 
 	const {
@@ -93,6 +96,7 @@ export default function SalesTab(options = {}) {
 		resolver: zodResolver(salesFormSchema),
 		defaultValues: createSalesFormValues(),
 	});
+	const saleDateRegistration = register("saleDate");
 
 	const safeSaleRecords = useMemo(
 		() => normalizeSalesItems(saleRecords),
@@ -216,6 +220,36 @@ export default function SalesTab(options = {}) {
 		};
 	}, []);
 
+	useEffect(() => {
+		if (quickActionIntent?.actionId === "record-sale") {
+			setIsAdding(true);
+		}
+	}, [quickActionIntent?.actionId, quickActionIntent?.nonce]);
+
+	useEffect(() => {
+		if (!isAdding) {
+			return;
+		}
+
+		const timeoutId = window.setTimeout(() => {
+			try {
+				salesFormRef.current?.scrollIntoView({
+					behavior: "smooth",
+					block: "start",
+					inline: "nearest",
+				});
+			} catch {
+				salesFormRef.current?.scrollIntoView();
+			}
+
+			focusElementSafely(saleDateInputRef.current);
+		}, 0);
+
+		return () => {
+			window.clearTimeout(timeoutId);
+		};
+	}, [isAdding, quickActionIntent?.nonce]);
+
 	const toggleAddForm = () => {
 		if (saveInFlightRef.current || isSaving) {
 			return;
@@ -300,7 +334,7 @@ export default function SalesTab(options = {}) {
 			</div>
 
 			{isAdding ? (
-				<form onSubmit={handleSaleSubmit} className="mb-4">
+				<form ref={salesFormRef} onSubmit={handleSaleSubmit} className="mb-4">
 					<PremiumCard className="bg-slate-800/60 w-full mb-4">
 						<PremiumCardContent className="p-4">
 							<div
@@ -318,7 +352,11 @@ export default function SalesTab(options = {}) {
 									<PremiumInput
 										id="sale-date"
 										type="date"
-										{...register("saleDate")}
+										{...saleDateRegistration}
+										ref={(element) => {
+											saleDateRegistration.ref(element);
+											saleDateInputRef.current = element;
+										}}
 										aria-invalid={Boolean(errors.saleDate)}
 										aria-describedby={
 											errors.saleDate ? "sale-date-error" : undefined

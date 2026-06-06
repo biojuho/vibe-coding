@@ -251,6 +251,7 @@ export function buildTodayFocusItems(options = {}) {
 		meta: monthlySalesCount > 0 ? "분석 보기" : "출하 기록",
 		tone: monthlySalesCount > 0 ? "success" : "neutral",
 		targetTab: monthlySalesCount > 0 ? "analysis" : "sales",
+		actionId: monthlySalesCount > 0 ? undefined : "record-sale",
 	});
 
 	return items.slice(0, 5);
