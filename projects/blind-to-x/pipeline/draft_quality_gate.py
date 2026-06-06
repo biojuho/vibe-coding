@@ -500,33 +500,7 @@ class DraftQualityGate:
                     self.rules[platform] = overrides
         self.strict_mode = strict_mode
 
-    def validate(self, platform: str, draft: str) -> QualityResult:
-        """단일 플랫폼 초안의 품질을 검증합니다.
-
-        Args:
-            platform: "twitter" | "threads" | "naver_blog" | "newsletter".
-            draft: 검증할 초안 텍스트.
-
-        Returns:
-            QualityResult 인스턴스.
-        """
-        result = QualityResult(platform=platform)
-        rules = self.rules.get(platform, {})
-
-        if not rules:
-            result.add("규칙 존재", True, f"'{platform}'에 대한 품질 기준 없음", "info")
-            return result
-
-        if not draft or not draft.strip():
-            result.add("초안 존재", False, "초안이 비어 있습니다", "error")
-            return result
-
-        text = draft.strip()
-
-        if _looks_like_error_text(text):
-            result.add("에러 응답", False, "LLM 에러/SDK 에러로 보이는 응답입니다", "error")
-            return result
-
+    def _add_length_check(self, result: QualityResult, rules: dict[str, Any], text: str) -> None:
         # ── 1. 글자 수 검증 ──────────────────────────────────────────
         text_len = len(text)
         min_len = rules.get("min_len", 0)
@@ -554,6 +528,7 @@ class DraftQualityGate:
                 "info",
             )
 
+    def _add_korean_ratio_check(self, result: QualityResult, rules: dict[str, Any], text: str) -> None:
         # ── 2. 한글 비율 검증 ────────────────────────────────────────
         min_kr = rules.get("min_korean_ratio", 0)
         if min_kr > 0:
@@ -567,6 +542,7 @@ class DraftQualityGate:
             if kr_ratio < min_kr * 0.5:
                 result.add("깨진 글", False, "한글 비율이 너무 낮아 초안으로 보기 어렵습니다", "error")
 
+    def _add_social_style_checks(self, result: QualityResult, rules: dict[str, Any], platform: str, text: str) -> None:
         # ── 3. CTA 존재 여부 ─────────────────────────────────────────
         if rules.get("require_cta", False):
             cta_patterns = rules.get("cta_patterns", [])
@@ -631,6 +607,7 @@ class DraftQualityGate:
                 "warning",
             )
 
+    def _add_creator_take_check(self, result: QualityResult, platform: str, text: str) -> None:
         # ── Phase 2: creator_take 무색무취 검출 ────────────────────────
         # twitter/threads: 글 전체에 입장이 없으면 warning.
         # naver_blog: <creator_take> 태그가 있으면 그 안만 검사 (없으면 missing).
@@ -662,6 +639,7 @@ class DraftQualityGate:
                         "warning",
                     )
 
+    def _add_format_checks(self, result: QualityResult, rules: dict[str, Any], text: str) -> None:
         # ── 4. 해시태그 검증 ─────────────────────────────────────────
         hashtag_count = _count_hashtags(text)
 
@@ -714,8 +692,10 @@ class DraftQualityGate:
                 "warning",
             )
 
-        # ── 7. 중복 문장 검사 (간단 휴리스틱) ─────────────────────────
-        sentences = [s.strip() for s in re.split(r"[.!?。]\s*", text) if len(s.strip()) > 15]
+    def _quality_sentences(self, text: str) -> list[str]:
+        return [s.strip() for s in re.split(r"[.!?。]\s*", text) if len(s.strip()) > 15]
+
+    def _add_duplicate_sentence_check(self, result: QualityResult, sentences: list[str]) -> None:
         if len(sentences) >= 4:
             unique = set(sentences)
             dup_ratio = 1.0 - (len(unique) / len(sentences))
@@ -726,6 +706,7 @@ class DraftQualityGate:
                 "warning",
             )
 
+    def _add_cliche_checks(self, result: QualityResult, text: str) -> None:
         # ── 8. 클리셰 검사 ─────────────────────────────────────────────
         cliches = _load_cliche_watchlist()
         if cliches:
@@ -745,6 +726,9 @@ class DraftQualityGate:
                     "info",
                 )
 
+    def _add_repetition_and_hook_checks(
+        self, result: QualityResult, platform: str, text: str, sentences: list[str]
+    ) -> None:
         # ── 9. 반복 문장 구조 검사 ─────────────────────────────────────
         if sentences and len(sentences) >= 3:
             # 연속 2문장이 같은 접두사(3자 이상)로 시작하면 경고
@@ -796,6 +780,7 @@ class DraftQualityGate:
                     "error",
                 )
 
+    def _add_vague_expression_check(self, result: QualityResult, text: str) -> None:
         # ── 11. 모호한 표현 검사 (구체성) ──────────────────────────────
         vague_patterns = [
             (r"높은 연봉", "구체적 금액을 사용하세요"),
@@ -825,12 +810,53 @@ class DraftQualityGate:
                 "info",
             )
 
+    def _apply_strict_mode(self, result: QualityResult) -> None:
         # strict_mode 처리
         if self.strict_mode:
             warnings_failed = any(not i.passed and i.severity == "warning" for i in result.items)
             if warnings_failed:
                 result.passed = False
                 result.should_retry = True
+
+    def validate(self, platform: str, draft: str) -> QualityResult:
+        """단일 플랫폼 초안의 품질을 검증합니다.
+
+        Args:
+            platform: "twitter" | "threads" | "naver_blog" | "newsletter".
+            draft: 검증할 초안 텍스트.
+
+        Returns:
+            QualityResult 인스턴스.
+        """
+        result = QualityResult(platform=platform)
+        rules = self.rules.get(platform, {})
+
+        if not rules:
+            result.add("규칙 존재", True, f"'{platform}'에 대한 품질 기준 없음", "info")
+            return result
+
+        if not draft or not draft.strip():
+            result.add("초안 존재", False, "초안이 비어 있습니다", "error")
+            return result
+
+        text = draft.strip()
+
+        if _looks_like_error_text(text):
+            result.add("에러 응답", False, "LLM 에러/SDK 에러로 보이는 응답입니다", "error")
+            return result
+
+        self._add_length_check(result, rules, text)
+        self._add_korean_ratio_check(result, rules, text)
+        self._add_social_style_checks(result, rules, platform, text)
+        self._add_creator_take_check(result, platform, text)
+        self._add_format_checks(result, rules, text)
+
+        sentences = self._quality_sentences(text)
+        self._add_duplicate_sentence_check(result, sentences)
+        self._add_cliche_checks(result, text)
+        self._add_repetition_and_hook_checks(result, platform, text, sentences)
+        self._add_vague_expression_check(result, text)
+        self._apply_strict_mode(result)
 
         return result
 
