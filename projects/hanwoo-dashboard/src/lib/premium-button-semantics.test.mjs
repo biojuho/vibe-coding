@@ -19,10 +19,15 @@ test("PremiumButton defaults to non-submit button semantics", () => {
 	);
 	assert.match(
 		source,
-		/const \{ className, variant, size, asChild = false, type = "button", \.\.\.props \} =\s+normalizePremiumButtonOptions\(options\);/,
+		/const \{\s+className,\s+variant,\s+size,\s+asChild = false,\s+type = "button",\s+glow: _glow,\s+\.\.\.props\s+\} = normalizePremiumButtonOptions\(options\);/,
 	);
 	assert.match(source, /type = "button"/);
 	assert.match(source, /type=\{asChild \? undefined : type\}/);
+});
+
+test("PremiumButton consumes visual-only glow without leaking it to the DOM", () => {
+	assert.match(source, /glow: _glow,\s+\.\.\.props/);
+	assert.doesNotMatch(source, /\{\.\.\.props\}[\s\S]*?glow=/);
 });
 
 test("PremiumButton still allows explicit submit buttons", () => {

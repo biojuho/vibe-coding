@@ -41,6 +41,14 @@ test("home dashboard fallback and panel labels use Korean product copy", () => {
 	assert.doesNotMatch(source, /All rights reserved/);
 });
 
+test("dashboard stacking context keeps mobile tab bar fixed", () => {
+	const source = readSource("app/globals.css");
+
+	assert.match(source, /\.tab-bar\s*\{[\s\S]*?position:\s*fixed;/);
+	assert.match(source, /\.dashboard-container > :not\(\.tab-bar\)\s*\{/);
+	assert.doesNotMatch(source, /\.dashboard-container > \*\s*\{/);
+});
+
 test("dashboard cattle mutation catch paths use safe Korean fallback copy", () => {
 	const source = readSource("components/DashboardClient.js");
 

@@ -1109,7 +1109,7 @@ body {
   background-size: 200px 200px;
 }
 
-.dashboard-container > * {
+.dashboard-container > :not(.tab-bar) {
   position: relative;
   z-index: 1;
 }

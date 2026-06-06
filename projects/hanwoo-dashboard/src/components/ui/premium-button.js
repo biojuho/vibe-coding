@@ -41,17 +41,24 @@ function normalizePremiumButtonOptions(options) {
 }
 
 const PremiumButton = React.forwardRef((options, ref) => {
-	const { className, variant, size, asChild = false, type = "button", ...props } =
-		normalizePremiumButtonOptions(options);
-		const Comp = asChild ? Slot : "button";
-		return (
-			<Comp
-				className={cn(premiumButtonVariants({ variant, size, className }))}
-				ref={ref}
-				type={asChild ? undefined : type}
-				{...props}
-			/>
-		);
+	const {
+		className,
+		variant,
+		size,
+		asChild = false,
+		type = "button",
+		glow: _glow,
+		...props
+	} = normalizePremiumButtonOptions(options);
+	const Comp = asChild ? Slot : "button";
+	return (
+		<Comp
+			className={cn(premiumButtonVariants({ variant, size, className }))}
+			ref={ref}
+			type={asChild ? undefined : type}
+			{...props}
+		/>
+	);
 });
 PremiumButton.displayName = "PremiumButton";
 
