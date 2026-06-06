@@ -17,6 +17,13 @@ from scrapers.base import BaseScraper, FeedCandidate
 logger = logging.getLogger(__name__)
 
 
+class _FMKoreaScrapeFailure(Exception):
+    def __init__(self, message: str, *, reason: str, stage: str = "post_fetch"):
+        super().__init__(message)
+        self.reason = reason
+        self.stage = stage
+
+
 class FMKoreaScraper(BaseScraper):
     """Scraper for fmkorea.com Korean community (best/humor boards)."""
 
@@ -267,6 +274,210 @@ class FMKoreaScraper(BaseScraper):
         return "general"
 
     # ── Post scraping ────────────────────────────────────────────────
+    def _classify_post_fetch_failure(self, fetch_err):
+        err_str = str(fetch_err).lower()
+        if "403" in err_str:
+            return "http_403_forbidden"
+        if "404" in err_str:
+            return "http_404_not_found"
+        if "timeout" in err_str:
+            return "fetch_timeout"
+        return "html_fetch_failed"
+
+    async def _fetch_post_html(self, url):
+        logger.info("Fetching HTML via curl_cffi...")
+        try:
+            return await self._fetch_html_via_session(url)
+        except Exception as fetch_err:
+            raise _FMKoreaScrapeFailure(
+                str(fetch_err),
+                reason=self._classify_post_fetch_failure(fetch_err),
+            ) from fetch_err
+
+    async def _load_post_html(self, page, url, html_content):
+        async def intercept_post(route):
+            await route.fulfill(body=html_content, content_type="text/html")
+
+        await page.route(url, intercept_post)
+        await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+        await asyncio.sleep(2)
+
+    async def _find_content_container(self, page, selectors, timeout_ms):
+        for selector in selectors:
+            try:
+                await page.wait_for_selector(selector, timeout=timeout_ms)
+                main_container = await page.query_selector(selector)
+                if main_container:
+                    logger.info(f"Found content container: {selector}")
+                    return main_container
+            except PlaywrightTimeoutError:
+                continue
+        return None
+
+    async def _resolve_content_container(self, page, url):
+        content_selectors = [
+            ".rd_body",
+            ".xe_content",
+            "#bd_contents",
+            ".document_read",
+            "article",
+            "main",
+            "#__xe_content",
+            "body",
+        ]
+        main_container = await self._find_content_container(page, content_selectors, self.selector_timeout_ms)
+        if main_container:
+            return main_container
+
+        logger.warning(f"Intercept mode failed for {url}. Trying direct navigation...")
+        try:
+            await page.unroute(url)
+            await page.goto(url, wait_until="domcontentloaded", timeout=60000)
+            await asyncio.sleep(3)
+            main_container = await self._find_content_container(
+                page,
+                [".rd_body", ".xe_content", "main", "article", "body"],
+                self.direct_fallback_timeout_ms,
+            )
+        except Exception as fallback_err:
+            logger.error(f"Fallback navigation failed: {fallback_err}")
+
+        if not main_container:
+            raise _FMKoreaScrapeFailure(
+                f"Could not find content container on {url}",
+                reason="main_container_not_found",
+                stage="parse",
+            )
+        return main_container
+
+    async def _extract_post_title(self, page):
+        title_selectors = [
+            "h1.np_18px_span",
+            ".rd_hd h1",
+            ".np_18px",
+            "h1[class*='title']",
+            ".document_view_title",
+            "h1",
+            "h2",
+        ]
+        for selector in title_selectors:
+            el = await page.query_selector(selector)
+            if el:
+                text = (await el.inner_text()).strip()
+                if text:
+                    return text
+        return "제목 없음"
+
+    async def _extract_post_content(self, page, main_container):
+        body_selectors = [
+            ".xe_content",
+            ".rd_body .xe_content",
+            ".document_read .xe_content",
+            ".rd_body",
+            "p",
+        ]
+        for selector in body_selectors:
+            el = await main_container.query_selector(selector)
+            if el:
+                text = (await el.inner_text()).strip()
+                if text and len(text) > 10:
+                    return text
+
+        try:
+            raw_html = await page.content()
+            content = self._extract_clean_text(raw_html)
+            if content and len(content) >= 10:
+                logger.info("Content extracted via trafilatura fallback")
+                return content
+        except Exception:
+            pass
+
+        raise _FMKoreaScrapeFailure(
+            "Insufficient text content (minimum 10 chars).",
+            reason="insufficient_content_length",
+            stage="parse",
+        )
+
+    async def _extract_metric_count(self, page, selectors):
+        for selector in selectors:
+            el = await page.query_selector(selector)
+            if el:
+                text = (await el.inner_text()).strip()
+                match = re.search(r"\d+", text)
+                if match:
+                    return int(match.group())
+        return 0
+
+    async def _extract_post_counts(self, page):
+        likes = await self._extract_metric_count(
+            page,
+            [
+                ".voted_count",
+                "[class*='like'] span",
+                ".count_vote",
+                ".btn_like .count",
+            ],
+        )
+        comments = await self._extract_metric_count(
+            page,
+            [
+                ".comment_count",
+                "[class*='comment'] .count",
+                ".count_comment",
+                ".cmt_count",
+            ],
+        )
+        return likes, comments
+
+    async def _save_post_screenshot(self, page, main_container, title, url):
+        await self._clean_ui_for_screenshot(page)
+
+        short_id = uuid.uuid4().hex[:8]
+        safe_title = "".join(x for x in title[:20] if x.isalnum() or x in " -_").strip()
+        if not safe_title:
+            safe_title = "post"
+        filename = f"fmkorea_{safe_title}_{short_id}.png"
+        filepath = os.path.join(self.screenshot_dir, filename)
+
+        await asyncio.sleep(0.5)
+        try:
+            await asyncio.wait_for(
+                main_container.screenshot(path=filepath),
+                timeout=30,
+            )
+        except asyncio.TimeoutError as exc:
+            logger.error(f"Screenshot timed out for {url}")
+            raise _FMKoreaScrapeFailure(
+                str(exc),
+                reason="screenshot_timeout",
+                stage="parse",
+            ) from exc
+        logger.info(f"Saved screenshot: {filepath}")
+        return filepath
+
+    def _build_success_result(self, url, title, content, category, likes, comments, screenshot_path):
+        return {
+            "url": url,
+            "title": title.strip(),
+            "content": content.strip(),
+            "category": category,
+            "likes": likes,
+            "comments": comments,
+            "screenshot_path": screenshot_path,
+            "source": self.SOURCE_NAME,
+        }
+
+    def _build_error_result(self, url, exc, failure_stage, failure_reason):
+        error_code = ERROR_SCRAPE_PARSE_FAILED if failure_stage == "parse" else ERROR_SCRAPE_FAILED
+        return {
+            "_scrape_error": True,
+            "url": url,
+            "error_code": error_code,
+            "failure_stage": failure_stage,
+            "failure_reason": failure_reason,
+            "error_message": str(exc),
+        }
+
     async def scrape_post(self, url):
         logger.info(f"Scraping FMKorea post: {url}")
         failure_stage = "post_fetch"
@@ -278,201 +489,29 @@ class FMKoreaScraper(BaseScraper):
                 if delay > 0:
                     await asyncio.sleep(delay)
 
-                logger.info("Fetching HTML via curl_cffi...")
-                try:
-                    html_content = await self._fetch_html_via_session(url)
-                except Exception as fetch_err:
-                    err_str = str(fetch_err).lower()
-                    if "403" in err_str:
-                        failure_reason = "http_403_forbidden"
-                    elif "404" in err_str:
-                        failure_reason = "http_404_not_found"
-                    elif "timeout" in err_str:
-                        failure_reason = "fetch_timeout"
-                    else:
-                        failure_reason = "html_fetch_failed"
-                    raise
+                html_content = await self._fetch_post_html(url)
 
-                async def intercept_post(route):
-                    await route.fulfill(body=html_content, content_type="text/html")
-
-                await page.route(url, intercept_post)
-                await page.goto(url, wait_until="domcontentloaded", timeout=30000)
-                await asyncio.sleep(2)
-
-                content_selectors = [
-                    ".rd_body",
-                    ".xe_content",
-                    "#bd_contents",
-                    ".document_read",
-                    "article",
-                    "main",
-                    "#__xe_content",
-                    "body",
-                ]
-                main_container = None
-                for selector in content_selectors:
-                    try:
-                        await page.wait_for_selector(selector, timeout=self.selector_timeout_ms)
-                        main_container = await page.query_selector(selector)
-                        if main_container:
-                            logger.info(f"Found content container: {selector}")
-                            break
-                    except PlaywrightTimeoutError:
-                        continue
-
-                if not main_container:
-                    logger.warning(f"Intercept mode failed for {url}. Trying direct navigation...")
-                    failure_reason = "intercept_selector_not_found"
-                    try:
-                        await page.unroute(url)
-                        await page.goto(url, wait_until="domcontentloaded", timeout=60000)
-                        await asyncio.sleep(3)
-                        for selector in [".rd_body", ".xe_content", "main", "article", "body"]:
-                            try:
-                                await page.wait_for_selector(selector, timeout=self.direct_fallback_timeout_ms)
-                                main_container = await page.query_selector(selector)
-                                if main_container:
-                                    break
-                            except PlaywrightTimeoutError:
-                                continue
-                    except Exception as fallback_err:
-                        failure_reason = "direct_navigation_failed"
-                        logger.error(f"Fallback navigation failed: {fallback_err}")
-
-                if not main_container:
-                    failure_stage = "parse"
-                    failure_reason = "main_container_not_found"
-                    raise Exception(f"Could not find content container on {url}")
-
+                await self._load_post_html(page, url, html_content)
+                main_container = await self._resolve_content_container(page, url)
                 failure_stage = "parse"
 
-                title = ""
-                title_selectors = [
-                    "h1.np_18px_span",
-                    ".rd_hd h1",
-                    ".np_18px",
-                    "h1[class*='title']",
-                    ".document_view_title",
-                    "h1",
-                    "h2",
-                ]
-                for selector in title_selectors:
-                    el = await page.query_selector(selector)
-                    if el:
-                        text = (await el.inner_text()).strip()
-                        if text:
-                            title = text
-                            break
-                if not title:
-                    title = "제목 없음"
-
-                content = ""
-                body_selectors = [
-                    ".xe_content",
-                    ".rd_body .xe_content",
-                    ".document_read .xe_content",
-                    ".rd_body",
-                    "p",
-                ]
-                for selector in body_selectors:
-                    el = await main_container.query_selector(selector)
-                    if el:
-                        text = (await el.inner_text()).strip()
-                        if text and len(text) > 10:
-                            content = text
-                            break
-
-                if not content:
-                    try:
-                        raw_html = await page.content()
-                        content = self._extract_clean_text(raw_html)
-                        if content:
-                            logger.info("Content extracted via trafilatura fallback")
-                    except Exception:
-                        pass
-
-                if len(content) < 10:
-                    failure_reason = "insufficient_content_length"
-                    raise Exception("Insufficient text content (minimum 10 chars).")
-
-                likes = 0
-                comments = 0
-                like_selectors = [
-                    ".voted_count",
-                    "[class*='like'] span",
-                    ".count_vote",
-                    ".btn_like .count",
-                ]
-                cmt_selectors = [
-                    ".comment_count",
-                    "[class*='comment'] .count",
-                    ".count_comment",
-                    ".cmt_count",
-                ]
-
-                for selector in like_selectors:
-                    el = await page.query_selector(selector)
-                    if el:
-                        text = (await el.inner_text()).strip()
-                        match = re.search(r"\d+", text)
-                        if match:
-                            likes = int(match.group())
-                            break
-
-                for selector in cmt_selectors:
-                    el = await page.query_selector(selector)
-                    if el:
-                        text = (await el.inner_text()).strip()
-                        match = re.search(r"\d+", text)
-                        if match:
-                            comments = int(match.group())
-                            break
+                title = await self._extract_post_title(page)
+                content = await self._extract_post_content(page, main_container)
+                likes, comments = await self._extract_post_counts(page)
 
                 category = self._determine_category(title, content)
                 logger.info(f"Extracted: '{title[:20]}...' | Likes {likes} | Comments {comments}")
 
-                await self._clean_ui_for_screenshot(page)
+                filepath = await self._save_post_screenshot(page, main_container, title, url)
+                return self._build_success_result(url, title, content, category, likes, comments, filepath)
 
-                short_id = uuid.uuid4().hex[:8]
-                safe_title = "".join(x for x in title[:20] if x.isalnum() or x in " -_").strip()
-                if not safe_title:
-                    safe_title = "post"
-                filename = f"fmkorea_{safe_title}_{short_id}.png"
-                filepath = os.path.join(self.screenshot_dir, filename)
-
-                await asyncio.sleep(0.5)
-                try:
-                    await asyncio.wait_for(
-                        main_container.screenshot(path=filepath),
-                        timeout=30,
-                    )
-                except asyncio.TimeoutError:
-                    failure_reason = "screenshot_timeout"
-                    logger.error(f"Screenshot timed out for {url}")
-                    raise
-                logger.info(f"Saved screenshot: {filepath}")
-
-                return {
-                    "url": url,
-                    "title": title.strip(),
-                    "content": content.strip(),
-                    "category": category,
-                    "likes": likes,
-                    "comments": comments,
-                    "screenshot_path": filepath,
-                    "source": self.SOURCE_NAME,
-                }
-
+            except _FMKoreaScrapeFailure as e:
+                failure_stage = e.stage
+                failure_reason = e.reason
+                logger.error(f"Error scraping {url}: {e}")
+                await self._save_failure_snapshot(page, url, failure_stage, failure_reason)
+                return self._build_error_result(url, e, failure_stage, failure_reason)
             except Exception as e:
                 logger.error(f"Error scraping {url}: {e}")
                 await self._save_failure_snapshot(page, url, failure_stage, failure_reason)
-                error_code = ERROR_SCRAPE_PARSE_FAILED if failure_stage == "parse" else ERROR_SCRAPE_FAILED
-                return {
-                    "_scrape_error": True,
-                    "url": url,
-                    "error_code": error_code,
-                    "failure_stage": failure_stage,
-                    "failure_reason": failure_reason,
-                    "error_message": str(e),
-                }
+                return self._build_error_result(url, e, failure_stage, failure_reason)

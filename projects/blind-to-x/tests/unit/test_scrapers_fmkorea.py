@@ -1,6 +1,8 @@
+import asyncio
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from scrapers.fmkorea import FMKoreaScraper
+from scrapers.fmkorea import FMKoreaScraper, _FMKoreaScrapeFailure
 
 
 @pytest.fixture
@@ -33,6 +35,25 @@ async def test_determine_category(scraper):
     assert scraper._determine_category("롤 게임 후기", "존잼") == "gaming"
     assert scraper._determine_category("최신 뉴스 속보", "정치 이슈") == "news"
     assert scraper._determine_category("일반적인 글", "별내용없음") == "general"
+
+
+def test_classify_post_fetch_failure(scraper):
+    assert scraper._classify_post_fetch_failure(Exception("403 Forbidden")) == "http_403_forbidden"
+    assert scraper._classify_post_fetch_failure(Exception("404 Not Found")) == "http_404_not_found"
+    assert scraper._classify_post_fetch_failure(Exception("read timeout")) == "fetch_timeout"
+    assert scraper._classify_post_fetch_failure(Exception("connection reset")) == "html_fetch_failed"
+
+
+@pytest.mark.asyncio
+async def test_extract_metric_count_returns_first_number(scraper):
+    page_mock = AsyncMock()
+    count_el = AsyncMock()
+    count_el.inner_text.return_value = "추천 42"
+    page_mock.query_selector.side_effect = [None, count_el]
+
+    count = await scraper._extract_metric_count(page_mock, [".missing", ".voted_count"])
+
+    assert count == 42
 
 
 @pytest.mark.asyncio
@@ -187,6 +208,84 @@ async def test_scrape_post_insufficient_length(mock_fetch, scraper):
 
     assert result.get("_scrape_error") is True
     assert result["failure_reason"] == "insufficient_content_length"
+
+
+@pytest.mark.asyncio
+async def test_extract_post_content_rejects_short_clean_text_fallback(scraper):
+    page_mock = AsyncMock()
+    page_mock.content.return_value = "<html><body>짧다</body></html>"
+    main_container_mock = AsyncMock()
+    main_container_mock.query_selector.return_value = None
+    scraper._extract_clean_text = MagicMock(return_value="짧다")
+
+    with pytest.raises(_FMKoreaScrapeFailure) as excinfo:
+        await scraper._extract_post_content(page_mock, main_container_mock)
+
+    assert excinfo.value.stage == "parse"
+    assert excinfo.value.reason == "insufficient_content_length"
+
+
+@pytest.mark.asyncio
+async def test_extract_post_content_accepts_ten_char_clean_text_fallback(scraper):
+    page_mock = AsyncMock()
+    page_mock.content.return_value = "<html><body>1234567890</body></html>"
+    main_container_mock = AsyncMock()
+    main_container_mock.query_selector.return_value = None
+    scraper._extract_clean_text = MagicMock(return_value="1234567890")
+
+    content = await scraper._extract_post_content(page_mock, main_container_mock)
+
+    assert content == "1234567890"
+
+
+@pytest.mark.asyncio
+@patch("scrapers.fmkorea.FMKoreaScraper._fetch_html_via_session", new_callable=AsyncMock)
+async def test_scrape_post_screenshot_timeout_classified(mock_fetch, scraper):
+    mock_fetch.return_value = "<html><body></body></html>"
+    page_mock = AsyncMock()
+    page_mock.wait_for_selector = AsyncMock()
+
+    main_container_mock = AsyncMock()
+    main_container_mock.screenshot = AsyncMock(side_effect=asyncio.TimeoutError())
+
+    title_el = AsyncMock()
+    title_el.inner_text.return_value = "오버워치 플레이 영상"
+
+    def page_query_selector(sel):
+        if sel == ".rd_body":
+            return main_container_mock
+        if "h1" in sel:
+            return title_el
+        return None
+
+    page_mock.query_selector.side_effect = page_query_selector
+
+    content_el = AsyncMock()
+    content_el.inner_text.return_value = (
+        "이 오버워치 영상은 어떻게 플레이했는지 자세히 보여주는 영상입니다. 10자가 넘어야 합니다."
+    )
+    main_container_mock.query_selector.side_effect = lambda sel: (
+        content_el
+        if sel
+        in {
+            ".xe_content",
+            ".rd_body .xe_content",
+            ".document_read .xe_content",
+            ".rd_body",
+            "p",
+        }
+        else None
+    )
+
+    cm_mock = MagicMock()
+    cm_mock.__aenter__.return_value = page_mock
+    scraper._new_page_cm = MagicMock(return_value=cm_mock)
+
+    result = await scraper.scrape_post("https://www.fmkorea.com/best/9999")
+
+    assert result.get("_scrape_error") is True
+    assert result["failure_stage"] == "parse"
+    assert result["failure_reason"] == "screenshot_timeout"
 
 
 @pytest.mark.asyncio
