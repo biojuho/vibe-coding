@@ -351,6 +351,7 @@
 ## Minefield
 
 - **`hanwoo-dashboard`**:
+  - **Next dev loopback QA**: Next 16 dev resources block cross-origin dev asset/HMR requests unless `allowedDevOrigins` includes the extra host. Hanwoo intentionally allows `127.0.0.1` in `next.config.mjs` so Codex/Playwright browser QA can use loopback without repeated `/_next/webpack-hmr` console errors. When testing protected Auth routes on a non-default port, align `NEXTAUTH_URL`/`AUTH_URL` with that port or use the default `3001`; otherwise the redirect may point at `localhost:3001`.
   - **소프트 삭제 계약**: 개체 삭제는 하드 딜리트가 아닌 소프트 아카이브(`isArchived`)로 동작합니다. 문구 및 기능 개발 시 파괴적인 '삭제' 대신 '보관 처리'를 일관되게 적용하십시오.
   - **태그 유니크 제한**: `Cattle.tagNumber`는 고유값입니다. 중복 예외 발생 시 Prisma `P2002` 에러를 한국어 문구로 깔끔하게 맵핑하십시오.
   - **개인정보 유출 주의**: 공인 약관 및 법적 페이지(`/privacy`, `/terms`)에 개인 휴대폰 번호나 주소가 유출되지 않도록 `legal-pages-copy.test.mjs` 검증 규칙을 유지하십시오.
