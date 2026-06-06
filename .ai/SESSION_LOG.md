@@ -856,3 +856,19 @@
 - Runtime proof: `product_readiness_score.py --json` reports score `96`, state `blocked`, local blockers `0`, publish blockers `1`, external blockers `1`; `release_authorization_packet.py --json` is `ready_for_authorization`; selector is `blocked_publish_only`; launch audit has complete coverage; completion audit is `incomplete` with `9/14` complete and 5 blocked issues.
 - Code-review graph note: `session_orient.py --json` reports graph stale after context/doc commits, but launch audit confirms the stale range has no graph-relevant file changes and `code_review_gate` passed with `risk_score=0.0`.
 - Boundary: no push was performed. Product launch remains incomplete until explicit push authorization/user push plus current-head `root-quality-gate` and `active-project-matrix`, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
+## 2026-06-06 - Codex
+
+- Closed T-1366 as a bounded `$auto-research` `blind-to-x` JobPlanet scraper maintainability cycle.
+- Changed `projects/blind-to-x/scrapers/jobplanet.py`: `JobplanetScraper.scrape_post()` now delegates post-id extraction, detail fetch, title resolution, payload validation, screenshot capture, success-result assembly, and error-result classification to focused helpers while preserving scrape behavior.
+- Changed `projects/blind-to-x/tests/unit/test_scrapers_jobplanet.py`: added direct helper and classification coverage for invalid URLs, title fallback, short-content rejection, screenshot-capture failure, and invalid URL reason reporting.
+- Verification: focused JobPlanet/scrape-failure pytest passed `22/22`; related scraper pytest passed `71/71`; ruff check passed; ruff format check passed; diff-check passed; blind-to-x project QC passed with `1769 passed`, `9 skipped` plus lint.
+- VibeDebt/structure proof: `jobplanet.py` target score moved `34.4 -> 24.8`, max complexity `14 -> 10`, max function length `95 -> 38`, and `scrape_post` moved from `96` lines/`12` branches to `30` lines/`4` branches.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1366.json --json` returned `adopt_candidate` with `score_delta=1.7680608569246803`.
+- Commit closeout: `18527ad8 refactor(blind-to-x): T-1366 split JobPlanet scraper helpers` is local only; no push was performed and T-251 was not retried.
+
+## 2026-06-06 - Codex
+
+- Refreshed full active-project QC and launch evidence after T-1366.
+- Full active-project QC passed and rewrote `.tmp/project_qc_runner_latest.json`: blind-to-x `1769 passed`, `9 skipped`; shorts-maker-v2 `1618 passed`, `12 skipped`; Hanwoo `505 passed`; Knowledge `61 passed`; total `3953 passed`, `21 skipped`; lint/build/smoke gates passed where applicable.
+- Runtime proof: `product_readiness_score.py --json` reports score `96`, state `blocked`, local blockers `0`, publish blockers `1`, external blockers `1`; `release_authorization_packet.py --json` is `ready_for_authorization`; selector is `blocked_publish_only`; launch audit has complete coverage with current code-review graph; completion audit is `incomplete` with `9/14` complete and 5 blocked issues.
+- Boundary: no push was performed. Product launch remains incomplete until explicit push authorization/user push plus current-head `root-quality-gate` and `active-project-matrix`, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
