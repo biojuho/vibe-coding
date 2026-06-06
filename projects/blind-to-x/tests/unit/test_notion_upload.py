@@ -1,4 +1,6 @@
 import os
+from datetime import date, datetime
+
 import pytest
 import httpx
 from unittest.mock import AsyncMock, patch, MagicMock
@@ -315,6 +317,30 @@ def test_prepare_property_payload_multi_select(mock_config):
 
     assert prop_name == "위험 신호"
     assert payload == {"multi_select": [{"name": "팩트 경계"}, {"name": "클리셰"}]}
+
+
+def test_prepare_property_payload_date_values(mock_config):
+    uploader = NotionUploader(mock_config)
+    uploader.props = {"scheduled": "Scheduled At", "created": "Created At"}
+    uploader._db_properties = {"Scheduled At": {"type": "date"}, "Created At": {"type": "date"}}
+
+    prop_name, payload = uploader._prepare_property_payload("scheduled", date(2026, 6, 6))
+    assert prop_name == "Scheduled At"
+    assert payload == {"date": {"start": "2026-06-06"}}
+
+    prop_name, payload = uploader._prepare_property_payload("created", datetime(2026, 6, 6, 9, 30))
+    assert prop_name == "Created At"
+    assert payload == {"date": {"start": "2026-06-06T09:30:00"}}
+
+
+def test_prepare_property_payload_skips_empty_or_unknown_values(mock_config):
+    uploader = NotionUploader(mock_config)
+    uploader.props = {"memo": "Memo", "unknown_type": "Unknown Type"}
+    uploader._db_properties = {"Memo": {"type": "rich_text"}, "Unknown Type": {"type": "files"}}
+
+    assert uploader._prepare_property_payload("memo", "") == (None, None)
+    assert uploader._prepare_property_payload("missing", "value") == (None, None)
+    assert uploader._prepare_property_payload("unknown_type", "value") == (None, None)
 
 
 def test_build_upload_properties_preserves_review_and_x_fields(mock_config):

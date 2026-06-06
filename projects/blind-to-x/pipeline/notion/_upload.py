@@ -37,44 +37,68 @@ class NotionUploadMixin:
 
     def _prepare_property_payload(self, semantic_key: str, value: Any):
         """시맨틱 키 + 값 → Notion API 속성 payload 변환."""
+        prop_name, prop_type = self._resolve_property_target(semantic_key, value)
+        if not prop_name:
+            return None, None
+
+        payload = self._build_property_payload(prop_type, value)
+        if payload is None:
+            return None, None
+        return prop_name, payload
+
+    def _resolve_property_target(self, semantic_key: str, value: Any) -> tuple[str | None, str | None]:
         prop_name = self.props.get(semantic_key)
         if not prop_name or prop_name not in self._db_properties or value in (None, ""):
             return None, None
+        return prop_name, self._db_properties[prop_name]["type"]
 
-        prop_type = self._db_properties[prop_name]["type"]
-        if prop_type == "title":
-            return prop_name, {"title": [{"text": {"content": str(value)[:1990]}}]}
-        if prop_type == "rich_text":
-            return prop_name, {"rich_text": [{"text": {"content": str(value)[:1990]}}]}
-        if prop_type == "checkbox":
-            return prop_name, {"checkbox": bool(value)}
-        if prop_type == "number":
-            return prop_name, {"number": float(value)}
-        if prop_type == "url":
-            return prop_name, {"url": str(value)}
-        if prop_type == "status":
-            return prop_name, {"status": {"name": str(value)}}
-        if prop_type == "select":
-            return prop_name, {"select": {"name": str(value)}}
+    def _build_property_payload(self, prop_type: str | None, value: Any) -> dict[str, Any] | None:
+        scalar_payload = self._build_scalar_property_payload(prop_type, value)
+        if scalar_payload is not None:
+            return scalar_payload
         if prop_type == "multi_select":
-            if isinstance(value, (list, tuple, set)):
-                names = [str(item).strip() for item in value if str(item).strip()]
-            else:
-                names = [str(value).strip()] if str(value).strip() else []
-            if not names:
-                return None, None
-            return prop_name, {"multi_select": [{"name": name[:100]} for name in names]}
+            return self._build_multi_select_property_payload(value)
         if prop_type == "date":
-            if value == "now":
-                iso_value = datetime.utcnow().isoformat()
-            elif isinstance(value, datetime):
-                iso_value = value.isoformat()
-            elif isinstance(value, date):
-                iso_value = value.isoformat()
-            else:
-                iso_value = str(value)
-            return prop_name, {"date": {"start": iso_value}}
-        return None, None
+            return self._build_date_property_payload(value)
+        return None
+
+    @staticmethod
+    def _build_scalar_property_payload(prop_type: str | None, value: Any) -> dict[str, Any] | None:
+        builders = {
+            "title": lambda item: {"title": [{"text": {"content": str(item)[:1990]}}]},
+            "rich_text": lambda item: {"rich_text": [{"text": {"content": str(item)[:1990]}}]},
+            "checkbox": lambda item: {"checkbox": bool(item)},
+            "number": lambda item: {"number": float(item)},
+            "url": lambda item: {"url": str(item)},
+            "status": lambda item: {"status": {"name": str(item)}},
+            "select": lambda item: {"select": {"name": str(item)}},
+        }
+        builder = builders.get(prop_type or "")
+        if not builder:
+            return None
+        return builder(value)
+
+    @staticmethod
+    def _build_multi_select_property_payload(value: Any) -> dict[str, Any] | None:
+        if isinstance(value, (list, tuple, set)):
+            names = [str(item).strip() for item in value if str(item).strip()]
+        else:
+            names = [str(value).strip()] if str(value).strip() else []
+        if not names:
+            return None
+        return {"multi_select": [{"name": name[:100]} for name in names]}
+
+    @staticmethod
+    def _build_date_property_payload(value: Any) -> dict[str, Any]:
+        if value == "now":
+            iso_value = datetime.utcnow().isoformat()
+        elif isinstance(value, datetime):
+            iso_value = value.isoformat()
+        elif isinstance(value, date):
+            iso_value = value.isoformat()
+        else:
+            iso_value = str(value)
+        return {"date": {"start": iso_value}}
 
     def _append_property_if_present(self, properties: dict[str, Any], semantic_key: str, value: Any):
         """값이 있으면 properties dict에 속성 payload 추가."""
