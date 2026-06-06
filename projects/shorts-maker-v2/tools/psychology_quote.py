@@ -224,62 +224,77 @@ class QuoteShortsGenerator:
             r = p["r"]
             draw.ellipse([(x - r, y - r), (x + r, y + r)], fill=(255, 255, 240, al))
 
-    # ── Frame ──
-    def _render(self, t):
-        dur = self.duration
-        # Timing
+    def _timeline(self):
         bg_fade_end = 2.0
         quote_start = 2.0
         quote_interval = 0.5
         quote_done = quote_start + len(self._q_lines) * quote_interval + 0.5
-        author_start = max(quote_done, dur - 8)
-        fade_out_start = dur - 3.0
+        author_start = max(quote_done, self.duration - 8)
+        fade_out_start = self.duration - 3.0
+        return bg_fade_end, quote_start, quote_interval, author_start, fade_out_start
 
-        # Background alpha
+    def _frame_alphas(self, t, bg_fade_end, fade_out_start):
         bg_alpha = self._eo(t / bg_fade_end) if t < bg_fade_end else 1.0
-        # Overall fade-out
         global_alpha = 1.0
         if t > fade_out_start:
             global_alpha = 1 - self._eo((t - fade_out_start) / 3.0)
+        return bg_alpha, global_alpha
 
-        # Background
+    def _new_frame_layers(self, bg_alpha, global_alpha):
         bg_arr = self._bg.astype(np.float32) * bg_alpha * global_alpha
         bg = Image.fromarray(np.clip(bg_arr, 0, 255).astype(np.uint8), "RGB").convert("RGBA")
-
-        # Gradient overlays
         ov = Image.new("RGBA", (self.W, self.H), (0, 0, 0, 0))
-        if bg_alpha > 0.1:
-            bg.paste(
-                Image.alpha_composite(Image.new("RGBA", (self.W, self.H), (0, 0, 0, 0)), self._grad_top),
-                (0, 0),
-                self._grad_top,
-            )
-            bg.paste(
-                Image.alpha_composite(Image.new("RGBA", (self.W, self.H), (0, 0, 0, 0)), self._grad_bot),
-                (0, 0),
-                self._grad_bot,
-            )
+        return bg, ov, ImageDraw.Draw(ov)
 
-        draw = ImageDraw.Draw(ov)
+    def _apply_gradients(self, bg, bg_alpha):
+        if bg_alpha <= 0.1:
+            return
+        blank = Image.new("RGBA", (self.W, self.H), (0, 0, 0, 0))
+        bg.paste(Image.alpha_composite(blank, self._grad_top), (0, 0), self._grad_top)
+        bg.paste(Image.alpha_composite(blank, self._grad_bot), (0, 0), self._grad_bot)
 
-        # Particles
-        if t > 1.0:
-            pa = self._eo((t - 1.0) / 2.0) * global_alpha
-            if pa > 0.1:
-                self._draw_particles(draw, t)
+    def _draw_particle_layer(self, draw, t, global_alpha):
+        if t <= 1.0:
+            return
+        pa = self._eo((t - 1.0) / 2.0) * global_alpha
+        if pa > 0.1:
+            self._draw_particles(draw, t)
 
-        # Tags (상단)
-        if t > 1.5:
-            ta = int(153 * self._eo((t - 1.5) / 1.0) * global_alpha)  # 60% max
-            if ta > 0:
-                tw_ = self._tw(self.tags, self.f_tag)
-                draw.text(((self.W - tw_) // 2, 180), self.tags, font=self.f_tag, fill=(*self.LAVENDER, ta))
+    def _draw_tags(self, draw, t, global_alpha):
+        if t <= 1.5:
+            return
+        ta = int(153 * self._eo((t - 1.5) / 1.0) * global_alpha)  # 60% max
+        if ta <= 0:
+            return
+        tw_ = self._tw(self.tags, self.f_tag)
+        draw.text(((self.W - tw_) // 2, 180), self.tags, font=self.f_tag, fill=(*self.LAVENDER, ta))
 
-        # Quote lines (중앙)
+    def _quote_layout(self):
         lh = self._th("가", self.f_quote) + 24
         total_h = lh * len(self._q_lines)
         base_y = (self.H - total_h) // 2 - 60  # 약간 위쪽
+        return lh, base_y
 
+    def _draw_spaced_quote_line(self, draw, line, x, y, alpha):
+        words = line.split()
+        for j, w in enumerate(words):
+            seg = w + (" " if j < len(words) - 1 else "")
+            col = self.AMBER if self._is_hl(w) else self.WHITE
+            draw.text((x, y), seg, font=self.f_quote, fill=(*col, alpha))
+            x += self._tw(seg, self.f_quote)
+
+    def _draw_quote_line(self, draw, line, y, alpha, slide_x):
+        if " " in line:
+            self._draw_spaced_quote_line(draw, line, self.MARGIN + slide_x, y, alpha)
+            return
+
+        # 한국어 — 공백 없이 이어진 경우 전체 흰색 렌더
+        # 단어 단위 강조는 공백으로 구분된 텍스트에만 적용
+        lw = self._tw(line, self.f_quote)
+        draw.text(((self.W - lw) // 2 + slide_x, y), line, font=self.f_quote, fill=(255, 255, 255, alpha))
+
+    def _draw_quote_lines(self, draw, t, global_alpha, quote_start, quote_interval):
+        lh, base_y = self._quote_layout()
         for i, line in enumerate(self._q_lines):
             line_t = t - quote_start - i * quote_interval
             if line_t < 0:
@@ -287,52 +302,49 @@ class QuoteShortsGenerator:
             prog = self._eo(line_t / 0.6)
             alpha = int(255 * prog * global_alpha)
             slide_x = int(15 * (1 - prog))  # 왼쪽에서 15px 슬라이드
-
             if alpha <= 0:
                 continue
+            self._draw_quote_line(draw, line, base_y + i * lh, alpha, slide_x)
 
-            # 단어별 하이라이트 렌더링
-            y = base_y + i * lh
-            x = self.MARGIN + slide_x
-            words = line.split() if " " in line else list(line)
-            if " " in line:
-                for j, w in enumerate(words):
-                    seg = w + (" " if j < len(words) - 1 else "")
-                    col = self.AMBER if self._is_hl(w) else self.WHITE
-                    draw.text((x, y), seg, font=self.f_quote, fill=(*col, alpha))
-                    x += self._tw(seg, self.f_quote)
-            else:
-                # 한국어 — 공백 없이 이어진 경우 전체 흰색 렌더
-                # 단어 단위 강조는 공백으로 구분된 텍스트에만 적용
-                lw = self._tw(line, self.f_quote)
-                draw.text(((self.W - lw) // 2 + slide_x, y), line, font=self.f_quote, fill=(255, 255, 255, alpha))
+    def _draw_author_block(self, draw, t, global_alpha, author_start):
+        if t <= author_start:
+            return
+        aa = self._eo((t - author_start) / 1.0) * global_alpha
+        ai = int(179 * aa)  # 70% max
+        if ai <= 0:
+            return
 
-        # Author (하단)
-        if t > author_start:
-            aa = self._eo((t - author_start) / 1.0) * global_alpha
-            ai = int(179 * aa)  # 70% max
-            if ai > 0:
-                atxt = f"— {self.author}"
-                aw = self._tw(atxt, self.f_author)
-                author_y = self.H - 420
-                draw.text(((self.W - aw) // 2, author_y), atxt, font=self.f_author, fill=(255, 255, 255, ai))
-                # 구분선
-                line_w = 80
-                lx = (self.W - line_w) // 2
-                draw.line(
-                    [(lx, author_y + 70), (lx + line_w, author_y + 70)], fill=(*self.LAVENDER, int(ai * 0.5)), width=2
+        atxt = f"— {self.author}"
+        aw = self._tw(atxt, self.f_author)
+        author_y = self.H - 420
+        draw.text(((self.W - aw) // 2, author_y), atxt, font=self.f_author, fill=(255, 255, 255, ai))
+        # 구분선
+        line_w = 80
+        lx = (self.W - line_w) // 2
+        draw.line([(lx, author_y + 70), (lx + line_w, author_y + 70)], fill=(*self.LAVENDER, int(ai * 0.5)), width=2)
+        # Insight line
+        if self.insight:
+            ia = int(200 * self._eo((t - author_start - 0.8) / 0.8) * global_alpha)
+            if ia > 0:
+                iw = self._tw(self.insight, self.f_insight)
+                draw.text(
+                    ((self.W - iw) // 2, author_y + 95),
+                    self.insight,
+                    font=self.f_insight,
+                    fill=(200, 200, 210, ia),
                 )
-                # Insight line
-                if self.insight:
-                    ia = int(200 * self._eo((t - author_start - 0.8) / 0.8) * global_alpha)
-                    if ia > 0:
-                        iw = self._tw(self.insight, self.f_insight)
-                        draw.text(
-                            ((self.W - iw) // 2, author_y + 95),
-                            self.insight,
-                            font=self.f_insight,
-                            fill=(200, 200, 210, ia),
-                        )
+
+    # ── Frame ──
+    def _render(self, t):
+        bg_fade_end, quote_start, quote_interval, author_start, fade_out_start = self._timeline()
+        bg_alpha, global_alpha = self._frame_alphas(t, bg_fade_end, fade_out_start)
+        bg, ov, draw = self._new_frame_layers(bg_alpha, global_alpha)
+
+        self._apply_gradients(bg, bg_alpha)
+        self._draw_particle_layer(draw, t, global_alpha)
+        self._draw_tags(draw, t, global_alpha)
+        self._draw_quote_lines(draw, t, global_alpha, quote_start, quote_interval)
+        self._draw_author_block(draw, t, global_alpha, author_start)
 
         comp = Image.alpha_composite(bg, ov)
         return np.array(comp.convert("RGB"))
