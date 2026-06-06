@@ -453,84 +453,95 @@ class TechVSShortsGenerator(BaseShortsGenerator):
 
         self._init_particles(14, 77)
 
-    def _render(self, t):
-        # Dark bg
+    def _new_layers(self):
         arr = np.zeros((self.H, self.W, 3), dtype=np.uint8)
         for y in range(self.H):
             arr[y, :] = [10, 22, 40]
         bg = Image.fromarray(arr, "RGB").convert("RGBA")
         ov = Image.new("RGBA", (self.W, self.H), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(ov)
+        return bg, ov, ImageDraw.Draw(ov)
 
-        # Grid and Particles
+    def _phase(self, t):
+        if t < 4:
+            return "intro"
+        if t < self.duration - 8:
+            return "points"
+        return "verdict"
+
+    def _draw_intro_phase(self, draw, t, mid):
+        a_a = int(255 * self._eo(t / 1.0))
+        b_a = int(255 * self._eo((t - 0.5) / 1.0))
+
+        aw = self._tw(self.tech_a, self.f_title)
+        draw.text(((mid - aw) // 2, 750), self.tech_a, font=self.f_title, fill=(*self.CYAN, a_a))
+
+        bw = self._tw(self.tech_b, self.f_title)
+        draw.text((mid + (mid - bw) // 2, 750), self.tech_b, font=self.f_title, fill=(*self.MAGENTA, b_a))
+
+        if t > 1.0:
+            va = int(255 * self._eo((t - 1.0) / 0.5))
+            vw = self._tw("VS", self.f_vs)
+            draw.text(((self.W - vw) // 2, 720), "VS", font=self.f_vs, fill=(255, 255, 255, va))
+
+        draw.line([(mid, 700), (mid, 850)], fill=(*self.CYAN, 100), width=2)
+
+    def _draw_points_header(self, draw, mid):
+        draw.line([(mid, 300), (mid, 1500)], fill=(255, 255, 255, 40), width=2)
+
+        aw = self._tw(self.tech_a, self.f_title)
+        draw.text(((mid - aw) // 2, 320), self.tech_a, font=self.f_title, fill=(*self.CYAN, 220))
+
+        bw = self._tw(self.tech_b, self.f_title)
+        draw.text((mid + (mid - bw) // 2, 320), self.tech_b, font=self.f_title, fill=(*self.MAGENTA, 220))
+
+    def _draw_point_lines(self, draw, lines_by_point, lt, start_delay, x, line_height):
+        for i, lines in enumerate(lines_by_point):
+            pt = lt - start_delay - i * 2.0
+            if pt < 0:
+                continue
+            al = int(220 * self._eo(pt / 0.5))
+            for j, ln in enumerate(lines):
+                draw.text((x, 430 + i * 140 + j * line_height), ln, font=self.f_body, fill=(*self.ICE_BLUE, al))
+
+    def _draw_points_phase(self, draw, t, mid):
+        lt = t - 4
+        self._draw_points_header(draw, mid)
+
+        lh = self._th("가", self.f_body) + 10
+        self._draw_point_lines(draw, self._pa_lines, lt, 0.0, 40, lh)
+        self._draw_point_lines(draw, self._pb_lines, lt, 1.0, mid + 30, lh)
+
+    def _draw_verdict_phase(self, draw, t):
+        lt = t - (self.duration - 8)
+        if lt < 3:
+            ta = int(255 * self._eo(lt / 0.8))
+            txt = "🏆 결론"
+            tw_ = self._tw(txt, self.f_big)
+            draw.text(((self.W - tw_) // 2, 650), txt, font=self.f_big, fill=(*self.CYAN, ta))
+        if lt > 1.5 and self._verdict_lines:
+            lh = self._th("가", self.f_body) + 14
+            for i, ln in enumerate(self._verdict_lines):
+                la = int(230 * self._eo((lt - 1.5 - i * 0.2) / 0.5))
+                if la < 0:
+                    la = 0
+                tw_ = self._tw(ln, self.f_body)
+                draw.text(((self.W - tw_) // 2, 750 + i * lh), ln, font=self.f_body, fill=(*self.ICE_BLUE, la))
+
+    def _draw_phase(self, draw, t, mid):
+        phase = self._phase(t)
+        if phase == "intro":
+            self._draw_intro_phase(draw, t, mid)
+        elif phase == "points":
+            self._draw_points_phase(draw, t, mid)
+        else:
+            self._draw_verdict_phase(draw, t)
+
+    def _render(self, t):
+        bg, ov, draw = self._new_layers()
+
         self._draw_grid(draw, t, 12, 5)
         self._draw_particles(draw, t)
-
-        mid = self.W // 2
-
-        # Phase 1: VS intro (0~4s)
-        if t < 4:
-            a_a = int(255 * self._eo(t / 1.0))
-            b_a = int(255 * self._eo((t - 0.5) / 1.0))
-            # Left: Tech A
-            aw = self._tw(self.tech_a, self.f_title)
-            draw.text(((mid - aw) // 2, 750), self.tech_a, font=self.f_title, fill=(*self.CYAN, a_a))
-            # Right: Tech B
-            bw = self._tw(self.tech_b, self.f_title)
-            draw.text((mid + (mid - bw) // 2, 750), self.tech_b, font=self.f_title, fill=(*self.MAGENTA, b_a))
-            # VS
-            if t > 1.0:
-                va = int(255 * self._eo((t - 1.0) / 0.5))
-                vw = self._tw("VS", self.f_vs)
-                draw.text(((self.W - vw) // 2, 720), "VS", font=self.f_vs, fill=(255, 255, 255, va))
-            # Divider
-            draw.line([(mid, 700), (mid, 850)], fill=(*self.CYAN, 100), width=2)
-
-        # Phase 2: Points (4~25s)
-        elif t < self.duration - 8:
-            lt = t - 4
-            # Divider line
-            draw.line([(mid, 300), (mid, 1500)], fill=(255, 255, 255, 40), width=2)
-            # Headers
-            aw = self._tw(self.tech_a, self.f_title)
-            draw.text(((mid - aw) // 2, 320), self.tech_a, font=self.f_title, fill=(*self.CYAN, 220))
-            bw = self._tw(self.tech_b, self.f_title)
-            draw.text((mid + (mid - bw) // 2, 320), self.tech_b, font=self.f_title, fill=(*self.MAGENTA, 220))
-
-            lh = self._th("가", self.f_body) + 10
-            # A points
-            for i, lines in enumerate(self._pa_lines):
-                pt = lt - i * 2.0
-                if pt < 0:
-                    continue
-                al = int(220 * self._eo(pt / 0.5))
-                for j, ln in enumerate(lines):
-                    draw.text((40, 430 + i * 140 + j * lh), ln, font=self.f_body, fill=(*self.ICE_BLUE, al))
-            # B points
-            for i, lines in enumerate(self._pb_lines):
-                pt = lt - 1.0 - i * 2.0
-                if pt < 0:
-                    continue
-                al = int(220 * self._eo(pt / 0.5))
-                for j, ln in enumerate(lines):
-                    draw.text((mid + 30, 430 + i * 140 + j * lh), ln, font=self.f_body, fill=(*self.ICE_BLUE, al))
-
-        # Phase 3: Verdict (last 8s)
-        else:
-            lt = t - (self.duration - 8)
-            if lt < 3:
-                ta = int(255 * self._eo(lt / 0.8))
-                txt = "🏆 결론"
-                tw_ = self._tw(txt, self.f_big)
-                draw.text(((self.W - tw_) // 2, 650), txt, font=self.f_big, fill=(*self.CYAN, ta))
-            if lt > 1.5 and self._verdict_lines:
-                lh = self._th("가", self.f_body) + 14
-                for i, ln in enumerate(self._verdict_lines):
-                    la = int(230 * self._eo((lt - 1.5 - i * 0.2) / 0.5))
-                    if la < 0:
-                        la = 0
-                    tw_ = self._tw(ln, self.f_body)
-                    draw.text(((self.W - tw_) // 2, 750 + i * lh), ln, font=self.f_body, fill=(*self.ICE_BLUE, la))
+        self._draw_phase(draw, t, self.W // 2)
 
         comp = Image.alpha_composite(bg, ov)
         return np.array(comp.convert("RGB"))
