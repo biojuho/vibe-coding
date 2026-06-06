@@ -59,6 +59,15 @@ test("legal pages expose stable support channels without personal contact detail
 	);
 	assert.match(layoutSource, /<Suspense fallback=\{<LegalReturnLinkFallback \/>}/);
 	assert.match(layoutSource, /<LegalReturnLink \/>/);
+	assert.equal((layoutSource.match(/<LegalReturnLink \/>/g) ?? []).length, 2);
+	assert.equal(
+		(layoutSource.match(
+			/<Suspense fallback=\{<LegalReturnLinkFallback \/>}/g,
+		) ?? []).length,
+		2,
+	);
+	assert.match(layoutSource, /aria-label="문서 상단 복귀"/);
+	assert.match(layoutSource, /aria-label="문서 하단 복귀"/);
 	assert.doesNotMatch(layoutSource, /href="\/"/);
 	assert.doesNotMatch(layoutSource, /홈으로 돌아가기/);
 

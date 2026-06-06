@@ -25,13 +25,19 @@ export default function LegalDocumentLayout(options = {}) {
 					<div className="clay-stat-chip">{lastUpdated}</div>
 				</div>
 
-				<div className="grid gap-4">{children}</div>
-
-				<div className="mt-8 flex justify-center">
+				<nav className="mb-6 flex justify-start" aria-label="문서 상단 복귀">
 					<Suspense fallback={<LegalReturnLinkFallback />}>
 						<LegalReturnLink />
 					</Suspense>
-				</div>
+				</nav>
+
+				<div className="grid gap-4">{children}</div>
+
+				<nav className="mt-8 flex justify-center" aria-label="문서 하단 복귀">
+					<Suspense fallback={<LegalReturnLinkFallback />}>
+						<LegalReturnLink />
+					</Suspense>
+				</nav>
 			</div>
 		</div>
 	);
