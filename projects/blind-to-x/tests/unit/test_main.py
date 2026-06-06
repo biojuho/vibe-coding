@@ -86,6 +86,7 @@ class TestBuildParser:
                 ".tmp/preflight.json",
                 "--source-preflight-screenshot-dir",
                 "screenshots/preflight",
+                "--source-preflight-click-through",
                 "--source-preflight-viewport",
                 "mobile",
             ]
@@ -97,6 +98,7 @@ class TestBuildParser:
         assert args.source_preflight_timeout_ms == 5000
         assert args.source_preflight_output == Path(".tmp/preflight.json")
         assert args.source_preflight_screenshot_dir == Path("screenshots/preflight")
+        assert args.source_preflight_click_through is True
         assert args.source_preflight_viewport == "mobile"
 
     def test_require_source_ready_args(self):
@@ -238,6 +240,7 @@ class TestSourcePreflight:
             source_preflight_output=tmp_path / "preflight.json",
             source_preflight_screenshot_dir=tmp_path / "screens",
             source_preflight_headed=True,
+            source_preflight_click_through=True,
             source_preflight_viewport="mobile",
         )
 
@@ -252,6 +255,7 @@ class TestSourcePreflight:
             "screenshot_dir": tmp_path / "screens",
             "headed": True,
             "viewport": "mobile",
+            "click_through": True,
         }
 
     @pytest.mark.asyncio
@@ -288,6 +292,7 @@ class TestSourcePreflight:
             source_preflight_output=tmp_path / "preflight.json",
             source_preflight_screenshot_dir=tmp_path / "screens",
             source_preflight_headed=False,
+            source_preflight_click_through=False,
             source_preflight_viewport="desktop",
         )
 

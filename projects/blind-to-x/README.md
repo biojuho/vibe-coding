@@ -38,8 +38,14 @@ py -3 main.py --source multi --popular --review-only --limit 5
 # Source browser preflight before a multi-source run
 py -3 scripts/source_browser_probe.py --output .tmp/source_browser_probe.json --screenshot-dir screenshots/source_probe
 
+# Source browser preflight plus first-post click-through verification
+py -3 scripts/source_browser_probe.py --source ppomppu --click-through --output .tmp/source_browser_probe.json --screenshot-dir screenshots/source_probe
+
 # Source browser gate, then continue only when the resolved source is ready
 py -3 main.py --source ppomppu --popular --review-only --limit 5 --require-source-ready --source-preflight-output .tmp/source_browser_preflight.json --source-preflight-screenshot-dir screenshots/source_preflight
+
+# Source browser gate with first-post click-through before a paid/LLM run
+py -3 main.py --source ppomppu --popular --review-only --limit 5 --require-source-ready --source-preflight-click-through --source-preflight-output .tmp/source_browser_preflight.json --source-preflight-screenshot-dir screenshots/source_preflight
 
 # 승인된 항목 재처리용 경로
 py -3 main.py --reprocess-approved --limit 5

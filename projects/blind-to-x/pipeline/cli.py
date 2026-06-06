@@ -74,6 +74,11 @@ def build_parser():
         help="Run source preflight with a visible browser window.",
     )
     parser.add_argument(
+        "--source-preflight-click-through",
+        action="store_true",
+        help="During source preflight, click the first visible post and verify detail page readability.",
+    )
+    parser.add_argument(
         "--source-preflight-viewport",
         choices=("desktop", "mobile"),
         default="desktop",
@@ -162,6 +167,7 @@ async def run_source_preflight_command(config_mgr, args) -> int | None:
         screenshot_dir=getattr(args, "source_preflight_screenshot_dir", None),
         headed=getattr(args, "source_preflight_headed", False),
         viewport=getattr(args, "source_preflight_viewport", "desktop"),
+        click_through=getattr(args, "source_preflight_click_through", False),
     )
     fail_on_problem = getattr(args, "source_preflight_fail_on_problem", False) or getattr(
         args, "require_source_ready", False

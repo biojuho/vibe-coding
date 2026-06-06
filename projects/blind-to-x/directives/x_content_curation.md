@@ -109,5 +109,6 @@
 ## 9. Browser source QA note
 
 - Before a live run, use source preflight: `python main.py --source <source> --source-preflight --source-preflight-output .tmp/source_preflight_<task>.json --source-preflight-screenshot-dir screenshots/source_preflight_<task>`.
+- Before a paid/LLM run, add `--source-preflight-click-through` so the preflight clicks the first visible post and verifies the detail page is readable, not only that the listing page loaded.
 - For manual click QA, reuse the same browser context assumptions as `scripts/source_browser_probe.py`: `locale=ko-KR`, desktop viewport, and the configured desktop Chrome user agent. A vanilla Chromium context can return false 403/empty results on Ppomppu.
 - If a page looks readable in source preflight but manual click QA fails, first compare context options before changing scraper selectors.

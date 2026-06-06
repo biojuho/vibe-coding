@@ -9,6 +9,7 @@ from scripts.source_browser_probe import (
     exit_code_for_report,
     parse_targets,
     run_source_preflight,
+    _select_click_through_candidate,
 )
 
 
@@ -120,6 +121,39 @@ def test_build_report_counts_problem_statuses_and_exit_code():
     assert exit_code_for_report(report, fail_on_problem=True) == 1
 
 
+def test_build_report_counts_click_error_as_problem():
+    results = [
+        ProbeResult(
+            source="ppomppu",
+            url="https://www.ppomppu.co.kr/hot.php",
+            final_url="https://www.ppomppu.co.kr/hot.php",
+            http_status=200,
+            title="Hot",
+            body_chars=200,
+            classification=ProbeClassification("click_error", "first post click-through failed", ["click_failed"]),
+            console_errors=[],
+            page_errors=[],
+        )
+    ]
+
+    report = build_report(results)
+
+    assert report["summary"]["problem_count"] == 1
+    assert report["summary"]["statuses"] == {"click_error": 1}
+    assert exit_code_for_report(report, fail_on_problem=True) == 1
+
+
+def test_select_click_through_candidate_skips_nav_ads_and_policy():
+    anchors = [
+        {"index": 0, "text": "Community list", "href": "/zboard/zboard.php?id=freeboard"},
+        {"index": 1, "text": "AD promo", "href": "/zboard/view.php?id=sponsor&no=1"},
+        {"index": 2, "text": "Policy notice", "href": "/zboard/view.php?id=regulation&no=4"},
+        {"index": 3, "text": "Real post title", "href": "/zboard/view.php?id=ppomppu&no=709586"},
+    ]
+
+    assert _select_click_through_candidate(anchors) == anchors[3]
+
+
 @pytest.mark.asyncio
 async def test_run_source_preflight_reuses_probe_and_writes_report(monkeypatch, tmp_path):
     async def fake_run_probe(targets, **kwargs):
@@ -129,6 +163,7 @@ async def test_run_source_preflight_reuses_probe_and_writes_report(monkeypatch, 
             "screenshot_dir": tmp_path / "screens",
             "headed": True,
             "viewport": "mobile",
+            "click_through": True,
         }
         return [
             ProbeResult(
@@ -155,6 +190,7 @@ async def test_run_source_preflight_reuses_probe_and_writes_report(monkeypatch, 
         screenshot_dir=tmp_path / "screens",
         headed=True,
         viewport="mobile",
+        click_through=True,
     )
 
     assert report["summary"]["ok"] is True

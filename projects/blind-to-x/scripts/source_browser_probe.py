@@ -13,6 +13,7 @@ from pathlib import Path
 import re
 import sys
 from typing import Any
+from urllib.parse import urljoin
 
 
 DEFAULT_SOURCES: dict[str, str] = {
@@ -27,6 +28,7 @@ PROBLEM_STATUSES = {
     "blocked",
     "browser_error",
     "browser_unavailable",
+    "click_error",
     "empty",
     "http_error",
     "login_wall",
@@ -88,6 +90,18 @@ class ProbeClassification:
 
 
 @dataclass(frozen=True)
+class ClickThroughResult:
+    ok: bool
+    candidate_text: str | None
+    candidate_href: str | None
+    final_url: str
+    title: str
+    body_chars: int
+    screenshot_path: str | None = None
+    error: str | None = None
+
+
+@dataclass(frozen=True)
 class ProbeResult:
     source: str
     url: str
@@ -99,6 +113,7 @@ class ProbeResult:
     console_errors: list[str]
     page_errors: list[str]
     screenshot_path: str | None = None
+    click_through: ClickThroughResult | None = None
     error: str | None = None
 
 
@@ -217,6 +232,7 @@ async def run_probe(
     screenshot_dir: Path | None,
     headed: bool = False,
     viewport: str = "desktop",
+    click_through: bool = False,
 ) -> list[ProbeResult]:
     try:
         from playwright.async_api import TimeoutError as PlaywrightTimeoutError
@@ -239,6 +255,7 @@ async def run_probe(
                                 timeout_ms=timeout_ms,
                                 screenshot_dir=screenshot_dir,
                                 timeout_error_cls=PlaywrightTimeoutError,
+                                click_through=click_through,
                             )
                         )
                     return results
@@ -257,6 +274,7 @@ async def _probe_target(
     timeout_ms: int,
     screenshot_dir: Path | None,
     timeout_error_cls: type[Exception],
+    click_through: bool = False,
 ) -> ProbeResult:
     page = await context.new_page()
     console_errors: list[str] = []
@@ -272,6 +290,15 @@ async def _probe_target(
         screenshot_path = await _safe_screenshot(page, target, screenshot_dir)
         http_status = response.status if response else None
         classification = classify_probe(http_status=http_status, title=title, body_text=body_text)
+        click_result = None
+        if click_through and classification.status == READY_STATUS:
+            click_result = await _click_first_post(page, target, timeout_ms=timeout_ms, screenshot_dir=screenshot_dir)
+            if not click_result.ok:
+                classification = ProbeClassification(
+                    "click_error",
+                    "first post click-through failed",
+                    [click_result.error or "click_failed"],
+                )
         return ProbeResult(
             source=target.source,
             url=target.url,
@@ -283,6 +310,7 @@ async def _probe_target(
             console_errors=console_errors[:10],
             page_errors=page_errors[:10],
             screenshot_path=str(screenshot_path) if screenshot_path else None,
+            click_through=click_result,
         )
     except timeout_error_cls as exc:
         return _error_result(target, page.url, console_errors, page_errors, str(exc), http_status=None)
@@ -329,6 +357,91 @@ async def _safe_body_text(page: Any) -> str:
             return await page.content()
         except Exception:
             return ""
+
+
+async def _click_first_post(
+    page: Any,
+    target: ProbeTarget,
+    *,
+    timeout_ms: int,
+    screenshot_dir: Path | None,
+) -> ClickThroughResult:
+    candidate = None
+    try:
+        anchors = await page.locator("a[href]").evaluate_all(
+            """
+            els => els.map((el, index) => ({
+                index,
+                text: (el.innerText || el.textContent || '').trim().replace(/\\s+/g, ' '),
+                href: el.getAttribute('href') || '',
+                visible: !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length),
+            })).filter(item => item.visible && item.href && item.text.length >= 4)
+            """
+        )
+        candidate = _select_click_through_candidate(anchors)
+        if candidate is None:
+            raise RuntimeError("no post link candidates")
+
+        locator = page.locator("a[href]").nth(int(candidate["index"]))
+        await locator.scroll_into_view_if_needed(timeout=min(5000, timeout_ms))
+        await locator.click(timeout=min(8000, timeout_ms))
+        await page.wait_for_load_state("domcontentloaded", timeout=timeout_ms)
+        await page.wait_for_timeout(500)
+        title = await page.title()
+        body_text = await _safe_body_text(page)
+        body_chars = len(_compact_text(body_text))
+        screenshot_path = await _safe_click_screenshot(page, target, screenshot_dir)
+        ok = body_chars >= 120 and page.url != target.url
+        return ClickThroughResult(
+            ok=ok,
+            candidate_text=str(candidate.get("text", ""))[:160],
+            candidate_href=urljoin(target.url, str(candidate.get("href", ""))),
+            final_url=page.url,
+            title=_compact_text(title)[:160],
+            body_chars=body_chars,
+            screenshot_path=str(screenshot_path) if screenshot_path else None,
+            error=None if ok else "clicked page did not look like a readable post detail",
+        )
+    except Exception as exc:
+        return ClickThroughResult(
+            ok=False,
+            candidate_text=(str(candidate.get("text", ""))[:160] if candidate else None),
+            candidate_href=(str(candidate.get("href", "")) if candidate else None),
+            final_url=getattr(page, "url", ""),
+            title="",
+            body_chars=0,
+            error=str(exc)[:500],
+        )
+
+
+def _select_click_through_candidate(anchors: list[dict[str, Any]]) -> dict[str, Any] | None:
+    for item in anchors:
+        href = str(item.get("href") or "")
+        text = _compact_text(str(item.get("text") or ""))
+        if not href or not text:
+            continue
+        href_lower = href.lower()
+        text_lower = text.lower()
+        if not ("no=" in href_lower or "view.php" in href_lower):
+            continue
+        if any(skip in href_lower for skip in ("regulation", "faq", "sponsor", "login", "auth", "https_redirect")):
+            continue
+        if text_lower.startswith("ad "):
+            continue
+        return item
+    return None
+
+
+async def _safe_click_screenshot(page: Any, target: ProbeTarget, screenshot_dir: Path | None) -> Path | None:
+    if not screenshot_dir:
+        return None
+    screenshot_dir.mkdir(parents=True, exist_ok=True)
+    screenshot_path = screenshot_dir / f"{_safe_slug(target.source)}-click.png"
+    try:
+        await page.screenshot(path=str(screenshot_path), full_page=True)
+    except Exception:
+        return None
+    return screenshot_path
 
 
 async def _safe_screenshot(page: Any, target: ProbeTarget, screenshot_dir: Path | None) -> Path | None:
@@ -406,6 +519,7 @@ async def run_source_preflight(
     screenshot_dir: Path | None,
     headed: bool = False,
     viewport: str = "desktop",
+    click_through: bool = False,
 ) -> dict[str, Any]:
     targets = parse_targets(sources, custom_urls)
     results = await run_probe(
@@ -414,6 +528,7 @@ async def run_source_preflight(
         screenshot_dir=screenshot_dir,
         headed=headed,
         viewport=viewport,
+        click_through=click_through,
     )
     report = build_report(results)
     _write_report(report, output_path)
@@ -446,6 +561,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--screenshot-dir", type=Path, default=None, help="Directory for full-page screenshots.")
     parser.add_argument("--headed", action="store_true", help="Run a visible browser.")
     parser.add_argument(
+        "--click-through", action="store_true", help="Click the first visible post and verify detail page readability."
+    )
+    parser.add_argument(
         "--viewport",
         choices=("desktop", "mobile"),
         default="desktop",
@@ -469,6 +587,7 @@ async def async_main(argv: list[str] | None = None) -> int:
         screenshot_dir=args.screenshot_dir,
         headed=args.headed,
         viewport=args.viewport,
+        click_through=args.click_through,
     )
     return exit_code_for_report(report, fail_on_problem=args.fail_on_problem)
 

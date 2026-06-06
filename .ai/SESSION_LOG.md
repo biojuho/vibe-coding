@@ -1000,3 +1000,17 @@
 - Browser QA: direct Streamlit/Playwright CLI on `http://127.0.0.1:8769` rendered the manager, clicked content tabs (`심리학`, `AI/기술`) and the empty `큐에 추가` form-submit path, kept console warnings/errors at `0`, and produced nonblank screenshot `output/playwright/shorts-manager-t1392-width-refresh.png`.
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1392.json --json` returned `adopt_candidate` with `score_delta=1.1666666666666667`.
 - Boundary: no push was performed. T-251 was not retried. Preserve unrelated `projects/blind-to-x/scripts/source_browser_probe.py` WIP outside T-1392.
+
+## 2026-06-06 - Codex
+
+- Closed T-1393 as a bounded `$auto-research` `blind-to-x` source-browser click-through gate cycle.
+- Changed `projects/blind-to-x/scripts/source_browser_probe.py`: added optional `--click-through`, `ClickThroughResult`, `click_error` classification, first-post candidate selection that skips nav/ad/policy links, detail-page screenshot capture, and `run_source_preflight(..., click_through=...)` wiring.
+- Changed `projects/blind-to-x/pipeline/cli.py`: added `--source-preflight-click-through` so CLI preflight and `--require-source-ready` workflows can require detail-page readability before paid/LLM-backed work.
+- Updated `projects/blind-to-x/tests/unit/test_source_browser_probe.py` and `projects/blind-to-x/tests/unit/test_main.py`: added click-error report coverage, candidate-selector coverage, parser coverage, and CLI pass-through coverage.
+- Updated `projects/blind-to-x/README.md` and `projects/blind-to-x/directives/x_content_curation.md`: documented click-through source preflight for guarded live runs.
+- Verification: focused pytest passed `44/44`; Ruff check passed; Ruff format check passed; `py_compile` passed; path-limited diff-check passed with CRLF warnings only; browser QA inventory passed; blind-to-x project QC passed with `1805 passed`, `9 skipped`, and lint passed.
+- Live workflow proof: `main.py --source ppomppu --source-preflight --source-preflight-click-through` wrote `.tmp/source_preflight_t1393_cli.json` with `ready_count=1`, `problem_count=0`, clicked detail URL `https://www.ppomppu.co.kr/zboard/view.php?id=ppomppu&no=709552`, detail `body_chars=1153`, and screenshot `projects/blind-to-x/screenshots/source_preflight_t1393_cli/ppomppu-click.png`.
+- Research note: official Playwright docs were checked for BrowserContext emulation, Locator click actionability/auto-waiting, and load-state waiting, matching the source preflight context/click implementation.
+- Code-review gate: staged gate returned advisory WARN `risk_score=0.40`, covered by focused tests, live click-through preflight, browser QA inventory, and full blind-to-x project QC.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1393.json --json` returned `adopt_candidate` with `score_delta=1.7073170731707314`.
+- Boundary: no push was performed. T-251 was not retried. Preserve unrelated Hanwoo auth hash WIP outside T-1393.
