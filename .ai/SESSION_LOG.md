@@ -880,7 +880,7 @@
 - Code-review gate remained advisory WARN (`risk_score=0.50`) because the graph also saw concurrent Hanwoo/shorts dirty work; T-1375 itself is covered by focused tests plus blind-to-x project QC.
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1375.json --json` returned `adopt_candidate` with `score_delta=0.406027`.
 - Commit closeout: `05b626cf refactor(blind-to-x): split content profile builder` is local only; no push was performed and T-251 was not retried.
-- Boundary: concurrent Hanwoo commit `1063ee92` used T-1374, so this blind-to-x cycle was reallocated to T-1375. Concurrent shorts-maker-v2 commit `96750835` is recorded as T-1375b and remains a separate cycle.
+- Boundary: concurrent Hanwoo commit `1063ee92` used T-1374, so this blind-to-x cycle was reallocated to T-1375. Concurrent shorts-maker-v2 commit `976fd51b` is recorded as T-1376 and remains a separate cycle.
 
 ## 2026-06-06 - Codex
 
