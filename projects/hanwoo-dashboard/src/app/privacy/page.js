@@ -35,7 +35,7 @@ const sections = [
 export default function PrivacyPage() {
 	return (
 		<LegalDocumentLayout
-			eyebrow="Privacy Policy"
+			eyebrow="개인정보 보호 안내"
 			title="개인정보처리방침"
 			subtitle="회원 정보의 수집, 이용, 보관 및 보호 기준을 투명하게 안내합니다."
 			lastUpdated="시행일 2026년 2월 10일"

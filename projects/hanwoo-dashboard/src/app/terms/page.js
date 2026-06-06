@@ -42,7 +42,7 @@ const sections = [
 export default function TermsPage() {
 	return (
 		<LegalDocumentLayout
-			eyebrow="Terms of Service"
+			eyebrow="서비스 이용약관"
 			title="이용약관"
 			subtitle="주라이프 서비스 이용에 필요한 기본 원칙과 운영 기준을 안내합니다."
 			lastUpdated="최종 수정일 2026년 2월 10일"

@@ -18,6 +18,10 @@ test("legal pages expose stable support channels without personal contact detail
 	const returnLinkSource = readSource("components/layout/LegalReturnLink.js");
 	const combinedSource = `${privacySource}\n${termsSource}`;
 
+	assert.match(termsSource, /eyebrow="서비스 이용약관"/);
+	assert.match(privacySource, /eyebrow="개인정보 보호 안내"/);
+	assert.doesNotMatch(combinedSource, /Terms of Service|Privacy Policy/);
+
 	assert.match(privacySource, /담당: Joolife 운영팀/);
 	assert.match(privacySource, /이메일: joolife@joolife\.io\.kr/);
 	assert.match(privacySource, /문의 채널: 서비스 운영 문의/);
