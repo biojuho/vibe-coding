@@ -103,97 +103,125 @@ class PpomppuScraper(BaseScraper):
         return None
 
     # ── Feed URL fetching ────────────────────────────────────────────
+    @staticmethod
+    def _feed_link_selectors(board_id, any_board):
+        if any_board:
+            return [
+                "a[href*='view.php']",
+                "td.title a[href*='view.php']",
+                "td[class*='title'] a[href*='view.php']",
+                ".list_table td.title a",
+            ]
+        return [
+            f"a[href*='view.php?id={board_id}']",
+            f"a[href*='id={board_id}&no=']",
+            "td.title a[href*='view.php']",
+            "td[class*='title'] a[href*='view.php']",
+            ".list_table td.title a",
+            "a[href*='view.php']",
+        ]
+
+    async def _collect_feed_urls_from_page(self, page, link_selectors, board_id, limit, any_board):
+        collected = []
+        for selector in link_selectors:
+            try:
+                await page.wait_for_selector(selector, timeout=self.selector_timeout_ms)
+                elements = await page.query_selector_all(selector)
+                for el in elements[: limit * 3]:
+                    href = await el.get_attribute("href")
+                    normalized = self._normalize_url(href)
+                    if normalized and normalized not in collected:
+                        if "no=" in normalized and (any_board or board_id in normalized):
+                            collected.append(normalized)
+                    if len(collected) >= limit:
+                        break
+                if collected:
+                    logger.info(f"Found {len(collected)} URLs with selector: {selector}")
+                    return collected[:limit]
+            except PlaywrightTimeoutError:
+                continue
+        return collected[:limit]
+
+    async def _fetch_feed_html_for_urls(self, feed_url, label):
+        try:
+            return await self._fetch_html_via_session(feed_url)
+        except Exception as fetch_err:
+            logger.warning(f"curl_cffi fetch failed for {label}: {fetch_err}. Falling back to direct navigation.")
+            return None
+
+    async def _try_intercept_feed_urls(
+        self, page, feed_url, html_content, link_selectors, board_id, label, limit, any_board
+    ):
+        if not html_content:
+            return []
+
+        async def intercept(route):
+            await route.fulfill(body=html_content, content_type="text/html; charset=utf-8")
+
+        try:
+            await page.route(feed_url, intercept)
+            await page.goto(feed_url, wait_until="domcontentloaded", timeout=30000)
+            await asyncio.sleep(2)
+            urls = await self._collect_feed_urls_from_page(page, link_selectors, board_id, limit, any_board)
+            logger.info(f"Found {len(urls)} {label} (intercept mode).")
+            return urls
+        except Exception as intercept_err:
+            logger.warning(f"Intercept mode failed for {label}: {intercept_err}.")
+            return []
+        finally:
+            try:
+                await page.unroute(feed_url)
+            except Exception:
+                pass
+
+    async def _try_direct_feed_urls(self, page, feed_url, link_selectors, board_id, label, limit, any_board):
+        logger.info(f"Trying direct navigation for {label}...")
+        try:
+            await page.goto(feed_url, wait_until="domcontentloaded", timeout=60000)
+            await asyncio.sleep(3)
+            urls = await self._collect_feed_urls_from_page(page, link_selectors, board_id, limit, any_board)
+            logger.info(f"Found {len(urls)} {label} (direct navigation).")
+            return urls
+        except Exception as direct_err:
+            self.last_feed_fetch_error = f"Feed fetch failed ({label}): {direct_err}"
+            self.last_feed_fetch_reason = "feed_fetch_failed_after_fallback"
+            logger.error(self.last_feed_fetch_error)
+            return []
+
     async def _fetch_post_urls(self, feed_url, board_id, label="posts", limit=5, any_board=False):
         """뽐뿌 게시판 목록 페이지에서 게시글 URL을 수집합니다."""
         urls = []
         self.last_feed_fetch_error = None
         self.last_feed_fetch_reason = None
         page = await self._new_page()
-
-        # 뽐뿌는 ZBoard 엔진 사용 — 게시글 링크 셀렉터
-        if any_board:
-            # hot.php (핫게시판)는 전체 게시판 인기글이므로 board_id 필터 없이 수집
-            link_selectors = [
-                "a[href*='view.php']",
-                "td.title a[href*='view.php']",
-                "td[class*='title'] a[href*='view.php']",
-                ".list_table td.title a",
-            ]
-        else:
-            link_selectors = [
-                f"a[href*='view.php?id={board_id}']",
-                f"a[href*='id={board_id}&no=']",
-                "td.title a[href*='view.php']",
-                "td[class*='title'] a[href*='view.php']",
-                ".list_table td.title a",
-                "a[href*='view.php']",
-            ]
-
-        async def _collect_urls():
-            collected = []
-            for selector in link_selectors:
-                try:
-                    await page.wait_for_selector(selector, timeout=self.selector_timeout_ms)
-                    elements = await page.query_selector_all(selector)
-                    for el in elements[: limit * 3]:
-                        href = await el.get_attribute("href")
-                        normalized = self._normalize_url(href)
-                        if normalized and normalized not in collected:
-                            # 실제 게시글 URL만 허용 (no= 포함)
-                            if "no=" in normalized and (any_board or board_id in normalized):
-                                collected.append(normalized)
-                        if len(collected) >= limit:
-                            break
-                    if collected:
-                        logger.info(f"Found {len(collected)} URLs with selector: {selector}")
-                        return collected[:limit]
-                except PlaywrightTimeoutError:
-                    continue
-            return collected[:limit]
+        link_selectors = self._feed_link_selectors(board_id, any_board)
 
         try:
             logger.info(f"Fetching {label} from {feed_url}...")
 
-            # 1차 시도: curl_cffi로 HTML 가져와 인터셉트 모드
-            html_content = None
-            try:
-                html_content = await self._fetch_html_via_session(feed_url)
-            except Exception as fetch_err:
-                logger.warning(f"curl_cffi fetch failed for {label}: {fetch_err}. Falling back to direct navigation.")
+            html_content = await self._fetch_feed_html_for_urls(feed_url, label)
+            urls = await self._try_intercept_feed_urls(
+                page,
+                feed_url,
+                html_content,
+                link_selectors,
+                board_id,
+                label,
+                limit,
+                any_board,
+            )
+            if urls:
+                return urls
 
-            if html_content:
-
-                async def intercept(route):
-                    # response.text는 이미 Unicode(UTF-8)로 디코딩됨 → charset=utf-8 선언
-                    await route.fulfill(body=html_content, content_type="text/html; charset=utf-8")
-
-                try:
-                    await page.route(feed_url, intercept)
-                    await page.goto(feed_url, wait_until="domcontentloaded", timeout=30000)
-                    await asyncio.sleep(2)
-                    urls = await _collect_urls()
-                    logger.info(f"Found {len(urls)} {label} (intercept mode).")
-                    if urls:
-                        return urls
-                except Exception as intercept_err:
-                    logger.warning(f"Intercept mode failed for {label}: {intercept_err}.")
-                finally:
-                    try:
-                        await page.unroute(feed_url)
-                    except Exception:
-                        pass
-
-            # 2차 시도: 직접 Playwright 네비게이션 (domcontentloaded — networkidle은 광고 때문에 타임아웃)
-            logger.info(f"Trying direct navigation for {label}...")
-            try:
-                await page.goto(feed_url, wait_until="domcontentloaded", timeout=60000)
-                await asyncio.sleep(3)
-                urls = await _collect_urls()
-                logger.info(f"Found {len(urls)} {label} (direct navigation).")
-            except Exception as direct_err:
-                self.last_feed_fetch_error = f"Feed fetch failed ({label}): {direct_err}"
-                self.last_feed_fetch_reason = "feed_fetch_failed_after_fallback"
-                logger.error(self.last_feed_fetch_error)
+            urls = await self._try_direct_feed_urls(
+                page,
+                feed_url,
+                link_selectors,
+                board_id,
+                label,
+                limit,
+                any_board,
+            )
         except Exception as e:
             self.last_feed_fetch_error = f"Feed fetch failed ({label}): {e}"
             self.last_feed_fetch_reason = "feed_fetch_failed"

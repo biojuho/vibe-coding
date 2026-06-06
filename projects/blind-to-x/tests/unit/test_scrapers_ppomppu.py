@@ -60,6 +60,52 @@ def test_normalize_url(scraper):
     assert scraper._normalize_url("https://example.com/other") is None
 
 
+def test_feed_link_selectors_keep_hot_board_unfiltered(scraper):
+    popular_selectors = scraper._feed_link_selectors("humor", any_board=True)
+    board_selectors = scraper._feed_link_selectors("humor", any_board=False)
+
+    assert popular_selectors[0] == "a[href*='view.php']"
+    assert all("id=humor" not in selector for selector in popular_selectors)
+    assert board_selectors[0] == "a[href*='view.php?id=humor']"
+    assert "a[href*='view.php']" in board_selectors
+
+
+@pytest.mark.asyncio
+async def test_collect_feed_urls_filters_duplicates_and_board(scraper):
+    page_mock = AsyncMock()
+    page_mock.query_selector_all.return_value = [
+        _FeedElement(href="/zboard/view.php?id=humor&no=1"),
+        _FeedElement(href="/zboard/view.php?id=humor&no=1"),
+        _FeedElement(href="/zboard/view.php?id=deal&no=2"),
+        _FeedElement(href="/zboard/view.php?id=humor"),
+        _FeedElement(href="https://example.com/zboard/view.php?id=humor&no=3"),
+        _FeedElement(href="/zboard/view.php?id=humor&no=4"),
+    ]
+
+    urls = await scraper._collect_feed_urls_from_page(page_mock, ["a"], "humor", limit=2, any_board=False)
+
+    assert urls == [
+        "https://www.ppomppu.co.kr/zboard/view.php?id=humor&no=1",
+        "https://www.ppomppu.co.kr/zboard/view.php?id=humor&no=4",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_collect_feed_urls_accepts_any_board_for_hot_feed(scraper):
+    page_mock = AsyncMock()
+    page_mock.query_selector_all.return_value = [
+        _FeedElement(href="/zboard/view.php?id=deal&no=2"),
+        _FeedElement(href="/zboard/view.php?id=humor&no=3"),
+    ]
+
+    urls = await scraper._collect_feed_urls_from_page(page_mock, ["a"], "humor", limit=2, any_board=True)
+
+    assert urls == [
+        "https://www.ppomppu.co.kr/zboard/view.php?id=deal&no=2",
+        "https://www.ppomppu.co.kr/zboard/view.php?id=humor&no=3",
+    ]
+
+
 def test_determine_category(scraper):
     assert scraper._determine_category("유머글ㅋㅋ", "내용") == "humor"
     assert scraper._determine_category("할인 핫딜", "구매완료") == "deal"
@@ -82,6 +128,22 @@ async def test_fetch_post_urls(mock_fetch, scraper):
 
     assert len(urls) == 1
     assert urls[0] == "https://www.ppomppu.co.kr/zboard/view.php?id=humor&no=123"
+
+
+@pytest.mark.asyncio
+async def test_fetch_post_urls_uses_direct_fallback_after_empty_intercept(scraper):
+    page_mock = AsyncMock()
+    scraper._new_page = AsyncMock(return_value=page_mock)
+    scraper._fetch_feed_html_for_urls = AsyncMock(return_value="<html></html>")
+    scraper._try_intercept_feed_urls = AsyncMock(return_value=[])
+    scraper._try_direct_feed_urls = AsyncMock(return_value=["https://www.ppomppu.co.kr/zboard/view.php?id=humor&no=9"])
+
+    urls = await scraper._fetch_post_urls("http://dummy_feed", "humor", label="unit feed", limit=1)
+
+    assert urls == ["https://www.ppomppu.co.kr/zboard/view.php?id=humor&no=9"]
+    scraper._try_intercept_feed_urls.assert_awaited_once()
+    scraper._try_direct_feed_urls.assert_awaited_once()
+    page_mock.close.assert_awaited_once()
 
 
 @pytest.mark.asyncio
