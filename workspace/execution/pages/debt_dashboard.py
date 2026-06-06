@@ -63,8 +63,32 @@ def load_project_trend(project_name: str) -> list[dict]:
         return []
 
 
+def _build_trend_chart_frame(df, value_columns: list[str]):
+    import math
+
+    import pandas as pd
+
+    required_columns = ["timestamp", *value_columns]
+    if df.empty or any(column not in df for column in required_columns):
+        return None
+
+    chart_df = df[required_columns].copy()
+    chart_df["date"] = pd.to_datetime(chart_df["timestamp"], errors="coerce").dt.date
+    for column in value_columns:
+        chart_df[column] = pd.to_numeric(chart_df[column], errors="coerce")
+    finite_mask = chart_df[value_columns].apply(
+        lambda series: series.map(lambda value: pd.notna(value) and math.isfinite(float(value)))
+    )
+    chart_df = chart_df[finite_mask.all(axis=1)].dropna(subset=["date", *value_columns])
+    if chart_df.empty:
+        return None
+
+    return chart_df[["date", *value_columns]].set_index("date")
+
+
 def _render_line_chart(data) -> None:
-    st.line_chart(data, width="stretch")
+    if data is not None and not getattr(data, "empty", False):
+        st.line_chart(data, width="stretch")
 
 
 # ---------------------------------------------------------------------------
@@ -102,9 +126,8 @@ if trend:
         import pandas as pd
 
         df = pd.DataFrame(trend)
-        if not df.empty:
-            df["date"] = pd.to_datetime(df["timestamp"]).dt.date
-            chart_df = df[["date", "overall_tdr"]].set_index("date")
+        chart_df = _build_trend_chart_frame(df, ["overall_tdr"])
+        if chart_df is not None:
             _render_line_chart(chart_df)
     except ImportError:
         st.info("Install pandas for trend charts: pip install pandas")
@@ -205,16 +228,15 @@ if projects:
             import pandas as pd
 
             df = pd.DataFrame(proj_trend)
-            if not df.empty:
-                df["date"] = pd.to_datetime(df["timestamp"]).dt.date
+            tdr_chart = _build_trend_chart_frame(df, ["tdr_percent"])
+            score_chart = _build_trend_chart_frame(df, ["avg_score"])
+            if tdr_chart is not None and score_chart is not None:
                 chart_cols = st.columns(2)
                 with chart_cols[0]:
                     st.markdown("**TDR %**")
-                    tdr_chart = df[["date", "tdr_percent"]].set_index("date")
                     _render_line_chart(tdr_chart)
                 with chart_cols[1]:
                     st.markdown("**Avg Debt Score**")
-                    score_chart = df[["date", "avg_score"]].set_index("date")
                     _render_line_chart(score_chart)
         except ImportError:
             pass

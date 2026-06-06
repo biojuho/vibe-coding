@@ -112,16 +112,64 @@ def test_debt_dashboard_uses_current_streamlit_line_chart_width_api(
     module, fake_streamlit = _import_debt_dashboard(monkeypatch, tmp_path)
     fake_streamlit.events.clear()
 
-    module._render_line_chart("trend")
+    class _ChartData:
+        empty = False
 
-    assert fake_streamlit.events == [("line_chart", "trend", {"width": "stretch"})]
+    chart_data = _ChartData()
+    module._render_line_chart(chart_data, "overall_tdr")
+
+    assert fake_streamlit.events == [
+        ("line_chart", chart_data, {"x": "sample", "y": "overall_tdr", "width": "stretch"})
+    ]
+
+
+def test_debt_dashboard_skips_empty_line_charts(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    module, fake_streamlit = _import_debt_dashboard(monkeypatch, tmp_path)
+    fake_streamlit.events.clear()
+
+    class _EmptyChartData:
+        empty = True
+
+    module._render_line_chart(_EmptyChartData(), "overall_tdr")
+    module._render_line_chart(None, "overall_tdr")
+
+    assert fake_streamlit.events == []
+
+
+def test_debt_dashboard_trend_chart_frame_uses_stable_sample_axis(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    module, _fake_streamlit = _import_debt_dashboard(monkeypatch, tmp_path)
+    pandas = pytest.importorskip("pandas")
+
+    frame = module._build_trend_chart_frame(
+        pandas.DataFrame(
+            [
+                {"timestamp": "2026-06-07T00:00:00", "overall_tdr": 32.3},
+                {"timestamp": "not-a-date", "overall_tdr": 99.0},
+                {"timestamp": "2026-06-08T00:00:00", "overall_tdr": None},
+            ]
+        ),
+        ["overall_tdr"],
+    )
+
+    assert frame is not None
+    assert frame["sample"].tolist() == [1]
+    assert frame["overall_tdr"].tolist() == [32.3]
 
 
 def test_debt_dashboard_source_avoids_deprecated_width_api() -> None:
     source = (WORKSPACE_ROOT / "execution" / "pages" / "debt_dashboard.py").read_text(encoding="utf-8")
 
     assert "use_container_width=True" not in source
-    assert 'st.line_chart(data, width="stretch")' in source
-    assert "_render_line_chart(chart_df)" in source
-    assert "_render_line_chart(tdr_chart)" in source
-    assert "_render_line_chart(score_chart)" in source
+    assert 'st.line_chart(data, x="sample", y=y, width="stretch")' in source
+    assert '_build_trend_chart_frame(df, ["overall_tdr"])' in source
+    assert '_build_trend_chart_frame(df, ["tdr_percent"])' in source
+    assert '_build_trend_chart_frame(df, ["avg_score"])' in source
+    assert '_render_line_chart(chart_df, "overall_tdr")' in source
+    assert '_render_line_chart(tdr_chart, "tdr_percent")' in source
+    assert '_render_line_chart(score_chart, "avg_score")' in source
