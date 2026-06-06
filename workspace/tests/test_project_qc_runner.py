@@ -129,6 +129,33 @@ def test_run_plan_reports_subprocess_failures(monkeypatch) -> None:
     assert results[0]["stdout_tail"] == "failed stdout"
 
 
+def test_run_item_retries_transient_next_build_lock(monkeypatch) -> None:
+    item = MODULE.build_plan(["hanwoo-dashboard"], ["build"])[0]
+    calls: list[object] = []
+
+    def fake_run(*args, **kwargs):
+        calls.append(args[0])
+        if len(calls) == 1:
+            return MODULE.subprocess.CompletedProcess(
+                args[0],
+                1,
+                stdout="",
+                stderr="Another next build process is already running.",
+            )
+        return MODULE.subprocess.CompletedProcess(args[0], 0, stdout="build passed", stderr="")
+
+    monkeypatch.setattr(MODULE, "PROJECT_QC_HEARTBEAT_SECONDS", 0)
+    monkeypatch.setattr(MODULE, "PROJECT_QC_TRANSIENT_RETRY_SECONDS", 0)
+    monkeypatch.setattr(MODULE, "run_subprocess_capture", fake_run)
+
+    result = MODULE.run_item(item, timeout_seconds=5)
+
+    assert result["status"] == "passed"
+    assert result["attempts"] == 2
+    assert result["transient_retry_count"] == 1
+    assert result["transient_retry_reason"] == "next_build_lock"
+
+
 def test_pytest_checks_use_repo_local_temp(monkeypatch) -> None:
     plan = MODULE.build_plan(["blind-to-x"], ["test"])
     captured: dict[str, object] = {}

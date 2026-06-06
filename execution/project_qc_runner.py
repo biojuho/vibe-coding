@@ -27,9 +27,12 @@ OUTPUT_TAIL_CHARS = 4000
 PROJECT_QC_RUN_ID = f"{os.getpid()}-{time.time_ns()}"
 PROJECT_QC_HEARTBEAT_SECONDS = max(0, int(os.environ.get("PROJECT_QC_HEARTBEAT_SECONDS", "10")))
 PROJECT_QC_HEARTBEAT_STREAM = os.environ.get("PROJECT_QC_HEARTBEAT_STREAM", "stderr").strip().lower()
+PROJECT_QC_TRANSIENT_RETRIES = max(0, int(os.environ.get("PROJECT_QC_TRANSIENT_RETRIES", "2")))
+PROJECT_QC_TRANSIENT_RETRY_SECONDS = max(0, int(os.environ.get("PROJECT_QC_TRANSIENT_RETRY_SECONDS", "15")))
 DEFAULT_ARTIFACT_PATH = REPO_ROOT / ".tmp" / "project_qc_runner_latest.json"
 DEFAULT_PARTIAL_ARTIFACT_PATH = REPO_ROOT / ".tmp" / "project_qc_runner_partial_latest.json"
 READINESS_ARTIFACT_SCHEMA_VERSION = 3
+NEXT_BUILD_LOCK_TEXT = "Another next build process is already running"
 
 if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
     try:
@@ -338,6 +341,9 @@ def run_item(item: PlanItem, timeout_seconds: int) -> dict[str, object]:
     resolved_command = resolve_command(item.check.command, item.cwd)
     heartbeat_stop = threading.Event()
     heartbeat_thread: threading.Thread | None = None
+    attempts = 0
+    transient_retry_count = 0
+    transient_retry_reason = ""
     if PROJECT_QC_HEARTBEAT_SECONDS:
         heartbeat_thread = threading.Thread(
             target=_emit_subprocess_heartbeat,
@@ -346,15 +352,26 @@ def run_item(item: PlanItem, timeout_seconds: int) -> dict[str, object]:
         )
         heartbeat_thread.start()
     try:
-        completed = run_subprocess_capture(
-            resolved_command,
-            cwd=item.cwd,
-            env=build_subprocess_env(item),
-            timeout=timeout_seconds,
-        )
+        env = build_subprocess_env(item)
+        while True:
+            attempts += 1
+            completed = run_subprocess_capture(
+                resolved_command,
+                cwd=item.cwd,
+                env=env,
+                timeout=timeout_seconds,
+            )
+            if not _is_transient_next_build_lock(completed):
+                break
+            if transient_retry_count >= PROJECT_QC_TRANSIENT_RETRIES:
+                break
+            transient_retry_count += 1
+            transient_retry_reason = "next_build_lock"
+            if PROJECT_QC_TRANSIENT_RETRY_SECONDS:
+                time.sleep(PROJECT_QC_TRANSIENT_RETRY_SECONDS)
         duration = time.monotonic() - started
         status = "passed" if completed.returncode == 0 else "failed"
-        return {
+        result = {
             "project": item.project,
             "check": item.check.id,
             "status": status,
@@ -365,6 +382,11 @@ def run_item(item: PlanItem, timeout_seconds: int) -> dict[str, object]:
             "stdout_tail": tail_text(completed.stdout),
             "stderr_tail": tail_text(completed.stderr),
         }
+        if attempts > 1:
+            result["attempts"] = attempts
+            result["transient_retry_count"] = transient_retry_count
+            result["transient_retry_reason"] = transient_retry_reason
+        return result
     except subprocess.TimeoutExpired as exc:
         duration = time.monotonic() - started
         return {
@@ -395,6 +417,13 @@ def run_item(item: PlanItem, timeout_seconds: int) -> dict[str, object]:
         heartbeat_stop.set()
         if heartbeat_thread:
             heartbeat_thread.join(timeout=1)
+
+
+def _is_transient_next_build_lock(completed: subprocess.CompletedProcess[str]) -> bool:
+    if completed.returncode == 0:
+        return False
+    output = f"{completed.stdout or ''}\n{completed.stderr or ''}"
+    return NEXT_BUILD_LOCK_TEXT in output
 
 
 def _emit_subprocess_heartbeat(stop: threading.Event, item: PlanItem) -> None:
