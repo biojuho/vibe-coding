@@ -823,3 +823,26 @@
 - Full active-project QC passed and rewrote `.tmp/project_qc_runner_latest.json`: total `3918 passed`, `21 skipped`; blind-to-x `1756 passed`, `9 skipped`; shorts-maker-v2 `1597 passed`, `12 skipped`; Hanwoo `504 passed`; Knowledge `61 passed`; lint/build/smoke gates passed where applicable.
 - Runtime proof: `product_readiness_score.py --json` reports score `96`, state `blocked`, local blockers `0`, publish blockers `1`, external blockers `1`; `release_authorization_packet.py --json` is `ready_for_authorization`; selector is `blocked_publish_only`; launch audit has complete coverage; completion audit is `incomplete` with `9/14` complete and 5 blocked issues.
 - Boundary: no local auto-research candidate remains. No push was performed. Product launch remains incomplete until explicit push authorization/user push plus current-head `root-quality-gate` and `active-project-matrix`, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
+
+## 2026-06-06 - Codex
+
+- Closed T-1362 as a bounded `$auto-research` `shorts-maker-v2` psychology quote renderer maintainability cycle.
+- Changed `projects/shorts-maker-v2/tools/psychology_quote.py`: `QuoteShortsGenerator._render()` now delegates timeline boundaries, frame alpha, layer creation, gradient application, particles, tags, quote layout/lines, and author block drawing to focused helpers while preserving visual output.
+- Added `projects/shorts-maker-v2/tests/unit/test_psychology_quote.py`: covers timeline values, alpha curves, and blank/nonblank render phases.
+- Verification: focused pytest passed `6/6`; related renderer pytest passed `14/14`; pre/post frame hashes matched `6/6`; ruff check passed; ruff format check passed; `py_compile` passed; diff-check passed; shorts-maker-v2 project QC test passed `1606 passed`, `12 skipped`, `23` warnings and lint passed.
+- VibeDebt/structure proof: `psychology_quote.py` target score is `9.8`, max complexity `7`, max function length `31`; AST metrics moved `_render` from `111` lines/`19` branches to `13` lines/`0` branches.
+- Code-review gate: staged gate returned advisory WARN `risk_score=0.45` from graph test-gap heuristics, covered by frame hashes, focused tests, related renderer tests, and project tests.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1362.json` returned `adopt_candidate` with `score_delta=108.867444`.
+- Commit closeout: `ecd4e5b5 refactor(shorts): T-1362 split psychology quote renderer` is local only; no push was performed and T-251 was not retried.
+
+## 2026-06-06 - Codex
+
+- Closed T-1363 as a bounded `$auto-research` `hanwoo-dashboard` today-focus product-polish cycle.
+- Changed `projects/hanwoo-dashboard/src/lib/dashboard/today-focus.mjs`: feed-depletion projection is built once and the same feed row is suppressed from the generic low-stock card, so operators see one specific feed warning while non-feed low-stock warnings remain visible.
+- Changed `projects/hanwoo-dashboard/src/lib/dashboard/today-focus.test.mjs`: added regression coverage for avoiding duplicate low-stock and depletion cards for the same feed item.
+- Verification: focused today-focus test passed `17/17`; Hanwoo project test passed `505/505`; lint passed; smoke passed; build passed on retry after one real concurrent Next build lock; diff-check passed.
+- Behavior proof: the frozen fixture changed from duplicate TMR feed cards `2 -> 1`, while the specific feed-depletion card stayed present and the medicine low-stock card remained visible.
+- Code-review gate: staged gate returned advisory WARN `risk_score=0.45` from graph test-gap heuristics, covered by focused/project tests.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1363.json` returned `adopt_candidate` with `score_delta=41.384615`.
+- Commit closeout: `ce765cc5 feat(hanwoo): dedupe feed focus cards` is local only; no push was performed and T-251 was not retried.
+- Current boundary: refresh full active-project QC and launch evidence after the relay/context commit. Product launch remains incomplete until explicit push authorization/user push plus current-head Actions, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass.
