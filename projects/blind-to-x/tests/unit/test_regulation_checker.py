@@ -104,6 +104,27 @@ class TestRegulationChecker(unittest.TestCase):
         self.assertFalse(report.passed)
         self.assertLess(report.score, 100)
 
+    def test_x_weighted_character_count_matches_current_x_rules(self):
+        from pipeline.regulation_checker import x_weighted_character_count
+
+        self.assertEqual(x_weighted_character_count("A" * 280), 280)
+        self.assertEqual(x_weighted_character_count("\uac00" * 140), 280)
+        self.assertEqual(x_weighted_character_count("\u03b1" * 140), 280)
+        self.assertEqual(x_weighted_character_count("a https://example.com/very/long/path b"), 27)
+        self.assertEqual(x_weighted_character_count("cafe\u0301"), 4)
+        self.assertEqual(
+            x_weighted_character_count("\U0001f468\u200d\U0001f469\u200d\U0001f467\u200d\U0001f466"),
+            2,
+        )
+
+    def test_validate_twitter_uses_weighted_korean_length(self):
+        checker = self._make_checker()
+
+        report = checker.validate_twitter("\uac00" * 141)
+
+        self.assertFalse(report.passed)
+        self.assertLess(report.score, 100)
+
     def test_validate_twitter_link_only(self):
         """외부 링크 단독 트윗 검증 실패 확인."""
         checker = self._make_checker()

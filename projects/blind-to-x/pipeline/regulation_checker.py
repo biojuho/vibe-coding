@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 import re
+import unicodedata
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -19,6 +20,25 @@ from pipeline.rules_loader import get_rule_section, reset_rules_cache
 logger = logging.getLogger(__name__)
 
 _regulation_cache: dict | None = None
+_X_URL_PATTERN = re.compile(r"https?://\S+")
+_X_URL_WEIGHT = 23
+_ZERO_WIDTH_JOINER = "\u200d"
+_VARIATION_SELECTOR_RANGE = range(0xFE00, 0xFE10)
+_EMOJI_MODIFIER_RANGE = range(0x1F3FB, 0x1F400)
+_REGIONAL_INDICATOR_RANGE = range(0x1F1E6, 0x1F200)
+_CJK_RANGES = (
+    range(0x1100, 0x1200),
+    range(0x2E80, 0xA000),
+    range(0xAC00, 0xD7B0),
+    range(0xF900, 0xFB00),
+    range(0xFE30, 0xFE50),
+    range(0xFF00, 0xFFEF),
+    range(0x20000, 0x2FA20),
+)
+_EMOJI_RANGES = (
+    range(0x1F000, 0x1FAFF),
+    range(0x2600, 0x27C0),
+)
 
 
 def _load_regulations() -> dict:
@@ -35,6 +55,85 @@ def reload_regulations() -> None:
     global _regulation_cache
     reset_rules_cache()
     _regulation_cache = None
+
+
+def _in_any_range(codepoint: int, ranges: tuple[range, ...]) -> bool:
+    return any(codepoint in candidate for candidate in ranges)
+
+
+def _is_x_emoji_codepoint(codepoint: int) -> bool:
+    return _in_any_range(codepoint, _EMOJI_RANGES)
+
+
+def _is_x_cjk_codepoint(codepoint: int) -> bool:
+    return _in_any_range(codepoint, _CJK_RANGES)
+
+
+def _skip_emoji_sequence(text: str, index: int) -> int:
+    """Skip an emoji grapheme sequence after counting it as one X emoji."""
+    cursor = index + 1
+    while cursor < len(text):
+        codepoint = ord(text[cursor])
+        if codepoint in _VARIATION_SELECTOR_RANGE or codepoint in _EMOJI_MODIFIER_RANGE:
+            cursor += 1
+            continue
+        if text[cursor] == _ZERO_WIDTH_JOINER and cursor + 1 < len(text):
+            next_codepoint = ord(text[cursor + 1])
+            if _is_x_emoji_codepoint(next_codepoint):
+                cursor += 2
+                continue
+        break
+    return cursor
+
+
+def _x_weighted_non_url_length(text: str) -> int:
+    total = 0
+    cursor = 0
+    while cursor < len(text):
+        char = text[cursor]
+        codepoint = ord(char)
+
+        if codepoint in _VARIATION_SELECTOR_RANGE or codepoint in _EMOJI_MODIFIER_RANGE:
+            cursor += 1
+            continue
+        if char == _ZERO_WIDTH_JOINER:
+            cursor += 1
+            continue
+        if codepoint in _REGIONAL_INDICATOR_RANGE and cursor + 1 < len(text):
+            next_codepoint = ord(text[cursor + 1])
+            if next_codepoint in _REGIONAL_INDICATOR_RANGE:
+                total += 2
+                cursor += 2
+                continue
+        if _is_x_emoji_codepoint(codepoint):
+            total += 2
+            cursor = _skip_emoji_sequence(text, cursor)
+            continue
+
+        if _is_x_cjk_codepoint(codepoint):
+            total += 2
+        elif codepoint <= 0x02AF:
+            total += 1
+        else:
+            total += 2 if unicodedata.category(char)[0] in {"L", "M", "N"} else 1
+        cursor += 1
+    return total
+
+
+def x_weighted_character_count(content: str) -> int:
+    """Approximate X weighted length: NFC text, CJK/emoji=2, URLs=23."""
+    text = unicodedata.normalize("NFC", (content or "").strip())
+    if not text:
+        return 0
+
+    total = 0
+    cursor = 0
+    for match in _X_URL_PATTERN.finditer(text):
+        total += _x_weighted_non_url_length(text[cursor : match.start()])
+        total += _X_URL_WEIGHT
+        cursor = match.end()
+    total += _x_weighted_non_url_length(text[cursor:])
+    return total
 
 
 @dataclass
@@ -183,7 +282,7 @@ class RegulationChecker:
 
         # 1. 글자 수 검증
         max_len = rules.get("max_length", 280)
-        content_len = len(content.strip())
+        content_len = x_weighted_character_count(content)
         report.add(
             "글자 수 제한",
             content_len <= max_len,
