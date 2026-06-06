@@ -348,6 +348,269 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
             base = self._load_image_clip(asset.visual_path, duration=duration_sec)
         return self._fit_vertical(base, target_width, target_height)
 
+    def _record_render_warning(
+        self,
+        *,
+        step: str,
+        exc: Exception,
+        scene_id: int,
+        error_type: str,
+        is_retryable: bool = False,
+    ) -> None:
+        self._pending_render_warnings.append(
+            {
+                "step": step,
+                "code": type(exc).__name__,
+                "message": f"scene {scene_id}: {str(exc)[:140]}",
+                "scene_id": scene_id,
+                "error_type": error_type,
+                "is_retryable": is_retryable,
+            }
+        )
+
+    def _style_for_role(self, role: str):
+        return {
+            "hook": self.hook_style,
+            "cta": self.cta_style,
+            "closing": self.closing_style,
+        }.get(role, self.body_style)
+
+    def _apply_scene_color_grade(self, base, *, plan: ScenePlan, role: str):
+        try:
+            return color_grade_clip(base, self._channel_key, role)
+        except Exception as cg_exc:
+            logger.warning("[ColorGrade] failed, using ungraded clip: %s", cg_exc)
+            self._record_render_warning(
+                step="color_grade",
+                exc=cg_exc,
+                scene_id=plan.scene_id,
+                error_type="ungraded_clip",
+            )
+            return base
+
+    def _postprocess_scene_audio(self, *, asset: SceneAsset, plan: ScenePlan) -> None:
+        try:
+            postprocess_tts_audio(
+                Path(asset.audio_path),
+                voice_name=self.config.providers.tts_voice,
+            )
+        except Exception as pp_exc:
+            logger.warning("[AudioPost] postprocess failed, using original audio: %s", pp_exc)
+            self._record_render_warning(
+                step="audio_postprocess",
+                exc=pp_exc,
+                scene_id=plan.scene_id,
+                error_type="unprocessed_audio",
+            )
+
+    def _attach_scene_audio(
+        self,
+        base,
+        *,
+        asset: SceneAsset,
+        duration_sec: float,
+        audio_clips_to_close: list[Any] | None,
+    ):
+        audio = self._load_audio_clip(asset.audio_path)
+        if audio_clips_to_close is not None:
+            audio_clips_to_close.append(audio)
+        if audio.duration != duration_sec and audio.duration > duration_sec:
+            audio = audio.subclipped(0, duration_sec)
+        return base.with_audio(audio)
+
+    def _compose_static_caption(
+        self,
+        base,
+        *,
+        plan: ScenePlan,
+        run_dir: Path,
+        target_width: int,
+        target_height: int,
+        duration_sec: float,
+        style,
+        role: str,
+        caption_clips_to_close: list[Any] | None,
+        filename_prefix: str = "caption_static",
+    ):
+        cap_out = run_dir / f"{filename_prefix}_{plan.scene_id:02d}.png"
+        cap_img = self._render_static_caption(
+            plan.narration_ko,
+            target_width,
+            style,
+            cap_out,
+            role,
+        )
+        cap_clip_img = ImageClip(str(cap_img), transparent=True)
+        if caption_clips_to_close is not None:
+            caption_clips_to_close.append(cap_clip_img)
+        cap_clip = cap_clip_img.with_duration(duration_sec).with_position(
+            ("center", self._caption_y(cap_clip_img, target_height, style, role))
+        )
+        return CompositeVideoClip([base, cap_clip], size=(target_width, target_height), use_bgclip=True)
+
+    def _load_karaoke_chunk_groups(self, *, asset: SceneAsset, style) -> list:
+        words_json_path = Path(asset.audio_path).parent / f"{Path(asset.audio_path).stem}_words.json"
+        ssml_txt_path = words_json_path.parent / f"{words_json_path.stem}_ssml.txt"
+        raw_words = load_words_json(words_json_path)
+        if ssml_txt_path.exists():
+            ssml_text = ssml_txt_path.read_text(encoding="utf-8")
+            corrected_words = apply_ssml_break_correction(raw_words, ssml_text)
+        else:
+            corrected_words = raw_words
+        return group_word_segments(corrected_words, style.words_per_chunk)
+
+    def _build_word_highlight_caption_clips(
+        self,
+        *,
+        plan: ScenePlan,
+        run_dir: Path,
+        target_width: int,
+        target_height: int,
+        style,
+        role: str,
+        chunk_groups: list,
+        caption_clips_to_close: list[Any] | None,
+    ) -> list:
+        caption_clips = []
+        for _chunk_start, _chunk_end, _chunk_text, chunk_words in chunk_groups:
+            chunk_text_words = [word.word for word in chunk_words]
+            for wi, word_segment in enumerate(chunk_words):
+                ws = word_segment.start
+                wd = max(0.05, word_segment.end - word_segment.start)
+                highlight_out = run_dir / f"kh_{plan.scene_id:02d}_{word_segment.start:.2f}_{wi}.png"
+                render_karaoke_highlight_image(
+                    words=chunk_text_words,
+                    active_word_index=wi,
+                    canvas_width=target_width,
+                    style=style,
+                    highlight_color=self.config.captions.highlight_color,
+                    output_path=highlight_out,
+                    keyword_colors=self._keyword_color_map,
+                )
+                highlight_clip = ImageClip(str(highlight_out), transparent=True)
+                if caption_clips_to_close is not None:
+                    caption_clips_to_close.append(highlight_clip)
+                cap_clip = (
+                    highlight_clip.with_duration(wd)
+                    .with_start(ws)
+                    .with_position(("center", self._caption_y(highlight_clip, target_height, style, role)))
+                )
+                caption_clips.append(cap_clip)
+        return caption_clips
+
+    def _build_karaoke_chunk_caption_clips(
+        self,
+        *,
+        plan: ScenePlan,
+        run_dir: Path,
+        target_width: int,
+        target_height: int,
+        style,
+        role: str,
+        chunk_groups: list,
+        caption_clips_to_close: list[Any] | None,
+    ) -> list:
+        caption_clips = []
+        chunks = [(start, end, text) for start, end, text, _ in chunk_groups]
+        for chunk_start, chunk_end, chunk_text in chunks:
+            cd = max(0.1, chunk_end - chunk_start)
+            cap_out = run_dir / f"kc_{plan.scene_id:02d}_{chunk_start:.2f}.png"
+            render_karaoke_image(chunk_text, target_width, style, cap_out)
+            caption_image = ImageClip(str(cap_out), transparent=True)
+            if caption_clips_to_close is not None:
+                caption_clips_to_close.append(caption_image)
+            cap_clip = (
+                caption_image.with_duration(cd)
+                .with_start(chunk_start)
+                .with_position(("center", self._caption_y(caption_image, target_height, style, role)))
+            )
+            caption_clips.append(cap_clip)
+        return caption_clips
+
+    def _compose_karaoke_caption(
+        self,
+        base,
+        *,
+        plan: ScenePlan,
+        asset: SceneAsset,
+        run_dir: Path,
+        target_width: int,
+        target_height: int,
+        style,
+        role: str,
+        caption_clips_to_close: list[Any] | None,
+    ):
+        chunk_groups = self._load_karaoke_chunk_groups(asset=asset, style=style)
+        if self.config.captions.highlight_mode == "word":
+            caption_clips = self._build_word_highlight_caption_clips(
+                plan=plan,
+                run_dir=run_dir,
+                target_width=target_width,
+                target_height=target_height,
+                style=style,
+                role=role,
+                chunk_groups=chunk_groups,
+                caption_clips_to_close=caption_clips_to_close,
+            )
+        else:
+            caption_clips = self._build_karaoke_chunk_caption_clips(
+                plan=plan,
+                run_dir=run_dir,
+                target_width=target_width,
+                target_height=target_height,
+                style=style,
+                role=role,
+                chunk_groups=chunk_groups,
+                caption_clips_to_close=caption_clips_to_close,
+            )
+
+        if not caption_clips:
+            return base
+
+        return CompositeVideoClip([base] + caption_clips, size=(target_width, target_height), use_bgclip=True)
+
+    def _apply_hook_animation(self, base, *, role: str, duration_sec: float):
+        if role != "hook":
+            return base
+        try:
+            return apply_text_animation(
+                base,
+                animation_type=self.config.captions.hook_animation,
+                duration=duration_sec,
+            )
+        except Exception as aex:
+            logger.warning("[Animation] hook animation failed: %s", aex)
+            return base
+
+    def _apply_broll_pip(
+        self,
+        base,
+        *,
+        plan: ScenePlan,
+        run_dir: Path,
+        duration_sec: float,
+        target_width: int,
+        target_height: int,
+    ):
+        broll_path = run_dir / f"broll_{plan.scene_id:02d}.mp4"
+        if not broll_path.exists():
+            return base
+        try:
+            pip_clip = create_broll_pip(str(broll_path), duration_sec, target_width, target_height)
+            if pip_clip is None:
+                return base
+            return CompositeVideoClip([base, pip_clip], size=(target_width, target_height), use_bgclip=True)
+        except Exception as exc:
+            logger.warning("[RenderStep] B-Roll PiP failed (scene %s, skipped): %s", plan.scene_id, exc)
+            return base
+
+    @staticmethod
+    def _apply_closing_fade(base, *, role: str, duration_sec: float):
+        if role != "closing":
+            return base
+        fade_dur = min(1.5, duration_sec * 0.4)
+        return base.with_effects([vfx.FadeOut(fade_dur)])
+
     def _render_single_scene(
         self,
         *,
@@ -374,186 +637,74 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
                 exclude=previous_effect,
             )
 
-        try:
-            base = color_grade_clip(base, self._channel_key, role)
-        except Exception as cg_exc:
-            logger.warning("[ColorGrade] failed, using ungraded clip: %s", cg_exc)
-            self._pending_render_warnings.append(
-                {
-                    "step": "color_grade",
-                    "code": type(cg_exc).__name__,
-                    "message": f"scene {plan.scene_id}: {str(cg_exc)[:140]}",
-                    "scene_id": plan.scene_id,
-                    "error_type": "ungraded_clip",
-                    "is_retryable": False,
-                }
-            )
-
-        try:
-            postprocess_tts_audio(
-                Path(asset.audio_path),
-                voice_name=self.config.providers.tts_voice,
-            )
-        except Exception as pp_exc:
-            logger.warning("[AudioPost] postprocess failed, using original audio: %s", pp_exc)
-            self._pending_render_warnings.append(
-                {
-                    "step": "audio_postprocess",
-                    "code": type(pp_exc).__name__,
-                    "message": f"scene {plan.scene_id}: {str(pp_exc)[:140]}",
-                    "scene_id": plan.scene_id,
-                    "error_type": "unprocessed_audio",
-                    "is_retryable": False,
-                }
-            )
-
-        audio = self._load_audio_clip(asset.audio_path)
-        if audio_clips_to_close is not None:
-            audio_clips_to_close.append(audio)
-        if audio.duration != duration_sec and audio.duration > duration_sec:
-            audio = audio.subclipped(0, duration_sec)
-        base = base.with_audio(audio)
-
-        if role == "hook":
-            style = self.hook_style
-        elif role == "cta":
-            style = self.cta_style
-        elif role == "closing":
-            style = self.closing_style
-        else:
-            style = self.body_style
+        base = self._apply_scene_color_grade(base, plan=plan, role=role)
+        self._postprocess_scene_audio(asset=asset, plan=plan)
+        base = self._attach_scene_audio(
+            base,
+            asset=asset,
+            duration_sec=duration_sec,
+            audio_clips_to_close=audio_clips_to_close,
+        )
+        style = self._style_for_role(role)
 
         if style.mode == "karaoke":
-            words_json_path = Path(asset.audio_path).parent / f"{Path(asset.audio_path).stem}_words.json"
-            ssml_txt_path = words_json_path.parent / f"{words_json_path.stem}_ssml.txt"
             try:
-                raw_words = load_words_json(words_json_path)
-                if ssml_txt_path.exists():
-                    ssml_text = ssml_txt_path.read_text(encoding="utf-8")
-                    corrected_words = apply_ssml_break_correction(raw_words, ssml_text)
-                else:
-                    corrected_words = raw_words
-                chunk_groups = group_word_segments(corrected_words, style.words_per_chunk)
-                chunks = [(start, end, text) for start, end, text, _ in chunk_groups]
-
-                if self.config.captions.highlight_mode == "word":
-                    caption_clips = []
-                    for _chunk_start, _chunk_end, _chunk_text, chunk_words in chunk_groups:
-                        chunk_text_words = [word.word for word in chunk_words]
-                        for wi, word_segment in enumerate(chunk_words):
-                            ws = word_segment.start
-                            wd = max(0.05, word_segment.end - word_segment.start)
-                            highlight_out = run_dir / f"kh_{plan.scene_id:02d}_{word_segment.start:.2f}_{wi}.png"
-                            render_karaoke_highlight_image(
-                                words=chunk_text_words,
-                                active_word_index=wi,
-                                canvas_width=target_width,
-                                style=style,
-                                highlight_color=self.config.captions.highlight_color,
-                                output_path=highlight_out,
-                                keyword_colors=self._keyword_color_map,
-                            )
-                            highlight_clip = ImageClip(str(highlight_out), transparent=True)
-                            if caption_clips_to_close is not None:
-                                caption_clips_to_close.append(highlight_clip)
-                            cap_clip = (
-                                highlight_clip.with_duration(wd)
-                                .with_start(ws)
-                                .with_position(("center", self._caption_y(highlight_clip, target_height, style, role)))
-                            )
-                            caption_clips.append(cap_clip)
-                else:
-                    caption_clips = []
-                    for chunk_start, chunk_end, chunk_text in chunks:
-                        cd = max(0.1, chunk_end - chunk_start)
-                        cap_out = run_dir / f"kc_{plan.scene_id:02d}_{chunk_start:.2f}.png"
-                        render_karaoke_image(chunk_text, target_width, style, cap_out)
-                        caption_image = ImageClip(str(cap_out), transparent=True)
-                        if caption_clips_to_close is not None:
-                            caption_clips_to_close.append(caption_image)
-                        cap_clip = (
-                            caption_image.with_duration(cd)
-                            .with_start(chunk_start)
-                            .with_position(("center", self._caption_y(caption_image, target_height, style, role)))
-                        )
-                        caption_clips.append(cap_clip)
-
-                if caption_clips:
-                    # use_bgclip: base is full-frame and opaque, so it serves as
-                    # the background directly. This skips MoviePy's per-frame mask
-                    # composite (compose_mask) whose result is discarded anyway --
-                    # the final video has no transparency. (T-376 render perf)
-                    base = CompositeVideoClip(
-                        [base] + caption_clips, size=(target_width, target_height), use_bgclip=True
-                    )
+                base = self._compose_karaoke_caption(
+                    base,
+                    plan=plan,
+                    asset=asset,
+                    run_dir=run_dir,
+                    target_width=target_width,
+                    target_height=target_height,
+                    style=style,
+                    role=role,
+                    caption_clips_to_close=caption_clips_to_close,
+                )
 
             except Exception as kex:
                 logger.warning("[Karaoke] failed, falling back to static caption: %s", kex)
                 # silent-fail 노출: orchestrator 가 degraded_steps 로 ship.
-                self._pending_render_warnings.append(
-                    {
-                        "step": "karaoke_caption",
-                        "code": type(kex).__name__,
-                        "message": f"scene {plan.scene_id}: {str(kex)[:140]}",
-                        "scene_id": plan.scene_id,
-                        "error_type": "caption_fallback",
-                        "is_retryable": False,
-                    }
+                self._record_render_warning(
+                    step="karaoke_caption",
+                    exc=kex,
+                    scene_id=plan.scene_id,
+                    error_type="caption_fallback",
                 )
-                cap_out = run_dir / f"caption_fallback_{plan.scene_id:02d}.png"
-                cap_img = self._render_static_caption(
-                    plan.narration_ko,
-                    target_width,
-                    style,
-                    cap_out,
-                    role,
-                )
-                cap_clip_img = ImageClip(str(cap_img), transparent=True)
-                if caption_clips_to_close is not None:
-                    caption_clips_to_close.append(cap_clip_img)
-                cap_clip = cap_clip_img.with_duration(duration_sec).with_position(
-                    ("center", self._caption_y(cap_clip_img, target_height, style, role))
-                )
-                base = CompositeVideoClip([base, cap_clip], size=(target_width, target_height), use_bgclip=True)
-        else:
-            cap_out = run_dir / f"caption_static_{plan.scene_id:02d}.png"
-            cap_img = self._render_static_caption(
-                plan.narration_ko,
-                target_width,
-                style,
-                cap_out,
-                role,
-            )
-            cap_clip_img = ImageClip(str(cap_img), transparent=True)
-            if caption_clips_to_close is not None:
-                caption_clips_to_close.append(cap_clip_img)
-            cap_clip = cap_clip_img.with_duration(duration_sec).with_position(
-                ("center", self._caption_y(cap_clip_img, target_height, style, role))
-            )
-            base = CompositeVideoClip([base, cap_clip], size=(target_width, target_height), use_bgclip=True)
-
-        if role == "hook":
-            try:
-                base = apply_text_animation(
+                base = self._compose_static_caption(
                     base,
-                    animation_type=self.config.captions.hook_animation,
-                    duration=duration_sec,
+                    plan=plan,
+                    run_dir=run_dir,
+                    target_width=target_width,
+                    target_height=target_height,
+                    duration_sec=duration_sec,
+                    style=style,
+                    role=role,
+                    caption_clips_to_close=caption_clips_to_close,
+                    filename_prefix="caption_fallback",
                 )
-            except Exception as aex:
-                logger.warning("[Animation] hook animation failed: %s", aex)
+        else:
+            base = self._compose_static_caption(
+                base,
+                plan=plan,
+                run_dir=run_dir,
+                target_width=target_width,
+                target_height=target_height,
+                duration_sec=duration_sec,
+                style=style,
+                role=role,
+                caption_clips_to_close=caption_clips_to_close,
+            )
 
-        broll_path = run_dir / f"broll_{plan.scene_id:02d}.mp4"
-        if broll_path.exists():
-            try:
-                pip_clip = create_broll_pip(str(broll_path), duration_sec, target_width, target_height)
-                if pip_clip is not None:
-                    base = CompositeVideoClip([base, pip_clip], size=(target_width, target_height), use_bgclip=True)
-            except Exception as exc:
-                logger.warning("[RenderStep] B-Roll PiP failed (scene %s, skipped): %s", plan.scene_id, exc)
-
-        if role == "closing":
-            fade_dur = min(1.5, duration_sec * 0.4)
-            base = base.with_effects([vfx.FadeOut(fade_dur)])
+        base = self._apply_hook_animation(base, role=role, duration_sec=duration_sec)
+        base = self._apply_broll_pip(
+            base,
+            plan=plan,
+            run_dir=run_dir,
+            duration_sec=duration_sec,
+            target_width=target_width,
+            target_height=target_height,
+        )
+        base = self._apply_closing_fade(base, role=role, duration_sec=duration_sec)
 
         return base, previous_effect
 
@@ -585,6 +736,246 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
             return concatenate_videoclips(clips, method="compose")
 
     # ── 메인 렌더링 ──────────────────────────────────────────────────────────
+
+    def _append_bookend_clip(
+        self,
+        *,
+        path: str | None,
+        duration: float,
+        target_width: int,
+        target_height: int,
+        all_clips: list,
+        scene_roles: list[str] | None,
+        role: str | None,
+        fade_in: float,
+        label: str,
+    ) -> None:
+        if not path:
+            return
+
+        clip = self._build_bookend_clip(path, duration, target_width, target_height)
+        if clip is None:
+            return
+
+        clip = clip.with_effects([vfx.FadeIn(fade_in)])
+        all_clips.append(clip)
+        if scene_roles is not None and role is not None:
+            scene_roles.append(role)
+        logger.info("[%s] bookend inserted (%.1fs): %s", label, duration, path)
+
+    def _render_scene_sequence(
+        self,
+        *,
+        scene_plans: list[ScenePlan],
+        scene_assets: list[SceneAsset],
+        run_dir: Path,
+        target_width: int,
+        target_height: int,
+        all_clips: list,
+        scene_roles: list[str],
+        audio_clips_to_close: list[Any],
+        caption_clips_to_close: list[Any],
+    ) -> None:
+        last_effect = ""
+        for plan, asset in zip(scene_plans, scene_assets, strict=False):
+            role = plan.structure_role
+            scene_roles.append(role)
+            base, last_effect = self._render_single_scene(
+                plan=plan,
+                asset=asset,
+                run_dir=run_dir,
+                target_width=target_width,
+                target_height=target_height,
+                previous_effect=last_effect,
+                audio_clips_to_close=audio_clips_to_close,
+                caption_clips_to_close=caption_clips_to_close,
+            )
+            all_clips.append(base)
+
+    @staticmethod
+    def _trim_to_shorts_limit(final_video, *, max_duration: float = 59.0):
+        if final_video.duration and final_video.duration > max_duration:
+            logger.warning(
+                "[DURATION] video %.1fs > %.1fs, trimming for Shorts",
+                final_video.duration,
+                max_duration,
+            )
+            return final_video.subclipped(0, max_duration)
+        return final_video
+
+    def _generate_bgm_clip(self, *, final_video, run_dir: Path, title: str, topic: str):
+        target_dur = final_video.duration
+        bgm_clip = None
+        original_bgm_clip = None
+
+        if self.config.audio.bgm_provider == "lyria" and final_video.audio is not None:
+            lyria_bgm = self._generate_lyria_bgm(
+                run_dir=run_dir,
+                duration_sec=target_dur,
+                channel=getattr(self, "_channel_key", ""),
+                topic=topic or title,
+            )
+            if lyria_bgm:
+                bgm_clip = self._load_audio_clip(lyria_bgm)
+                original_bgm_clip = bgm_clip
+                if bgm_clip.duration and bgm_clip.duration > target_dur:
+                    bgm_clip = bgm_clip.subclipped(0, target_dur)
+                logger.info("[BGM] Lyria AI BGM used: %s", lyria_bgm.name)
+
+        if bgm_clip is None and final_video.audio is not None:
+            bgm_dir = (run_dir.parent.parent / self.config.audio.bgm_dir).resolve()
+            if bgm_dir.exists():
+                bgm_files = self._collect_bgm_files(bgm_dir)
+                if bgm_files:
+                    bgm_path = self._pick_bgm_by_mood(bgm_files, topic or title)
+                    bgm_clip = self._load_audio_clip(bgm_path)
+                    original_bgm_clip = bgm_clip
+                    if bgm_clip.duration and bgm_clip.duration < target_dur:
+                        repeats = int(target_dur / bgm_clip.duration) + 1
+                        from moviepy import concatenate_audioclips
+
+                        bgm_clip = concatenate_audioclips([bgm_clip] * repeats)
+                    bgm_clip = bgm_clip.subclipped(0, target_dur)
+                    logger.info("[BGM] local file used: %s", bgm_path.name)
+
+        return bgm_clip, original_bgm_clip
+
+    def _mix_bgm_audio(self, final_video, bgm_clip):
+        if bgm_clip is None or final_video.audio is None:
+            return final_video
+
+        bgm_clip = self._apply_rms_ducking(
+            final_video.audio,
+            bgm_clip,
+            base_vol=self.config.audio.bgm_volume,
+            duck_factor=self.config.audio.ducking_factor,
+        )
+        mixed_audio = CompositeAudioClip([final_video.audio, bgm_clip])
+        return final_video.with_audio(mixed_audio)
+
+    def _apply_sfx_layer(
+        self,
+        final_video,
+        *,
+        scene_assets: list[SceneAsset],
+        scene_roles: list[str],
+        run_dir: Path,
+        audio_clips_to_close: list[Any],
+    ):
+        if not self.config.audio.sfx_enabled:
+            return final_video
+
+        sfx_files = self._load_sfx_files(run_dir)
+        if not sfx_files:
+            return final_video
+
+        scene_durations = [asset.duration_sec for asset in scene_assets]
+        sfx_clips = self._build_sfx_clips(scene_roles, scene_durations, sfx_files)
+        if not sfx_clips or final_video.audio is None:
+            return final_video
+
+        audio_clips_to_close.extend(sfx_clips)
+        final_video = final_video.with_audio(CompositeAudioClip([final_video.audio] + sfx_clips))
+        logger.info("[SFX] %d effects applied", len(sfx_clips))
+        return final_video
+
+    def _build_video_write_kwargs(self, *, target_width: int, target_height: int):
+        from shorts_maker_v2.utils.hwaccel import detect_gpu_info, detect_hw_encoder
+
+        hw_codec, hw_params = detect_hw_encoder(self.config.video.hw_accel)
+
+        try:
+            gpu_info = detect_gpu_info()
+            logger.info(
+                "[RENDER] GPU: %s | Encoder: %s | HW Decode: %s",
+                gpu_info["gpu_name"],
+                gpu_info["encoder"],
+                gpu_info["decoder_support"],
+            )
+        except Exception as gpu_exc:
+            logger.debug("[RENDER] GPU info lookup failed: %s", gpu_exc)
+
+        qp = _QUALITY_PROFILES.get(self.config.video.quality_profile, _QUALITY_PROFILES["standard"])
+        if hw_codec == "libx264":
+            ffmpeg_extra = [
+                "-crf",
+                str(qp["crf"]),
+                "-pix_fmt",
+                "yuv420p",
+            ]
+            if qp["maxrate"]:
+                ffmpeg_extra.extend(["-maxrate", qp["maxrate"], "-bufsize", qp["maxrate"]])
+            preset = qp["preset"]
+        else:
+            ffmpeg_extra = list(hw_params)
+            preset = None
+
+        ffmpeg_extra.extend(["-s", f"{target_width}x{target_height}"])
+        write_kwargs: dict = {
+            "fps": self.config.video.fps,
+            "codec": hw_codec,
+            "audio_codec": "aac",
+            "ffmpeg_params": ffmpeg_extra,
+        }
+        if preset:
+            write_kwargs["preset"] = preset
+        return hw_codec, write_kwargs
+
+    def _write_output_video(self, final_video, *, output_path: Path, write_kwargs: dict) -> None:
+        handle = ClipHandle(
+            backend=self._renderer_backend,
+            native=final_video,
+            duration=final_video.duration,
+        )
+        self._output_renderer.write(
+            handle,
+            output_path,
+            fps=write_kwargs.get("fps", 30),
+            codec=write_kwargs.get("codec", "libx264"),
+            audio_codec=write_kwargs.get("audio_codec", "aac"),
+            preset=write_kwargs.get("preset"),
+            ffmpeg_params=write_kwargs.get("ffmpeg_params"),
+        )
+
+    @staticmethod
+    def _log_render_benchmark(*, hw_codec: str, video_duration: float, render_elapsed: float) -> None:
+        speed_ratio = video_duration / max(render_elapsed, 0.001)
+        logger.info(
+            "[BENCHMARK] render complete | codec=%s | video=%.1fs | render=%.1fs | speed=%.2fx (%s)",
+            hw_codec,
+            video_duration,
+            render_elapsed,
+            speed_ratio,
+            "faster than realtime" if speed_ratio > 1.0 else "slower than realtime",
+        )
+        print(
+            f"\n[BENCHMARK] {hw_codec} | "
+            f"video {video_duration:.1f}s -> render {render_elapsed:.1f}s "
+            f"({speed_ratio:.2f}x {'fast' if speed_ratio > 1.0 else 'slow'})\n"
+        )
+
+    @staticmethod
+    def _close_render_resources(
+        *,
+        final_video,
+        all_clips: list,
+        audio_clips_to_close: list[Any],
+        bgm_clip,
+        caption_clips_to_close: list[Any],
+    ) -> None:
+        final_video.close()
+        for clip in all_clips:
+            with contextlib.suppress(Exception):
+                clip.close()
+        for clip in audio_clips_to_close:
+            with contextlib.suppress(Exception):
+                clip.close()
+        if bgm_clip is not None:
+            with contextlib.suppress(Exception):
+                bgm_clip.close()
+        for clip in caption_clips_to_close:
+            with contextlib.suppress(Exception):
+                clip.close()
 
     def run(
         self,
@@ -619,225 +1010,97 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
         _caption_clips_to_close: list = []  # karaoke ImageClip 추적 (close 용)
         _bgm_clip = None  # BGM 원본 참조 (close 용)
         scene_roles: list[str] = []
-        last_effect = ""
 
-        # ── 인트로 삽입 ──
-        intro_path = io_cfg.intro_path
-        if intro_path:
-            intro = self._build_bookend_clip(intro_path, io_cfg.intro_duration, target_width, target_height)
-            if intro is not None:
-                intro = intro.with_effects([vfx.FadeIn(0.3)])
-                all_clips.append(intro)
-                scene_roles.append("intro")
-                logger.info("[Intro] 인트로 삽입 (%.1fs): %s", io_cfg.intro_duration, intro_path)
-
-        # ── 제목/HUD 오버레이 비활성화 (깔끔한 화면 유지) ──
-
-        # ── 씬별 클립 빌드 ──
-        for plan, asset in zip(scene_plans, scene_assets, strict=False):
-            role = plan.structure_role
-            scene_roles.append(role)
-            base, last_effect = self._render_single_scene(
-                plan=plan,
-                asset=asset,
-                run_dir=run_dir,
-                target_width=target_width,
-                target_height=target_height,
-                previous_effect=last_effect,
-                audio_clips_to_close=_audio_clips_to_close,
-                caption_clips_to_close=_caption_clips_to_close,
-            )
-            all_clips.append(base)
-
-        # ── 전환 효과 적용 ──
+        self._append_bookend_clip(
+            path=io_cfg.intro_path,
+            duration=io_cfg.intro_duration,
+            target_width=target_width,
+            target_height=target_height,
+            all_clips=all_clips,
+            scene_roles=scene_roles,
+            role="intro",
+            fade_in=0.3,
+            label="Intro",
+        )
+        self._render_scene_sequence(
+            scene_plans=scene_plans,
+            scene_assets=scene_assets,
+            run_dir=run_dir,
+            target_width=target_width,
+            target_height=target_height,
+            all_clips=all_clips,
+            scene_roles=scene_roles,
+            audio_clips_to_close=_audio_clips_to_close,
+            caption_clips_to_close=_caption_clips_to_close,
+        )
         all_clips = self._apply_transitions(all_clips, target_width, target_height, roles=scene_roles)
 
-        # ── 아웃트로 삽입 ──
-        outro_path = io_cfg.outro_path
-        if outro_path:
-            outro = self._build_bookend_clip(outro_path, io_cfg.outro_duration, target_width, target_height)
-            if outro is not None:
-                # Sprint 3: 아웃트로 애니메이션 (FadeIn)
-                outro = outro.with_effects([vfx.FadeIn(0.4)])
-                all_clips.append(outro)
-                logger.info("[Outro] 아웃트로 삽입 (%.1fs): %s", io_cfg.outro_duration, outro_path)
+        self._append_bookend_clip(
+            path=io_cfg.outro_path,
+            duration=io_cfg.outro_duration,
+            target_width=target_width,
+            target_height=target_height,
+            all_clips=all_clips,
+            scene_roles=None,
+            role=None,
+            fade_in=0.4,
+            label="Outro",
+        )
 
         output_path = output_dir / output_filename
         final_video = self._concatenate_scene_clips(all_clips, fps=self.config.video.fps)
 
         # ── YouTube Shorts 하드 리밋 (59초) ──
         MAX_SHORTS_DURATION = 59.0  # YouTube Shorts 최대 60초, 1초 마진
-        if final_video.duration and final_video.duration > MAX_SHORTS_DURATION:
-            logger.warning(
-                "[DURATION] 영상 %.1fs > %.1fs — Shorts 제한에 맞게 트림",
-                final_video.duration,
-                MAX_SHORTS_DURATION,
-            )
-            final_video = final_video.subclipped(0, MAX_SHORTS_DURATION)
+        final_video = self._trim_to_shorts_limit(final_video, max_duration=MAX_SHORTS_DURATION)
 
         # BGM: Lyria AI 생성 (1순위) → local assets 폴백
-        target_dur = final_video.duration
-        bgm_clip = None
-
-        # 1순위: Lyria AI BGM (영상 길이에 맞는 맞춤 BGM)
-        if self.config.audio.bgm_provider == "lyria" and final_video.audio is not None:
-            lyria_bgm = self._generate_lyria_bgm(
-                run_dir=run_dir,
-                duration_sec=target_dur,
-                channel=getattr(self, "_channel_key", ""),
-                topic=topic or title,
-            )
-            if lyria_bgm:
-                bgm_clip = self._load_audio_clip(lyria_bgm)
-                _bgm_clip = bgm_clip
-                if bgm_clip.duration and bgm_clip.duration > target_dur:
-                    bgm_clip = bgm_clip.subclipped(0, target_dur)
-                logger.info("[BGM] Lyria AI BGM 사용: %s", lyria_bgm.name)
-
-        # 2순위: local assets/bgm 폴백 (크로스페이드 루핑)
-        if bgm_clip is None and final_video.audio is not None:
-            bgm_dir = (run_dir.parent.parent / self.config.audio.bgm_dir).resolve()
-            if bgm_dir.exists():
-                bgm_files = self._collect_bgm_files(bgm_dir)
-                if bgm_files:
-                    bgm_path = self._pick_bgm_by_mood(bgm_files, topic or title)
-                    bgm_clip = self._load_audio_clip(bgm_path)
-                    _bgm_clip = bgm_clip
-                    # 크로스페이드 루핑 (끊김 방지)
-                    if bgm_clip.duration and bgm_clip.duration < target_dur:
-                        repeats = int(target_dur / bgm_clip.duration) + 1
-                        from moviepy import concatenate_audioclips
-
-                        # 단순 반복 루핑 (오디오 클립에 비디오 이펙트 적용 불가)
-                        bgm_clip = concatenate_audioclips([bgm_clip] * repeats)
-                    bgm_clip = bgm_clip.subclipped(0, target_dur)
-                    logger.info("[BGM] local 파일 사용: %s", bgm_path.name)
+        bgm_clip, _bgm_clip = self._generate_bgm_clip(
+            final_video=final_video,
+            run_dir=run_dir,
+            title=title,
+            topic=topic,
+        )
 
         # RMS 기반 Ducking 적용
-        if bgm_clip is not None and final_video.audio is not None:
-            base_vol = self.config.audio.bgm_volume
-            duck_factor = self.config.audio.ducking_factor
-            bgm_clip = self._apply_rms_ducking(
-                final_video.audio,
-                bgm_clip,
-                base_vol=base_vol,
-                duck_factor=duck_factor,
-            )
-            mixed_audio = CompositeAudioClip([final_video.audio, bgm_clip])
-            final_video = final_video.with_audio(mixed_audio)
+        final_video = self._mix_bgm_audio(final_video, bgm_clip)
 
         # SFX 효과음 레이어
-        if self.config.audio.sfx_enabled:
-            sfx_files = self._load_sfx_files(run_dir)
-            if sfx_files:
-                scene_durations = [a.duration_sec for a in scene_assets]
-                sfx_clips = self._build_sfx_clips(scene_roles, scene_durations, sfx_files)
-                if sfx_clips and final_video.audio is not None:
-                    _audio_clips_to_close.extend(sfx_clips)
-                    all_audio = [final_video.audio] + sfx_clips
-                    final_video = final_video.with_audio(CompositeAudioClip(all_audio))
-                    logger.info("[SFX] %d effects applied", len(sfx_clips))
+        final_video = self._apply_sfx_layer(
+            final_video,
+            scene_assets=scene_assets,
+            scene_roles=scene_roles,
+            run_dir=run_dir,
+            audio_clips_to_close=_audio_clips_to_close,
+        )
 
-        # HW 가속 인코더 자동 감지
-        from shorts_maker_v2.utils.hwaccel import detect_gpu_info, detect_hw_encoder
-
-        hw_codec, hw_params = detect_hw_encoder(self.config.video.hw_accel)
-
-        # Sprint 3: GPU 정보 로깅
-        try:
-            gpu_info = detect_gpu_info()
-            logger.info(
-                "[RENDER] GPU: %s | Encoder: %s | HW Decode: %s",
-                gpu_info["gpu_name"],
-                gpu_info["encoder"],
-                gpu_info["decoder_support"],
-            )
-        except Exception as gpu_exc:
-            logger.debug("[RENDER] GPU 정보 조회 실패: %s", gpu_exc)
-
-        # ── Quality Profile 적용 ──
-        qp = _QUALITY_PROFILES.get(self.config.video.quality_profile, _QUALITY_PROFILES["standard"])
-
-        if hw_codec == "libx264":
-            ffmpeg_extra = [
-                "-crf",
-                str(qp["crf"]),
-                "-pix_fmt",
-                "yuv420p",
-            ]
-            # Bitrate cap for YouTube optimization
-            if qp["maxrate"]:
-                ffmpeg_extra.extend(["-maxrate", qp["maxrate"], "-bufsize", qp["maxrate"]])
-            preset = qp["preset"]
-        else:
-            ffmpeg_extra = list(hw_params)
-            preset = None
-
-        # 출력 해상도 강제 (YouTube Shorts 권장 정확히 1080x1920).
-        # 일부 HW 인코더(특히 h264_qsv)가 source resolution을 미세하게 scale-up
-        # 하는 케이스(1080x1920 → 1134x2016, +5%)가 관찰됨. -s 강제로 차단.
-        # 2026-05-19 1차 quality run에서 1134x2016 출력 → QC hold 사유였음.
-        ffmpeg_extra.extend(["-s", f"{target_width}x{target_height}"])
-
-        write_kwargs: dict = {
-            "fps": self.config.video.fps,
-            "codec": hw_codec,
-            "audio_codec": "aac",
-            "ffmpeg_params": ffmpeg_extra,
-        }
-        if preset:
-            write_kwargs["preset"] = preset
+        hw_codec, write_kwargs = self._build_video_write_kwargs(
+            target_width=target_width,
+            target_height=target_height,
+        )
 
         # Sprint 3: 렌더링 벤치마크
         video_duration = final_video.duration
         render_start_time = time.perf_counter()
 
         try:
-            handle = ClipHandle(
-                backend=self._renderer_backend,
-                native=final_video,
-                duration=video_duration,
-            )
-            self._output_renderer.write(
-                handle,
-                output_path,
-                fps=write_kwargs.get("fps", 30),
-                codec=write_kwargs.get("codec", "libx264"),
-                audio_codec=write_kwargs.get("audio_codec", "aac"),
-                preset=write_kwargs.get("preset"),
-                ffmpeg_params=write_kwargs.get("ffmpeg_params"),
+            self._write_output_video(
+                final_video,
+                output_path=output_path,
+                write_kwargs=write_kwargs,
             )
         finally:
             render_elapsed = time.perf_counter() - render_start_time
-
-            # 벤치마크 결과 로깅
-            speed_ratio = video_duration / max(render_elapsed, 0.001)
-            logger.info(
-                "[BENCHMARK] 인코딩 완료 — codec=%s | 영상=%.1fs | 렌더링=%.1fs | 속도=%.2fx (%s)",
-                hw_codec,
-                video_duration,
-                render_elapsed,
-                speed_ratio,
-                "실시간보다 빠름" if speed_ratio > 1.0 else "실시간보다 느림",
+            self._log_render_benchmark(
+                hw_codec=hw_codec,
+                video_duration=video_duration,
+                render_elapsed=render_elapsed,
             )
-            print(
-                f"\n[BENCHMARK] {hw_codec} | "
-                f"영상 {video_duration:.1f}s → 렌더링 {render_elapsed:.1f}s "
-                f"({speed_ratio:.2f}x {'fast' if speed_ratio > 1.0 else 'slow'})\n"
+            self._close_render_resources(
+                final_video=final_video,
+                all_clips=all_clips,
+                audio_clips_to_close=_audio_clips_to_close,
+                bgm_clip=_bgm_clip,
+                caption_clips_to_close=_caption_clips_to_close,
             )
-
-            # Phase 1-A: close ALL clips to prevent OOM in batch mode
-            final_video.close()
-            for clip in all_clips:
-                with contextlib.suppress(Exception):
-                    clip.close()
-            for clip in _audio_clips_to_close:
-                with contextlib.suppress(Exception):
-                    clip.close()
-            if _bgm_clip is not None:
-                with contextlib.suppress(Exception):
-                    _bgm_clip.close()
-            for clip in _caption_clips_to_close:
-                with contextlib.suppress(Exception):
-                    clip.close()
         return output_path

@@ -384,6 +384,60 @@ def test_render_single_scene_static_caption_tracks_resources(tmp_path: Path) -> 
     assert captions_to_close == [caption_clip]
 
 
+def test_style_for_role_maps_known_roles_to_caption_styles() -> None:
+    step = _make_render_step()
+
+    assert step._style_for_role("hook") is step.hook_style
+    assert step._style_for_role("cta") is step.cta_style
+    assert step._style_for_role("closing") is step.closing_style
+    assert step._style_for_role("body") is step.body_style
+    assert step._style_for_role("unknown") is step.body_style
+
+
+def test_compose_static_caption_uses_prefix_and_tracks_resources(tmp_path: Path) -> None:
+    step = _make_render_step()
+    base_clip = _DummyClip("base", duration=3.0)
+    caption_clip = _DummyClip("caption", duration=0.1, h=120)
+    composed_clip = _DummyClip("composed", duration=3.0)
+    captions_to_close: list[object] = []
+    plan = ScenePlan(
+        scene_id=7,
+        narration_ko="test narration",
+        visual_prompt_en="test visual",
+        target_sec=3.0,
+        structure_role="body",
+    )
+
+    with (
+        patch.object(
+            step, "_render_static_caption", return_value=tmp_path / "caption_fallback_07.png"
+        ) as render_caption,
+        patch("shorts_maker_v2.pipeline.render_step.ImageClip", return_value=caption_clip) as image_clip,
+        patch("shorts_maker_v2.pipeline.render_step.CompositeVideoClip", return_value=composed_clip) as composite,
+    ):
+        result = step._compose_static_caption(
+            base_clip,
+            plan=plan,
+            run_dir=tmp_path,
+            target_width=1080,
+            target_height=1920,
+            duration_sec=3.0,
+            style=step.body_style,
+            role="body",
+            caption_clips_to_close=captions_to_close,
+            filename_prefix="caption_fallback",
+        )
+
+    assert result is composed_clip
+    render_caption.assert_called_once()
+    assert render_caption.call_args.args[3] == tmp_path / "caption_fallback_07.png"
+    image_clip.assert_called_once_with(str(tmp_path / "caption_fallback_07.png"), transparent=True)
+    composite.assert_called_once()
+    assert captions_to_close == [caption_clip]
+    assert caption_clip.duration == 3.0
+    assert caption_clip.position == ("center", step._caption_y(caption_clip, 1920, step.body_style, "body"))
+
+
 def test_concatenate_scene_clips_uses_moviepy_by_default() -> None:
     step = _make_render_step()
     clips = [_DummyClip("a", duration=1.0), _DummyClip("b", duration=2.0)]
