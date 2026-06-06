@@ -60,6 +60,96 @@ COLORS = {
     "channels": ["#f472b6", "#38bdf8", "#facc15", "#4ade80", "#fb923c"],
 }
 
+
+def _summarize_youtube_performance(perf_data: list[dict]) -> dict[str, float | int]:
+    total_views = sum(item.get("yt_views", 0) or 0 for item in perf_data)
+    total_likes = sum(item.get("yt_likes", 0) or 0 for item in perf_data)
+    total_comments = sum(item.get("yt_comments", 0) or 0 for item in perf_data)
+    avg_views = total_views / max(len(perf_data), 1)
+    like_rate = total_likes / max(total_views, 1) * 100
+    engagement_rate = (total_likes + total_comments) / max(total_views, 1) * 100
+    return {
+        "video_count": len(perf_data),
+        "total_views": total_views,
+        "total_likes": total_likes,
+        "total_comments": total_comments,
+        "avg_views": avg_views,
+        "like_rate": like_rate,
+        "engagement_rate": engagement_rate,
+    }
+
+
+def _cpv_per_1k(total_cost: float, total_views: int) -> float | None:
+    if total_views <= 0:
+        return None
+    return total_cost / total_views * 1000
+
+
+def _build_channel_performance_rows(ch_perf: list[dict]) -> list[dict[str, str | int]]:
+    rows = []
+    for item in ch_perf:
+        total_views = item.get("total_views", 0) or 0
+        total_cost = item.get("total_cost", 0.0) or 0.0
+        cpv_1k = _cpv_per_1k(total_cost, total_views)
+        rows.append(
+            {
+                "채널": item["channel"],
+                "영상 수": item["video_count"],
+                "총 조회수": f"{total_views:,}",
+                "평균 조회수": f"{item['avg_views']:,.0f}",
+                "총 비용": f"${total_cost:.2f}",
+                "CPV ($/1K views)": f"${cpv_1k:.2f}/1K" if cpv_1k is not None else "-",
+            }
+        )
+    return rows
+
+
+def _build_cpv_data(ch_perf: list[dict]) -> list[dict[str, float | int | str]]:
+    rows = []
+    for item in ch_perf:
+        total_views = item.get("total_views", 0) or 0
+        total_cost = item.get("total_cost", 0.0) or 0.0
+        cpv_1k = _cpv_per_1k(total_cost, total_views)
+        if cpv_1k is None or total_cost <= 0:
+            continue
+        rows.append(
+            {
+                "channel": item["channel"],
+                "cpv_1k": cpv_1k,
+                "total_views": total_views,
+                "total_cost": total_cost,
+                "video_count": item["video_count"],
+            }
+        )
+    return sorted(rows, key=lambda item: item["cpv_1k"])
+
+
+def _estimate_shorts_revenue(total_views: int, low_rpm: float = 0.04, high_rpm: float = 0.10) -> tuple[float, float]:
+    return total_views / 1000 * low_rpm, total_views / 1000 * high_rpm
+
+
+def _roi_percent(revenue: float, total_cost: float) -> float:
+    return (revenue - total_cost) / max(total_cost, 0.01) * 100
+
+
+def _build_hook_performance_rows(hook_sorted: list[dict]) -> list[dict[str, str | int]]:
+    return [
+        {
+            "훅 패턴": item["hook_pattern"],
+            "사용 횟수": item["count"],
+            "평균 조회수": f"{item['avg_views']:,.0f}",
+            "평균 좋아요": f"{item['avg_likes']:,.0f}",
+            "평균 CTR": f"{item['avg_ctr']:.1f}%",
+            "평균 시청시간": f"{item['avg_watch_sec']:.1f}초",
+        }
+        for item in hook_sorted
+    ]
+
+
+def _render_dataframe(data: list[dict]) -> None:
+    st.dataframe(data, width="stretch", hide_index=True)
+
+
 # ===========================================================================
 # 탭 구성
 # ===========================================================================
@@ -276,20 +366,15 @@ with tab_youtube:
         )
     else:
         # ── 전체 성과 KPI ─────────────────────────────────────
-        total_views = sum(d.get("yt_views", 0) or 0 for d in perf_data)
-        total_likes = sum(d.get("yt_likes", 0) or 0 for d in perf_data)
-        total_comments = sum(d.get("yt_comments", 0) or 0 for d in perf_data)
-        avg_views = total_views / max(len(perf_data), 1)
-        like_rate = total_likes / max(total_views, 1) * 100
-        engagement_rate = (total_likes + total_comments) / max(total_views, 1) * 100
+        perf_summary = _summarize_youtube_performance(perf_data)
 
         k1, k2, k3, k4, k5, k6 = st.columns(6)
-        k1.metric("총 영상", len(perf_data))
-        k2.metric("총 조회수", f"{total_views:,}")
-        k3.metric("평균 조회수", f"{avg_views:,.0f}")
-        k4.metric("총 좋아요", f"{total_likes:,}")
-        k5.metric("좋아요율", f"{like_rate:.1f}%")
-        k6.metric("참여율", f"{engagement_rate:.2f}%")
+        k1.metric("총 영상", perf_summary["video_count"])
+        k2.metric("총 조회수", f"{perf_summary['total_views']:,}")
+        k3.metric("평균 조회수", f"{perf_summary['avg_views']:,.0f}")
+        k4.metric("총 좋아요", f"{perf_summary['total_likes']:,}")
+        k5.metric("좋아요율", f"{perf_summary['like_rate']:.1f}%")
+        k6.metric("참여율", f"{perf_summary['engagement_rate']:.2f}%")
 
         st.divider()
 
@@ -340,21 +425,7 @@ with tab_youtube:
 
             # 채널 성과 테이블
             st.markdown("**채널별 상세 성과**")
-            table_data = []
-            for c in ch_perf:
-                table_data.append(
-                    {
-                        "채널": c["channel"],
-                        "영상 수": c["video_count"],
-                        "총 조회수": f"{c['total_views']:,}",
-                        "평균 조회수": f"{c['avg_views']:,.0f}",
-                        "총 비용": f"${c['total_cost']:.2f}",
-                        "CPV (원/조회)": f"${c['total_cost'] / max(c['total_views'], 1) * 1000:.2f}/1K"
-                        if c["total_views"] > 0
-                        else "-",
-                    }
-                )
-            st.dataframe(table_data, use_container_width=True)
+            _render_dataframe(_build_channel_performance_rows(ch_perf))
 
         st.divider()
 
@@ -399,21 +470,10 @@ with tab_roi:
         # ── CPV (Cost per View) 분석 ──────────────────────────
         st.subheader("CPV (Cost per 1K Views) 비교")
 
-        cpv_data = []
-        for c in ch_perf:
-            if c["total_views"] > 0 and c["total_cost"] > 0:
-                cpv_data.append(
-                    {
-                        "channel": c["channel"],
-                        "cpv_1k": c["total_cost"] / c["total_views"] * 1000,
-                        "total_views": c["total_views"],
-                        "total_cost": c["total_cost"],
-                        "video_count": c["video_count"],
-                    }
-                )
+        cpv_data = _build_cpv_data(ch_perf)
 
         if cpv_data:
-            cpv_sorted = sorted(cpv_data, key=lambda x: x["cpv_1k"])
+            cpv_sorted = cpv_data
 
             fig_cpv = go.Figure()
             fig_cpv.add_trace(
@@ -454,12 +514,9 @@ with tab_roi:
 
         for c in ch_perf:
             if c["total_views"] > 0:
-                low_rpm = 0.04
-                high_rpm = 0.10
-                est_low = c["total_views"] / 1000 * low_rpm
-                est_high = c["total_views"] / 1000 * high_rpm
-                roi_low = (est_low - c["total_cost"]) / max(c["total_cost"], 0.01) * 100
-                roi_high = (est_high - c["total_cost"]) / max(c["total_cost"], 0.01) * 100
+                est_low, est_high = _estimate_shorts_revenue(c["total_views"])
+                roi_low = _roi_percent(est_low, c["total_cost"])
+                roi_high = _roi_percent(est_high, c["total_cost"])
 
                 with st.expander(f"📊 {c['channel']} — {c['video_count']}편, {c['total_views']:,}회"):
                     r1, r2, r3, r4 = st.columns(4)
@@ -551,19 +608,7 @@ with tab_hooks:
 
         # ── 훅 패턴 상세 테이블 ──────────────────────────────
         st.subheader("훅 패턴 상세 데이터")
-        hook_table = []
-        for h in hook_sorted:
-            hook_table.append(
-                {
-                    "훅 패턴": h["hook_pattern"],
-                    "사용 횟수": h["count"],
-                    "평균 조회수": f"{h['avg_views']:,.0f}",
-                    "평균 좋아요": f"{h['avg_likes']:,.0f}",
-                    "평균 CTR": f"{h['avg_ctr']:.1f}%",
-                    "평균 시청시간": f"{h['avg_watch_sec']:.1f}초",
-                }
-            )
-        st.dataframe(hook_table, use_container_width=True)
+        _render_dataframe(_build_hook_performance_rows(hook_sorted))
 
         # 추천
         best_hook = hook_sorted[0]
