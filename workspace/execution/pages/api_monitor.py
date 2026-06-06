@@ -38,6 +38,11 @@ if not _MODULE_OK:
     st.error(f"API Monitor 모듈을 불러올 수 없습니다: {_MODULE_ERR}")
     st.stop()
 
+
+def _render_plotly_chart(fig: object) -> None:
+    st.plotly_chart(fig, width="stretch")
+
+
 init_db()
 
 st.title("📡 API Monitor")
@@ -136,7 +141,7 @@ with chart_col1:
             paper_bgcolor="rgba(0,0,0,0)",
             font_color="#e0e0e0",
         )
-        st.plotly_chart(fig, width="stretch")
+        _render_plotly_chart(fig)
     else:
         st.info("No API usage data recorded yet.")
         st.caption("Usage is logged when execution scripts call `log_api_call()` from `api_usage_tracker`.")
@@ -155,7 +160,7 @@ with chart_col2:
             paper_bgcolor="rgba(0,0,0,0)",
             font_color="#e0e0e0",
         )
-        st.plotly_chart(fig, width="stretch")
+        _render_plotly_chart(fig)
     else:
         st.info("No provider data yet.")
 
@@ -189,7 +194,7 @@ if daily:
         paper_bgcolor="rgba(0,0,0,0)",
         font_color="#e0e0e0",
     )
-    st.plotly_chart(fig, width="stretch")
+    _render_plotly_chart(fig)
 else:
     st.info(
         "Start logging API calls using:\n\n"
@@ -251,7 +256,7 @@ with bridge_col1:
             paper_bgcolor="rgba(0,0,0,0)",
             font_color="#e0e0e0",
         )
-        st.plotly_chart(fig, width="stretch")
+        _render_plotly_chart(fig)
     else:
         st.info("No bridge activity recorded yet.")
 
@@ -269,7 +274,7 @@ with bridge_col2:
             paper_bgcolor="rgba(0,0,0,0)",
             font_color="#e0e0e0",
         )
-        st.plotly_chart(fig, width="stretch")
+        _render_plotly_chart(fig)
     else:
         st.info("No bridge reason codes yet.")
 
@@ -353,7 +358,7 @@ if btx_summary["providers"]:
             paper_bgcolor="rgba(0,0,0,0)",
             font_color="#e0e0e0",
         )
-        st.plotly_chart(fig_btx, use_container_width=True)
+        _render_plotly_chart(fig_btx)
 else:
     st.info("blind-to-x API 호출 기록이 없습니다. 파이프라인 실행 후 확인하세요.")
 
@@ -434,7 +439,7 @@ if _BTX_COST_DB:
             paper_bgcolor="rgba(0,0,0,0)",
             font_color="#e0e0e0",
         )
-        st.plotly_chart(_fig_trend, use_container_width=True)
+        _render_plotly_chart(_fig_trend)
 
     # 드래프트 스타일 A/B 분석
     _draft_perf = _BTX_COST_DB.get_draft_style_performance(days)
