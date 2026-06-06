@@ -56,4 +56,5 @@ test("proxy leaves public health and PWA assets outside auth redirects", () => {
 	assert.match(proxySource, /api\/health/);
 	assert.match(proxySource, /manifest\.json/);
 	assert.match(proxySource, /api\/auth/);
+	assert.match(proxySource, /subscription\/fail/);
 });

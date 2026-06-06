@@ -19,15 +19,10 @@ function FailContent() {
 	const handleRetry = () => {
 		setRetryStatus("");
 		try {
-			router.back();
+			router.push(PAYMENT_RETRY_PATH);
 		} catch (error) {
 			console.error("Payment retry navigation failed:", error);
-			try {
-				router.push(PAYMENT_RETRY_PATH);
-			} catch (fallbackError) {
-				console.error("Payment retry fallback navigation failed:", fallbackError);
-				setRetryStatus(PAYMENT_RETRY_NAVIGATION_ERROR_MESSAGE);
-			}
+			setRetryStatus(PAYMENT_RETRY_NAVIGATION_ERROR_MESSAGE);
 		}
 	};
 

@@ -889,3 +889,15 @@
 - Full active-project QC passed and rewrote `.tmp/project_qc_runner_latest.json`: blind-to-x `1769 passed`, `9 skipped`; shorts-maker-v2 `1618 passed`, `12 skipped`; Hanwoo `505 passed`; Knowledge `61 passed`; total `3953 passed`, `21 skipped`; lint/build/smoke gates passed where applicable.
 - Runtime proof: `product_readiness_score.py --json` reports score `96`, state `blocked`, local blockers `0`, publish blockers `1`, external blockers `1`; `release_authorization_packet.py --json` is `ready_for_authorization`; selector is `blocked_publish_only`; launch audit has complete coverage with current code-review graph; completion audit is `incomplete` with `9/14` complete and 5 blocked issues.
 - Boundary: no push was performed. Product launch remains incomplete until explicit push authorization/user push plus current-head `root-quality-gate` and `active-project-matrix`, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
+
+## 2026-06-06 - Codex
+
+- Closed T-1377 as a bounded `$auto-research` `hanwoo-dashboard` payment-failure recovery browser-QA cycle.
+- Changed `projects/hanwoo-dashboard/src/proxy.js`: `/subscription/fail` now stays outside auth proxy redirects, so failed/cancelled Toss returns can show the Korean failure state and error code even when the checkout session has expired.
+- Changed `projects/hanwoo-dashboard/src/app/subscription/fail/page.js`: the retry button now uses deterministic `router.push("/subscription")` instead of `router.back()`, so recovery does not depend on external payment-provider history.
+- Updated `projects/hanwoo-dashboard/src/lib/app-metadata-copy.test.mjs` and `projects/hanwoo-dashboard/src/lib/payment-ux-copy.test.mjs` to lock the proxy exception and direct retry path.
+- Browser QA: baseline `/subscription/fail?code=PAY_PROCESS_CANCELED` redirected to login; candidate loaded the failure page directly on desktop and mobile, retry entered the `/subscription` auth flow, and console warnings/errors were `0`. Screenshots: `output/playwright/hanwoo-t1377-payment-fail-desktop.png`, `output/playwright/hanwoo-t1377-payment-fail-mobile.png`.
+- Verification: full Hanwoo `npm test` passed `507/507`; `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build/smoke; `git diff --check` passed.
+- Code-review gate: staged gate returned advisory WARN `risk_score=0.30` for `FailContent/handleRetry` graph test-gap heuristics, covered by browser QA, source regression tests, and full Hanwoo project QC.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1377.json --json` returned `adopt_candidate` with `score_delta=0.8`.
+- Boundary: no push was performed. T-251 was not retried. Remaining release blockers are explicit push authorization/user push plus current-head Actions, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E.

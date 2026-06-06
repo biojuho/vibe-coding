@@ -263,20 +263,20 @@ test("subscription result pages avoid bare English loading and status copy", () 
 	assert.match(failSource, /const PAYMENT_FAILURE_MESSAGE/);
 	assert.match(
 		failSource,
-		/const handleRetry = \(\) => \{\s+setRetryStatus\(["']["']\);\s+try \{\s+router\.back\(\);\s+\} catch \(error\) \{/,
+		/const handleRetry = \(\) => \{\s+setRetryStatus\(["']["']\);\s+try \{\s+router\.push\(PAYMENT_RETRY_PATH\);\s+\} catch \(error\) \{/,
 	);
 	assert.match(
 		failSource,
 		/console\.error\(["']Payment retry navigation failed:/,
 	);
-	assert.match(failSource, /router\.push\(PAYMENT_RETRY_PATH\);/);
-	assert.match(
-		failSource,
-		/console\.error\(["']Payment retry fallback navigation failed:/,
-	);
 	assert.match(
 		failSource,
 		/setRetryStatus\(PAYMENT_RETRY_NAVIGATION_ERROR_MESSAGE\);/,
+	);
+	assert.doesNotMatch(failSource, /router\.back\(\)/);
+	assert.doesNotMatch(
+		failSource,
+		/Payment retry fallback navigation failed:/,
 	);
 	assert.match(
 		failSource,
