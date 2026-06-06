@@ -13,9 +13,20 @@ from dotenv import load_dotenv
 
 from shorts_maker_v2.config import AppConfig, ConfigError, load_config, required_env_keys, validate_environment
 from shorts_maker_v2.models import BatchResult
-from shorts_maker_v2.pipeline.orchestrator import PipelineOrchestrator
 from shorts_maker_v2.utils.channel_router import get_router
 from shorts_maker_v2.utils.cost_tracker import CostTracker
+
+PipelineOrchestrator = None
+
+
+def _get_pipeline_orchestrator_class():
+    """Load the heavy render pipeline only for commands that actually generate videos."""
+    global PipelineOrchestrator
+    if PipelineOrchestrator is None:
+        from shorts_maker_v2.pipeline.orchestrator import PipelineOrchestrator as orchestrator_cls
+
+        PipelineOrchestrator = orchestrator_cls
+    return PipelineOrchestrator
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -310,7 +321,8 @@ def _run_batch(args: argparse.Namespace, config_path: Path) -> int:
         try:
             ns = _make_batch_namespace(args, channel)
             job_config = _apply_channel_overrides(config, ns)
-            orchestrator = PipelineOrchestrator(
+            orchestrator_cls = _get_pipeline_orchestrator_class()
+            orchestrator = orchestrator_cls(
                 config=job_config,
                 base_dir=config_path.parent,
                 renderer_mode=job_config.rendering.engine,
@@ -646,7 +658,8 @@ def run_cli(argv: list[str] | None = None) -> int:
 
         config = _apply_channel_overrides(config, args)
         parallel = getattr(args, "parallel", False)
-        orchestrator = PipelineOrchestrator(
+        orchestrator_cls = _get_pipeline_orchestrator_class()
+        orchestrator = orchestrator_cls(
             config=config,
             base_dir=config_path.parent,
             renderer_mode=config.rendering.engine,

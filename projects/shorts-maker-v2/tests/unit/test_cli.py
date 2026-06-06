@@ -236,6 +236,29 @@ def test_run_cli_dashboard_uses_fallback_logs_dir_on_config_error(
     assert "Dashboard generated" in capsys.readouterr().out
 
 
+def test_run_cli_dashboard_does_not_load_render_pipeline(tmp_path: Path, monkeypatch) -> None:
+    fake_dashboard = ModuleType("shorts_maker_v2.utils.dashboard")
+
+    def generate_dashboard(*, logs_dir, output_file):
+        Path(output_file).write_text("<html></html>", encoding="utf-8")
+        return Path(output_file)
+
+    fake_dashboard.generate_dashboard = generate_dashboard
+    monkeypatch.setitem(sys.modules, "shorts_maker_v2.utils.dashboard", fake_dashboard)
+    monkeypatch.setattr(cli, "_ensure_utf8_stdio", lambda: None)
+    monkeypatch.setattr(cli, "load_dotenv", lambda: None)
+    monkeypatch.setattr(cli, "load_config", lambda path: _make_config(tmp_path))
+    monkeypatch.setattr(
+        cli,
+        "_get_pipeline_orchestrator_class",
+        lambda: (_ for _ in ()).throw(AssertionError("render pipeline should stay lazy")),
+    )
+
+    result = cli.run_cli(["dashboard", "--config", str(tmp_path / "config.yaml"), "--out", "stats.html"])
+
+    assert result == 0
+
+
 def test_run_cli_costs_uses_configured_logs_dir(tmp_path: Path, monkeypatch) -> None:
     config = _make_config(tmp_path)
     tracker_calls: dict[str, Path] = {}
@@ -251,6 +274,11 @@ def test_run_cli_costs_uses_configured_logs_dir(tmp_path: Path, monkeypatch) -> 
     monkeypatch.setattr(cli, "load_dotenv", lambda: None)
     monkeypatch.setattr(cli, "load_config", lambda path: config)
     monkeypatch.setattr(cli, "CostTracker", FakeTracker)
+    monkeypatch.setattr(
+        cli,
+        "_get_pipeline_orchestrator_class",
+        lambda: (_ for _ in ()).throw(AssertionError("render pipeline should stay lazy")),
+    )
 
     result = cli.run_cli(["costs", "--config", str(tmp_path / "config.yaml")])
 
