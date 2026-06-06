@@ -297,6 +297,47 @@ test("buildTodayFocusItems uses helper tone for feed-depletion warning checks", 
 	assert.doesNotMatch(depletion.title, /점검 권장/);
 });
 
+test("buildTodayFocusItems avoids duplicate low-stock and depletion cards for the same feed", () => {
+	const items = buildTodayFocusItems({
+		now: new Date("2026-05-18T10:00:00+09:00"),
+		inventoryList: [
+			{
+				id: "feed-low",
+				name: "TMR 사료",
+				category: "Feed",
+				quantity: 8,
+				threshold: 10,
+				unit: "kg",
+			},
+			{
+				id: "medicine-low",
+				name: "해열제",
+				category: "medicine",
+				quantity: 1,
+				threshold: 2,
+				unit: "병",
+			},
+		],
+		feedHistory: [
+			{ date: "2026-05-17", roughage: 30, concentrate: 30 },
+			{ date: "2026-05-16", roughage: 30, concentrate: 30 },
+			{ date: "2026-05-15", roughage: 30, concentrate: 30 },
+		],
+		monthlySalesCount: 0,
+	});
+
+	const lowStock = items.find((item) => item.id === "low-stock");
+	const feedDepletion = items.find((item) => item.id === "feed-depletion");
+	assert.equal(lowStock?.title, "1개 재고 부족");
+	assert.match(lowStock?.detail ?? "", /^해열제: 1병/);
+	assert.ok(feedDepletion, "should keep the more specific feed-depletion card");
+	assert.match(feedDepletion?.detail ?? "", /^TMR 사료: 8kg/);
+	assert.equal(
+		items.filter((item) => item.detail?.startsWith("TMR 사료:")).length,
+		1,
+	);
+});
+
 test("buildTodayFocusItems skips feed-depletion when feed history is empty", () => {
 	const items = buildTodayFocusItems({
 		now: new Date("2026-05-18T10:00:00+09:00"),

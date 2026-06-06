@@ -48,6 +48,16 @@ function isFeedCategory(item) {
 	);
 }
 
+function getInventoryItemKey(item) {
+	if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+	if (item.id !== null && item.id !== undefined && item.id !== "") {
+		return `id:${String(item.id)}`;
+	}
+
+	const name = typeof item.name === "string" ? item.name.trim() : "";
+	return name.length > 0 ? `name:${name.toLowerCase()}` : null;
+}
+
 /**
  * Predict per-day feed consumption from the recent feed log.
  *
@@ -94,6 +104,48 @@ function formatDaysLeft(target, today) {
 	return `${daysLeft}일 남음`;
 }
 
+function buildFeedDepletionFocusItem(options = {}) {
+	const {
+		inventoryList = [],
+		feedHistory = [],
+		now = new Date(),
+	} = normalizeTodayFocusOptions(options);
+	const dailyFeedKg = estimateDailyFeedConsumptionKg({ feedHistory, now });
+	if (dailyFeedKg === null || dailyFeedKg <= 0) return null;
+
+	const projections = toObjectRows(inventoryList)
+		.filter(isFeedCategory)
+		.map((item) => {
+			const quantity = toFiniteNumberOrNull(item?.quantity);
+			if (quantity === null || quantity <= 0) return null;
+			const daysRemaining = quantity / dailyFeedKg;
+			return { item, daysRemaining };
+		})
+		.filter(Boolean)
+		.sort((a, b) => a.daysRemaining - b.daysRemaining);
+
+	const soonest = projections[0];
+	if (!soonest || soonest.daysRemaining > 14) return null;
+
+	const daysLabel = Math.max(0, Math.floor(soonest.daysRemaining));
+	const critical = soonest.daysRemaining <= 7;
+	return {
+		item: {
+			id: "feed-depletion",
+			type: "stock",
+			title: critical
+				? `사료 ${daysLabel}일 후 소진 예상`
+				: `사료 잔여 ${daysLabel}일, 재고를 점검해 주세요`,
+			detail: `${soonest.item.name}: ${soonest.item.quantity}${soonest.item.unit || ""} (최근 사용량 기준)`,
+			meta: "사료 발주",
+			tone: critical ? "danger" : "warning",
+			targetTab: "inventory",
+		},
+		inventoryItem: soonest.item,
+		inventoryKey: getInventoryItemKey(soonest.item),
+	};
+}
+
 export function buildTodayFocusItems(options = {}) {
 	const {
 		notifications = [],
@@ -109,6 +161,12 @@ export function buildTodayFocusItems(options = {}) {
 	const safeNotifications = toObjectRows(notifications);
 	const safeScheduleEvents = toObjectRows(scheduleEvents);
 	const safeInventoryList = toObjectRows(inventoryList);
+	const feedDepletion = buildFeedDepletionFocusItem({
+		inventoryList: safeInventoryList,
+		feedHistory,
+		now,
+	});
+	const feedDepletionInventoryKey = feedDepletion?.inventoryKey ?? null;
 
 	if (!isOnline) {
 		items.push({
@@ -154,7 +212,14 @@ export function buildTodayFocusItems(options = {}) {
 		});
 	}
 
-	const lowStockItems = safeInventoryList.filter(isLowStock);
+	const lowStockItems = safeInventoryList.filter((item) => {
+		if (!isLowStock(item)) return false;
+		if (feedDepletion?.inventoryItem === item) return false;
+		return (
+			feedDepletionInventoryKey === null ||
+			getInventoryItemKey(item) !== feedDepletionInventoryKey
+		);
+	});
 	if (lowStockItems.length > 0) {
 		const first = lowStockItems[0];
 		items.push({
@@ -171,35 +236,8 @@ export function buildTodayFocusItems(options = {}) {
 	// Predict feed depletion from actual feed-log consumption — surfaces a
 	// "사료가 N일 후 떨어집니다" warning before the operator-set threshold
 	// catches it. Only fires for feed-category inventory rows.
-	const dailyFeedKg = estimateDailyFeedConsumptionKg({ feedHistory, now });
-	if (dailyFeedKg !== null && dailyFeedKg > 0) {
-		const feedRows = safeInventoryList.filter(isFeedCategory);
-		const projections = feedRows
-			.map((item) => {
-				const quantity = toFiniteNumberOrNull(item?.quantity);
-				if (quantity === null || quantity <= 0) return null;
-				const daysRemaining = quantity / dailyFeedKg;
-				return { item, daysRemaining };
-			})
-			.filter(Boolean)
-			.sort((a, b) => a.daysRemaining - b.daysRemaining);
-
-		const soonest = projections[0];
-		if (soonest && soonest.daysRemaining <= 14) {
-			const daysLabel = Math.max(0, Math.floor(soonest.daysRemaining));
-			const critical = soonest.daysRemaining <= 7;
-			items.push({
-				id: "feed-depletion",
-				type: "stock",
-				title: critical
-					? `사료 ${daysLabel}일 후 소진 예상`
-					: `사료 잔여 ${daysLabel}일, 재고를 점검해 주세요`,
-				detail: `${soonest.item.name}: ${soonest.item.quantity}${soonest.item.unit || ""} (최근 사용량 기준)`,
-				meta: "사료 발주",
-				tone: critical ? "danger" : "warning",
-				targetTab: "inventory",
-			});
-		}
+	if (feedDepletion) {
+		items.push(feedDepletion.item);
 	}
 
 	items.push({
