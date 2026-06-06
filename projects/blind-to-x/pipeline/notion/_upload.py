@@ -288,6 +288,33 @@ class NotionUploadMixin:
             f"{name}={self._format_metric_value(score)}" for name, score in values.items() if score not in (None, "")
         )
 
+    def _build_selection_quality_summary(self, drafts: Any) -> str:
+        if not isinstance(drafts, dict):
+            return ""
+
+        summary_parts: list[str] = []
+        selection_score = drafts.get("_best_of_n_selection_score")
+        if selection_score not in (None, ""):
+            summary_parts.append(f"최종 선택점수 {self._format_metric_value(selection_score)}")
+
+        quality_score = drafts.get("_quality_gate_score")
+        if quality_score not in (None, ""):
+            summary_parts.append(f"게시 적합성 {self._format_metric_value(quality_score)}")
+
+        similarity = drafts.get("_max_semantic_similarity")
+        if similarity not in (None, ""):
+            summary_parts.append(f"최근 유사도 {self._format_metric_value(similarity)}(낮을수록 새로움)")
+
+        failures = drafts.get("_quality_gate_failures")
+        if failures not in (None, ""):
+            summary_parts.append(f"실패 {self._format_metric_value(failures)}건")
+
+        warnings = drafts.get("_quality_gate_warnings")
+        if warnings not in (None, ""):
+            summary_parts.append(f"경고 {self._format_metric_value(warnings)}건")
+
+        return ", ".join(summary_parts)
+
     @staticmethod
     def _format_fact_check_warning_counts(values: Any) -> str:
         if not isinstance(values, dict) or not values:
@@ -409,6 +436,7 @@ class NotionUploadMixin:
             "evidence_anchor": evidence_anchor,
             "risk_flags": risk_flags,
             "has_publishable_draft": has_publishable_draft,
+            "selection_quality_summary": self._build_selection_quality_summary(drafts),
             "review_focus": self._build_review_focus(analysis, evidence_anchor, risk_flags, has_publishable_draft),
             "feedback_request": self._build_feedback_request(risk_flags, has_publishable_draft),
             "action_steps": self._build_action_steps(has_publishable_draft),
@@ -524,6 +552,8 @@ class NotionUploadMixin:
             summary_lines.append(f"위험 신호: {', '.join(review_brief['risk_flags'])}")
         if review_brief["publish_platforms"]:
             summary_lines.append(f"권장 채널: {', '.join(review_brief['publish_platforms'])}")
+        if review_brief.get("selection_quality_summary"):
+            summary_lines.append(f"선택 품질: {review_brief['selection_quality_summary']}")
         summary_lines.extend(self._build_x_upload_check_lines(drafts))
         if draft_generation_error:
             summary_lines.append(f"초안 생성 오류: {self._truncate_for_brief(draft_generation_error, limit=140)}")
@@ -735,6 +765,8 @@ class NotionUploadMixin:
             memo_parts.append(f"위험 신호: {', '.join(review_brief['risk_flags'])}")
         if review_brief["publish_platforms"]:
             memo_parts.append(f"권장 채널: {', '.join(review_brief['publish_platforms'])}")
+        if review_brief.get("selection_quality_summary"):
+            memo_parts.append(f"선택 품질: {review_brief['selection_quality_summary']}")
         if analysis and analysis.get("final_rank_score") not in (None, ""):
             memo_parts.append(f"최종 랭크: {self._format_metric_value(analysis['final_rank_score'])}")
         editorial_avg_score = post_data.get("editorial_avg_score")

@@ -445,6 +445,78 @@ def test_build_upload_properties_preserves_review_and_x_fields(mock_config):
     assert properties["Final Rank Score"]["number"] == 87.0
 
 
+def test_build_review_brief_summarizes_best_of_n_selection_quality(mock_config):
+    uploader = NotionUploader(mock_config)
+    drafts = {
+        "twitter": "바로 게시할 본문",
+        "creator_take": "사람들이 자기 상황과 바로 비교할 수 있는 글",
+        "_best_of_n_selection_score": 8.73,
+        "_quality_gate_score": 9.5,
+        "_quality_gate_failures": 0,
+        "_quality_gate_warnings": 1,
+        "_max_semantic_similarity": 0.42,
+    }
+    analysis = {
+        "selection_summary": "비교 욕구와 공감 포인트가 둘 다 살아 있는 초안",
+        "empathy_anchor": "연봉보다 팀장이 더 문제라는 댓글",
+    }
+
+    review_brief = uploader._build_review_brief({}, drafts, analysis)
+
+    expected_summary = "최종 선택점수 8.73, 게시 적합성 9.5, 최근 유사도 0.42(낮을수록 새로움), 실패 0건, 경고 1건"
+    assert review_brief["selection_quality_summary"] == expected_summary
+
+    memo = uploader._build_upload_memo(
+        {"url": "https://example.com/post"},
+        "https://example.com/post",
+        review_brief,
+        analysis,
+        "",
+    )
+    assert f"선택 품질: {expected_summary}" in memo
+
+    blocks = uploader._build_summary_section_blocks({}, review_brief, analysis, "", drafts)
+    bullets = [
+        block["bulleted_list_item"]["rich_text"][0]["text"]["content"]
+        for block in blocks
+        if block.get("type") == "bulleted_list_item"
+    ]
+    assert f"선택 품질: {expected_summary}" in bullets
+
+
+def test_build_review_brief_skips_selection_quality_when_metadata_absent(mock_config):
+    uploader = NotionUploader(mock_config)
+    drafts = {
+        "twitter": "바로 게시할 본문",
+        "creator_take": "사람들이 자기 상황과 바로 비교할 수 있는 글",
+    }
+    analysis = {
+        "selection_summary": "비교 욕구와 공감 포인트가 둘 다 살아 있는 초안",
+        "empathy_anchor": "연봉보다 팀장이 더 문제라는 댓글",
+    }
+
+    review_brief = uploader._build_review_brief({}, drafts, analysis)
+
+    assert review_brief["selection_quality_summary"] == ""
+
+    memo = uploader._build_upload_memo(
+        {"url": "https://example.com/post"},
+        "https://example.com/post",
+        review_brief,
+        analysis,
+        "",
+    )
+    assert "선택 품질:" not in memo
+
+    blocks = uploader._build_summary_section_blocks({}, review_brief, analysis, "", drafts)
+    bullets = [
+        block["bulleted_list_item"]["rich_text"][0]["text"]["content"]
+        for block in blocks
+        if block.get("type") == "bulleted_list_item"
+    ]
+    assert not any(text.startswith("선택 품질:") for text in bullets)
+
+
 @pytest.mark.asyncio
 @patch("pipeline.notion_upload.NotionUploader.ensure_schema", new_callable=AsyncMock)
 async def test_upload_populates_review_brief_properties(mock_ensure_schema, mock_config):
