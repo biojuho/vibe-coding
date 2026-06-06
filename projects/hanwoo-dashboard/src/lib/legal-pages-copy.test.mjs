@@ -15,6 +15,7 @@ test("legal pages expose stable support channels without personal contact detail
 	const privacySource = readSource("app/privacy/page.js");
 	const termsSource = readSource("app/terms/page.js");
 	const layoutSource = readSource("components/layout/LegalDocumentLayout.js");
+	const returnLinkSource = readSource("components/layout/LegalReturnLink.js");
 	const combinedSource = `${privacySource}\n${termsSource}`;
 
 	assert.match(privacySource, /담당: Joolife 운영팀/);
@@ -47,12 +48,32 @@ test("legal pages expose stable support channels without personal contact detail
 		layoutSource,
 		/export default function LegalDocumentLayout\(\{\s*eyebrow,/,
 	);
+	assert.match(layoutSource, /import \{ Suspense \} from ["']react["'];/);
 	assert.match(
 		layoutSource,
-		/<Link\s+href="\/"\s+aria-label="홈으로 돌아가기"\s+title="홈으로 돌아가기"/,
+		/import LegalReturnLink, \{\s*LegalReturnLinkFallback,\s*\} from ["']@\/components\/layout\/LegalReturnLink["'];/,
+	);
+	assert.match(layoutSource, /<Suspense fallback=\{<LegalReturnLinkFallback \/>}/);
+	assert.match(layoutSource, /<LegalReturnLink \/>/);
+	assert.doesNotMatch(layoutSource, /href="\/"/);
+	assert.doesNotMatch(layoutSource, /홈으로 돌아가기/);
+
+	assert.match(returnLinkSource, /"use client";/);
+	assert.match(returnLinkSource, /import \{ useSearchParams \} from ["']next\/navigation["'];/);
+	assert.match(
+		returnLinkSource,
+		/dashboard:\s*\{\s*href: "\/",\s*label: "대시보드로 돌아가기"/,
 	);
 	assert.match(
-		layoutSource,
+		returnLinkSource,
+		/login:\s*\{\s*href: "\/login",\s*label: "로그인 화면으로 돌아가기"/,
+	);
+	assert.match(returnLinkSource, /returnTo === "dashboard"/);
+	assert.match(returnLinkSource, /export function LegalReturnLinkFallback\(\)/);
+	assert.match(returnLinkSource, /const searchParams = useSearchParams\(\);/);
+	assert.match(
+		returnLinkSource,
 		/<ArrowLeft className="h-4 w-4" aria-hidden="true" \/>/,
 	);
+	assert.doesNotMatch(returnLinkSource, /홈으로 돌아가기/);
 });

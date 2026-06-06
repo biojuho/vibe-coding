@@ -2205,7 +2205,7 @@ export default function DashboardClient(options = {}) {
 					</div>
 					<div className="flex justify-center gap-6 flex-wrap mb-5">
 						<a
-							href="/terms"
+							href="/terms?returnTo=dashboard"
 							aria-label="Joolife 이용약관 보기"
 							title="Joolife 이용약관 보기"
 							className="no-underline text-muted-foreground hover:text-foreground transition-[color,transform] duration-200 py-1.5 px-1 hover:-translate-y-px"
@@ -2214,7 +2214,7 @@ export default function DashboardClient(options = {}) {
 						</a>
 						<span className="text-muted-foreground/30 select-none">·</span>
 						<a
-							href="/privacy"
+							href="/privacy?returnTo=dashboard"
 							aria-label="Joolife 개인정보처리방침 보기"
 							title="Joolife 개인정보처리방침 보기"
 							className="no-underline text-muted-foreground hover:text-foreground transition-[color,transform] duration-200 py-1.5 px-1 hover:-translate-y-px"

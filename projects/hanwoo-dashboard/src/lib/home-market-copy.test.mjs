@@ -612,11 +612,11 @@ test("home footer links expose explicit navigation labels", () => {
 
 	assert.match(
 		source,
-		/href="\/terms"[\s\S]*?aria-label="Joolife 이용약관 보기"[\s\S]*?title="Joolife 이용약관 보기"/,
+		/href="\/terms\?returnTo=dashboard"[\s\S]*?aria-label="Joolife 이용약관 보기"[\s\S]*?title="Joolife 이용약관 보기"/,
 	);
 	assert.match(
 		source,
-		/href="\/privacy"[\s\S]*?aria-label="Joolife 개인정보처리방침 보기"[\s\S]*?title="Joolife 개인정보처리방침 보기"/,
+		/href="\/privacy\?returnTo=dashboard"[\s\S]*?aria-label="Joolife 개인정보처리방침 보기"[\s\S]*?title="Joolife 개인정보처리방침 보기"/,
 	);
 	assert.match(
 		source,

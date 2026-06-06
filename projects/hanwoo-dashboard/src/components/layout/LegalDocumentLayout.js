@@ -1,5 +1,7 @@
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
+import { Suspense } from "react";
+import LegalReturnLink, {
+	LegalReturnLinkFallback,
+} from "@/components/layout/LegalReturnLink";
 
 function normalizeLegalDocumentLayoutOptions(options) {
 	return options && typeof options === "object" && !Array.isArray(options)
@@ -26,15 +28,9 @@ export default function LegalDocumentLayout(options = {}) {
 				<div className="grid gap-4">{children}</div>
 
 				<div className="mt-8 flex justify-center">
-					<Link
-						href="/"
-						aria-label="홈으로 돌아가기"
-						title="홈으로 돌아가기"
-						className="clay-pressable inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-[color:var(--color-text)] no-underline"
-					>
-						<ArrowLeft className="h-4 w-4" aria-hidden="true" />
-						홈으로 돌아가기
-					</Link>
+					<Suspense fallback={<LegalReturnLinkFallback />}>
+						<LegalReturnLink />
+					</Suspense>
 				</div>
 			</div>
 		</div>
