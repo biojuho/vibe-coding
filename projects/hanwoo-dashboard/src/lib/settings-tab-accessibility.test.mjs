@@ -342,6 +342,31 @@ test("settings forms expose explicit labels and invalid state", () => {
 	);
 });
 
+test("setup quick action brings the building form into view and focus", () => {
+	const source = readSource("components/tabs/SettingsTab.js");
+
+	assert.match(source, /import \{ focusElementSafely \} from ["']@\/lib\/safeFocus["'];/);
+	assert.match(source, /const buildingFormRef = useRef\(null\);/);
+	assert.match(source, /const buildingNameInputRef = useRef\(null\);/);
+	assert.match(source, /const buildingNameRegistration = registerBuilding\("name"\);/);
+	assert.match(
+		source,
+		/useEffect\(\(\) => \{\s+if \(!isAdding\) \{\s+return;\s+\}[\s\S]*?const timeoutId = window\.setTimeout\(\(\) => \{[\s\S]*?buildingFormRef\.current\?\.scrollIntoView\(\{\s+behavior: "smooth",\s+block: "start",\s+inline: "nearest",\s+\}\);[\s\S]*?buildingFormRef\.current\?\.scrollIntoView\(\);[\s\S]*?focusElementSafely\(buildingNameInputRef\.current\);[\s\S]*?\}, 0\);[\s\S]*?window\.clearTimeout\(timeoutId\);[\s\S]*?\}, \[isAdding, quickActionIntent\?\.nonce\]\);/,
+	);
+	assert.match(
+		source,
+		/<form\s+ref=\{buildingFormRef\}[\s\S]*?onSubmit=\{handleBuildingSubmit\}/,
+	);
+	assert.match(
+		source,
+		/id="building-name"[\s\S]*?\{\.\.\.buildingNameRegistration\}[\s\S]*?ref=\{\(element\) => \{\s+buildingNameRegistration\.ref\(element\);\s+buildingNameInputRef\.current = element;\s+\}\}/,
+	);
+	assert.doesNotMatch(
+		source,
+		/id="building-name"[\s\S]{0,240}\{\.\.\.registerBuilding\("name"\)\}/,
+	);
+});
+
 test("settings form validation messages are announced with their controls", () => {
 	const source = readSource("components/tabs/SettingsTab.js");
 	const fields = [

@@ -17,6 +17,7 @@ import {
 	createFarmSettingsValues,
 	farmSettingsSchema,
 } from "@/lib/formSchemas";
+import { focusElementSafely } from "@/lib/safeFocus";
 
 const errorTextStyle = {
 	fontSize: "12px",
@@ -94,6 +95,8 @@ export default function SettingsTab(options = {}) {
 	const [isSavingBuilding, setIsSavingBuilding] = useState(false);
 	const [deletingBuildingId, setDeletingBuildingId] = useState(null);
 	const isMountedRef = useRef(false);
+	const buildingFormRef = useRef(null);
+	const buildingNameInputRef = useRef(null);
 	const farmSaveInFlightRef = useRef(false);
 	const buildingSaveInFlightRef = useRef(false);
 	const deleteBuildingInFlightRef = useRef(false);
@@ -142,6 +145,7 @@ export default function SettingsTab(options = {}) {
 		resolver: zodResolver(buildingFormSchema),
 		defaultValues: createBuildingFormValues(),
 	});
+	const buildingNameRegistration = registerBuilding("name");
 
 	const {
 		register: registerFarm,
@@ -168,6 +172,30 @@ export default function SettingsTab(options = {}) {
 	useEffect(() => {
 		resetFarm(createFarmSettingsValues(farmSettings));
 	}, [farmSettings, resetFarm]);
+
+	useEffect(() => {
+		if (!isAdding) {
+			return;
+		}
+
+		const timeoutId = window.setTimeout(() => {
+			try {
+				buildingFormRef.current?.scrollIntoView({
+					behavior: "smooth",
+					block: "start",
+					inline: "nearest",
+				});
+			} catch {
+				buildingFormRef.current?.scrollIntoView();
+			}
+
+			focusElementSafely(buildingNameInputRef.current);
+		}, 0);
+
+		return () => {
+			window.clearTimeout(timeoutId);
+		};
+	}, [isAdding, quickActionIntent?.nonce]);
 
 	const koreanLocations = [
 			{ name: "서울", lat: 37.566, lng: 126.978 },
@@ -741,6 +769,7 @@ export default function SettingsTab(options = {}) {
 
 			{isAdding ? (
 				<form
+					ref={buildingFormRef}
 					onSubmit={handleBuildingSubmit}
 					style={{
 						background: "var(--color-bg-card)",
@@ -765,7 +794,11 @@ export default function SettingsTab(options = {}) {
 							<PremiumLabel htmlFor="building-name">축사 이름</PremiumLabel>
 							<PremiumInput
 								id="building-name"
-								{...registerBuilding("name")}
+								{...buildingNameRegistration}
+								ref={(element) => {
+									buildingNameRegistration.ref(element);
+									buildingNameInputRef.current = element;
+								}}
 								placeholder="축사 이름을 입력해 주세요."
 								hasError={!!buildingErrors.name}
 								aria-invalid={Boolean(buildingErrors.name)}
