@@ -6,6 +6,21 @@ from pathlib import Path
 
 import pytest
 
+_LIVE_LLM_ENV_KEYS = (
+    "OPENAI_API_KEY",
+    "GEMINI_API_KEY",
+    "GOOGLE_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "XAI_API_KEY",
+    "GROK_API_KEY",
+    "DEEPSEEK_API_KEY",
+    "MOONSHOT_API_KEY",
+    "ZHIPUAI_API_KEY",
+    "GROQ_API_KEY",
+    "MIMO_API_KEY",
+    "XIAOMI_API_KEY",
+)
+
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 VIBE_ROOT = ROOT.parent  # execution/ 모듈 경로 (blind-to-x 상위)
@@ -32,6 +47,15 @@ except Exception:
 
 
 # ── 글로벌 상태 격리 (테스트 간 순서 의존성 방지) ──────────────────────────────
+
+
+@pytest.fixture(autouse=True)
+def _isolate_live_llm_env_for_non_smoke(monkeypatch, request):
+    """Keep unit/integration tests from calling live LLM APIs via local env."""
+    if request.node.get_closest_marker("smoke"):
+        return
+    for key in _LIVE_LLM_ENV_KEYS:
+        monkeypatch.delenv(key, raising=False)
 
 
 @pytest.fixture(autouse=True)

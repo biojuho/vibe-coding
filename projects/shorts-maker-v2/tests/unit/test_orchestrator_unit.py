@@ -44,7 +44,7 @@ from shorts_maker_v2.pipeline.retention_autofix import RetentionAutoFixer
 
 def _make_config_yaml(tmp_path: Path) -> Path:
     payload = {
-        "project": {"language": "ko-KR", "default_scene_count": 1},
+        "project": {"language": "ko-KR", "default_scene_count": 1, "structure_validation": "off"},
         "video": {
             "target_duration_sec": [35, 45],
             "resolution": [1080, 1920],
