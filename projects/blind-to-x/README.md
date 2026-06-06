@@ -49,7 +49,8 @@ py -3 main.py --source all --popular --review-only --limit 5
 # recommended_command gives a copyable guarded pipeline command for the recommended source,
 # using the active Python interpreter and explicit project/config paths.
 # problem_actions lists per-source operator next steps for blocked, click, browser, and timeout failures.
-# HTML sources click the first post; API-backed JobPlanet verifies the first post detail endpoint.
+# HTML sources click the first post and fall back to the canonical detail URL
+# if the click is obstructed; API-backed JobPlanet verifies the first post detail endpoint.
 
 # Source browser gate, then continue only when the resolved source is ready
 .\.venv\Scripts\python.exe main.py --source ppomppu --popular --review-only --limit 5 --require-source-ready --source-preflight-output .tmp/source_browser_preflight.json --source-preflight-screenshot-dir screenshots/source_preflight

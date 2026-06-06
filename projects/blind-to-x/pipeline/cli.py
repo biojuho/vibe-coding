@@ -79,7 +79,10 @@ def build_parser():
     parser.add_argument(
         "--source-preflight-click-through",
         action="store_true",
-        help="During source preflight, click the first visible post and verify detail page readability.",
+        help=(
+            "During source preflight, click the first visible post, fall back to the canonical detail URL "
+            "when the click is obstructed, and verify detail page readability."
+        ),
     )
     parser.add_argument(
         "--source-preflight-use-recommended",

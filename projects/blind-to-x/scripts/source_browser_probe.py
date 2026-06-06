@@ -525,6 +525,7 @@ async def _click_first_post(
         )
 
     candidate = None
+    candidate_href: str | None = None
     try:
         anchors = await page.locator("a[href]").evaluate_all(
             """
@@ -542,10 +543,15 @@ async def _click_first_post(
 
         candidate_href = _resolve_click_through_href(target.url, str(candidate.get("href", "")))
         locator = page.locator("a[href]").nth(int(candidate["index"]))
-        await locator.scroll_into_view_if_needed(timeout=min(5000, timeout_ms))
-        await locator.click(timeout=min(8000, timeout_ms))
-        await page.wait_for_load_state("domcontentloaded", timeout=timeout_ms)
-        await _wait_for_click_detail(page, timeout_ms=timeout_ms)
+        click_error = None
+        try:
+            await locator.scroll_into_view_if_needed(timeout=min(5000, timeout_ms))
+            await locator.click(timeout=min(8000, timeout_ms))
+            await page.wait_for_load_state("domcontentloaded", timeout=timeout_ms)
+            await _wait_for_click_detail(page, timeout_ms=timeout_ms)
+        except Exception as exc:
+            click_error = str(exc)[:500]
+            await _retry_click_detail_url(page, candidate_href=candidate_href, timeout_ms=timeout_ms)
         title = await page.title()
         body_text = await _safe_body_text(page)
         if not _is_readable_click_detail(title, body_text):
@@ -563,13 +569,21 @@ async def _click_first_post(
             title=_compact_text(title)[:160],
             body_chars=body_chars,
             screenshot_path=str(screenshot_path) if screenshot_path else None,
-            error=None if ok else "clicked page did not look like a readable post detail",
+            error=(
+                None
+                if ok
+                else f"clicked page did not look like a readable post detail; click_error={click_error}"
+                if click_error
+                else "clicked page did not look like a readable post detail"
+            ),
         )
     except Exception as exc:
         return ClickThroughResult(
             ok=False,
             candidate_text=(str(candidate.get("text", ""))[:160] if candidate else None),
-            candidate_href=(str(candidate.get("href", "")) if candidate else None),
+            candidate_href=(
+                candidate_href if candidate_href else str(candidate.get("href", "")) if candidate else None
+            ),
             final_url=getattr(page, "url", ""),
             title="",
             body_chars=0,
@@ -929,7 +943,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--click-through",
         action="store_true",
-        help="Verify the first post detail; HTML sources click a visible post, API sources use a source-specific detail URL.",
+        help=(
+            "Verify the first post detail; HTML sources click a visible post and fall back to the canonical "
+            "detail URL when the click is obstructed, while API sources use a source-specific detail URL."
+        ),
     )
     parser.add_argument(
         "--viewport",

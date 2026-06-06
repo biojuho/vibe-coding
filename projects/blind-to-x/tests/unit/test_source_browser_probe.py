@@ -462,6 +462,19 @@ async def test_click_first_post_retries_canonical_detail_when_clicked_page_stays
 
 
 @pytest.mark.asyncio
+async def test_click_first_post_uses_canonical_detail_when_click_is_obstructed():
+    page = _FakeClickPage(click_raises=True)
+    target = ProbeTarget(source="ppomppu", url="https://www.ppomppu.co.kr/hot.php")
+
+    result = await _click_first_post(page, target, timeout_ms=12000, screenshot_dir=None)
+
+    assert result.ok is True
+    assert result.error is None
+    assert result.candidate_href == "https://www.ppomppu.co.kr/zboard/view.php?id=freeboard&no=9970609"
+    assert page.goto_urls == ["https://www.ppomppu.co.kr/zboard/view.php?id=freeboard&no=9970609"]
+
+
+@pytest.mark.asyncio
 async def test_click_first_post_verifies_jobplanet_api_detail():
     page = _FakeJobplanetApiPage()
     target = ProbeTarget(
@@ -581,11 +594,12 @@ async def test_run_source_preflight_reuses_probe_and_writes_report(monkeypatch, 
 
 
 class _FakeClickPage:
-    def __init__(self):
+    def __init__(self, *, click_raises=False):
         self.url = "https://www.ppomppu.co.kr/hot.php"
         self.title_value = "Loading https://www.ppomppu.co.kr/zboard/view.php?id=freeboard&no=9970609"
         self.body_text = "Load"
         self.goto_urls: list[str] = []
+        self.click_raises = click_raises
         self.anchors = [
             {
                 "index": 0,
@@ -641,6 +655,8 @@ class _FakeAnchor:
         return None
 
     async def click(self, **_kwargs):
+        if self.page.click_raises:
+            raise TimeoutError("Locator.click: Timeout 8000ms exceeded")
         self.page.url = "https://www.ppomppu.co.kr/zboard/view.php?id=freeboard&no=9970609"
         self.page.title_value = "Loading https://www.ppomppu.co.kr/zboard/view.php?id=freeboard&no=9970609"
         self.page.body_text = "Load"
