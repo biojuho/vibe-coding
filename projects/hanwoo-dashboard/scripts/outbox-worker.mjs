@@ -105,7 +105,7 @@ function buildNotifications(cattle) {
 				type: "calving",
 				level: daysLeft <= 3 ? "critical" : "warning",
 				title: daysLeft === 0 ? "오늘 분만 예정" : "분만 임박",
-				message: `${cow.name} (${cow.tagNumber}) 분만 예정일�� ${daysLeft}일 남���습니다.`,
+				message: `${cow.name} (${cow.tagNumber}) 분만 예정일이 ${daysLeft}일 남았습니다.`,
 				date: new Date().toISOString(),
 			});
 		}
@@ -117,7 +117,7 @@ function buildNotifications(cattle) {
 	return notifications;
 }
 
-// ── Read-model refresh handlers ──────���───────────────────────────────────────
+// Read-model refresh handlers
 
 const CATTLE_TOPICS = new Set([
 	"CATTLE_CREATED",
@@ -188,7 +188,7 @@ async function processEvent(prisma, event) {
 	console.warn(`[worker] unknown topic: ${topic}, marking done`);
 }
 
-// ── Poll cycle ─────────���─────────────────────────────────────────────────────
+// Poll cycle
 
 async function pollOnce() {
 	const prisma = getPrisma();
