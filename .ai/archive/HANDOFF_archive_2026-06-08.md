@@ -15,3 +15,12 @@
 | Tool | Codex |
 | Work | **T-1525 Hanwoo dashboard tabbar scroll targets**. Protected focused/anchored dashboard controls from being hidden under the fixed mobile tabbar. `globals.css` now centralizes the tabbar bottom offset in `--dashboard-tabbar-offset`, applies it to document/dashboard scroll padding, and gives dashboard controls a matching `scroll-margin-bottom`. `home-market-copy.test.mjs` locks the offset, safe-area handling, and control margin contract. Verification passed focused Hanwoo source test (`57 passed`), Hanwoo lint, Hanwoo project QC (`533 passed`, lint/build/smoke passed), browser CSS check at `390x844` (`scrollPaddingBottom=92px`, control `scrollMarginBottom=92px`, horizontal overflow false, console warnings/errors 0), staged code-review gate PASS (`risk_score=0.00`), graph refresh, and full active-project QC. Code commit `e6386296` is local only. |
 | Next Priorities | Superseded by T-1527 current-head full canonical QC/readiness refresh. Remaining release boundaries are explicit push/current-head GitHub Actions plus user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E. |
+
+## Rotation 2026-06-08 (archived addenda older than 2026-06-01)
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-07 |
+| Tool | Codex |
+| Work | **T-1526 Shorts Analytics RPM labeling**. Corrected the Shorts Analytics ROI copy from generic Shorts CPM to Shorts RPM, and added the missing explicit Plotly runtime dependency for the page. `workspace/execution/pages/shorts_analytics.py` now labels the section `채널별 Shorts 수익 잠재력 (RPM 추정)` and explains RPM as revenue per 1,000 engaged views. `workspace/pyproject.toml` declares `plotly>=6.8.0`, `uv.lock` resolves it, and `workspace/tests/test_shorts_analytics.py` locks the copy and dependency contract. Verification passed focused Shorts Analytics pytest (`9 passed`), Ruff, format check, `py_compile`, `py -3.13 -m uv lock --check`, staged code-review gate PASS (`risk_score=0.00`), graph refresh, and full active-project QC. Code commit `c39bde69` is local only. |
+| Next Priorities | Superseded by T-1527 current-head full canonical QC/readiness refresh. Remaining release boundaries are explicit push/current-head GitHub Actions plus user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E. |
