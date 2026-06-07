@@ -277,10 +277,11 @@ export default function AIInsightWidget(options = {}) {
 						aria-busy={isLoading}
 						aria-label={refreshButtonLabel}
 						title={refreshButtonLabel}
-						className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[color:var(--color-surface-stroke)] text-[color:var(--color-text-muted)] transition hover:text-[color:var(--color-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-60"
+						data-testid="ai-insight-refresh-button"
+						className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-[color:var(--color-surface-stroke)] text-[color:var(--color-text-muted)] transition hover:text-[color:var(--color-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-60"
 					>
 						<RefreshCw
-							size={14}
+							size={16}
 							aria-hidden="true"
 							className={isLoading ? "animate-spin" : ""}
 						/>

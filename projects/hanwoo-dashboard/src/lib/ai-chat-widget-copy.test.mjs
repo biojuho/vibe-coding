@@ -199,6 +199,28 @@ test("AI chat send action is disabled until a question is ready", () => {
 	assert.match(source, /같은 질문 다시 보내기/);
 });
 
+test("AI chat panel keeps narrow mobile layout and icon actions touch safe", () => {
+	const source = readSource("components/widgets/AIChatWidget.js");
+
+	assert.match(source, /width: ["']min\(340px, calc\(100vw - 32px\)\)["']/);
+	assert.match(
+		source,
+		/aria-label="AI 농장 비서 닫기"[\s\S]*?width: ["']44px["'][\s\S]*?height: ["']44px["']/,
+	);
+	assert.match(
+		source,
+		/aria-label=\{sendButtonLabel\}[\s\S]*?width: ["']44px["'][\s\S]*?height: ["']44px["']/,
+	);
+	assert.match(
+		source,
+		/aria-label="같은 질문을 입력창에 다시 넣기"[\s\S]*?minHeight: ["']44px["']/,
+	);
+	assert.doesNotMatch(source, /width: ["']28px["']/);
+	assert.doesNotMatch(source, /height: ["']28px["']/);
+	assert.doesNotMatch(source, /width: ["']42px["']/);
+	assert.doesNotMatch(source, /height: ["']42px["']/);
+});
+
 test("AI chat route normalizes Gemini stream helper options before provider setup", () => {
 	const route = readSource("app/api/ai/chat/route.js");
 

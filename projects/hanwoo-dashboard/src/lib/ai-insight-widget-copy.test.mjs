@@ -260,6 +260,9 @@ test("AI insight widget exposes a busy-safe manual refresh control", () => {
 	assert.match(source, /aria-busy=\{isLoading\}/);
 	assert.match(source, /aria-label=\{refreshButtonLabel\}/);
 	assert.match(source, /title=\{refreshButtonLabel\}/);
+	assert.match(source, /data-testid="ai-insight-refresh-button"/);
+	assert.match(source, /className="[^"]*min-h-11 min-w-11[^"]*"/);
+	assert.doesNotMatch(source, /className="[^"]*h-7 w-7[^"]*"/);
 	assert.match(source, /aria-hidden="true"/);
 	assert.doesNotMatch(source, /aria-label="Refresh"/);
 });

@@ -393,7 +393,7 @@ export default function AIChatWidget() {
 				position: "fixed",
 				bottom: "90px",
 				right: "20px",
-				width: "340px",
+				width: "min(340px, calc(100vw - 32px))",
 				height: "500px",
 				background: "var(--color-bg-card)",
 				borderRadius: "var(--radius-xl)",
@@ -452,8 +452,8 @@ export default function AIChatWidget() {
 						color: "white",
 						fontSize: "16px",
 						cursor: "pointer",
-						width: "28px",
-						height: "28px",
+						width: "44px",
+						height: "44px",
 						borderRadius: "var(--radius-full)",
 						display: "flex",
 						alignItems: "center",
@@ -525,6 +525,7 @@ export default function AIChatWidget() {
 									color: "var(--color-primary)",
 									fontWeight: 700,
 									fontSize: "12px",
+									minHeight: "44px",
 									padding: "8px 10px",
 									cursor: "pointer",
 								}}
@@ -577,8 +578,8 @@ export default function AIChatWidget() {
 					title={sendButtonLabel}
 					className="btn btn-primary btn-icon"
 					style={{
-						width: "42px",
-						height: "42px",
+						width: "44px",
+						height: "44px",
 						padding: 0,
 						fontSize: "16px",
 						flexShrink: 0,
