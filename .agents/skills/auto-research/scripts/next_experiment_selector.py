@@ -13,6 +13,8 @@ from typing import Any
 
 SCRIPT_ROOT = Path(".agents") / "skills" / "auto-research" / "scripts"
 INPUT_ERROR_KEY = "_input_error"
+DEFAULT_LIVE_HELPER_TIMEOUT = 30
+DEFAULT_DEPENDENCY_HELPER_TIMEOUT = 10
 
 
 def _input_error(label: str, reason: str, **extra: Any) -> dict[str, Any]:
@@ -502,6 +504,7 @@ def select_next_experiment(
 
 def _collect_inputs(args: argparse.Namespace) -> dict[str, dict[str, Any]]:
     root = args.root.resolve()
+    dependency_timeout = max(1, min(args.timeout, DEFAULT_DEPENDENCY_HELPER_TIMEOUT))
     if args.readiness:
         readiness = _load_json(args.readiness, label="readiness")
     else:
@@ -544,7 +547,15 @@ def _collect_inputs(args: argparse.Namespace) -> dict[str, dict[str, Any]]:
         dependency_inventory = _run_data(
             _run_json(
                 root,
-                [sys.executable, str(SCRIPT_ROOT / "dependency_freshness_inventory.py"), "--root", str(root), "--json"],
+                [
+                    sys.executable,
+                    str(SCRIPT_ROOT / "dependency_freshness_inventory.py"),
+                    "--root",
+                    str(root),
+                    "--timeout",
+                    str(dependency_timeout),
+                    "--json",
+                ],
                 args.timeout,
             ),
             label="dependency",
@@ -580,7 +591,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--github", type=Path, help="Existing github_project_inventory JSON artifact")
     parser.add_argument("--browser", type=Path, help="Existing browser_qa_inventory JSON artifact")
     parser.add_argument("--dependency", type=Path, help="Existing dependency_freshness_inventory JSON artifact")
-    parser.add_argument("--timeout", type=int, default=120, help="Timeout for each live helper command")
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=DEFAULT_LIVE_HELPER_TIMEOUT,
+        help="Timeout for each live helper command",
+    )
     parser.add_argument("--output", type=Path, help="Optional path to write the selection JSON")
     parser.add_argument("--json", action="store_true", help="Emit JSON instead of text")
     args = parser.parse_args(argv)

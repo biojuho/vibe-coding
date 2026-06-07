@@ -245,6 +245,42 @@ def test_cli_writes_ascii_json_artifact(tmp_path: Path, capsys) -> None:
     assert output.read_text(encoding="utf-8").isascii()
 
 
+def test_cli_live_helper_defaults_are_bounded(tmp_path: Path, capsys, monkeypatch) -> None:
+    calls = []
+
+    def fake_run_json(root: Path, command: list[str], timeout: int) -> dict[str, object]:
+        calls.append((root, command, timeout))
+        command_text = " ".join(command)
+        if "product_readiness_score.py" in command_text:
+            data = _readiness(external=1)
+        elif "github_project_inventory.py" in command_text:
+            data = _github()
+        elif "browser_qa_inventory.py" in command_text:
+            data = _browser()
+        elif "dependency_freshness_inventory.py" in command_text:
+            data = _dependency()
+        else:
+            data = {}
+        return {"available": True, "returncode": 0, "stderr": "", "data": data}
+
+    monkeypatch.setattr(next_experiment_selector, "_run_json", fake_run_json)
+
+    code = next_experiment_selector.main(["--root", str(tmp_path), "--json"])
+    stdout = json.loads(capsys.readouterr().out)
+
+    assert code == 0
+    assert stdout["status"] == "blocked_external_only"
+    assert calls
+    assert all(timeout == next_experiment_selector.DEFAULT_LIVE_HELPER_TIMEOUT for _, _, timeout in calls)
+    dependency_calls = [command for _, command, _ in calls if "dependency_freshness_inventory.py" in " ".join(command)]
+    assert dependency_calls
+    dependency_command = dependency_calls[0]
+    assert "--timeout" in dependency_command
+    assert dependency_command[dependency_command.index("--timeout") + 1] == str(
+        next_experiment_selector.DEFAULT_DEPENDENCY_HELPER_TIMEOUT
+    )
+
+
 def test_cli_missing_input_artifact_does_not_route_to_completion(tmp_path: Path, capsys) -> None:
     github = tmp_path / "github.json"
     browser = tmp_path / "browser.json"
