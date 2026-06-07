@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-06-07 |
 | Tool | Codex |
+| Work | **T-1536 Hanwoo dashboard content-shell scroll bound**. Follow-up to T-1535. `globals.css` now bounds the mobile `.dashboard-content-shell` to the safe viewport height with contained vertical scrolling and resets the bound on desktop; `home-market-copy.test.mjs` locks max-height/overflow/overscroll/fallback contracts. Final browser-click QA still reports mobile and desktop `covered=0`, `small=0`, `xOverflowTabs=0`, bad responses `0`, and `.tmp/project_qc_runner_hanwoo_t1535.json` passed Hanwoo `test/lint/build/smoke`. Code commit `28e7946c` is local only. |
+| Next Priorities | Worktree should be checked with `python execution/session_orient.py --json` before continuing. Remaining release boundaries are explicit push/current-head GitHub Actions plus user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E. Do not push without explicit authorization and do not retry T-251 before credential reset/resync. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-07 |
+| Tool | Codex |
 | Work | **T-1535 Hanwoo settings tabbar-safe controls polish**. Continued the Hanwoo browser-click quality loop on the dashboard settings tab. Baseline/candidate audit used `.tmp/hanwoo-t1530-tabbar-safe-audit.py`; final artifact `.tmp/hanwoo-t1530-tabbar-safe-current.json` reports mobile and desktop `covered=0`, `small=0`, `xOverflowTabs=0`, bad responses `0`. `SettingsTab.js` now gives farm settings fields a mobile scroll viewport; `globals.css` preserves mobile form spacing so settings/farm/building controls do not sit behind the fixed tab bar; source tests lock the CSS variables/classes. Verification passed full Hanwoo source tests (`535 passed`), Hanwoo lint, Hanwoo project QC (`test/lint/build/smoke` passed), `git diff --check`, graph refresh, and staged code-review gate exit 0 with advisory WARN (`risk_score=0.30`) covered by direct/source/browser/project evidence. Code commit `8cfc353b` is local only. |
 | Next Priorities | Worktree should be checked with `python execution/session_orient.py --json` before continuing. Remaining release boundaries are explicit push/current-head GitHub Actions plus user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E. Do not push without explicit authorization and do not retry T-251 before credential reset/resync. |
 
