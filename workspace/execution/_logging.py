@@ -26,6 +26,19 @@ else:
     logger = logging.getLogger("execution")
 
 
+def _console_stream() -> Any | None:
+    """Return the best available console stream for hosted runtimes."""
+    for stream in (
+        sys.stderr,
+        getattr(sys, "__stderr__", None),
+        sys.stdout,
+        getattr(sys, "__stdout__", None),
+    ):
+        if stream is not None:
+            return stream
+    return None
+
+
 def _setup_stdlib_logging(*, console_level: str, file_level: str) -> None:
     """Configure a minimal stdlib fallback logger."""
     _LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -33,10 +46,6 @@ def _setup_stdlib_logging(*, console_level: str, file_level: str) -> None:
     root_logger = logging.getLogger()
     root_logger.handlers.clear()
     root_logger.setLevel(logging.DEBUG)
-
-    console_handler = logging.StreamHandler(sys.stderr)
-    console_handler.setLevel(getattr(logging, console_level.upper(), logging.INFO))
-    console_handler.setFormatter(logging.Formatter("%(levelname)-8s | %(name)s:%(funcName)s | %(message)s"))
 
     file_handler = logging.FileHandler(
         _LOG_DIR / "execution_fallback.log",
@@ -47,7 +56,13 @@ def _setup_stdlib_logging(*, console_level: str, file_level: str) -> None:
         logging.Formatter("%(asctime)s | %(levelname)s | %(name)s | %(filename)s:%(lineno)d | %(message)s")
     )
 
-    root_logger.addHandler(console_handler)
+    console_stream = _console_stream()
+    if console_stream is not None:
+        console_handler = logging.StreamHandler(console_stream)
+        console_handler.setLevel(getattr(logging, console_level.upper(), logging.INFO))
+        console_handler.setFormatter(logging.Formatter("%(levelname)-8s | %(name)s:%(funcName)s | %(message)s"))
+        root_logger.addHandler(console_handler)
+
     root_logger.addHandler(file_handler)
 
     logger.handlers.clear()
@@ -78,12 +93,14 @@ def setup_logging(
 
     logger.remove()
 
-    logger.add(
-        sys.stderr,
-        level=console_level,
-        format="<level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan> | {message}",
-        colorize=True,
-    )
+    console_stream = _console_stream()
+    if console_stream is not None:
+        logger.add(
+            console_stream,
+            level=console_level,
+            format="<level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan> | {message}",
+            colorize=True,
+        )
 
     _LOG_DIR.mkdir(parents=True, exist_ok=True)
     logger.add(
