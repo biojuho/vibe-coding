@@ -69,11 +69,31 @@ def _write_ai_relay(
     ai = root / ".ai"
     ai.mkdir()
     (ai / "TASKS.md").write_text(
-        "A/B `adopt_candidate` score_delta 1.0" if ab_evidence else "No A/B evidence",
+        "A/B `adopt_candidate` baseline candidate browser QA score_delta 1.0" if ab_evidence else "No A/B evidence",
         encoding="utf-8",
     )
-    for name in ("HANDOFF.md", "SESSION_LOG.md", "CONTEXT.md"):
-        (ai / name).write_text("relay\n", encoding="utf-8")
+    (ai / "HANDOFF.md").write_text(
+        "relay A/B adopt_candidate baseline candidate browser QA W3C Streamlit\n", encoding="utf-8"
+    )
+    (ai / "SESSION_LOG.md").write_text("relay\n", encoding="utf-8")
+    (ai / "CONTEXT.md").write_text("relay output-quality rubric W3C Streamlit YouTube\n", encoding="utf-8")
+    (ai / "PROJECTS.md").write_text(
+        "\n".join(
+            [
+                "# PROJECTS",
+                "",
+                "### blind-to-x",
+                "- 좋은 output 기준: copy-ready weighted length and edit plan.",
+                "### shorts-maker-v2",
+                "- 좋은 output 기준: upload metadata and review cards are usable.",
+                "### hanwoo-dashboard",
+                "- 좋은 output 기준: mobile field workflows remain operable.",
+                "### knowledge-dashboard",
+                "- 좋은 output 기준: stale or invalid data is explicit.",
+            ]
+        ),
+        encoding="utf-8",
+    )
     (ai / "GOAL.md").write_text(
         "\n".join(
             [
@@ -86,6 +106,25 @@ def _write_ai_relay(
                 "- Owner: Codex",
                 "- Started: 2026-06-05",
                 "- Success: Launch audit complete with every explicit requirement verified.",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    quality_doc = root / "projects" / "blind-to-x" / "docs" / "output_quality_selection_gate_2026-06-07.md"
+    quality_doc.parent.mkdir(parents=True, exist_ok=True)
+    quality_doc.write_text(
+        "\n".join(
+            [
+                "# Output Quality Selection Gate",
+                "",
+                "## External Output Bar",
+                "",
+                "Buffer, Typefully, Hypefury, and X official platform constraints define the benchmark.",
+                "",
+                "## Good vs Bad Output",
+                "",
+                "Good output is copy-ready, source-faithful, and platform-valid.",
+                "Bad output is generic, repetitive, or needs manual publishability checks.",
             ]
         ),
         encoding="utf-8",
@@ -552,6 +591,64 @@ def test_manifest_is_complete_when_all_requirements_have_current_evidence(tmp_pa
     assert result["summary"]["complete_count"] == len(manifest["items"])
     assert any("launch objective audit" in evidence for evidence in skill_item["evidence"])
     assert any("next experiment selector" in evidence for evidence in skill_item["evidence"])
+
+
+def test_output_quality_objective_item_includes_rubric_benchmark_and_iteration_evidence(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+    )
+    quality_item = next(
+        item for item in manifest["items"] if item["requirement"].startswith("Enforce explicit output-quality")
+    )
+
+    assert quality_item["coverage"] == "complete"
+    assert quality_item["blockers"] == []
+    assert ".ai/PROJECTS.md" in quality_item["artifacts"]
+    assert "Project output criteria coverage 4/4" in quality_item["evidence"][0]
+    assert any("buffer" in evidence and "typefully" in evidence for evidence in quality_item["evidence"])
+    assert any("Good-vs-bad output distinction present=True" in evidence for evidence in quality_item["evidence"])
+    assert any("adopt_candidate" in evidence and "baseline" in evidence for evidence in quality_item["evidence"])
+
+
+def test_output_quality_objective_item_blocks_missing_rubric_and_benchmark(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+    (tmp_path / ".ai" / "PROJECTS.md").write_text(
+        "# PROJECTS\n\n### blind-to-x\n- 좋은 output 기준: copy-ready.\n",
+        encoding="utf-8",
+    )
+    (tmp_path / ".ai" / "HANDOFF.md").write_text("relay\n", encoding="utf-8")
+    (tmp_path / ".ai" / "TASKS.md").write_text("No A/B evidence\n", encoding="utf-8")
+    (tmp_path / ".ai" / "CONTEXT.md").write_text("relay\n", encoding="utf-8")
+    (tmp_path / "projects" / "blind-to-x" / "docs" / "output_quality_selection_gate_2026-06-07.md").unlink()
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+    )
+    result = completion_audit.audit_manifest(manifest)
+    quality_item = next(
+        item for item in manifest["items"] if item["requirement"].startswith("Enforce explicit output-quality")
+    )
+
+    assert result["status"] == "incomplete"
+    assert quality_item["coverage"] == "partial"
+    assert (
+        "Missing output-quality objective artifact(s): projects/blind-to-x/docs/output_quality_selection_gate_2026-06-07.md"
+        in quality_item["blockers"]
+    )
+    assert any("Missing project output-quality criteria for:" in blocker for blocker in quality_item["blockers"])
+    assert "External benchmark evidence is too thin for the output-quality objective." in quality_item["blockers"]
 
 
 def test_readiness_publish_boundary_has_complete_coverage_without_duplicate_blocker(tmp_path: Path) -> None:

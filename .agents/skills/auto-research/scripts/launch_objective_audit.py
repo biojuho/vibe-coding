@@ -38,6 +38,36 @@ AI_RELAY_ARTIFACTS = (
     ".ai/CONTEXT.md",
     ".ai/GOAL.md",
 )
+QUALITY_OBJECTIVE_ARTIFACTS = (
+    ".ai/PROJECTS.md",
+    ".ai/HANDOFF.md",
+    ".ai/TASKS.md",
+    ".ai/CONTEXT.md",
+    "projects/blind-to-x/docs/output_quality_selection_gate_2026-06-07.md",
+)
+QUALITY_TARGET_PROJECTS = (
+    "blind-to-x",
+    "shorts-maker-v2",
+    "hanwoo-dashboard",
+    "knowledge-dashboard",
+)
+QUALITY_EXTERNAL_BENCHMARK_TERMS = (
+    "external output bar",
+    "buffer",
+    "typefully",
+    "hypefury",
+    "w3c",
+    "streamlit",
+    "youtube",
+    "x official",
+)
+QUALITY_ITERATION_TERMS = (
+    "a/b",
+    "adopt_candidate",
+    "baseline",
+    "candidate",
+    "browser qa",
+)
 AB_MANIFEST_GLOB = "ab-manifest-*.json"
 TASK_ID_RE = re.compile(r"\b[Tt][-_]?(\d{3,6})\b")
 GOAL_STATUS_RE = re.compile(r"^-\s*Status:\s*(.*?)\s*$", re.IGNORECASE | re.MULTILINE)
@@ -387,6 +417,61 @@ def _sentence_list(values: Any) -> list[str]:
         suffix = "" if text.endswith((".", "!", "?")) else "."
         sentences.append(f"{text}{suffix}")
     return sentences
+
+
+def _found_terms(text: str, terms: tuple[str, ...]) -> list[str]:
+    text_lower = text.lower()
+    return [term for term in terms if term.lower() in text_lower]
+
+
+def _quality_objective_item(root: Path) -> dict[str, Any]:
+    project_dashboard = _read_text(root, ".ai/PROJECTS.md")
+    combined_text = "\n".join(_read_text(root, rel_path) for rel_path in QUALITY_OBJECTIVE_ARTIFACTS)
+    missing_artifacts = [path for path in QUALITY_OBJECTIVE_ARTIFACTS if not _exists(root, path)]
+    missing_project_criteria = [
+        project for project in QUALITY_TARGET_PROJECTS if project.lower() not in project_dashboard.lower()
+    ]
+    quality_marker_count = project_dashboard.count("좋은 output 기준")
+    external_terms = _found_terms(combined_text, QUALITY_EXTERNAL_BENCHMARK_TERMS)
+    iteration_terms = _found_terms(combined_text, QUALITY_ITERATION_TERMS)
+    has_good_bad_output = "good vs bad output" in combined_text.lower() or (
+        "good output" in combined_text.lower() and "bad output" in combined_text.lower()
+    )
+
+    blockers: list[str] = []
+    if missing_artifacts:
+        blockers.append("Missing output-quality objective artifact(s): " + ", ".join(missing_artifacts))
+    if missing_project_criteria:
+        blockers.append("Missing project output-quality criteria for: " + ", ".join(missing_project_criteria))
+    if quality_marker_count < len(QUALITY_TARGET_PROJECTS):
+        blockers.append(
+            "PROJECTS.md has insufficient '좋은 output 기준' sections: "
+            f"{quality_marker_count}/{len(QUALITY_TARGET_PROJECTS)}."
+        )
+    if len(external_terms) < 2:
+        blockers.append("External benchmark evidence is too thin for the output-quality objective.")
+    if not has_good_bad_output:
+        blockers.append("No Good vs Bad output distinction found in objective evidence.")
+    if len(iteration_terms) < 3:
+        blockers.append("Iterative baseline/candidate/A-B evidence is too thin for the output-quality objective.")
+
+    complete = not blockers
+    return _item(
+        "Enforce explicit output-quality criteria, external benchmarks, and iterative improvement evidence.",
+        list(QUALITY_OBJECTIVE_ARTIFACTS),
+        [
+            "Project output criteria coverage "
+            f"{len(QUALITY_TARGET_PROJECTS) - len(missing_project_criteria)}/{len(QUALITY_TARGET_PROJECTS)}: "
+            f"{', '.join(QUALITY_TARGET_PROJECTS)}.",
+            f"PROJECTS.md '좋은 output 기준' sections={quality_marker_count}.",
+            "External benchmark signals: " + (", ".join(external_terms) if external_terms else "none") + ".",
+            f"Good-vs-bad output distinction present={has_good_bad_output}.",
+            "Iterative improvement signals: " + (", ".join(iteration_terms) if iteration_terms else "none") + ".",
+        ],
+        complete=complete,
+        blockers=blockers,
+        verified=bool(project_dashboard or combined_text),
+    )
 
 
 def _markdown_checkbox_summary(root: Path, rel_path: str) -> dict[str, Any]:
@@ -1510,6 +1595,7 @@ def build_manifest(
     items.extend(
         [
             _external_blocker_item(readiness or {}),
+            _quality_objective_item(root),
             _ab_loop_item(root, ab_manifest_path=ab_manifest_path),
             _relay_item(root),
             _target_hanwoo_dashboard_item(readiness or {}),
