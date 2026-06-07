@@ -84,6 +84,8 @@ st.markdown(
     }
     div[data-testid="stLinkButton"] a,
     a[data-testid="stPageLink-NavLink"],
+    a[data-testid="stSidebarNavLink"],
+    div[data-testid="stHeaderActionElements"] a,
     button[data-testid="stBaseButton-headerNoPadding"] {
         min-height: 44px;
         min-width: 44px;
@@ -100,9 +102,20 @@ st.markdown(
         div[data-testid="stButton"] button,
         div[data-testid="stLinkButton"] a,
         a[data-testid="stPageLink-NavLink"],
+        a[data-testid="stSidebarNavLink"],
+        div[data-testid="stHeaderActionElements"] a,
         button[data-testid="stBaseButton-headerNoPadding"] {
             min-height: 44px !important;
             min-width: 44px !important;
+        }
+        a[data-testid="stSidebarNavLink"] {
+            align-items: center !important;
+            justify-content: flex-start !important;
+            width: 100% !important;
+        }
+        div[data-testid="stHeaderActionElements"] a {
+            align-items: center !important;
+            justify-content: center !important;
         }
         div[data-testid="stMetric"] {
             min-width: 0 !important;

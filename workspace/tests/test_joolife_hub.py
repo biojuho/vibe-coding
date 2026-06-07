@@ -245,6 +245,8 @@ class TestProjectsRegistry:
         for text in forbidden:
             assert text not in source
         assert 'button[data-testid="stBaseButton-headerNoPadding"]' in source
+        assert 'a[data-testid="stSidebarNavLink"]' in source
+        assert 'div[data-testid="stHeaderActionElements"] a' in source
 
     def test_shorts_manager_declared_port_is_in_launch_command(self):
         shorts_project = next(p for p in PROJECTS if p["key"] == "shorts")
