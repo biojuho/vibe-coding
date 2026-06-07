@@ -111,11 +111,56 @@ def test_channel_growth_uses_current_plotly_width_api(monkeypatch: pytest.Monkey
 
     module._render_plotly_chart("figure")
 
-    assert fake_streamlit.events == [("plotly_chart", "figure", {"width": "stretch"})]
+    assert fake_streamlit.events == [
+        (
+            "plotly_chart",
+            "figure",
+            {
+                "width": "stretch",
+                "config": {
+                    "displayModeBar": False,
+                    "displaylogo": False,
+                    "responsive": True,
+                },
+            },
+        )
+    ]
 
 
 def test_channel_growth_source_avoids_deprecated_plotly_width_api() -> None:
     source = (WORKSPACE_ROOT / "execution" / "pages" / "channel_growth.py").read_text(encoding="utf-8")
 
     assert "use_container_width=True" not in source
-    assert 'st.plotly_chart(fig, width="stretch")' in source
+    assert 'st.plotly_chart(fig, width="stretch", config=_PLOTLY_CHART_CONFIG)' in source
+
+
+def test_channel_growth_hides_mobile_plotly_modebar() -> None:
+    source = (WORKSPACE_ROOT / "execution" / "pages" / "channel_growth.py").read_text(encoding="utf-8")
+
+    assert '"displayModeBar": False' in source
+    assert '"displaylogo": False' in source
+    assert '"responsive": True' in source
+
+
+def test_channel_growth_injects_mobile_touch_target_css(monkeypatch: pytest.MonkeyPatch) -> None:
+    module, fake_streamlit = _import_channel_growth(monkeypatch)
+    fake_streamlit.events.clear()
+
+    module._inject_channel_growth_mobile_css()
+
+    markdowns = [payload for name, payload, _kwargs in fake_streamlit.events if name == "markdown"]
+    assert markdowns
+    css = str(markdowns[-1])
+    assert "@media (max-width: 640px)" in css
+    assert "min-height: 44px" in css
+    assert "div[data-testid='stFormSubmitButton'] button" in css
+    assert "div[data-baseweb='input'] input" in css
+
+
+def test_channel_growth_uses_compact_korean_title(monkeypatch: pytest.MonkeyPatch) -> None:
+    _module, fake_streamlit = _import_channel_growth(monkeypatch)
+
+    titles = [payload for name, payload, _kwargs in fake_streamlit.events if name == "title"]
+    captions = [payload for name, payload, _kwargs in fake_streamlit.events if name == "caption"]
+    assert "📈 채널 성장 추적" in titles
+    assert any("YouTube 5채널 독립 성과 추적" in str(payload) for payload in captions)

@@ -29,15 +29,48 @@ if not _MODULE_OK:
     st.error(f"Channel Growth 모듈을 불러올 수 없습니다: {_MODULE_ERR}")
     st.stop()
 
+_PLOTLY_CHART_CONFIG = {
+    "displayModeBar": False,
+    "displaylogo": False,
+    "responsive": True,
+}
+
+
+def _inject_channel_growth_mobile_css() -> None:
+    st.markdown(
+        """
+<style>
+@media (max-width: 640px) {
+  div[data-testid='stAppViewContainer'] h1 {
+    font-size: 2rem !important;
+    line-height: 1.15 !important;
+    padding: 0.5rem 0 0.25rem !important;
+  }
+
+  div[data-testid='stButton'] button,
+  div[data-testid='stFormSubmitButton'] button,
+  div[data-baseweb='select'],
+  div[data-baseweb='select'] > div,
+  div[data-baseweb='input'],
+  div[data-baseweb='input'] input {
+    min-height: 44px;
+  }
+}
+</style>
+""",
+        unsafe_allow_html=True,
+    )
+
 
 def _render_plotly_chart(fig: object) -> None:
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, width="stretch", config=_PLOTLY_CHART_CONFIG)
 
 
+_inject_channel_growth_mobile_css()
 init_db()
 
-st.title("📈 YouTube Channel Growth Tracker")
-st.caption("5채널 독립 성장 추적 · 구독자/조회수/영상 수 · 7일/30일/90일 추이")
+st.title("📈 채널 성장 추적")
+st.caption("YouTube 5채널 독립 성과 추적 · 구독자/조회수/영상 수 · 7일/30일/90일 추이")
 
 # ── 채널 비교 요약 ──
 comparison = get_channel_comparison()
