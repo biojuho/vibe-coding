@@ -1802,7 +1802,7 @@ body {
 }
 
 .login-input-password {
-  padding-right: 50px;
+  padding-right: 62px;
 }
 
 .login-input::placeholder {
@@ -1820,14 +1820,15 @@ body {
 
 .login-password-toggle {
   position: absolute;
-  right: 8px;
+  top: 3px;
+  right: 5px;
   display: inline-flex;
-  width: 38px;
-  height: 38px;
+  width: 48px;
+  height: 48px;
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: 14px;
+  border-radius: 16px;
   background: transparent;
   color: var(--color-text-muted);
   cursor: pointer;
@@ -1916,7 +1917,8 @@ body {
 .login-legal-links a {
   display: inline-flex;
   align-items: center;
-  min-height: 24px;
+  min-height: 44px;
+  padding: 0 4px;
   border-radius: 8px;
   color: var(--color-text-muted);
   font-size: 12px;
@@ -1944,7 +1946,7 @@ body {
 .login-legal-separator {
   display: inline-flex;
   align-items: center;
-  min-height: 24px;
+  min-height: 44px;
   color: var(--color-text-muted);
   font-size: 12px;
   font-weight: 800;

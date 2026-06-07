@@ -399,6 +399,27 @@ test("login password visibility toggle exposes matching accessible and title cop
 	assert.match(source, /<Eye size=\{18\} aria-hidden="true" \/>/);
 });
 
+test("login mobile touch targets keep password and legal controls finger sized", () => {
+	const source = readSource("app/globals.css");
+
+	assert.match(
+		source,
+		/\.login-input-password\s*\{[\s\S]*?padding-right:\s*62px;/,
+	);
+	assert.match(
+		source,
+		/\.login-password-toggle\s*\{[\s\S]*?top:\s*3px;[\s\S]*?right:\s*5px;[\s\S]*?width:\s*48px;[\s\S]*?height:\s*48px;/,
+	);
+	assert.match(
+		source,
+		/\.login-legal-links a\s*\{[\s\S]*?min-height:\s*44px;[\s\S]*?padding:\s*0 4px;/,
+	);
+	assert.match(
+		source,
+		/\.login-legal-separator\s*\{[\s\S]*?min-height:\s*44px;/,
+	);
+});
+
 test("login page recovers submit state when sign-in fails unexpectedly", () => {
 	const source = readSource("app/login/page.js");
 
