@@ -244,7 +244,7 @@ def _section_anchor(anchor: str) -> None:
 def _render_operator_shortcuts() -> None:
     st.markdown(
         """
-<nav class="shorts-operator-shortcuts" aria-label="Shorts Manager 빠른 이동">
+<nav class="shorts-operator-shortcuts" aria-label="쇼츠 운영 빠른 이동">
   <a href="#shorts-add-topic">새 콘텐츠</a>
   <a href="#shorts-content-list">콘텐츠 목록</a>
   <a href="#shorts-review-queue">검수 큐</a>

@@ -786,7 +786,8 @@ def test_render_operator_shortcuts_emits_internal_anchor_links(shorts_manager) -
     shorts_manager._render_operator_shortcuts()
 
     html = "\n".join(str(payload) for name, payload in shorts_manager.st.events if name == "markdown")
-    assert 'aria-label="Shorts Manager 빠른 이동"' in html
+    assert 'aria-label="쇼츠 운영 빠른 이동"' in html
+    assert 'aria-label="Shorts Manager 빠른 이동"' not in html
     assert 'href="#shorts-add-topic"' in html
     assert 'href="#shorts-content-list"' in html
     assert 'href="#shorts-review-queue"' in html
