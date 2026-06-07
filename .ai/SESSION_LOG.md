@@ -1338,3 +1338,13 @@
 - Verification: focused source tests passed (`74 passed`); full Hanwoo tests passed (`528 passed`); `npm.cmd run lint` passed; Hanwoo project QC passed (`528 passed`, lint/build/smoke passed); `git diff --check` passed with CRLF warnings only; graph detect reported risk `0.00`; code-review gate advisory WARN is covered by focused/browser/project QC.
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp/ab-hanwoo-t1483-feed-empty-building-cta.json --json` returned `adopt_candidate` with `score_delta=0.75`.
 - Boundary: code commit `580eb71e` is local only. No push was performed. T-251 was not retried. Remaining release blockers are explicit push/current-head GitHub Actions plus external/user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E.
+
+## 2026-06-07 - Codex
+
+- Closed T-1484 as a bounded `$auto-research` workspace Shorts Manager thumbnail-preview guard cycle.
+- Baseline: queue item thumbnail preview called `st.image()` inline when the file existed, so an unreadable/corrupt thumbnail could break the manager view instead of giving the operator recoverable feedback.
+- Changed `workspace/execution/pages/shorts_manager.py`: added `_render_thumbnail_preview()` to skip empty/missing paths, preserve valid thumbnail display, and catch image render failures with Korean warning copy plus the file path.
+- Changed `workspace/tests/test_shorts_manager.py`: added direct missing, valid, and corrupt thumbnail coverage against the fake Streamlit harness.
+- Verification: focused Shorts Manager pytest passed (`22 passed` with config coverage addopts suppressed); Ruff passed; `ruff format` was applied; `py_compile` passed; `git diff --check` passed with CRLF warnings only; staged code-review gate warned (`risk_score=0.35`) on existing helper/test-gap heuristics and is covered by the direct helper test.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp/ab-shorts-t1484-thumbnail-preview.json --json` returned `adopt_candidate` with `score_delta=0.8`.
+- Boundary: code commit `9ce63f53` is local only. No push was performed. T-251 was not retried. Remaining release blockers are explicit push/current-head GitHub Actions plus external/user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E.
