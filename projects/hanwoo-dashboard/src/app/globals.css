@@ -1120,11 +1120,16 @@ body {
 
 .dashboard-content-shell {
   min-height: calc(100svh - var(--dashboard-tabbar-offset));
+  max-height: calc(100svh - var(--dashboard-tabbar-offset));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-bottom: 24px;
 }
 
 @supports not (height: 100svh) {
   .dashboard-content-shell {
     min-height: calc(100vh - var(--dashboard-tabbar-offset));
+    max-height: calc(100vh - var(--dashboard-tabbar-offset));
   }
 }
 
@@ -1210,6 +1215,9 @@ body {
 
   .dashboard-content-shell {
     min-height: auto;
+    max-height: none;
+    overflow-y: visible;
+    overscroll-behavior: auto;
   }
 }
 

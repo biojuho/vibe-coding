@@ -56,9 +56,13 @@ test("dashboard stacking context keeps mobile tab bar fixed", () => {
 		/\.dashboard-container > :not\(\.tab-bar\):not\(\.modal-overlay\)\s*\{/,
 	);
 	assert.match(source, /\.dashboard-content-shell\s*\{[\s\S]*?min-height:\s*calc\(100svh - var\(--dashboard-tabbar-offset\)\);/);
+	assert.match(source, /\.dashboard-content-shell\s*\{[\s\S]*?max-height:\s*calc\(100svh - var\(--dashboard-tabbar-offset\)\);/);
+	assert.match(source, /\.dashboard-content-shell\s*\{[\s\S]*?overflow-y:\s*auto;/);
+	assert.match(source, /\.dashboard-content-shell\s*\{[\s\S]*?overscroll-behavior:\s*contain;/);
+	assert.match(source, /\.dashboard-content-shell\s*\{[\s\S]*?scroll-padding-bottom:\s*24px;/);
 	assert.match(
 		source,
-		/@supports not \(height:\s*100svh\)\s*\{[\s\S]*?\.dashboard-content-shell\s*\{[\s\S]*?min-height:\s*calc\(100vh - var\(--dashboard-tabbar-offset\)\);/,
+		/@supports not \(height:\s*100svh\)\s*\{[\s\S]*?\.dashboard-content-shell\s*\{[\s\S]*?min-height:\s*calc\(100vh - var\(--dashboard-tabbar-offset\)\);[\s\S]*?max-height:\s*calc\(100vh - var\(--dashboard-tabbar-offset\)\);/,
 	);
 	assert.match(
 		source,
@@ -87,7 +91,7 @@ test("dashboard stacking context keeps mobile tab bar fixed", () => {
 	);
 	assert.match(
 		source,
-		/@media \(min-width:\s*900px\)\s*\{[\s\S]*?\.dashboard-content-shell\s*\{[\s\S]*?min-height:\s*auto;/,
+		/@media \(min-width:\s*900px\)\s*\{[\s\S]*?\.dashboard-content-shell\s*\{[\s\S]*?min-height:\s*auto;[\s\S]*?max-height:\s*none;[\s\S]*?overflow-y:\s*visible;[\s\S]*?overscroll-behavior:\s*auto;/,
 	);
 	assert.doesNotMatch(source, /\.dashboard-container > \*\s*\{/);
 });
