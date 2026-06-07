@@ -20,6 +20,12 @@ test("admin diagnostics page uses Korean operations copy for visible states", ()
 	assert.match(source, /데이터베이스 상태/);
 	assert.match(source, /레코드를 불러오는 중입니다/);
 	assert.match(source, /대시보드로 돌아가기/);
+	assert.match(source, /원본 데이터를 표시할 수 없습니다/);
+	assert.match(source, /선택한 원본 데이터에 표시할 레코드가 없습니다/);
+	assert.match(
+		source,
+		/DB 연결 실패 상태에서는 원본 조회를 다시 시도할 수 없습니다/,
+	);
 	assert.match(
 		source,
 		/const DASHBOARD_NAVIGATION_ERROR_MESSAGE =\s+["']대시보드로 이동하지 못했습니다\. 잠시 후 다시 시도해 주세요\.["'];/,
@@ -50,7 +56,9 @@ test("admin diagnostics page uses Korean operations copy for visible states", ()
 		/진단 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요/,
 	);
 	assert.match(source, /aria-label="검사할 원본 데이터 선택"/);
+	assert.match(source, /aria-describedby=\{rawDataNoteId\}/);
 	assert.match(source, /title="검사할 원본 데이터 선택"/);
+	assert.match(source, /disabled=\{!isDatabaseAvailable \|\| dataLoading\}/);
 	assert.match(source, /MODEL_OPTIONS/);
 	assert.match(systemActions, /status: ["']정상["']/);
 	assert.match(systemActions, /status: ["']연결 실패["']/);
@@ -142,10 +150,31 @@ test("admin diagnostics numeric metrics are normalized before rendering", () => 
 	assert.match(source, /const safeResult = normalizeDiagnosticsObject\(result\);/);
 	assert.match(source, /if \(safeResult\.success\) \{/);
 	assert.match(source, /setRawData\(safeResult\.data \?\? null\);/);
+	assert.match(source, /setRawDataErrorMessage\(null\);/);
+	assert.match(source, /const message = normalizeDiagnosticsMessage\(safeResult\.message\);/);
+	assert.match(source, /setRawDataErrorMessage\(message\);/);
+	assert.match(source, /setRawDataErrorMessage\(RAW_DATA_LOAD_ERROR_MESSAGE\);/);
+	assert.match(source, /if \(!isDatabaseAvailable\) \{/);
 	assert.match(
 		source,
-		/description: normalizeDiagnosticsMessage\(safeResult\.message\),/,
+		/setRawDataErrorMessage\(DATABASE_UNAVAILABLE_RAW_DATA_MESSAGE\);/,
 	);
+	assert.match(
+		source,
+		/\}, \[isDatabaseAvailable, loading, notify, selectedModel\]\);/,
+	);
+	assert.match(
+		source,
+		/description: message,/,
+	);
+	assert.match(source, /function hasRenderableRawData\(value\) \{/);
+	assert.match(source, /const hasRawDataPayload = hasRenderableRawData\(rawData\);/);
+	assert.match(
+		source,
+		/const rawDataPreview = hasRawDataPayload\s+\? JSON\.stringify\(rawData, null, 2\)\s+: "";/,
+	);
+	assert.match(source, /\) : rawDataErrorMessage \? \(/);
+	assert.match(source, /\) : !hasRawDataPayload \? \(/);
 	assert.match(
 		source,
 		/Object\s*\.\s*entries\(\s*stats\s*\.\s*database\s*\.\s*recordCounts\s*\)\s*\.\s*map\(\s*\(\s*\[\s*key\s*,\s*value\s*\]\s*\)\s*=>\s*\[\s*key\s*,\s*toFiniteNumber\(\s*value\s*\)\s*,?\s*\]\s*\)/,
@@ -177,6 +206,7 @@ test("admin diagnostics numeric metrics are normalized before rendering", () => 
 	assert.doesNotMatch(source, /if \(result\.success\)/);
 	assert.doesNotMatch(source, /setRawData\(result\.data\)/);
 	assert.doesNotMatch(source, /description: result\.message \|\| RETRY_MESSAGE/);
+	assert.doesNotMatch(source, /\{JSON\.stringify\(rawData, null, 2\)\}/);
 });
 
 test("admin diagnostics status card options are normalized before rendering", () => {

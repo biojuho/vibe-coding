@@ -33,6 +33,11 @@ const RAW_DATA_LOAD_ERROR_MESSAGE =
 	"원본 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.";
 const DASHBOARD_NAVIGATION_ERROR_MESSAGE =
 	"대시보드로 이동하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+const RAW_DATA_UNAVAILABLE_TITLE = "원본 데이터를 표시할 수 없습니다.";
+const EMPTY_RAW_DATA_MESSAGE =
+	"선택한 원본 데이터에 표시할 레코드가 없습니다.";
+const DATABASE_UNAVAILABLE_RAW_DATA_MESSAGE =
+	"DB 연결 실패 상태에서는 원본 조회를 다시 시도할 수 없습니다.";
 
 const MODEL_OPTIONS = [
 	{ value: "cattle", label: "개체" },
@@ -101,6 +106,18 @@ function normalizeStatusCardOptions(options) {
 		: {};
 }
 
+function hasRenderableRawData(value) {
+	if (Array.isArray(value)) {
+		return value.length > 0;
+	}
+
+	if (value && typeof value === "object") {
+		return Object.keys(value).length > 0;
+	}
+
+	return value !== null && value !== undefined && value !== "";
+}
+
 export default function DiagnosticsPageClient() {
 	const router = useRouter();
 	const { notify } = useAppFeedback();
@@ -108,6 +125,7 @@ export default function DiagnosticsPageClient() {
 	const [loading, setLoading] = useState(true);
 	const [selectedModel, setSelectedModel] = useState("cattle");
 	const [rawData, setRawData] = useState(null);
+	const [rawDataErrorMessage, setRawDataErrorMessage] = useState(null);
 	const [dataLoading, setDataLoading] = useState(true);
 	const diagnosticsRequestRef = useRef(0);
 	const rawDataRequestRef = useRef(0);
@@ -122,6 +140,12 @@ export default function DiagnosticsPageClient() {
 				: [],
 		[stats],
 	);
+	const isDatabaseAvailable = stats?.success === true;
+	const rawDataNoteId = "diagnostics-raw-data-note";
+	const hasRawDataPayload = hasRenderableRawData(rawData);
+	const rawDataPreview = hasRawDataPayload
+		? JSON.stringify(rawData, null, 2)
+		: "";
 	const uptimeMinutes = Math.floor(toFiniteNumber(stats?.uptime) / 60);
 	const heapUsedMb = Math.round(
 		toFiniteNumber(stats?.memory?.heapUsed) / 1024 / 1024,
@@ -184,12 +208,25 @@ export default function DiagnosticsPageClient() {
 	}, [notify]);
 
 	useEffect(() => {
+		if (loading) {
+			return;
+		}
+
+		if (!isDatabaseAvailable) {
+			const requestId = ++rawDataRequestRef.current;
+			setDataLoading(false);
+			setRawData(null);
+			setRawDataErrorMessage(DATABASE_UNAVAILABLE_RAW_DATA_MESSAGE);
+			return;
+		}
+
 		let cancelled = false;
 		const requestId = ++rawDataRequestRef.current;
 		deferDiagnosticsTask(() => {
 			if (!cancelled && requestId === rawDataRequestRef.current) {
 				setDataLoading(true);
 				setRawData(null);
+				setRawDataErrorMessage(null);
 			}
 		});
 
@@ -203,10 +240,14 @@ export default function DiagnosticsPageClient() {
 				const safeResult = normalizeDiagnosticsObject(result);
 				if (safeResult.success) {
 					setRawData(safeResult.data ?? null);
+					setRawDataErrorMessage(null);
 				} else {
+					const message = normalizeDiagnosticsMessage(safeResult.message);
+					setRawData(null);
+					setRawDataErrorMessage(message);
 					notify({
 						title: "원본 데이터를 불러오지 못했습니다.",
-						description: normalizeDiagnosticsMessage(safeResult.message),
+						description: message,
 						variant: "error",
 					});
 				}
@@ -216,6 +257,8 @@ export default function DiagnosticsPageClient() {
 				}
 
 				console.error("Failed to load raw diagnostics data:", error);
+				setRawData(null);
+				setRawDataErrorMessage(RAW_DATA_LOAD_ERROR_MESSAGE);
 				notify({
 					title: "원본 데이터를 불러오지 못했습니다.",
 					description: RAW_DATA_LOAD_ERROR_MESSAGE,
@@ -231,7 +274,7 @@ export default function DiagnosticsPageClient() {
 		return () => {
 			cancelled = true;
 		};
-	}, [notify, selectedModel]);
+	}, [isDatabaseAvailable, loading, notify, selectedModel]);
 
 	if (loading) {
 		return (
@@ -350,9 +393,11 @@ export default function DiagnosticsPageClient() {
 
 						<select
 							aria-label="검사할 원본 데이터 선택"
+							aria-describedby={rawDataNoteId}
 							title="검사할 원본 데이터 선택"
 							value={selectedModel}
 							onChange={(event) => setSelectedModel(event.target.value)}
+							disabled={!isDatabaseAvailable || dataLoading}
 							className="clay-inset rounded-full px-4 py-3 text-sm font-medium text-[color:var(--color-text)] outline-none"
 						>
 							{MODEL_OPTIONS.map((option) => (
@@ -362,6 +407,14 @@ export default function DiagnosticsPageClient() {
 							))}
 						</select>
 					</div>
+					<p
+						id={rawDataNoteId}
+						className="mb-4 text-xs font-medium text-[color:var(--color-text-muted)]"
+					>
+						{isDatabaseAvailable
+							? "모델을 바꾸면 최신 50개 원본 레코드를 다시 조회합니다."
+							: DATABASE_UNAVAILABLE_RAW_DATA_MESSAGE}
+					</p>
 
 					{dataLoading ? (
 						<div
@@ -373,10 +426,31 @@ export default function DiagnosticsPageClient() {
 						>
 							레코드를 불러오는 중입니다.
 						</div>
+					) : rawDataErrorMessage ? (
+						<div
+							className="clay-inset rounded-[24px] px-6 py-14 text-center text-sm text-[color:var(--color-text-muted)]"
+							role="status"
+							aria-live="polite"
+							aria-atomic="true"
+						>
+							<p className="mb-2 font-semibold text-[color:var(--color-text)]">
+								{RAW_DATA_UNAVAILABLE_TITLE}
+							</p>
+							<p>{rawDataErrorMessage}</p>
+						</div>
+					) : !hasRawDataPayload ? (
+						<div
+							className="clay-inset rounded-[24px] px-6 py-14 text-center text-sm text-[color:var(--color-text-muted)]"
+							role="status"
+							aria-live="polite"
+							aria-atomic="true"
+						>
+							{EMPTY_RAW_DATA_MESSAGE}
+						</div>
 					) : (
 						<div className="clay-console h-96 overflow-auto p-5 text-sm leading-6">
 							<pre className="m-0 whitespace-pre-wrap break-all">
-								{JSON.stringify(rawData, null, 2)}
+								{rawDataPreview}
 							</pre>
 						</div>
 					)}
