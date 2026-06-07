@@ -1385,3 +1385,13 @@
 - Updated helper expectations for `_build_upload_metadata()` to match sanitized hashtags and API-safe fallback tags from the new shared metadata contract.
 - Verification: focused workspace pytest passed (`74 passed`), Ruff check passed, Ruff format check passed, `git diff --check` passed, and staged code-review gate returned advisory WARN `risk_score=0.30`, covered by focused helper/uploader/manager tests.
 - Boundary: code commit `ece7251c` is local only. No push was performed. T-251 was not retried.
+
+## 2026-06-07 - Codex
+
+- Closed T-1495 as a Shorts Manager browser-click layout polish cycle.
+- Browser baseline on Streamlit `8562`: content-list card action buttons were nested in a narrow side column, measuring `32px` minimum desktop width and up to `215px` height, with labels wrapping vertically.
+- External references checked: Streamlit `st.columns` guidance against repeated nested columns for cross-screen appearance, plus W3C WCAG 2.2 pointer-target size guidance.
+- Changed `workspace/execution/pages/shorts_manager.py`: content cards now render the header first and the action button row across the full card width.
+- Changed `workspace/tests/test_shorts_manager.py`: added a source regression that blocks returning card actions to the old narrow `st.columns([4, 1.4])` side-column layout.
+- Verification: focused Shorts Manager pytest passed (`45 passed`), targeted Ruff passed, `py_compile` passed, `git diff --check` passed, Streamlit browser QA passed with desktop action min width `167px`, max height `40px`, tall buttons `0`, mobile overflow `0`, and console/page errors `0`; Shorts Maker V2 project QC passed (`1640 passed`, `12 skipped`, `29 warnings`, lint pass); graph refresh completed; staged code-review gate returned advisory WARN `risk_score=0.30`, covered by focused/browser/project QC; A/B selected `adopt_candidate` with `score_delta=1.4803779069767442`.
+- Boundary: code commit `4b1e03db` is local only. No push was performed. T-251 was not retried. Unrelated Hanwoo WIP was present after the code commit and was preserved.
