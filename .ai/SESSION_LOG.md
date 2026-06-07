@@ -1631,6 +1631,14 @@
 
 ## 2026-06-08 - Codex
 
+- Completed T-1558 ROI Dashboard mobile output polish at local code commit `b5db0484`.
+- `workspace/execution/pages/roi_dashboard.py` now uses compact Korean operator copy (`쇼츠 ROI`), Korean page metadata, clearer Shorts RPM copy, hidden Plotly modebars, Korean breakeven-view copy, and mobile CSS for 44px Streamlit number-input targets.
+- `workspace/tests/test_result_roi_dashboards.py` locks the Plotly config, mobile CSS helper, and Korean copy/source contract.
+- Verification passed focused Result/ROI dashboard pytest (`8 passed` with repo-local basetemp), Ruff check, Ruff format check, `py_compile`, diff-check, graph refresh, code-review gate advisory WARN (`risk_score=0.30`) covered by focused/browser evidence, and browser QA at `390x844`: document title `쇼츠 ROI 분석 - Joolife`, H1 `쇼츠 ROI`, caption/RPM copy present, old English title/RPM labels absent, number-input controls min height `44`, min button width `44`, visible Plotly modebars `0`, horizontal overflow `false`, console errors `0`, failed requests `0`.
+- Boundary: no push was performed and T-251 was not retried. Remaining work is still explicit push/user push for current-head GitHub Actions plus user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E.
+
+## 2026-06-08 - Codex
+
 - Closed a relay-quality follow-up after the previous context commit advanced HEAD and made the top HANDOFF/GOAL/TASKS wording look stale.
 - Updated the current relay wording to avoid treating a fixed commit SHA as the ongoing current head after docs-only commits; future agents should use live `session_orient.py --json` for exact HEAD/ahead count.
 - Verification: live orientation and selector still report clean worktree, no adoptable local candidate, readiness score `96`, publish blocker `1`, external blocker `1`, release packet `ready_for_authorization`, selector `blocked_publish_only`, launch audit local requirements complete, and completion audit `11/15` with `4` blocked items. Code-review graph update was attempted twice with `py -3.13 -m code_review_graph update --repo . --base HEAD~1` but failed with SQLite `database is locked`; launch audit confirms the stale graph range contains no graph-relevant file changes, and `code_review_gate.py --base HEAD~1 --json` passed with `risk_score=0.0`.
