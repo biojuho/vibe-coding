@@ -99,6 +99,23 @@ _ISSUE_LABELS = {
     "failed_jobs_present": "실패 작업 있음",
     "low_disk_space": "디스크 공간 부족",
 }
+_CHANNEL_LABEL_ALIASES = {
+    "ai/tech": "AI/기술",
+    "ai-tech": "AI/기술",
+    "ai_tech": "AI/기술",
+    "space": "우주/천문학",
+    "history": "역사/고고학",
+    "psychology": "심리학",
+    "health": "의학/건강",
+}
+_OPS_STATUS_PRIORITY = {"critical": 0, "setup_required": 1, "warning": 2, "healthy": 3}
+_CHANNEL_READINESS_COUNT_FIELDS = (
+    "total_count",
+    "pending_count",
+    "running_count",
+    "failed_count",
+    "success_count",
+)
 
 # ---------------------------------------------------------------------------
 # 페이지 설정
@@ -333,6 +350,108 @@ def _format_issue_labels(issues: list[str]) -> list[str]:
     return labels
 
 
+def _canonical_channel_label(channel: object) -> str:
+    value = str(channel or "").strip()
+    if not value:
+        return ""
+    return _CHANNEL_LABEL_ALIASES.get(value.lower(), value)
+
+
+def _display_channel_label(channel: object) -> str:
+    return _canonical_channel_label(channel) or "-"
+
+
+def _item_matches_channel(item: dict[str, Any], channel: str) -> bool:
+    return _canonical_channel_label(item.get("channel", "")) == channel
+
+
+def _derive_display_ops_status(issues: list[str]) -> str:
+    if any(issue.startswith("setup:") for issue in issues):
+        return "setup_required"
+    if any(issue.startswith("critical:") for issue in issues):
+        return "critical"
+    if issues:
+        return "warning"
+    return "healthy"
+
+
+def _derive_display_next_action(issues: list[str], fallback: str) -> str:
+    if not issues:
+        return "렌더 실행 가능"
+    if any(issue.startswith("setup:") for issue in issues):
+        return "채널 설정 저장"
+    if any("brand_asset_missing" in issue or "missing_brand_assets" in issue for issue in issues):
+        return "브랜드 에셋 생성"
+    if any("bgm_missing" in issue or "missing_bgm" in issue for issue in issues):
+        return "BGM 추가 또는 스킵 확인"
+    if any("failed_jobs" in issue for issue in issues):
+        return "실패 건 확인"
+    return fallback or "운영 상태 점검"
+
+
+def _readiness_display_issue_allowed(
+    issue: str,
+    *,
+    raw_channel: str,
+    display_channel: str,
+    has_display_channel_item: bool,
+) -> bool:
+    if raw_channel == display_channel:
+        return True
+    if has_display_channel_item and issue in {
+        "setup:channel_settings_missing",
+        "warning:brand_asset_missing",
+    }:
+        return False
+    return True
+
+
+def _channel_readiness_for_display(summary: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for item in summary:
+        display_channel = _display_channel_label(item.get("channel", ""))
+        grouped.setdefault(display_channel, []).append(item)
+
+    merged_summary: list[dict[str, Any]] = []
+    for display_channel, items in grouped.items():
+        preferred = next(
+            (item for item in items if str(item.get("channel", "")).strip() == display_channel),
+            items[0],
+        )
+        has_display_channel_item = any(str(item.get("channel", "")).strip() == display_channel for item in items)
+        merged = dict(preferred)
+        merged["channel"] = display_channel
+        for field in _CHANNEL_READINESS_COUNT_FIELDS:
+            merged[field] = sum(int(item.get(field, 0) or 0) for item in items)
+
+        issues: list[str] = []
+        for item in items:
+            raw_channel = str(item.get("channel", "")).strip()
+            for issue in list(item.get("issues") or []):
+                if not _readiness_display_issue_allowed(
+                    str(issue),
+                    raw_channel=raw_channel,
+                    display_channel=display_channel,
+                    has_display_channel_item=has_display_channel_item,
+                ):
+                    continue
+                if issue not in issues:
+                    issues.append(str(issue))
+
+        merged["issues"] = issues
+        merged["status"] = _derive_display_ops_status(issues)
+        merged["next_action"] = _derive_display_next_action(
+            issues,
+            str(preferred.get("next_action") or ""),
+        )
+        for field in ("voice", "style_preset", "font_color", "image_style_prefix"):
+            if not merged.get(field):
+                merged[field] = next((item.get(field, "") for item in items if item.get(field)), "")
+        merged_summary.append(merged)
+
+    return merged_summary
+
+
 def _build_generation_run_blockers(readiness_summary: list[dict[str, Any]]) -> dict[str, str]:
     blockers: dict[str, str] = {}
     for item in readiness_summary:
@@ -362,6 +481,9 @@ def _generation_run_block_reason(
     channel = str(item.get("channel", "")).strip()
     if not channel:
         return "채널을 지정해야 실행할 수 있습니다."
+    canonical_channel = _canonical_channel_label(channel)
+    if canonical_channel != channel:
+        return readiness_blockers.get(canonical_channel, "")
     return readiness_blockers.get(channel, "")
 
 
@@ -591,17 +713,16 @@ def _render_channel_readiness(channels: list[str], summary: list[dict[str, Any]]
         st.info("표시할 채널 상태가 없습니다.")
         return
 
-    priority = {"critical": 0, "setup_required": 1, "warning": 2, "healthy": 3}
-    summary = sorted(
-        summary,
+    display_summary = sorted(
+        _channel_readiness_for_display(summary),
         key=lambda item: (
-            priority.get(str(item.get("status")), 99),
+            _OPS_STATUS_PRIORITY.get(str(item.get("status")), 99),
             -int(item.get("failed_count", 0)),
             str(item.get("channel", "")),
         ),
     )
 
-    for item in summary:
+    for item in display_summary:
         with st.container(border=True):
             top_col, meta_col = st.columns([2, 3])
             with top_col:
@@ -633,8 +754,9 @@ def _render_failure_triage(limit: int = 6) -> None:
 
     for item in failures:
         with st.container(border=True):
+            display_channel = _display_channel_label(item.get("channel", ""))
             st.markdown(
-                f"**{item.get('channel') or '-'}** {_status_badge('failed')} "
+                f"**{display_channel}** {_status_badge('failed')} "
                 f"&nbsp; **{item.get('title') or item.get('topic') or '-'}**",
                 unsafe_allow_html=True,
             )
@@ -666,7 +788,9 @@ def _render_manifest_sync_panel() -> None:
     if diff["pending_sync"]:
         st.caption("동기화 필요")
         for item in diff["pending_sync"]:
-            st.caption(f"- [{item['channel'] or '-'}] {item['topic']} / {', '.join(item['mismatches'])}")
+            st.caption(
+                f"- [{_display_channel_label(item['channel'])}] {item['topic']} / {', '.join(item['mismatches'])}"
+            )
     if diff["missing_in_db"]:
         st.caption("DB 누락")
         for item in diff["missing_in_db"]:
@@ -674,11 +798,11 @@ def _render_manifest_sync_panel() -> None:
     if diff["missing_output_file"]:
         st.caption("영상 파일 누락")
         for item in diff["missing_output_file"]:
-            st.caption(f"- [{item['channel'] or '-'}] {item['topic']}")
+            st.caption(f"- [{_display_channel_label(item['channel'])}] {item['topic']}")
     if diff["missing_manifest"]:
         st.caption("manifest 누락")
         for item in diff["missing_manifest"]:
-            st.caption(f"- [{item['channel'] or '-'}] {item['topic']} / {item['status']}")
+            st.caption(f"- [{_display_channel_label(item['channel'])}] {item['topic']} / {item['status']}")
 
 
 def _render_manual_review_queue(limit: int = 6) -> None:
@@ -690,8 +814,9 @@ def _render_manual_review_queue(limit: int = 6) -> None:
 
     for item in review_items:
         with st.container(border=True):
+            display_channel = _display_channel_label(item.get("channel", ""))
             st.markdown(
-                f"**{item.get('channel') or '-'}** {_ops_badge(item['review_status'])} "
+                f"**{display_channel}** {_ops_badge(item['review_status'])} "
                 f"&nbsp; **{item.get('title') or item.get('topic') or '-'}**",
                 unsafe_allow_html=True,
             )
@@ -813,6 +938,7 @@ with review_col:
     _section_anchor("shorts-review-queue")
     _render_manual_review_queue()
 
+all_items = get_all()
 left, right = st.columns([1, 3])
 
 v2_ok = _V2_DIR.exists()
@@ -865,10 +991,10 @@ with left:
 
     st.caption("**채널별 현황**")
     for ch in CHANNELS:
-        ch_kpis = get_kpis(channel=ch)
-        total = ch_kpis.get("total", 0)
-        success = ch_kpis.get("success_count", 0)
-        pending = ch_kpis.get("pending_count", 0)
+        ch_items_for_status = [item for item in all_items if _item_matches_channel(item, ch)]
+        total = len(ch_items_for_status)
+        success = len([item for item in ch_items_for_status if item.get("status") == "success"])
+        pending = len([item for item in ch_items_for_status if item.get("status") == "pending"])
         if total > 0:
             st.caption(f"**{ch}**: 전체 {total} | 완료 {success} | 대기 {pending}")
         else:
@@ -887,7 +1013,6 @@ with left:
 with right:
     _section_anchor("shorts-content-list")
     st.subheader("콘텐츠 목록")
-    all_items = get_all()
     _clear_stale_delete_confirmation({int(item["id"]) for item in all_items})
     tab_labels = [f"전체 ({len(all_items)})"] + CHANNELS
     tabs = st.tabs(tab_labels)
@@ -899,7 +1024,7 @@ with right:
         title_display = _html.escape(item.get("title") or item["topic"])
         ch_tag = ""
         if item.get("channel"):
-            safe_ch = _html.escape(item["channel"])
+            safe_ch = _html.escape(_display_channel_label(item["channel"]))
             ch_tag = (
                 f"<span style='background:#0d6efd;color:white;padding:2px 6px;"
                 f"border-radius:8px;font-size:0.7rem'>{safe_ch}</span> "
@@ -941,7 +1066,11 @@ with right:
                 help=run_block_reason or "v2 파이프라인 실행",
                 **_stretch_button_kwargs(),
             ):
-                pid = _launch_v2(item["id"], item["topic"], item.get("channel", ""))
+                pid = _launch_v2(
+                    item["id"],
+                    item["topic"],
+                    _canonical_channel_label(item.get("channel", "")),
+                )
                 if pid:
                     _set_flash("success", f"실행됨 (PID {pid})")
                 else:
@@ -1058,7 +1187,7 @@ with right:
 
     for i, ch in enumerate(CHANNELS):
         with tabs[i + 1]:
-            ch_items = [item for item in all_items if item.get("channel") == ch]
+            ch_items = [item for item in all_items if _item_matches_channel(item, ch)]
             sub_tab_all, sub_tab_pending, sub_tab_success, sub_tab_failed = st.tabs(
                 [f"전체 ({len(ch_items)})", "대기/생성중", "완료", "실패"]
             )

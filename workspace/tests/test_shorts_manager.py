@@ -308,6 +308,92 @@ def test_format_issue_labels_and_settings_indexes(shorts_manager) -> None:
     assert shorts_manager._style_index({"style_preset": "unknown"}) == 0
 
 
+def test_channel_display_labels_normalize_legacy_manager_aliases(shorts_manager) -> None:
+    assert shorts_manager._display_channel_label("space") == "우주/천문학"
+    assert shorts_manager._display_channel_label("AI/Tech") == "AI/기술"
+    assert shorts_manager._display_channel_label("") == "-"
+    assert shorts_manager._item_matches_channel({"channel": "space"}, "우주/천문학")
+    assert shorts_manager._item_matches_channel({"channel": "AI/Tech"}, "AI/기술")
+    assert not shorts_manager._item_matches_channel({"channel": "space"}, "AI/기술")
+
+
+def test_channel_readiness_display_merges_legacy_alias_counts(shorts_manager) -> None:
+    display_summary = shorts_manager._channel_readiness_for_display(
+        [
+            {
+                "channel": "우주/천문학",
+                "status": "healthy",
+                "voice": "nova",
+                "style_preset": "bold",
+                "font_color": "#FFD700",
+                "image_style_prefix": "cinematic",
+                "bgm_ready": True,
+                "brand_assets_ready": True,
+                "total_count": 1,
+                "pending_count": 0,
+                "running_count": 0,
+                "failed_count": 0,
+                "success_count": 1,
+                "next_action": "렌더 실행 가능",
+                "issues": [],
+            },
+            {
+                "channel": "space",
+                "status": "setup_required",
+                "voice": "",
+                "style_preset": "",
+                "font_color": "",
+                "image_style_prefix": "",
+                "bgm_ready": True,
+                "brand_assets_ready": False,
+                "total_count": 2,
+                "pending_count": 1,
+                "running_count": 0,
+                "failed_count": 1,
+                "success_count": 0,
+                "next_action": "채널 설정 저장",
+                "issues": [
+                    "setup:channel_settings_missing",
+                    "warning:brand_asset_missing",
+                    "warning:failed_jobs_present",
+                ],
+            },
+        ]
+    )
+
+    assert len(display_summary) == 1
+    item = display_summary[0]
+    assert item["channel"] == "우주/천문학"
+    assert item["total_count"] == 3
+    assert item["pending_count"] == 1
+    assert item["failed_count"] == 1
+    assert item["status"] == "warning"
+    assert item["voice"] == "nova"
+    assert item["next_action"] == "실패 건 확인"
+    assert "warning:failed_jobs_present" in item["issues"]
+    assert "setup:channel_settings_missing" not in item["issues"]
+    assert "warning:brand_asset_missing" not in item["issues"]
+
+
+def test_generation_run_block_reason_routes_legacy_aliases_through_canonical_channel(shorts_manager) -> None:
+    assert (
+        shorts_manager._generation_run_block_reason(
+            {"status": "pending", "channel": "space"},
+            {"우주/천문학": "표준 채널 설정 필요"},
+            v2_available=True,
+        )
+        == "표준 채널 설정 필요"
+    )
+    assert (
+        shorts_manager._generation_run_block_reason(
+            {"status": "pending", "channel": "space"},
+            {"space": "레거시 설정 누락"},
+            v2_available=True,
+        )
+        == ""
+    )
+
+
 def test_generation_run_blockers_prevent_unconfigured_channel_execution(shorts_manager) -> None:
     blockers = shorts_manager._build_generation_run_blockers(
         [
@@ -366,6 +452,150 @@ def test_generation_run_blockers_prevent_unconfigured_channel_execution(shorts_m
             v2_available=True,
         )
         == ""
+    )
+
+
+def test_channel_aliases_share_display_readiness_and_filters(shorts_manager) -> None:
+    canonical_ai = shorts_manager._CHANNEL_LABEL_ALIASES["ai-tech"]
+
+    assert shorts_manager._canonical_channel_label("ai-tech") == canonical_ai
+    assert shorts_manager._display_channel_label("ai_tech") == canonical_ai
+    assert shorts_manager._item_matches_channel({"channel": "ai-tech"}, canonical_ai) is True
+
+    display_summary = shorts_manager._channel_readiness_for_display(
+        [
+            {
+                "channel": "ai-tech",
+                "status": "setup_required",
+                "voice": "",
+                "style_preset": "",
+                "font_color": "",
+                "image_style_prefix": "",
+                "total_count": 1,
+                "pending_count": 1,
+                "running_count": 0,
+                "failed_count": 0,
+                "success_count": 0,
+                "next_action": "채널 설정 저장",
+                "issues": ["setup:channel_settings_missing"],
+            },
+            {
+                "channel": canonical_ai,
+                "status": "healthy",
+                "voice": "nova",
+                "style_preset": "bold",
+                "font_color": "#ffffff",
+                "image_style_prefix": "clean",
+                "total_count": 2,
+                "pending_count": 0,
+                "running_count": 0,
+                "failed_count": 0,
+                "success_count": 2,
+                "next_action": "",
+                "issues": [],
+            },
+        ]
+    )
+
+    assert len(display_summary) == 1
+    merged = display_summary[0]
+    assert merged["channel"] == canonical_ai
+    assert merged["total_count"] == 3
+    assert merged["pending_count"] == 1
+    assert merged["success_count"] == 2
+    assert merged["status"] == "healthy"
+    assert merged["next_action"] == "렌더 실행 가능"
+    assert merged["issues"] == []
+    assert merged["voice"] == "nova"
+    assert merged["style_preset"] == "bold"
+
+
+def test_generation_run_block_reason_accepts_channel_alias(shorts_manager) -> None:
+    canonical_ai = shorts_manager._CHANNEL_LABEL_ALIASES["ai-tech"]
+    blockers = shorts_manager._build_generation_run_blockers(
+        [
+            {
+                "channel": canonical_ai,
+                "status": "setup_required",
+                "next_action": "채널 설정 저장",
+                "issues": ["setup:channel_settings_missing"],
+            }
+        ]
+    )
+
+    assert (
+        shorts_manager._generation_run_block_reason(
+            {"status": "pending", "channel": "ai-tech"},
+            blockers,
+            v2_available=True,
+        )
+        == blockers[canonical_ai]
+    )
+
+
+def test_channel_label_aliases_merge_readiness_without_duplicate_setup_noise(shorts_manager) -> None:
+    assert shorts_manager._canonical_channel_label("ai/tech") == "AI/기술"
+    assert shorts_manager._canonical_channel_label("ai-tech") == "AI/기술"
+    assert shorts_manager._display_channel_label("") == "-"
+    assert shorts_manager._item_matches_channel({"channel": "ai_tech"}, "AI/기술")
+
+    merged = shorts_manager._channel_readiness_for_display(
+        [
+            {
+                "channel": "AI/기술",
+                "status": "healthy",
+                "voice": "nova",
+                "style_preset": "bold",
+                "total_count": 1,
+                "pending_count": 0,
+                "running_count": 0,
+                "failed_count": 0,
+                "success_count": 1,
+                "next_action": "없음",
+                "issues": [],
+            },
+            {
+                "channel": "ai/tech",
+                "status": "setup_required",
+                "voice": "",
+                "style_preset": "",
+                "total_count": 2,
+                "pending_count": 2,
+                "running_count": 0,
+                "failed_count": 0,
+                "success_count": 0,
+                "next_action": "채널 설정 저장",
+                "issues": [
+                    "setup:channel_settings_missing",
+                    "warning:brand_asset_missing",
+                    "runtime:missing_bgm",
+                ],
+            },
+        ]
+    )
+
+    assert len(merged) == 1
+    assert merged[0]["channel"] == "AI/기술"
+    assert merged[0]["total_count"] == 3
+    assert merged[0]["pending_count"] == 2
+    assert merged[0]["success_count"] == 1
+    assert merged[0]["voice"] == "nova"
+    assert merged[0]["style_preset"] == "bold"
+    assert merged[0]["issues"] == ["runtime:missing_bgm"]
+    assert merged[0]["status"] == "warning"
+    assert merged[0]["next_action"] == "BGM 추가 또는 스킵 확인"
+
+
+def test_generation_run_block_reason_uses_canonical_channel_alias(shorts_manager) -> None:
+    blockers = {"AI/기술": "채널 설정 저장 후 실행 가능"}
+
+    assert (
+        shorts_manager._generation_run_block_reason(
+            {"status": "pending", "channel": "ai-tech"},
+            blockers,
+            v2_available=True,
+        )
+        == "채널 설정 저장 후 실행 가능"
     )
 
 
