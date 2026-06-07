@@ -103,3 +103,68 @@
 | Tool | Codex |
 | Work | **T-1536 Hanwoo dashboard content-shell scroll bound**. Follow-up to T-1535. `globals.css` now bounds the mobile `.dashboard-content-shell` to the safe viewport height with contained vertical scrolling and resets the bound on desktop; `home-market-copy.test.mjs` locks max-height/overflow/overscroll/fallback contracts. Final browser-click QA still reports mobile and desktop `covered=0`, `small=0`, `xOverflowTabs=0`, bad responses `0`, and `.tmp/project_qc_runner_hanwoo_t1535.json` passed Hanwoo `test/lint/build/smoke`. Code commit `28e7946c` is local only. |
 | Next Priorities | Worktree should be checked with `python execution/session_orient.py --json` before continuing. Remaining release boundaries are explicit push/current-head GitHub Actions plus user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E. Do not push without explicit authorization and do not retry T-251 before credential reset/resync. |
+
+## Rotation 2026-06-08 (archived addenda older than 2026-06-01)
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-07 |
+| Tool | Codex |
+| Work | **T-1544 launch-boundary handoff refresh**. Reconciled the post-T-1543 relay after follow-up `.ai` documentation commits. The last exact release-boundary audit before this handoff still showed readiness score `96`, local blockers `0`, agent tasks `0`, publish blockers `1`, external blockers `1`, release packet `ready_for_authorization`, selector `blocked_publish_only`, and completion audit `10/14` with `4` blocked items. This is a relay update only; because this context commit advances HEAD again, exact current-head release evidence must be rerun after the commit before any release claim. |
+| Next Priorities | Rerun `session_orient.py --json`, `product_readiness_score.py --json`, release packet, selector, launch audit, and completion audit for the final current HEAD. Expected remaining boundaries are still explicit push/user push plus current-head GitHub Actions (`root-quality-gate`, `active-project-matrix`) and user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E. Do not push without explicit authorization and do not retry T-251 before credential reset/resync. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-07 |
+| Tool | Codex |
+| Work | **T-1543 final release-boundary confirmation**. After the full canonical active-project QC refresh at code baseline `a51bfa31` and the follow-up `.ai` commits through HEAD `90e06ed1`, reran `session_orient.py --json`, `product_readiness_score.py --json`, release authorization packet generation, selector, launch audit, and completion audit. Current evidence: clean worktree, graph current at `90e06ed1`, readiness score `96`, local blockers `0`, agent tasks `0`, publish blockers `1`, external blockers `1`; `.tmp/release-authorization-packet.json` is `ready_for_authorization` for HEAD `90e06ed1`; `.tmp/next-experiment.json` is `blocked_publish_only`; `.tmp/launch-objective-audit.json` has local coverage complete; completion audit is `10/14` complete with `4` blocked items. |
+| Next Priorities | No adoptable local candidate remains. The only remaining boundaries are explicit push/user push so current-head GitHub Actions can prove `root-quality-gate` and `active-project-matrix`, plus user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E. Do not push without explicit authorization and do not retry T-251 before credential reset/resync. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-07 |
+| Tool | Codex |
+| Work | **T-1542 Shorts Manager shortcut-nav localization**. Closed a follow-up consistency issue at code commit `58190d19`: `_render_operator_shortcuts()` now exposes the quick-jump navigation as `쇼츠 운영 빠른 이동`, matching the compact Korean visible title introduced in T-1541 instead of leaving `Shorts Manager 빠른 이동` in the accessibility tree. `workspace/tests/test_shorts_manager.py` locks the localized nav label and rejects the old label. Verification passed focused Shorts Manager pytest (`2 passed`), targeted Ruff check, `py_compile`, `git diff --check` with CRLF warning only, advisory staged/pre-commit code-review gate WARN (`risk_score=0.30`) covered by the direct shortcut regression, and current-head Shorts Maker V2 project QC `.tmp/project_qc_runner_shorts_t1542.json` (`1640 passed`, `12 skipped`, `29 warnings`, lint pass). |
+| Next Priorities | Refresh graph/current-head readiness, release packet, selector, launch audit, and completion audit before any release claim. Expected remaining boundaries are explicit push/current-head GitHub Actions plus user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E. Do not push without explicit authorization and do not retry T-251 before credential reset/resync. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-07 |
+| Tool | Codex |
+| Work | **T-1541 Shorts Manager compact mobile title polish**. Continued the Shorts Manager browser-click/auto-research loop at code commit `003ebf9c`. `workspace/execution/pages/shorts_manager.py` now keeps the browser/page metadata title as `Shorts Manager` but changes the visible first-viewport title/caption to compact Korean operator copy: `🎬 쇼츠 운영` and `생성 · 검수 · 업로드 관리`. `workspace/tests/test_shorts_manager.py` locks the compact Korean visible copy, rejects the old visible English title/caption, and preserves the metadata title. Mobile browser A/B at `390x844` improved h1 height `142px -> 89px`, first title bottom `254px -> 201px`, visible English title matches `1 -> 0`, visible Korean title matches `0 -> 1`, with horizontal overflow still `0`; `.tmp/ab-manifest-t1541.json` selected `adopt_candidate` (`score_delta=0.39547521348563824`). Verification passed focused Shorts Manager pytest (`46 passed`), targeted Ruff check, Ruff format check, `py_compile`, `git diff --check` with CRLF warning only, graph refresh current at `003ebf9c`, and Shorts Maker V2 project QC (`1640 passed`, `12 skipped`, lint pass). Code-review gate/pre-commit remained advisory WARN (`risk_score=0.30`) and is covered by direct source, browser, focused, and project QC evidence. |
+| Next Priorities | Refresh current-head readiness/release-selector evidence before any release claim because HEAD advanced after the previous launch-boundary refresh. Remaining release boundaries are still explicit push/current-head GitHub Actions plus user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E. Do not push without explicit authorization and do not retry T-251 before credential reset/resync. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-07 |
+| Tool | Codex |
+| Work | **T-1540 Hanwoo AI widget touch-target polish**. Continued the authenticated Hanwoo browser-click quality loop at code commit `9027df72`. `AIInsightWidget.js` now gives the manual refresh action a 44px touch target and stable `data-testid`; `AIChatWidget.js` constrains the fixed chat panel to `min(340px, calc(100vw - 32px))` and raises close, send, and retry controls to 44px-safe dimensions. Source tests in `ai-insight-widget-copy.test.mjs` and `ai-chat-widget-copy.test.mjs` lock the refresh/testid/touch-target and narrow mobile panel contracts. Browser QA artifact `.tmp/hanwoo-t1540-ai-widget-current.json` passed at 320, 390, and 1280px with `smallControls=0`, `xOverflow=false`, bad responses `0`; console warnings are only the known external Supabase degraded-read/T-251 path. Verification passed Hanwoo source tests (`536 passed`), Hanwoo lint, `git diff --check`, graph refresh at `9027df72`, staged/pre-commit code-review gate advisory WARN (`risk_score=0.30`) covered by focused/browser/project evidence, and post-commit Hanwoo project QC `.tmp/project_qc_runner_hanwoo_t1540.json` (`test/lint/build/smoke` passed, `536 passed`). |
+| Next Priorities | Current HEAD later advanced to T-1541/context commits, so refresh graph/current-head readiness after the separate Shorts Manager WIP is resolved. Worktree is not clean because `workspace/execution/pages/shorts_manager.py` and `workspace/tests/test_shorts_manager.py` are modified. Remaining release boundaries are still explicit push/current-head GitHub Actions plus user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E. Do not push without explicit authorization and do not retry T-251 before credential reset/resync. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-07 |
+| Tool | Codex |
+| Work | **T-1539 launch-audit robustness refresh**. Fixed a local audit-output quality defect at code commit `f88340ad` found while rerunning the completion audit. `browser_qa_inventory.py` now checks PNG nonblank state by restoring scanlines and returning as soon as a different pixel is found instead of accumulating every decoded pixel buffer; the full retained screenshot inventory now completes and reports browser coverage `4/4`, fresh usable screenshots `4/4`, and fresh nonblank screenshots `4/4`. `launch_objective_audit.py` now reads top-level `gates.candidate` A/B manifests like `ab_decision.py`, so `.tmp/ab-manifest-t1537.json` is correctly reported as required gates passed `4/4` instead of a false blocker. Verification passed focused auto-research pytest (`61 passed`), targeted Ruff, `py_compile`, `browser_qa_inventory.py --json`, `launch_objective_audit.py`, `completion_audit.py --allow-incomplete`, and `git diff --check` with CRLF warnings only. |
+| Next Priorities | After the scoped commit, rerun `session_orient.py --json`, `product_readiness_score.py --json`, release packet generation, selector, and completion audit. Expected remaining boundaries are still explicit push/current-head GitHub Actions plus user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E. Do not push without explicit authorization and do not retry T-251 before credential reset/resync. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-07 |
+| Tool | Codex |
+| Work | **T-1538 no-code launch-boundary evidence refresh**. Refreshed Hanwoo project QC at the current local line with `.tmp/project_qc_runner_hanwoo_t1537.json`; Hanwoo `test/lint/build/smoke` passed (`535 passed`; build succeeded after one real Next build-lock retry; smoke only known accepted 405/200 warnings). `product_readiness_score.py --json` still reports score `96`, local blockers `0`, agent tasks `0`, publish blockers `1`, external blockers `1`. `next_experiment_selector.py` reports `blocked_publish_only` / `current_head_release_checks_unproven`, so no adoptable local candidate remains until explicit push or user push allows current-head Actions. |
+| Next Priorities | Generate/reuse `.tmp/release-authorization-packet.json` for the final current HEAD, then push only with explicit authorization or ask the user to push. After push, wait for `root-quality-gate` and `active-project-matrix` on the exact pushed HEAD. Do not retry T-251 until Supabase credentials are reset/resynced. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-07 |
+| Tool | Codex |
+| Work | **T-1537 Shorts Manager mobile readiness controls polish**. Continued the Shorts Manager operator-output quality loop. `workspace/execution/pages/shorts_manager.py` now raises Streamlit number stepper buttons and checkbox labels to the 44px mobile target, keeps number steppers at least 44px wide, and localizes channel-readiness `voice/style` captions to `음성/스타일`. `workspace/tests/test_shorts_manager.py` locks the mobile CSS selectors and rejects the old English readiness labels. Verification passed focused Shorts Manager pytest (`45 passed`), targeted Ruff check, Ruff format check, `py_compile`, browser QA at `390x844` (`hasEnglishVoiceStyle=false`, `koreanVoiceStyleCount=5`, `horizontalOverflow=false`, screenshot `output/playwright/shorts-manager-t1537-channel-readiness-copy.png`), and staged/commit code-review gate exit 0 with advisory WARN (`risk_score=0.30`) covered by direct source/render/browser tests. Code commit `273a511a` is local only. |
+| Next Priorities | Worktree should be checked with `python execution/session_orient.py --json` before continuing. Remaining release boundaries are explicit push/current-head GitHub Actions plus user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E. Do not push without explicit authorization and do not retry T-251 before credential reset/resync. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-07 |
+| Tool | Codex |
+| Work | **T-1536 Hanwoo dashboard content-shell scroll bound**. Follow-up to T-1535. `globals.css` now bounds the mobile `.dashboard-content-shell` to the safe viewport height with contained vertical scrolling and resets the bound on desktop; `home-market-copy.test.mjs` locks max-height/overflow/overscroll/fallback contracts. Final browser-click QA still reports mobile and desktop `covered=0`, `small=0`, `xOverflowTabs=0`, bad responses `0`, and `.tmp/project_qc_runner_hanwoo_t1535.json` passed Hanwoo `test/lint/build/smoke`. Code commit `28e7946c` is local only. |
+| Next Priorities | Worktree should be checked with `python execution/session_orient.py --json` before continuing. Remaining release boundaries are explicit push/current-head GitHub Actions plus user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E. Do not push without explicit authorization and do not retry T-251 before credential reset/resync. |
