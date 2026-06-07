@@ -128,11 +128,63 @@ def test_cost_dashboard_uses_current_plotly_width_api(monkeypatch: pytest.Monkey
 
     module._render_plotly_chart("figure")
 
-    assert fake_streamlit.events == [("plotly_chart", "figure", {"width": "stretch"})]
+    assert fake_streamlit.events == [
+        (
+            "plotly_chart",
+            "figure",
+            {"width": "stretch", "config": {"displayModeBar": False, "responsive": True}},
+        )
+    ]
 
 
 def test_cost_dashboard_source_avoids_deprecated_plotly_width_api() -> None:
     source = (WORKSPACE_ROOT / "execution" / "pages" / "cost_dashboard.py").read_text(encoding="utf-8")
 
     assert "use_container_width=True" not in source
-    assert 'st.plotly_chart(fig, width="stretch")' in source
+    assert 'st.plotly_chart(fig, width="stretch", config=_PLOTLY_CHART_CONFIG)' in source
+
+
+def test_cost_dashboard_budget_action_guidance_is_copy_ready(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    module, _fake_streamlit = _import_cost_dashboard(monkeypatch, tmp_path)
+
+    assert module._build_budget_action_message(96, 10) == (
+        "예산 초과 위험",
+        "오늘 바로 고비용 모델과 자동 생성 작업을 확인하고, 불필요한 반복 실행을 중지하세요.",
+    )
+    assert module._build_budget_action_message(70, 30)[0] == "절감 효과 유지"
+    assert module._format_unit_cost(0.123456, 10) == "$0.012346"
+    assert module._format_unit_cost(0.123456, 0) == "$0.000000"
+
+
+def test_cost_dashboard_output_quality_source_contract() -> None:
+    source = (WORKSPACE_ROOT / "execution" / "pages" / "cost_dashboard.py").read_text(encoding="utf-8")
+
+    assert 'page_title="비용 관리 - Joolife"' in source
+    assert 'st.title("💰 비용 관리")' in source
+    assert "다음 조치" in source
+    assert "호출당 비용" in source
+    assert "판단 기준: 월 예산 대비 사용률" in source
+    assert '"Cost Dashboard - Joolife"' not in source
+    assert '"💰 Cost Dashboard"' not in source
+    assert "30일 Rolling" not in source
+    assert " calls | " not in source
+    assert ":,} calls" not in source
+
+
+def test_cost_dashboard_mobile_css_contract(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    module, fake_streamlit = _import_cost_dashboard(monkeypatch, tmp_path)
+    fake_streamlit.events.clear()
+
+    module._inject_cost_dashboard_mobile_css()
+
+    css_payloads = [
+        payload
+        for name, payload, kwargs in fake_streamlit.events
+        if name == "markdown" and kwargs.get("unsafe_allow_html")
+    ]
+    assert css_payloads
+    css = css_payloads[-1]
+    assert "max-width: 640px" in css
+    assert 'div[data-baseweb="slider"] [role="slider"]' in css
+    assert "min-height: 44px !important" in css
+    assert "min-width: 44px !important" in css

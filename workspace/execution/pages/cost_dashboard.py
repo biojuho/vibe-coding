@@ -1,12 +1,4 @@
-"""
-Unified Cost Dashboard - Joolife Hub.
-
-All LLM/TTS/Image costs across projects in one view.
-Data sources:
-  - workspace.db (api_calls 테이블 포함, 통합 DB)
-  - blind-to-x btx_costs.db (optional)
-  - shorts-maker-v2 costs.jsonl (optional)
-"""
+"""Operator-facing AI cost dashboard for Joolife Hub."""
 
 import importlib.util
 import json
@@ -43,10 +35,10 @@ except ImportError as e:
     _MODULE_OK = False
     _MODULE_ERR = str(e)
 
-st.set_page_config(page_title="Cost Dashboard - Joolife", page_icon="💰", layout="wide")
+st.set_page_config(page_title="비용 관리 - Joolife", page_icon="💰", layout="wide")
 
 if not _MODULE_OK:
-    st.error(f"Cost Dashboard 모듈 로드 실패: {_MODULE_ERR}")
+    st.error(f"비용 대시보드 모듈을 불러오지 못했습니다: {_MODULE_ERR}")
     st.stop()
 
 init_db()
@@ -58,14 +50,81 @@ _CHART_LAYOUT = dict(
     font_color="#e0e0e0",
 )
 _COLORS = ["#7c3aed", "#0ea5e9", "#f59e0b", "#10b981", "#f43f5e", "#8b5cf6", "#06b6d4"]
+_PLOTLY_CHART_CONFIG = {"displayModeBar": False, "responsive": True}
+
+
+def _inject_cost_dashboard_mobile_css() -> None:
+    st.markdown(
+        """
+        <style>
+        @media (max-width: 640px) {
+            div[data-testid="stToolbar"] button,
+            div[data-testid="stHeaderActionElements"] button,
+            button[kind="header"] {
+                min-height: 44px !important;
+                min-width: 44px !important;
+            }
+            div[data-testid="stSlider"] {
+                padding-bottom: 0.75rem;
+            }
+            div[data-baseweb="slider"] [role="slider"] {
+                width: 44px !important;
+                height: 44px !important;
+                min-width: 44px !important;
+                min-height: 44px !important;
+                margin-top: -16px !important;
+            }
+            div[data-testid="stMetric"] {
+                min-width: 0 !important;
+                overflow-wrap: anywhere;
+            }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def _render_plotly_chart(fig: object) -> None:
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, width="stretch", config=_PLOTLY_CHART_CONFIG)
 
 
-st.title("💰 Cost Dashboard")
-st.caption("LLM · TTS · Image — 전체 프로젝트 비용 통합 뷰")
+def _format_count(value: int | float, unit: str) -> str:
+    return f"{value:,.0f}{unit}"
+
+
+def _format_unit_cost(total_cost: float, calls: int | float) -> str:
+    if calls <= 0:
+        return "$0.000000"
+    return f"${total_cost / calls:.6f}"
+
+
+def _build_budget_action_message(budget_pct: float, savings_pct: float) -> tuple[str, str]:
+    if budget_pct >= 95:
+        return (
+            "예산 초과 위험",
+            "오늘 바로 고비용 모델과 자동 생성 작업을 확인하고, 불필요한 반복 실행을 중지하세요.",
+        )
+    if budget_pct >= 80:
+        return (
+            "예산 주의",
+            "이번 주 안에 모델별 비용과 폴백 사용률을 확인해 다음 실행의 기본 모델을 조정하세요.",
+        )
+    if savings_pct >= 20:
+        return (
+            "절감 효과 유지",
+            "현재 라우팅은 비용을 줄이고 있습니다. 다만 모델별 품질 이슈가 없는지 최근 결과물을 함께 확인하세요.",
+        )
+    return (
+        "정상 운영",
+        "예산은 안정적입니다. 호출당 비용과 프로젝트별 비용 추이를 주 1회만 점검해도 충분합니다.",
+    )
+
+
+_inject_cost_dashboard_mobile_css()
+
+st.title("💰 비용 관리")
+st.caption("프로젝트별 AI 비용, 예산 사용률, 절감 효과를 바로 판단할 수 있게 모았습니다.")
 
 # ── Controls ──
 days = st.slider("조회 기간 (일)", min_value=7, max_value=90, value=30, key="cost_days")
@@ -79,6 +138,7 @@ monthly = get_monthly_summary(months=6)
 tasks = get_task_breakdown(days)
 fallback = get_fallback_analysis(days)
 savings = get_savings_estimate(days)
+avg_cost_per_call = _format_unit_cost(summary["total_cost_usd"], summary["total_calls"])
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Section 1: KPI Cards
@@ -92,17 +152,19 @@ for m in monthly:
 
 budget_pct = round(current_month_cost / MONTHLY_BUDGET_USD * 100, 1) if MONTHLY_BUDGET_USD > 0 else 0.0
 
-k1, k2, k3, k4, k5 = st.columns(5)
+k1, k2, k3, k4, k5, k6 = st.columns(6)
 with k1:
     st.metric("기간 내 총 비용", f"${summary['total_cost_usd']:.4f}")
 with k2:
     st.metric("이번달 비용", f"${current_month_cost:.4f}")
 with k3:
-    st.metric("총 호출 수", f"{summary['total_calls']:,}")
+    st.metric("총 호출 수", _format_count(summary["total_calls"], "회"))
 with k4:
-    st.metric("총 토큰", f"{summary['total_tokens']:,}")
+    st.metric("총 토큰", _format_count(summary["total_tokens"], "개"))
 with k5:
     st.metric(f"월 예산 ({MONTHLY_BUDGET_USD:.0f}$)", f"{budget_pct:.1f}%")
+with k6:
+    st.metric("호출당 비용", avg_cost_per_call)
 
 # ── Budget Alert Bar ──
 if budget_pct >= 95:
@@ -114,13 +176,18 @@ elif budget_pct >= 50:
 
 st.progress(min(int(budget_pct), 100), text=f"월 예산 사용률 {budget_pct:.1f}%")
 
+action_title, action_body = _build_budget_action_message(budget_pct, savings["savings_pct"])
+st.markdown(f"**다음 조치: {action_title}**")
+st.info(action_body)
+st.caption("판단 기준: 월 예산 대비 사용률, 최근 30일 절감률, 호출당 비용, 모델별 비용 분포")
+
 st.divider()
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Section 2: Savings Estimate (MiMo / Free-tier 절감 효과)
 # ──────────────────────────────────────────────────────────────────────────────
-st.subheader("절감 효과 (30일 Rolling)")
-st.caption("프리미엄 모델(claude-sonnet-4) 기준 대비 실제 비용 비교")
+st.subheader("절감 효과 (최근 30일)")
+st.caption("프리미엄 모델 기준 대비 실제 라우팅 비용을 비교합니다.")
 
 s1, s2, s3 = st.columns(3)
 with s1:
@@ -222,7 +289,7 @@ with prov_col:
         for p in providers:
             c1, c2, c3 = st.columns([3, 2, 2])
             c1.markdown(f"**{p['provider']}**")
-            c2.markdown(f"{p['calls']:,} calls | {p.get('tokens') or 0:,} tokens")
+            c2.markdown(f"{p['calls']:,}회 | 토큰 {p.get('tokens') or 0:,}개")
             c3.markdown(f"${p.get('cost') or 0:.4f}")
     else:
         st.info("프로바이더 데이터 없음")
@@ -243,7 +310,7 @@ with model_col:
         for m in models:
             c1, c2, c3 = st.columns([3, 2, 2])
             c1.markdown(f"`{m['model'] or '(unknown)'}`")
-            c2.markdown(f"{m['calls']:,} calls")
+            c2.markdown(f"{m['calls']:,}회")
             c3.markdown(f"${m.get('cost') or 0:.4f}")
     else:
         st.info("모델 데이터 없음")
@@ -298,7 +365,7 @@ if fallback["by_provider"]:
     for fp in fallback["by_provider"]:
         c1, c2, c3 = st.columns([3, 2, 2])
         c1.markdown(f"`{fp['provider_used']}`")
-        c2.markdown(f"{fp['calls']:,} calls")
+        c2.markdown(f"{fp['calls']:,}회")
         c3.markdown(f"${fp.get('cost') or 0:.4f}")
 
 st.divider()

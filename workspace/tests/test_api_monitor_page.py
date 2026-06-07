@@ -147,12 +147,130 @@ def test_api_monitor_uses_current_plotly_width_api(monkeypatch: pytest.MonkeyPat
 
     module._render_plotly_chart("figure")
 
-    assert fake_streamlit.events == [("plotly_chart", "figure", {"width": "stretch"})]
+    assert fake_streamlit.events == [
+        (
+            "plotly_chart",
+            "figure",
+            {
+                "width": "stretch",
+                "config": {
+                    "displayModeBar": False,
+                    "displaylogo": False,
+                    "responsive": True,
+                },
+            },
+        )
+    ]
 
 
 def test_api_monitor_source_avoids_deprecated_plotly_width_api() -> None:
     source = (WORKSPACE_ROOT / "execution" / "pages" / "api_monitor.py").read_text(encoding="utf-8")
 
     assert "use_container_width=True" not in source
-    assert 'st.plotly_chart(fig, width="stretch")' in source
+    assert 'st.plotly_chart(fig, width="stretch", config=_PLOTLY_CHART_CONFIG)' in source
     assert source.count("_render_plotly_chart(") >= 8
+
+
+def test_api_monitor_hides_mobile_plotly_modebar() -> None:
+    source = (WORKSPACE_ROOT / "execution" / "pages" / "api_monitor.py").read_text(encoding="utf-8")
+
+    assert '"displayModeBar": False' in source
+    assert '"displaylogo": False' in source
+    assert '"responsive": True' in source
+
+
+def test_api_monitor_injects_mobile_touch_target_css(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    module, fake_streamlit = _import_api_monitor(monkeypatch, tmp_path)
+    fake_streamlit.events.clear()
+
+    module._inject_api_monitor_mobile_css()
+
+    markdowns = [payload for name, payload, _kwargs in fake_streamlit.events if name == "markdown"]
+    assert markdowns
+    css = str(markdowns[-1])
+    assert "@media (max-width: 640px)" in css
+    assert "min-height: 44px !important" in css
+    assert "min-width: 44px !important" in css
+    assert "div[data-testid='stSlider'] [role='slider']" in css
+    assert "button[aria-label='Main menu']" in css
+
+
+def test_api_monitor_uses_korean_operator_copy(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    _module, fake_streamlit = _import_api_monitor(monkeypatch, tmp_path)
+
+    page_configs = [payload for name, payload, _kwargs in fake_streamlit.events if name == "set_page_config"]
+    titles = [payload for name, payload, _kwargs in fake_streamlit.events if name == "title"]
+    captions = [payload for name, payload, _kwargs in fake_streamlit.events if name == "caption"]
+    subheaders = [payload for name, payload, _kwargs in fake_streamlit.events if name == "subheader"]
+    metrics = [payload for name, payload, _kwargs in fake_streamlit.events if name == "metric"]
+
+    assert any(config["page_title"] == "API 사용 모니터 - Joolife" for config in page_configs)
+    assert "📡 API 사용 모니터" in titles
+    assert any("워크스페이스 API 호출" in str(payload) for payload in captions)
+    assert "API 키 상태" in subheaders
+    assert "운영 KPI" in subheaders
+    assert "일별 API 사용량" in subheaders
+    assert "총 API 호출" in metrics
+
+
+def test_api_monitor_source_removes_old_english_operator_copy() -> None:
+    source = (WORKSPACE_ROOT / "execution" / "pages" / "api_monitor.py").read_text(encoding="utf-8")
+
+    for old_copy in [
+        "API usage tracking & credit monitoring",
+        "API Key Status",
+        "Operational KPIs",
+        "Daily API Usage",
+        "Usage by Provider",
+        "Token Usage Detail",
+        "LLM Bridge Policy",
+        "Provider Bridge Metrics",
+        "Cost by Provider",
+    ]:
+        assert old_copy not in source
+
+
+def test_api_monitor_loads_btx_cost_db_with_project_root_import_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    pipeline_dir = tmp_path / "blind-to-x" / "pipeline"
+    pipeline_dir.mkdir(parents=True)
+    (pipeline_dir / "__init__.py").write_text("", encoding="utf-8")
+    (pipeline_dir / "cost_db_schema.py").write_text("SCHEMA_MARKER = 'ok'\n", encoding="utf-8")
+    (pipeline_dir / "cost_db.py").write_text(
+        "\n".join(
+            [
+                "from pipeline.cost_db_schema import SCHEMA_MARKER",
+                "",
+                "class CostDatabase:",
+                "    def __init__(self):",
+                "        self.marker = SCHEMA_MARKER",
+                "",
+                "    def get_today_summary(self):",
+                "        return {",
+                "            'gemini_image_limit': 500,",
+                "            'gemini_image_count': 0,",
+                "            'gemini_rpd_pct': 0.0,",
+                "            'total_usd': 0.0,",
+                "            'text_usd': 0.0,",
+                "            'image_usd': 0.0,",
+                "        }",
+                "",
+                "    def get_daily_trend(self, days):",
+                "        return []",
+                "",
+                "    def get_draft_style_performance(self, days):",
+                "        return []",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    module, fake_streamlit = _import_api_monitor(monkeypatch, tmp_path)
+
+    captions = [str(payload) for name, payload, _kwargs in fake_streamlit.events if name == "caption"]
+    metrics = [payload for name, payload, _kwargs in fake_streamlit.events if name == "metric"]
+    assert module._BTX_COST_DB is not None
+    assert module._BTX_COST_DB_ERROR is None
+    assert not any("BTX CostDB 로드 실패" in payload for payload in captions)
+    assert "오늘 텍스트 비용" in metrics
