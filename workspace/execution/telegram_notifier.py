@@ -294,6 +294,38 @@ def send_alert(
     )
 
 
+_SCHEDULER_ERROR_TYPE_LABELS = {
+    "auto_disabled": "자동 비활성화",
+    "cwd_not_found": "작업 디렉터리 없음",
+    "exception": "실행 예외",
+    "exec_not_found": "실행 파일 없음",
+    "invalid_command": "명령 파싱 실패",
+    "non_zero_exit": "비정상 종료",
+    "timeout": "시간 초과",
+}
+_SCHEDULER_TRIGGER_LABELS = {
+    "manual": "수동 실행",
+    "schedule": "예약 실행",
+}
+
+
+def _format_scheduler_code_label(value: object, labels: Dict[str, str], *, empty_label: str = "없음") -> str:
+    code = str(value or "").strip()
+    if not code:
+        return empty_label
+    return labels.get(code, code.replace("_", " "))
+
+
+def _format_scheduler_duration_ms(duration_ms: object) -> str:
+    try:
+        value = int(duration_ms or 0)
+    except (TypeError, ValueError):
+        return "알 수 없음"
+    if value >= 1000:
+        return f"{value / 1000:.1f}초"
+    return f"{value}ms"
+
+
 def format_scheduler_message(
     *,
     task_name: str,
@@ -304,21 +336,21 @@ def format_scheduler_message(
     stderr: str = "",
     auto_disabled: bool = False,
 ) -> str:
-    status_text = "SUCCESS" if exit_code == 0 else "FAILED"
+    status_text = "성공" if exit_code == 0 else "실패"
     lines = [
-        f"[Joolife][Scheduler] {status_text}",
-        f"Task: {task_name}",
-        f"Trigger: {trigger_type}",
-        f"Exit code: {exit_code}",
-        f"Duration: {duration_ms} ms",
+        f"[Joolife][자동 실행] {status_text}",
+        f"작업: {task_name}",
+        f"실행 방식: {_format_scheduler_code_label(trigger_type, _SCHEDULER_TRIGGER_LABELS, empty_label='알 수 없음')}",
+        f"종료 코드: {exit_code}",
+        f"소요 시간: {_format_scheduler_duration_ms(duration_ms)}",
     ]
     if error_type:
-        lines.append(f"Error type: {error_type}")
+        lines.append(f"오류 유형: {_format_scheduler_code_label(error_type, _SCHEDULER_ERROR_TYPE_LABELS)}")
     if auto_disabled:
-        lines.append("Auto-disabled: yes")
+        lines.append("자동 비활성화: 예")
     cleaned_stderr = (stderr or "").strip()
     if cleaned_stderr:
-        lines.append(f"Error: {cleaned_stderr[:300]}")
+        lines.append(f"오류 내용: {cleaned_stderr[:300]}")
     return "\n".join(lines)
 
 

@@ -214,8 +214,14 @@ def test_maybe_send_scheduler_notification_sends_failure(monkeypatch):
     assert result is not None
     message_text = mock_post.call_args.kwargs["json"]["text"]
     assert "broken-task" in message_text
-    assert "FAILED" in message_text
-    assert "Auto-disabled: yes" in message_text
+    assert "[Joolife][자동 실행] 실패" in message_text
+    assert "실행 방식: 예약 실행" in message_text
+    assert "소요 시간: 500ms" in message_text
+    assert "오류 유형: 비정상 종료" in message_text
+    assert "자동 비활성화: 예" in message_text
+    assert "오류 내용: boom" in message_text
+    assert "FAILED" not in message_text
+    assert "Auto-disabled: yes" not in message_text
 
 
 def test_maybe_send_scheduler_notification_skips_when_mode_none(monkeypatch):
@@ -250,6 +256,23 @@ def test_maybe_send_scheduler_notification_sends_success_when_mode_all(monkeypat
         )
 
     assert result["result"]["message_id"] == 99
+
+
+def test_format_scheduler_message_uses_copy_ready_korean_operator_text():
+    message = tn.format_scheduler_message(
+        task_name="ok-task",
+        exit_code=0,
+        trigger_type="manual",
+        duration_ms=1200,
+    )
+
+    assert message.splitlines() == [
+        "[Joolife][자동 실행] 성공",
+        "작업: ok-task",
+        "실행 방식: 수동 실행",
+        "종료 코드: 0",
+        "소요 시간: 1.2초",
+    ]
 
 
 def test_get_updates_returns_result_list(monkeypatch):
