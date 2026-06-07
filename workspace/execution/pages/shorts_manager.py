@@ -19,6 +19,7 @@ if str(WORKSPACE_ROOT) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_ROOT))
 
 from path_contract import resolve_project_dir
+from execution.youtube_metadata import build_shorts_upload_metadata
 
 # ---------------------------------------------------------------------------
 # 경로 설정 + 모듈 import
@@ -431,11 +432,7 @@ def _render_auth_status(auth_status: dict[str, Any]) -> None:
 
 
 def _build_upload_metadata(item: dict[str, Any]) -> tuple[str, list[str]]:
-    topic = item["topic"]
-    channel = item.get("channel", "")
-    description = f"#{channel} #{topic}" if channel else f"#{topic}"
-    tags = [channel, "shorts"] if channel else ["shorts"]
-    return description, tags
+    return build_shorts_upload_metadata(item)
 
 
 def _reset_youtube_fields(item_id: int) -> None:

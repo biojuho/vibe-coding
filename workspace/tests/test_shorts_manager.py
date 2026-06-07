@@ -176,6 +176,9 @@ def _make_content_db_module() -> types.ModuleType:
 
 def _make_youtube_module() -> types.ModuleType:
     module = types.ModuleType("execution.youtube_uploader")
+    from execution.youtube_metadata import build_shorts_upload_metadata
+
+    module.build_shorts_upload_metadata = build_shorts_upload_metadata
     module.get_auth_status = lambda: {
         "has_credentials_file": False,
         "has_token_file": False,
@@ -436,11 +439,27 @@ def test_external_action_block_reasons_explain_missing_setup(shorts_manager) -> 
 
 
 def test_build_upload_metadata_and_reset_fields(shorts_manager, monkeypatch: pytest.MonkeyPatch) -> None:
-    assert shorts_manager._build_upload_metadata({"topic": "Black Hole", "channel": "우주/천문학"}) == (
-        "#우주/천문학 #Black Hole",
-        ["우주/천문학", "shorts"],
+    description, tags = shorts_manager._build_upload_metadata(
+        {
+            "topic": "Black Hole",
+            "title": "Black Hole Explained",
+            "channel": "우주/천문학",
+            "hook_pattern": "question",
+            "duration_sec": 42.2,
+        }
     )
-    assert shorts_manager._build_upload_metadata({"topic": "Black Hole"}) == ("#Black Hole", ["shorts"])
+
+    assert description.startswith("Black Hole Explained")
+    assert "핵심 요약: Black Hole" in description
+    assert "question 훅" in description
+    assert "42초 분량" in description
+    assert "#Shorts" in description
+    assert tags[:4] == ["우주/천문학", "Black Hole", "Black Hole Explained", "question"]
+
+    fallback_description, fallback_tags = shorts_manager._build_upload_metadata({"topic": "Black Hole"})
+    assert fallback_description.startswith("Black Hole")
+    assert "#Shorts" in fallback_description
+    assert fallback_tags == ["Black Hole", "Shorts", "YouTube Shorts"]
 
     updates: list[tuple[int, dict[str, object]]] = []
     monkeypatch.setattr(

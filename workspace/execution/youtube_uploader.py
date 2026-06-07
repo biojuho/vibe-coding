@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any
 
 from execution._logging import logger
+from execution.youtube_metadata import build_shorts_upload_metadata
 
 _ROOT = Path(__file__).resolve().parent.parent
 CREDENTIALS_PATH = _ROOT / "credentials.json"
@@ -134,11 +135,7 @@ def _trim_error(exc: Exception | str, limit: int = 300) -> str:
 
 
 def _build_description_and_tags(item: dict[str, Any]) -> tuple[str, list[str]]:
-    topic = item["topic"]
-    channel = item.get("channel", "")
-    description = f"#{channel} #{topic}" if channel else f"#{topic}"
-    tags = [channel, "shorts"] if channel else ["shorts"]
-    return description, tags
+    return build_shorts_upload_metadata(item)
 
 
 def _reset_upload_fields(item_id: int, update_job_fn) -> None:

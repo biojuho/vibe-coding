@@ -155,6 +155,7 @@ def test_get_video_status_returns_not_found(monkeypatch):
 
 def test_upload_pending_items_retries_failed_items(monkeypatch):
     calls: dict[str, object] = {}
+    upload_calls: list[dict[str, object]] = []
     updates: list[tuple[int, dict[str, object]]] = []
     item = {
         "id": 7,
@@ -162,6 +163,8 @@ def test_upload_pending_items_retries_failed_items(monkeypatch):
         "title": "블랙홀 5가지",
         "video_path": "video.mp4",
         "channel": "우주/천문학",
+        "hook_pattern": "질문형",
+        "duration_sec": 41.0,
         "youtube_status": "failed",
     }
 
@@ -173,16 +176,22 @@ def test_upload_pending_items_retries_failed_items(monkeypatch):
 
     monkeypatch.setattr(cdb, "get_uploadable_items", fake_get_uploadable_items)
     monkeypatch.setattr(cdb, "update_job", lambda item_id, **kwargs: updates.append((item_id, kwargs)))
-    monkeypatch.setattr(
-        uploader,
-        "upload_video",
-        lambda **kwargs: {"video_id": "abc123", "youtube_url": "https://youtu.be/abc123", "status": "uploaded"},
-    )
+
+    def fake_upload_video(**kwargs):
+        upload_calls.append(kwargs)
+        return {"video_id": "abc123", "youtube_url": "https://youtu.be/abc123", "status": "uploaded"}
+
+    monkeypatch.setattr(uploader, "upload_video", fake_upload_video)
 
     results = uploader.upload_pending_items(limit=3, channel="우주/천문학", retry_failed=True)
 
     assert calls["query"] == {"channel": "우주/천문학", "limit": 3, "include_failed": True}
     assert results[0]["video_id"] == "abc123"
+    assert "핵심 요약: 블랙홀" in str(upload_calls[0]["description"])
+    assert "질문형 훅" in str(upload_calls[0]["description"])
+    assert "#Shorts" in str(upload_calls[0]["description"])
+    assert "우주/천문학" in upload_calls[0]["tags"]
+    assert "Shorts" in upload_calls[0]["tags"]
     assert updates[0][1]["youtube_status"] == ""
     assert updates[0][1]["youtube_error"] == ""
     assert updates[1][1]["youtube_status"] == "uploaded"
