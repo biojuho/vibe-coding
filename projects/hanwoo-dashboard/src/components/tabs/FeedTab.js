@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Home } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import {
@@ -15,6 +16,7 @@ import {
 } from "recharts";
 
 import { useAppFeedback } from "@/components/feedback/FeedbackProvider";
+import EmptyState from "@/components/ui/empty-state";
 import { PremiumButton } from "@/components/ui/premium-button";
 import {
 	PremiumInput,
@@ -129,6 +131,7 @@ export default function FeedTab(options = {}) {
 		feedStandards = [],
 		feedHistory = [],
 		onRecordFeed,
+		onOpenBuildingSetup,
 		buildings = [],
 	} = normalizeFeedTabOptions(options);
 	const [selectedBuilding, setSelectedBuilding] = useState(null);
@@ -138,6 +141,8 @@ export default function FeedTab(options = {}) {
 	const { notify } = useAppFeedback();
 	const handleRecordFeed =
 		typeof onRecordFeed === "function" ? onRecordFeed : async () => false;
+	const handleOpenBuildingSetup =
+		typeof onOpenBuildingSetup === "function" ? onOpenBuildingSetup : null;
 	const submitButtonLabel = isSaving
 		? "급여 기록 저장 중"
 		: "급여 기록 저장";
@@ -407,6 +412,18 @@ export default function FeedTab(options = {}) {
 					</div>
 				</div>
 			</div>
+
+			{safeBuildings.length === 0 ? (
+				<div style={{ marginBottom: "20px" }}>
+					<EmptyState
+						icon={Home}
+						title="급여 기록 전 축사를 먼저 준비해 주세요"
+						description="축사를 추가하면 축사별 급여 기준과 오늘 급여 기록 폼을 바로 사용할 수 있습니다."
+						actionLabel="축사 추가하러 가기"
+						onAction={handleOpenBuildingSetup}
+					/>
+				</div>
+			) : null}
 
 			{selectedBuilding ? (
 				<form

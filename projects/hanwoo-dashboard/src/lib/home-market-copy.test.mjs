@@ -1492,6 +1492,10 @@ test("dashboard normalizes malformed building payloads before home rendering", (
 	assert.match(source, /\{safeBuildings\.length === 0 \? \(/);
 	assert.match(source, /\{safeBuildings\.map\(\(building\) => \{/);
 	assert.match(source, /<FeedTab[\s\S]*?buildings=\{safeBuildings\}/);
+	assert.match(
+		source,
+		/<FeedTab[\s\S]*?onOpenBuildingSetup=\{\(\) =>[\s\S]*?handleQuickAction\(\{[\s\S]*?id: ["']add-building["'][\s\S]*?targetTab: ["']settings["'][\s\S]*?\}\)[\s\S]*?\}/,
+	);
 	assert.match(source, /<SettingsTab[\s\S]*?buildings=\{safeBuildings\}/);
 	assert.doesNotMatch(source, /useState\(initialBuildings\)/);
 	assert.doesNotMatch(source, /buildings\.map\(\(building/);

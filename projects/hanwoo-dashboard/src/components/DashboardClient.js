@@ -1825,6 +1825,12 @@ export default function DashboardClient(options = {}) {
 					feedStandards={feedStandards}
 					feedHistory={feedHistory}
 					onRecordFeed={handleRecordFeed}
+					onOpenBuildingSetup={() =>
+						handleQuickAction({
+							id: "add-building",
+							targetTab: "settings",
+						})
+					}
 					buildings={safeBuildings}
 				/>
 			);

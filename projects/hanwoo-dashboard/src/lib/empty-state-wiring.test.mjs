@@ -35,6 +35,13 @@ test("shared empty state component exposes an action button without custom depen
 test("operational tabs use action-oriented empty states", () => {
 	const expectations = [
 		{
+			file: "components/tabs/FeedTab.js",
+			icon: "Home",
+			title: "급여 기록 전 축사를 먼저 준비해 주세요",
+			action: "축사 추가하러 가기",
+			handler: "handleOpenBuildingSetup",
+		},
+		{
 			file: "components/tabs/InventoryTab.js",
 			icon: "PackagePlus",
 			title: "등록된 재고가 없습니다",
@@ -452,6 +459,9 @@ test("feed tab visible copy is readable Korean product copy", () => {
 		"축사를 먼저 선택해 주세요.",
 		"급여 기록은 특정 축사 기준으로 저장됩니다.",
 		"사료 급여 모니터링",
+		"급여 기록 전 축사를 먼저 준비해 주세요",
+		"축사를 추가하면 축사별 급여 기준과 오늘 급여 기록 폼을 바로 사용할 수 있습니다.",
+		"축사 추가하러 가기",
 		"오늘 급여 가이드",
 		"조사료 권장량",
 		"배합사료 권장량",
