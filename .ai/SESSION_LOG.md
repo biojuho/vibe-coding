@@ -1407,3 +1407,13 @@
 - Candidate browser QA passed with dialog bottom `844`, form `overflowY=auto`, save `701..775`, `saveInitiallyVisible=true`, `saveVisibleAfterScroll=true`, horizontal overflow `0`, console errors `0`, and expected degraded-read warnings only from external T-251.
 - Verification: focused CattleForm tests passed (`20 passed`); full Hanwoo tests passed (`530 passed`); `npm.cmd run lint` passed; Hanwoo project QC postcommit passed (`530 passed`, lint/build/smoke passed); `git diff --check` passed with CRLF warnings only; graph refresh completed; staged/commit code-review gate returned advisory WARN `risk_score=0.30`, covered by focused/browser/project QC; A/B selected `adopt_candidate` with `score_delta=0.785714`.
 - Boundary: code commit `0eca644c` is local only. No push was performed. T-251 was not retried. Product readiness may still show a stale Hanwoo QC artifact head from the concurrent context/full-workspace artifact path, but direct postcommit Hanwoo project QC for T-1496 passed.
+
+## 2026-06-07 - Codex
+
+- Closed T-1497 as a Shorts Manager browser-click code/path wrapping polish cycle.
+- Browser baseline: long path/code blocks for the Shorts Maker config path, resolved project Python path, and output video path were wider than their mobile card (`mobile_path_code_over_parent_count=2`, max code width `706.8px`, parent width `295.2px`, ratio `2.3943`).
+- Changed `workspace/execution/pages/shorts_manager.py`: added `_render_wrapped_code()` and routed those path displays through `st.code(str(value), language=None, wrap_lines=True)`.
+- Changed `workspace/tests/test_shorts_manager.py`: added source wiring coverage and a direct fake-Streamlit helper test that asserts `wrap_lines=True` is passed.
+- Candidate browser QA passed with over-parent path code blocks `0`, max code width `243.609375px`, parent width `305.203125px`, ratio `0.7982`, horizontal overflow `0`, no console/page/request failures, and nonblank desktop/mobile screenshots.
+- Verification: focused Shorts Manager pytest passed (`27 passed`); targeted Ruff passed; Ruff format check passed; `py_compile` passed; `git diff --check` passed; Shorts Maker V2 project QC passed (`1640 passed`, `12 skipped`, `29 warnings`, lint pass); staged/commit code-review gate for the test follow-up passed with `risk_score=0.0`; A/B selected `adopt_candidate` with `score_delta=0.5767663812979826`.
+- Boundary: code commit `ac332761` and direct test follow-up commit `101ddde2` are local only. No push was performed. T-251 was not retried. Refresh graph/current orientation and full canonical active-project QC before current-head release claims if newer local commits have landed.
