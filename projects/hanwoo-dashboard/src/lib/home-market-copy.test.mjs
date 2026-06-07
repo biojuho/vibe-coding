@@ -44,10 +44,20 @@ test("home dashboard fallback and panel labels use Korean product copy", () => {
 test("dashboard stacking context keeps mobile tab bar fixed", () => {
 	const source = readSource("app/globals.css");
 
+	assert.match(source, /--dashboard-tabbar-offset:\s*calc\(92px \+ env\(safe-area-inset-bottom, 0px\)\)/);
+	assert.match(source, /html\s*\{[\s\S]*?scroll-padding-bottom:\s*var\(--dashboard-tabbar-offset\);/);
 	assert.match(source, /\.tab-bar\s*\{[\s\S]*?position:\s*fixed;/);
+	assert.match(source, /padding:\s*8px 6px calc\(12px \+ env\(safe-area-inset-bottom, 0px\)\)/);
+	assert.doesNotMatch(source, /env\(safe-area-inset-bottom, 20px\)/);
+	assert.match(source, /\.dashboard-container\s*\{[\s\S]*?padding-bottom:\s*var\(--dashboard-tabbar-offset\);/);
+	assert.match(source, /\.dashboard-container\s*\{[\s\S]*?scroll-padding-bottom:\s*var\(--dashboard-tabbar-offset\);/);
 	assert.match(
 		source,
 		/\.dashboard-container > :not\(\.tab-bar\):not\(\.modal-overlay\)\s*\{/,
+	);
+	assert.match(
+		source,
+		/\.dashboard-container :is\([\s\S]*?\[role="switch"\][\s\S]*?\)\s*\{[\s\S]*?scroll-margin-bottom:\s*var\(--dashboard-tabbar-offset\);/,
 	);
 	assert.doesNotMatch(source, /\.dashboard-container > \*\s*\{/);
 });

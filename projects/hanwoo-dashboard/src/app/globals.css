@@ -163,6 +163,8 @@ body::after {
 
 /* CSS Variables (Legacy - 기존 커스텀 스타일과의 호환을 위해 유지) */
 :root {
+  --dashboard-tabbar-offset: calc(92px + env(safe-area-inset-bottom, 0px));
+
   --color-primary-custom: #a45d42;
   --color-primary-light: #c98564;
   --color-primary-dark: #7b442d;
@@ -460,6 +462,7 @@ body::after {
 
 html {
   scroll-behavior: smooth;
+  scroll-padding-bottom: var(--dashboard-tabbar-offset);
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -1074,7 +1077,7 @@ body {
   display: grid;
   grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: 2px;
-  padding: 8px 6px calc(12px + env(safe-area-inset-bottom, 20px));
+  padding: 8px 6px calc(12px + env(safe-area-inset-bottom, 0px));
   z-index: 200;
   box-shadow:
     0 -8px 32px color-mix(in srgb, var(--color-bg) 30%, transparent),
@@ -1086,7 +1089,8 @@ body {
   background:
     radial-gradient(circle at top left, color-mix(in srgb, var(--color-bg-orb) 92%, transparent) 0, transparent 30%),
     linear-gradient(180deg, color-mix(in srgb, var(--color-bg) 82%, white 18%) 0%, var(--color-bg) 100%);
-  padding-bottom: 100px;
+  padding-bottom: var(--dashboard-tabbar-offset);
+  scroll-padding-bottom: var(--dashboard-tabbar-offset);
   color: var(--color-text);
   font-family: var(--font-sans-custom);
   padding-top: env(safe-area-inset-top);
@@ -1112,6 +1116,20 @@ body {
 .dashboard-container > :not(.tab-bar):not(.modal-overlay) {
   position: relative;
   z-index: 1;
+}
+
+.dashboard-container :is(
+  button,
+  a[href],
+  input,
+  select,
+  textarea,
+  [role="button"],
+  [role="switch"],
+  [role="tab"],
+  [role="combobox"]
+) {
+  scroll-margin-bottom: var(--dashboard-tabbar-offset);
 }
 
 .tab-item {
