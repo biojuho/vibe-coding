@@ -1389,7 +1389,10 @@ def _ab_manifest_evidence(
     task_id = _ab_manifest_task_id(root / manifest_path, manifest)
     candidate = manifest.get("candidate") if isinstance(manifest.get("candidate"), dict) else {}
     metrics = candidate.get("metrics") if isinstance(candidate.get("metrics"), dict) else {}
-    gates = candidate.get("gates") if isinstance(candidate.get("gates"), dict) else {}
+    gates = candidate.get("gates") if isinstance(candidate.get("gates"), dict) else None
+    if gates is None:
+        all_gates = manifest.get("gates") if isinstance(manifest.get("gates"), dict) else {}
+        gates = all_gates.get("candidate") if isinstance(all_gates.get("candidate"), dict) else {}
     required_gates = manifest.get("required_gates") if isinstance(manifest.get("required_gates"), list) else []
     failed_gates = [str(gate) for gate in required_gates if not gates.get(str(gate), False)]
     passed_gate_count = len(required_gates) - len(failed_gates)

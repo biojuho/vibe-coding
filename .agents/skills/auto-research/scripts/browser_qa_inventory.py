@@ -218,24 +218,24 @@ def _paeth_predictor(left: int, up: int, upper_left: int) -> int:
     return upper_left
 
 
-def _decode_png_pixels(
+def _png_is_nonblank(
     compressed: bytes,
     width: int,
     height: int,
     bytes_per_pixel: int,
-) -> tuple[bytes, list[str]]:
+) -> tuple[bool, list[str]]:
     try:
         raw = zlib.decompress(compressed)
     except zlib.error as exc:
-        return b"", [f"png idat decompress failed: {exc}"]
+        return False, [f"png idat decompress failed: {exc}"]
 
     row_length = width * bytes_per_pixel
     expected_length = height * (row_length + 1)
     if len(raw) < expected_length:
-        return b"", [f"png pixel data truncated: expected {expected_length} byte(s), got {len(raw)}"]
+        return False, [f"png pixel data truncated: expected {expected_length} byte(s), got {len(raw)}"]
 
     previous = bytearray(row_length)
-    pixels = bytearray()
+    first_pixel: bytes | None = None
     offset = 0
     for _row_index in range(height):
         filter_type = raw[offset]
@@ -243,7 +243,7 @@ def _decode_png_pixels(
         row = bytearray(raw[offset : offset + row_length])
         offset += row_length
         if filter_type not in {0, 1, 2, 3, 4}:
-            return b"", [f"unsupported png filter type: {filter_type}"]
+            return False, [f"unsupported png filter type: {filter_type}"]
 
         for index in range(row_length):
             left = row[index - bytes_per_pixel] if index >= bytes_per_pixel else 0
@@ -258,20 +258,14 @@ def _decode_png_pixels(
             elif filter_type == 4:
                 row[index] = (row[index] + _paeth_predictor(left, up, upper_left)) & 0xFF
 
-        pixels.extend(row)
+        if first_pixel is None:
+            first_pixel = bytes(row[:bytes_per_pixel])
+        for index in range(0, row_length, bytes_per_pixel):
+            if bytes(row[index : index + bytes_per_pixel]) != first_pixel:
+                return True, []
         previous = row
 
-    return bytes(pixels), []
-
-
-def _pixels_are_nonblank(pixels: bytes, bytes_per_pixel: int) -> bool:
-    if not pixels:
-        return False
-    first_pixel = pixels[:bytes_per_pixel]
-    for offset in range(bytes_per_pixel, len(pixels), bytes_per_pixel):
-        if pixels[offset : offset + bytes_per_pixel] != first_pixel:
-            return True
-    return False
+    return False, []
 
 
 def _png_metadata(path: Path) -> dict[str, Any]:
@@ -370,7 +364,7 @@ def _png_metadata(path: Path) -> dict[str, Any]:
         )
         return metadata
 
-    pixels, pixel_issues = _decode_png_pixels(bytes(idat), width, height, bytes_per_pixel)
+    nonblank, pixel_issues = _png_is_nonblank(bytes(idat), width, height, bytes_per_pixel)
     if pixel_issues:
         metadata.update(
             {
@@ -382,7 +376,6 @@ def _png_metadata(path: Path) -> dict[str, Any]:
         )
         return metadata
 
-    nonblank = _pixels_are_nonblank(pixels, bytes_per_pixel)
     metadata.update(
         {
             "image_check": "ok" if nonblank else "blank",

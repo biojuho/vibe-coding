@@ -1316,6 +1316,31 @@ def test_ab_item_accepts_utf8_bom_manifest(tmp_path: Path) -> None:
     assert any("required gates passed 2/2" in item for item in ab_item["evidence"])
 
 
+def test_ab_item_accepts_top_level_candidate_gates(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+    manifest_path = _write_ab_manifest(tmp_path)
+    data = json.loads(manifest_path.read_text(encoding="utf-8"))
+    candidate = data["candidate"]
+    candidate.pop("gates")
+    data["gates"] = {"candidate": {"focused_tests": True, "diff_check": True}}
+    manifest_path.write_text(json.dumps(data), encoding="utf-8")
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+    )
+    result = completion_audit.audit_manifest(manifest)
+    ab_item = next(item for item in manifest["items"] if item["requirement"].startswith("Run bounded A/B"))
+
+    assert result["status"] == "complete"
+    assert manifest_path.relative_to(tmp_path).as_posix() in ab_item["artifacts"]
+    assert any("required gates passed 2/2" in item for item in ab_item["evidence"])
+
+
 def test_ab_manifest_stat_failure_is_ignored(tmp_path: Path, monkeypatch) -> None:
     _write_required_skill(tmp_path)
     _write_ai_relay(tmp_path)
