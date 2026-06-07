@@ -548,6 +548,26 @@ test("cattle form waits for async saves before re-enabling submit actions", () =
 	assert.doesNotMatch(formSource, /\{isSaving \? ["']개체 정보 저장 중\.\.\.["'] : ["']저장하기["']\}/);
 });
 
+test("cattle form keeps mobile save actions visible while fields scroll", () => {
+	const formSource = readSource("components/forms/CattleForm.js");
+
+	assert.match(formSource, /height: "calc\(100vh - 20px\)"/);
+	assert.match(formSource, /maxHeight: "calc\(100vh - 20px\)"/);
+	assert.match(formSource, /overflow: "hidden"/);
+	assert.match(
+		formSource,
+		/<form[\s\S]*?flex: "1 1 auto"[\s\S]*?minHeight: 0[\s\S]*?overflowY: "auto"/,
+	);
+	assert.match(
+		formSource,
+		/position: "sticky"[\s\S]*?bottom: 0[\s\S]*?zIndex: 3/,
+	);
+	assert.match(
+		formSource,
+		/padding: "16px 24px max\(24px, env\(safe-area-inset-bottom\)\)"/,
+	);
+});
+
 test("cattle form normalizes malformed building payloads before rendering", () => {
 	const formSource = readSource("components/forms/CattleForm.js");
 

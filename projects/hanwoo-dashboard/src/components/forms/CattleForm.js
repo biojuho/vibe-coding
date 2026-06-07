@@ -275,9 +275,13 @@ export default function CattleForm({
 					background: "var(--color-bg)",
 					width: "100%",
 					maxWidth: "500px",
-					minHeight: "100vh",
+					height: "calc(100vh - 20px)",
+					maxHeight: "calc(100vh - 20px)",
+					minHeight: 0,
 					padding: "20px",
-					overflowY: "auto",
+					overflow: "hidden",
+					display: "flex",
+					flexDirection: "column",
 				}}
 			>
 				<div
@@ -332,8 +336,11 @@ export default function CattleForm({
 					style={{
 						display: "flex",
 						flexDirection: "column",
+						flex: "1 1 auto",
+						minHeight: 0,
 						gap: "18px",
 						padding: "24px",
+						overflowY: "auto",
 					}}
 				>
 					<input type="hidden" {...register("geneticInfo.grade")} />
@@ -776,12 +783,23 @@ export default function CattleForm({
 
 					<div
 						style={{
+							position: "sticky",
+							bottom: 0,
+							zIndex: 3,
 							display: "flex",
 							gap: "12px",
 							marginTop: "28px",
-							paddingTop: "20px",
+							marginRight: "-24px",
+							marginBottom: "-24px",
+							marginLeft: "-24px",
+							padding: "16px 24px max(24px, env(safe-area-inset-bottom))",
 							borderTop:
 								"1px solid color-mix(in srgb, var(--color-border-custom) 35%, transparent)",
+							background:
+								"color-mix(in srgb, var(--color-bg) 96%, transparent)",
+							backdropFilter: "blur(12px)",
+							boxShadow:
+								"0 -12px 28px color-mix(in srgb, var(--color-bg) 32%, transparent)",
 						}}
 					>
 						<button
