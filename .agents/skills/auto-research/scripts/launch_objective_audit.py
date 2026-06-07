@@ -102,11 +102,17 @@ RECENT_INVENTORY_FALLBACKS = {
 }
 GOAL_OBJECTIVE_TERMS = (
     "auto-research",
+    "output quality",
+    "output-quality",
     "product launch",
     "launch-ready",
     "제품출시",
     "제품 출시",
     "오토리서치",
+    "결과물 품질",
+    "고품질 output",
+    "고품질 결과물",
+    "실사용 가능한 결과물",
 )
 
 

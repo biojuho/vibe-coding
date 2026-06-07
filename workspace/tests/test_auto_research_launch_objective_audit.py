@@ -1749,6 +1749,27 @@ def test_current_code_triage_blocks_stale_graph_or_failing_gate(tmp_path: Path, 
     assert "code_review_gate status=fail; expected pass or warn." in dependency_item["blockers"]
 
 
+def test_relay_item_accepts_korean_output_quality_goal(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(
+        tmp_path,
+        goal_text="사용자가 바로 사용할 수 있는 고품질 output과 결과물 품질을 높이는 반복 개선.",
+    )
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+    )
+    relay_item = next(item for item in manifest["items"] if item["requirement"].startswith("Keep the self-improvement"))
+
+    assert relay_item["coverage"] == "complete"
+    assert relay_item["blockers"] == []
+    assert "GOAL.md status=active; current launch objective mapped=True." in relay_item["evidence"]
+
+
 def test_relay_item_rejects_stale_completed_goal(tmp_path: Path) -> None:
     _write_required_skill(tmp_path)
     _write_ai_relay(
