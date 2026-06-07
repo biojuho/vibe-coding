@@ -24,3 +24,12 @@
 | Tool | Codex |
 | Work | **T-1526 Shorts Analytics RPM labeling**. Corrected the Shorts Analytics ROI copy from generic Shorts CPM to Shorts RPM, and added the missing explicit Plotly runtime dependency for the page. `workspace/execution/pages/shorts_analytics.py` now labels the section `채널별 Shorts 수익 잠재력 (RPM 추정)` and explains RPM as revenue per 1,000 engaged views. `workspace/pyproject.toml` declares `plotly>=6.8.0`, `uv.lock` resolves it, and `workspace/tests/test_shorts_analytics.py` locks the copy and dependency contract. Verification passed focused Shorts Analytics pytest (`9 passed`), Ruff, format check, `py_compile`, `py -3.13 -m uv lock --check`, staged code-review gate PASS (`risk_score=0.00`), graph refresh, and full active-project QC. Code commit `c39bde69` is local only. |
 | Next Priorities | Superseded by T-1527 current-head full canonical QC/readiness refresh. Remaining release boundaries are explicit push/current-head GitHub Actions plus user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E. |
+
+## Rotation 2026-06-08 (archived addenda older than 2026-06-01)
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-07 |
+| Tool | Codex |
+| Work | **T-1527 current-head full canonical QC/readiness refresh**. Refreshed full active-project local gates through T-1526 at code/QC head `c39bde69`; later `.ai` context/session commits are documentation-only after that artifact. `python execution\project_qc_runner.py --json --artifact .tmp\project_qc_runner_latest.json --timeout-seconds 700` passed: Blind-to-X `1844 passed`, `9 skipped`, lint pass; Shorts Maker V2 `1640 passed`, `12 skipped`, `29 warnings`, lint pass; Hanwoo `533 passed`, lint/build/smoke passed; Knowledge Dashboard `62 passed`, lint/build/smoke passed. |
+| Next Priorities | No local active-project QC blocker is open on the checked current workspace. Remaining release boundaries are explicit push/current-head GitHub Actions plus user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E. Do not push without explicit authorization and do not retry T-251 before credential reset/resync. |
