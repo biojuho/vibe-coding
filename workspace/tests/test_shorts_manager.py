@@ -419,6 +419,23 @@ def test_shorts_manager_source_adds_mobile_touch_target_styles() -> None:
     assert "_inject_mobile_touch_target_styles()" in source
 
 
+def test_shorts_manager_source_adds_operator_shortcuts_to_deep_sections() -> None:
+    source = (WORKSPACE_ROOT / "execution" / "pages" / "shorts_manager.py").read_text(encoding="utf-8")
+
+    assert "def _render_operator_shortcuts() -> None:" in source
+    assert "_render_operator_shortcuts()\nchannel_readiness_summary = get_channel_readiness_summary" in source
+    assert 'class="shorts-operator-shortcuts"' in source
+    assert 'href="#shorts-add-topic"' in source
+    assert 'href="#shorts-content-list"' in source
+    assert 'href="#shorts-review-queue"' in source
+    assert 'href="#shorts-channel-settings"' in source
+    assert '_section_anchor("shorts-add-topic")' in source
+    assert '_section_anchor("shorts-content-list")' in source
+    assert '_section_anchor("shorts-review-queue")' in source
+    assert '_section_anchor("shorts-channel-settings")' in source
+    assert "flex: 1 1 calc(50% - 0.5rem)" in source
+
+
 def test_workspace_dependencies_include_streamlit_for_shorts_manager_runtime() -> None:
     pyproject = tomllib.loads((WORKSPACE_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     dependencies = pyproject["project"]["dependencies"]
@@ -454,6 +471,30 @@ def test_inject_mobile_touch_target_styles_renders_css(shorts_manager) -> None:
         and "min-width: 44px" in str(payload)
         for payload in markdowns
     )
+
+
+def test_render_operator_shortcuts_emits_internal_anchor_links(shorts_manager) -> None:
+    shorts_manager.st.events.clear()
+
+    shorts_manager._render_operator_shortcuts()
+
+    html = "\n".join(str(payload) for name, payload in shorts_manager.st.events if name == "markdown")
+    assert 'aria-label="Shorts Manager 빠른 이동"' in html
+    assert 'href="#shorts-add-topic"' in html
+    assert 'href="#shorts-content-list"' in html
+    assert 'href="#shorts-review-queue"' in html
+    assert 'href="#shorts-channel-settings"' in html
+    assert "target=" not in html
+
+
+def test_section_anchor_escapes_anchor_ids(shorts_manager) -> None:
+    shorts_manager.st.events.clear()
+
+    shorts_manager._section_anchor('shorts-add-topic" onclick="alert(1)')
+
+    html = "\n".join(str(payload) for name, payload in shorts_manager.st.events if name == "markdown")
+    assert "shorts-add-topic&quot; onclick=&quot;alert(1)" in html
+    assert 'onclick="alert(1)' not in html
 
 
 def test_default_auth_status_and_upload_gate(shorts_manager, monkeypatch: pytest.MonkeyPatch) -> None:

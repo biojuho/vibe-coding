@@ -116,6 +116,42 @@ def _inject_mobile_touch_target_styles() -> None:
     st.markdown(
         """
 <style>
+.shorts-operator-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.shorts-operator-shortcuts a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid rgba(49, 51, 63, 0.18);
+  border-radius: 999px;
+  color: inherit;
+  text-decoration: none;
+  background: rgba(250, 250, 250, 0.72);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.shorts-operator-shortcuts a:focus,
+.shorts-operator-shortcuts a:hover {
+  border-color: rgba(255, 75, 75, 0.58);
+  background: rgba(255, 75, 75, 0.08);
+}
+
+.shorts-section-anchor {
+  display: block;
+  height: 0;
+  position: relative;
+  top: -0.75rem;
+  visibility: hidden;
+}
+
 @media (max-width: 640px) {
   div[role='tablist'] {
     flex-wrap: wrap;
@@ -133,6 +169,10 @@ def _inject_mobile_touch_target_styles() -> None:
     min-width: 44px;
     flex: 0 0 auto;
   }
+
+  .shorts-operator-shortcuts a {
+    flex: 1 1 calc(50% - 0.5rem);
+  }
 }
 </style>
 """,
@@ -141,6 +181,28 @@ def _inject_mobile_touch_target_styles() -> None:
 
 
 _inject_mobile_touch_target_styles()
+
+
+def _section_anchor(anchor: str) -> None:
+    safe_anchor = _html.escape(anchor, quote=True)
+    st.markdown(
+        f'<span id="{safe_anchor}" class="shorts-section-anchor"></span>',
+        unsafe_allow_html=True,
+    )
+
+
+def _render_operator_shortcuts() -> None:
+    st.markdown(
+        """
+<nav class="shorts-operator-shortcuts" aria-label="Shorts Manager 빠른 이동">
+  <a href="#shorts-add-topic">새 콘텐츠</a>
+  <a href="#shorts-content-list">콘텐츠 목록</a>
+  <a href="#shorts-review-queue">검수 큐</a>
+  <a href="#shorts-channel-settings">채널 설정</a>
+</nav>
+""",
+        unsafe_allow_html=True,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -659,6 +721,7 @@ def _render_thumbnail_preview(thumbnail_path: str) -> None:
 st.title("🎬 Shorts Manager")
 st.caption("YouTube Shorts 콘텐츠 자동 생성 및 관리")
 _render_flash()
+_render_operator_shortcuts()
 channel_readiness_summary = get_channel_readiness_summary(channels=CHANNELS)
 generation_run_blockers = _build_generation_run_blockers(channel_readiness_summary)
 _render_channel_readiness(CHANNELS, summary=channel_readiness_summary)
@@ -744,6 +807,7 @@ with triage_col:
 with manifest_col:
     _render_manifest_sync_panel()
 with review_col:
+    _section_anchor("shorts-review-queue")
     _render_manual_review_queue()
 
 left, right = st.columns([1, 3])
@@ -751,6 +815,7 @@ left, right = st.columns([1, 3])
 v2_ok = _V2_DIR.exists()
 
 with left:
+    _section_anchor("shorts-add-topic")
     st.subheader("새 콘텐츠 추가")
     with st.form("add_topic_form", clear_on_submit=True):
         channel_input = st.selectbox("채널", options=CHANNELS)
@@ -767,6 +832,7 @@ with left:
 
     st.divider()
 
+    _section_anchor("shorts-channel-settings")
     st.subheader("채널 설정")
     settings_channel = st.selectbox("설정 채널", options=CHANNELS, key="settings_channel")
     channel_settings = get_channel_settings(settings_channel) or {}
@@ -816,6 +882,7 @@ with left:
         st.error("shorts-maker-v2 디렉토리 없음")
 
 with right:
+    _section_anchor("shorts-content-list")
     st.subheader("콘텐츠 목록")
     all_items = get_all()
     _clear_stale_delete_confirmation({int(item["id"]) for item in all_items})
