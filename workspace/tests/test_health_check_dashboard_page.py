@@ -118,6 +118,44 @@ def test_health_check_dashboard_formats_result_details_as_literal_text(
     assert module._format_result_detail("value `with ticks`") == r"value \`with ticks\`"
 
 
+def test_health_check_dashboard_prioritizes_actionable_results(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module, _fake_streamlit = _import_health_check_dashboard(monkeypatch)
+
+    results = [
+        {"name": "OPENAI_API_KEY", "category": "env", "status": "warn", "detail": "not set"},
+        {"name": "workspace.db", "category": "database", "status": "fail", "detail": "file is not a database"},
+        {"name": "git", "category": "environment", "status": "ok", "detail": ".git"},
+        {"name": "archive.db", "category": "database", "status": "skip", "detail": "not created yet"},
+    ]
+
+    action_items = module._build_action_items(results)
+
+    assert [item["name"] for item in action_items] == ["workspace.db", "OPENAI_API_KEY"]
+    assert module._category_count_text(results) == "즉시 조치 1 · 확인 필요 1 · 정상 1 · 건너뜀 1"
+
+
+def test_health_check_dashboard_suggests_specific_next_actions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module, _fake_streamlit = _import_health_check_dashboard(monkeypatch)
+
+    api_action = module._suggest_next_action(
+        {"name": "OpenAI", "category": "api", "status": "fail", "detail": "401 Unauthorized"}
+    )
+    fs_action = module._suggest_next_action(
+        {"name": "execution/", "category": "filesystem", "status": "fail", "detail": "missing: execution/"}
+    )
+    ok_action = module._suggest_next_action(
+        {"name": "git", "category": "environment", "status": "ok", "detail": ".git"}
+    )
+
+    assert "재발급" in api_action
+    assert "누락 경로" in fs_action
+    assert ok_action == "추가 조치가 필요 없습니다."
+
+
 def test_health_check_dashboard_source_avoids_deprecated_width_api() -> None:
     source = (WORKSPACE_ROOT / "execution" / "pages" / "health_check_dashboard.py").read_text(encoding="utf-8")
 
@@ -125,3 +163,10 @@ def test_health_check_dashboard_source_avoids_deprecated_width_api() -> None:
     assert 'return {"width": "stretch"}' in source
     assert "**_stretch_button_kwargs()" in source
     assert 'detail_text = f" — `{detail}`"' in source
+    assert "min-height: 44px" in source
+    assert 'div[data-testid="stToolbar"] button' in source
+    assert 'div[data-testid="stSelectbox"] div[data-baseweb="select"]' in source
+    assert 'div[data-testid="stSelectbox"] input[role="combobox"]' in source
+    assert "시스템 상태 점검" in source
+    assert "우선 조치" in source
+    assert '.metric("판정"' in source
