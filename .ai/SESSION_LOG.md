@@ -1628,3 +1628,10 @@
 - Refreshed final local audits after T-1556/T-1557 and the follow-up context commit.
 - Verification at local HEAD `f6d54ed9`: `session_orient.py --json` reported a clean worktree, current graph, no open PRs, and `main` ahead of `origin/main` by `779`; `product_readiness_score.py --json` reported score `96`, local blockers `0`, agent tasks `0`, publish blockers `1`, external blockers `1`; release packet was `ready_for_authorization`; selector returned `blocked_publish_only`; launch audit local requirements were complete; completion audit remained `11/15` complete with `4` blocked items.
 - Boundary: no push was performed and T-251 was not retried. No adoptable local candidate remains; remaining work is explicit push/user push for current-head GitHub Actions plus user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E.
+
+## 2026-06-08 - Codex
+
+- Closed a relay-quality follow-up after the previous context commit advanced HEAD and made the top HANDOFF/GOAL/TASKS wording look stale.
+- Updated the current relay wording to avoid treating a fixed commit SHA as the ongoing current head after docs-only commits; future agents should use live `session_orient.py --json` for exact HEAD/ahead count.
+- Verification: live orientation and selector still report clean worktree, no adoptable local candidate, readiness score `96`, publish blocker `1`, external blocker `1`, release packet `ready_for_authorization`, selector `blocked_publish_only`, launch audit local requirements complete, and completion audit `11/15` with `4` blocked items. Code-review graph update was attempted twice with `py -3.13 -m code_review_graph update --repo . --base HEAD~1` but failed with SQLite `database is locked`; launch audit confirms the stale graph range contains no graph-relevant file changes, and `code_review_gate.py --base HEAD~1 --json` passed with `risk_score=0.0`.
+- Boundary: no push was performed and T-251 was not retried. Remaining work is still explicit push/user push for current-head GitHub Actions plus user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E.
