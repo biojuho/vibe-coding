@@ -117,11 +117,70 @@ def test_debug_history_uses_current_plotly_width_api(monkeypatch: pytest.MonkeyP
 
     module._render_plotly_chart("figure")
 
-    assert fake_streamlit.events == [("plotly_chart", "figure", {"width": "stretch"})]
+    assert fake_streamlit.events == [
+        ("plotly_chart", "figure", {"width": "stretch", "config": module.PLOTLY_CHART_CONFIG})
+    ]
+    assert module.PLOTLY_CHART_CONFIG == {
+        "displayModeBar": False,
+        "displaylogo": False,
+        "responsive": True,
+    }
 
 
 def test_debug_history_source_avoids_deprecated_plotly_width_api() -> None:
     source = (WORKSPACE_ROOT / "execution" / "pages" / "debug_history.py").read_text(encoding="utf-8")
 
     assert "use_container_width=True" not in source
-    assert 'st.plotly_chart(fig, width="stretch")' in source
+    assert 'st.plotly_chart(fig, width="stretch", config=PLOTLY_CHART_CONFIG)' in source
+    assert '"displayModeBar": False' in source
+
+
+def test_debug_history_uses_korean_operator_copy(monkeypatch: pytest.MonkeyPatch) -> None:
+    _, fake_streamlit = _import_debug_history(monkeypatch)
+
+    assert ("set_page_config", {"page_title": "디버그 이력 - Joolife", "page_icon": "🔎", "layout": "wide"}, {}) in (
+        fake_streamlit.events
+    )
+    assert ("title", "디버그 이력", {}) in fake_streamlit.events
+    assert ("caption", "반복 오류와 해결 패턴을 확인하고 다음 조치를 정합니다.", {}) in fake_streamlit.events
+
+    metric_labels = [
+        payload["label"]
+        for name, payload, _kwargs in fake_streamlit.events
+        if name == "metric" and isinstance(payload, dict)
+    ]
+    assert metric_labels == ["총 이력", "P0/P1 긴급", "지침 업데이트율", "테스트 추가율", "최다 오류 모듈"]
+
+    select_labels = [
+        payload["label"]
+        for name, payload, _kwargs in fake_streamlit.events
+        if name == "selectbox" and isinstance(payload, dict)
+    ]
+    assert select_labels == ["심각도", "계층"]
+
+    text_inputs = [payload for name, payload, _kwargs in fake_streamlit.events if name == "text_input"]
+    assert text_inputs == ["모듈 검색", "키워드 입력", "오류 메시지 입력"]
+
+
+def test_debug_history_source_rejects_old_english_first_screen_copy() -> None:
+    source = (WORKSPACE_ROOT / "execution" / "pages" / "debug_history.py").read_text(encoding="utf-8")
+
+    assert 'page_title="Debug History - Joolife"' not in source
+    assert 'st.title("🪲 Debug History")' not in source
+    assert "seen {p['times_seen']}x" not in source
+    assert "검색 결과 없음" not in source
+
+
+def test_debug_history_injects_mobile_touch_target_css(monkeypatch: pytest.MonkeyPatch) -> None:
+    module, fake_streamlit = _import_debug_history(monkeypatch)
+
+    css_events = [payload for name, payload, kwargs in fake_streamlit.events if name == "markdown" and kwargs]
+    assert module.MOBILE_TOUCH_TARGET_CSS in css_events
+    assert "@media (max-width: 640px)" in module.MOBILE_TOUCH_TARGET_CSS
+    assert "min-height: 44px !important" in module.MOBILE_TOUCH_TARGET_CSS
+    assert 'div[data-testid="stHeader"] button' in module.MOBILE_TOUCH_TARGET_CSS
+    assert 'div[data-testid="stToolbar"] button' in module.MOBILE_TOUCH_TARGET_CSS
+    assert 'div[data-testid="stHeaderActionElements"] a' in module.MOBILE_TOUCH_TARGET_CSS
+    assert 'div[data-baseweb="select"]' in module.MOBILE_TOUCH_TARGET_CSS
+    assert 'a[href^="#"]' in module.MOBILE_TOUCH_TARGET_CSS
+    assert ".modebar-container" in module.MOBILE_TOUCH_TARGET_CSS
