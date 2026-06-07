@@ -9,8 +9,11 @@
   - `workspace/...` for shared automation and docs
   - `projects/<name>/...` for product repos
   - `infrastructure/...` for services and MCP helpers
+- Project dashboard: `.ai/PROJECTS.md` is the concise project-by-project status, current focus, and output-quality rubric. Update it when a project's state, focus, release boundary, or expected final output changes.
 
 ## Active Projects
+
+> This table is the stable inventory. See `.ai/PROJECTS.md` for current focus, output-quality criteria, and per-project release boundaries.
 
 | Project | Status | Stack | Canonical Path |
 |---|---|---|---|

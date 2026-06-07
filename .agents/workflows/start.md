@@ -11,6 +11,7 @@ description: 세션 시작 — Knowledge Base에서 이전 히스토리 확인 �
 1. 공유 AI 컨텍스트를 이 순서로 확인한다.
    - `.ai/HANDOFF.md`
    - `.ai/TASKS.md`
+   - `.ai/PROJECTS.md`
    - `.ai/CONTEXT.md`
    - `.ai/DECISIONS.md`
    - `.ai/TOOL_MATRIX.md`

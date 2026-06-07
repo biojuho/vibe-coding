@@ -26,13 +26,14 @@ python execution/session_orient.py --json   # 자동화용
 2. **`.ai/` 필독 (이 순서대로)**:
    - `.ai/HANDOFF.md` — 이전 도구의 릴레이 메모 (가장 먼저)
    - `.ai/TASKS.md` — 칸반 보드 (TODO / IN_PROGRESS / DONE)
+   - `.ai/PROJECTS.md` — 프로젝트별 상태, 현재 초점, 출력 품질 기준
    - `.ai/CONTEXT.md` — 구조·스택·컨벤션·지뢰밭
    - `.ai/DECISIONS.md` — 확정된 아키텍처 결정 (임의 변경 금지)
    - `.ai/TOOL_MATRIX.md` — 도구별 역량 매트릭스
 
-3. **체크포인트** — IN_PROGRESS 태스크, 관련 지뢰밭, 로테이션 권장 플래그(`session_orient.py`가 보고)를 확인한 뒤 작업을 시작한다. 세션 종료 시에는 `session-close` 스킬을 쓴다.
+3. **체크포인트** — IN_PROGRESS 태스크, 프로젝트별 현재 초점, 관련 지뢰밭, 로테이션 권장 플래그(`session_orient.py`가 보고)를 확인한 뒤 작업을 시작한다. 세션 종료 시에는 `session-close` 스킬을 쓴다.
 
 ## 주의
 
-- 산문 백틱 참조 파일: `execution/session_orient.py`, `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/DECISIONS.md`, `.ai/TOOL_MATRIX.md`.
+- 산문 백틱 참조 파일: `execution/session_orient.py`, `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/PROJECTS.md`, `.ai/CONTEXT.md`, `.ai/DECISIONS.md`, `.ai/TOOL_MATRIX.md`.
 - 각 섹션은 독립이라 `gh` 미설치·그래프 미빌드 같은 부분 실패는 해당 섹션만 unavailable로 표시된다.

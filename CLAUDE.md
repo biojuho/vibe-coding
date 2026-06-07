@@ -85,9 +85,10 @@
 
 1. `.ai/HANDOFF.md` — 이전 도구가 남긴 릴레이 메모 (**가장 먼저 읽을 것**)
 2. `.ai/TASKS.md` — 칸반 보드 (TODO/IN_PROGRESS/DONE)
-3. `.ai/CONTEXT.md` — 프로젝트 구조, 스택, 컨벤션
-4. `.ai/DECISIONS.md` — 확정된 아키텍처 결정 (**절대 임의 변경 금지**)
-5. `.ai/TOOL_MATRIX.md` — 도구별 역량 매트릭스 (태스크 배분 참고)
+3. `.ai/PROJECTS.md` — 프로젝트별 상태/현재 초점/출력 품질 기준
+4. `.ai/CONTEXT.md` — 프로젝트 구조, 스택, 컨벤션
+5. `.ai/DECISIONS.md` — 확정된 아키텍처 결정 (**절대 임의 변경 금지**)
+6. `.ai/TOOL_MATRIX.md` — 도구별 역량 매트릭스 (태스크 배분 참고)
 
 > SESSION_LOG.md는 필요 시에만 참조. 최근 7일만 유지되며 이전 기록은 `.ai/archive/`에 보존.
 
@@ -96,10 +97,11 @@
 1. `.ai/HANDOFF.md` 갱신 (마지막 세션 테이블 + 다음 할 일 + 주의사항)
 2. `.ai/TASKS.md` 갱신 (완료 → DONE, 신규 발견 → TODO, 담당 도구 지정)
 3. `.ai/SESSION_LOG.md`에 이번 세션 기록 추가 (날짜, 도구명, 작업 요약, 변경 파일)
-4. 진행 상황 변경 시 `.ai/CONTEXT.md` 업데이트
-5. 새 아키텍처 결정 시 `.ai/DECISIONS.md` 기록
-6. AI 반복 실수 발견 시 `.ai/CONTEXT.md`의 "지뢰밭" 섹션에 추가
-7. `git commit -m "[ai-context] 세션 로그 업데이트"`
+4. 프로젝트 상태/초점/출력 기준 변경 시 `.ai/PROJECTS.md` 업데이트
+5. 진행 상황 변경 시 `.ai/CONTEXT.md` 업데이트
+6. 새 아키텍처 결정 시 `.ai/DECISIONS.md` 기록
+7. AI 반복 실수 발견 시 `.ai/CONTEXT.md`의 "지뢰밭" 섹션에 추가
+8. `git commit -m "[ai-context] 세션 로그 업데이트"`
 
 ### SESSION_LOG 로테이션 규칙
 
@@ -127,7 +129,7 @@ Claude Code는 작업 중인 파일의 상위 디렉터리 `CLAUDE.md`를 자동
 
 - 전역 지침: `./CLAUDE.md` (이 파일)
 - 프로젝트 지침: `projects/<name>/CLAUDE.md` (해당 프로젝트 작업 시 자동 로드)
-- 공유 컨텍스트: `.ai/CONTEXT.md`, `.ai/DECISIONS.md`
+- 공유 컨텍스트: `.ai/PROJECTS.md`, `.ai/CONTEXT.md`, `.ai/DECISIONS.md`
 
 ## 컴팩션 보존 규칙 (Compaction Preservation)
 
