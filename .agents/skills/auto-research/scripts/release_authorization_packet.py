@@ -14,6 +14,7 @@ from typing import Any
 
 
 DEFAULT_REQUIRED_WORKFLOWS = ("root-quality-gate", "active-project-matrix")
+DEFAULT_COMMIT_PREVIEW_LIMIT = 25
 
 
 def _run(root: Path, args: list[str], timeout: int) -> dict[str, Any]:
@@ -126,6 +127,24 @@ def _commit_rows(commit_log: str) -> list[dict[str, str]]:
     return rows
 
 
+def _commit_preview(commits: list[Any], limit: int) -> list[Any]:
+    bounded_limit = max(0, limit)
+    return commits[:bounded_limit]
+
+
+def _review_commands(git_info: dict[str, Any]) -> list[str]:
+    upstream = str(git_info.get("upstream") or "").strip()
+    if not upstream:
+        return [
+            "git log --oneline --decorate=no -n 25",
+            "git diff --stat HEAD~25..HEAD",
+        ]
+    return [
+        f"git log --oneline --decorate=no {upstream}..HEAD",
+        f"git diff --stat {upstream}..HEAD",
+    ]
+
+
 def _collect_git_info(root: Path, timeout: int) -> dict[str, Any]:
     status = _run(root, ["git", "status", "--short", "--branch"], timeout)
     branch = _run(root, ["git", "rev-parse", "--abbrev-ref", "HEAD"], timeout)
@@ -174,6 +193,7 @@ def build_packet(
     *,
     readiness: dict[str, Any],
     git_info: dict[str, Any] | None = None,
+    max_commits: int = DEFAULT_COMMIT_PREVIEW_LIMIT,
 ) -> dict[str, Any]:
     git_info = git_info or _collect_git_info(root, timeout=30)
     branch_status = str(git_info.get("branch_status") or "")
@@ -212,10 +232,28 @@ def build_packet(
     if external_task_ids:
         blockers.append("external/user-owned blocker(s): " + ", ".join(external_task_ids))
 
+    commits = _as_list(git_info.get("commits"))
+    commit_count = max(len(commits), ahead_count if ahead_count > 0 else 0)
+    commits_preview = _commit_preview(commits, max_commits)
+    commits_omitted = max(0, commit_count - len(commits_preview))
+
     return {
         "generated_at": datetime.now(UTC).isoformat(),
         "root": str(root.resolve()),
         "status": status,
+        "summary": {
+            "branch": git_info.get("branch"),
+            "head": git_info.get("head_sha"),
+            "head_short": str(git_info.get("head_sha") or "")[:8],
+            "ahead_count": ahead_count,
+            "dirty_count": len(dirty_paths),
+            "unproven_workflow_count": len(unproven),
+            "external_blocker_ids": external_task_ids,
+            "commit_count": commit_count,
+            "commit_preview_count": len(commits_preview),
+            "commit_omitted_count": commits_omitted,
+            "authorization_required": ahead_count > 0 and not dirty_paths,
+        },
         "git": {
             "branch": git_info.get("branch"),
             "upstream": git_info.get("upstream"),
@@ -224,8 +262,12 @@ def build_packet(
             "ahead_count": ahead_count,
             "dirty_count": len(dirty_paths),
             "dirty_paths": dirty_paths,
-            "commits_ahead": _as_list(git_info.get("commits")),
-            "commit_count": len(_as_list(git_info.get("commits"))),
+            "commits_ahead": commits_preview,
+            "commits_ahead_preview": commits_preview,
+            "commits_ahead_limit": max(0, max_commits),
+            "commits_ahead_omitted": commits_omitted,
+            "commit_count": commit_count,
+            "review_commands": _review_commands(git_info),
         },
         "required_workflows": workflows,
         "unproven_workflows": unproven,
@@ -250,12 +292,23 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--readiness", type=Path)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--timeout", type=int, default=120)
+    parser.add_argument(
+        "--max-commits",
+        type=int,
+        default=DEFAULT_COMMIT_PREVIEW_LIMIT,
+        help="Maximum ahead commits to include in the default packet preview.",
+    )
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
 
     root = args.root.resolve()
     readiness = _load_json(args.readiness) if args.readiness else _run_readiness(root, args.timeout)
-    packet = build_packet(root, readiness=readiness, git_info=_collect_git_info(root, args.timeout))
+    packet = build_packet(
+        root,
+        readiness=readiness,
+        git_info=_collect_git_info(root, args.timeout),
+        max_commits=args.max_commits,
+    )
 
     text = json.dumps(packet, ensure_ascii=True, indent=2)
     if args.output:
