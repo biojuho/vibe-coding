@@ -967,12 +967,19 @@ test("schedule calendar navigation exposes Korean labels and touch targets", () 
 test("schedule calendar date cells are semantic buttons", () => {
 	const source = readSource("components/tabs/ScheduleTab.js");
 
+	assert.match(source, /className="mb-2 grid grid-cols-7 gap-1 text-center sm:gap-2"/);
+	assert.match(source, /className="grid grid-cols-7 gap-1 sm:gap-2"/);
+	assert.match(
+		source,
+		/className="clay-inset min-h-\[78px\] min-w-11 rounded-\[16px\]"/,
+	);
 	assert.match(
 		source,
 		/<button\s+type="button"\s+key=\{dateStr\}\s+onClick=\{\(\) => openFormForDate\(dateStr\)\}/,
 	);
 	assert.match(source, /aria-label=\{`\$\{dateStr\} 일정 등록 열기`\}/);
 	assert.match(source, /title=\{`\$\{dateStr\} 일정 등록 열기`\}/);
+	assert.match(source, /className="min-w-11 rounded-\[16px\] border p-2"/);
 	assert.match(source, /textAlign: ["']left["']/);
 	assert.doesNotMatch(
 		source,

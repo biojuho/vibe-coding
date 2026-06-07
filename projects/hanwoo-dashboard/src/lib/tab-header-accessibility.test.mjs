@@ -179,6 +179,10 @@ test("schedule form waits for async saves before re-enabling actions", () => {
 		scheduleSource,
 		/onClick=\{toggleAddForm\}\s+disabled=\{isSaving\}\s+aria-busy=\{isSaving\}\s+aria-label=\{addFormButtonLabel\}\s+title=\{addFormButtonLabel\}/,
 	);
+	assert.match(
+		scheduleSource,
+		/className="clay-pressable inline-flex min-h-11 items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-\[color:var\(--color-text\)\]"/,
+	);
 	assert.match(scheduleSource, /\{addFormButtonText\}/);
 	assert.match(
 		scheduleSource,

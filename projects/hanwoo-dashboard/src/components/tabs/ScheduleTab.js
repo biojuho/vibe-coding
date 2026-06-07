@@ -319,7 +319,7 @@ export default function ScheduleTab(options = {}) {
 					aria-busy={isSaving}
 					aria-label={addFormButtonLabel}
 					title={addFormButtonLabel}
-					className="clay-pressable inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-[color:var(--color-text)]"
+					className="clay-pressable inline-flex min-h-11 items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-[color:var(--color-text)]"
 				>
 					<PlusCircle size={14} aria-hidden="true" />
 					{addFormButtonText}
@@ -499,7 +499,7 @@ export default function ScheduleTab(options = {}) {
 			</div>
 
 			<div className="clay-page-section mb-5 p-3">
-				<div className="mb-2 grid grid-cols-7 gap-2 text-center">
+				<div className="mb-2 grid grid-cols-7 gap-1 text-center sm:gap-2">
 					{["일", "월", "화", "수", "목", "금", "토"].map((label, index) => (
 						<div
 							key={label}
@@ -516,13 +516,13 @@ export default function ScheduleTab(options = {}) {
 					))}
 				</div>
 
-				<div className="grid grid-cols-7 gap-2">
+				<div className="grid grid-cols-7 gap-1 sm:gap-2">
 					{monthDays.map((day, index) => {
 						if (!day) {
 							return (
 								<div
 									key={`empty-${index}`}
-									className="clay-inset min-h-[78px] rounded-[16px]"
+									className="clay-inset min-h-[78px] min-w-11 rounded-[16px]"
 								/>
 							);
 						}
@@ -540,7 +540,7 @@ export default function ScheduleTab(options = {}) {
 								onClick={() => openFormForDate(dateStr)}
 								aria-label={`${dateStr} 일정 등록 열기`}
 								title={`${dateStr} 일정 등록 열기`}
-								className="rounded-[16px] border p-2"
+								className="min-w-11 rounded-[16px] border p-2"
 								style={{
 									minHeight: "78px",
 									background: isToday
