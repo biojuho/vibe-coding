@@ -1525,3 +1525,12 @@
 - Changed `projects/hanwoo-dashboard/src/lib/app-metadata-copy.test.mjs`: locked the new manifest metadata contract.
 - Verification: Hanwoo tests passed (`532 passed`); Hanwoo lint passed; manifest HTTP QA returned 200 JSON with the new fields; Hanwoo project QC passed (`532 passed`, lint/build/smoke passed); `git diff --check` passed with CRLF warnings only; graph current at `f1e37714`; staged/commit code-review gate PASS (`risk_score=0.00`); A/B selected `adopt_candidate` with `score_delta=0.8333333333333334`.
 - Boundary: code commit `f1e37714` is local only. No push was performed. T-251 was not retried. Audit dev server PID 36096 was stopped. Current HEAD advanced past the previous full canonical artifact, so refresh full canonical active-project QC/readiness before release claims.
+
+## 2026-06-07 - Codex
+
+- Closed T-1529 as a current-head full canonical QC/readiness refresh after T-1527/T-1528.
+- Ran `python execution\project_qc_runner.py --json --artifact .tmp\project_qc_runner_latest.json --timeout-seconds 700` at current local HEAD `8870fe71`.
+- Full active-project QC passed: Blind-to-X `1844 passed`, `9 skipped`, lint pass; Shorts Maker V2 `1640 passed`, `12 skipped`, `29 warnings`, lint pass; Hanwoo `533 passed`, lint/build/smoke passed; Knowledge Dashboard `62 passed`, lint/build/smoke passed.
+- `product_readiness_score.py --json` reports score `96`, clean worktree, fresh current-head QC artifacts, local blockers `0`, agent tasks `0`, publish blockers `1`, external blockers `1`.
+- `session_orient.py --json` reports graph current at `8870fe71`, no open PRs, and no stale HANDOFF head claim.
+- Boundary: no push was performed. T-251 was not retried. Remaining blockers are explicit push/current-head GitHub Actions and user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E.
