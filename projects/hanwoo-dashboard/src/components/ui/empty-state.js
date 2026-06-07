@@ -47,7 +47,7 @@ export default function EmptyState(options = {}) {
 					aria-busy={disabled}
 					aria-label={actionLabel}
 					title={actionLabel}
-					className="mt-4 rounded-xl px-4"
+					className="mt-4 min-h-11 rounded-xl px-4"
 				>
 					{actionLabel}
 				</PremiumButton>

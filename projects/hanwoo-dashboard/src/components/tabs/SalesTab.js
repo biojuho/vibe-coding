@@ -327,7 +327,7 @@ export default function SalesTab(options = {}) {
 					aria-busy={isSaving}
 					aria-label={addFormButtonLabel}
 					title={addFormButtonLabel}
-					className="text-[13px] text-green-400 border-green-500/50 hover:bg-green-500/10 px-3 py-1.5 rounded-lg font-bold"
+					className="min-h-11 text-[13px] text-green-400 border-green-500/50 hover:bg-green-500/10 px-4 py-2 rounded-lg font-bold"
 				>
 					{addFormButtonText}
 				</PremiumButton>

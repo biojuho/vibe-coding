@@ -638,6 +638,23 @@ test("home footer links expose explicit navigation labels", () => {
 	);
 });
 
+test("home footer links keep 44px mobile tap targets", () => {
+	const source = readSource("components/DashboardClient.js");
+
+	assert.match(
+		source,
+		/href="\/terms\?returnTo=dashboard"[\s\S]*?className="[^"]*inline-flex min-h-11 items-center justify-center[^"]*"/,
+	);
+	assert.match(
+		source,
+		/href="\/privacy\?returnTo=dashboard"[\s\S]*?className="[^"]*inline-flex min-h-11 items-center justify-center[^"]*"/,
+	);
+	assert.match(
+		source,
+		/href="\/subscription"[\s\S]*?className="[^"]*inline-flex min-h-11 items-center justify-center[^"]*"/,
+	);
+});
+
 test("today focus action buttons expose consolidated task labels", () => {
 	const source = readSource("components/DashboardClient.js");
 
@@ -1771,6 +1788,10 @@ test("sales form waits for async saves before re-enabling actions", () => {
 		source,
 		/onClick=\{toggleAddForm\}\s+disabled=\{isSaving\}\s+aria-busy=\{isSaving\}\s+aria-label=\{addFormButtonLabel\}\s+title=\{addFormButtonLabel\}/,
 	);
+	assert.match(
+		source,
+		/className="min-h-11 text-\[13px\] text-green-400 border-green-500\/50 hover:bg-green-500\/10 px-4 py-2 rounded-lg font-bold"/,
+	);
 	assert.match(source, /\{addFormButtonText\}/);
 	assert.match(
 		source,
@@ -1891,6 +1912,10 @@ test("inventory form waits for async saves before re-enabling actions", () => {
 		/finally \{\s+saveInFlightRef\.current = false;\s+setIsSaving\(false\);/,
 	);
 	assert.match(source, /onClick=\{toggleAddForm\}\s+disabled=\{isSaving\}/);
+	assert.match(
+		source,
+		/className="min-h-11 text-\[13px\] text-green-400 border-green-500\/50 hover:bg-green-500\/10 px-4 py-2 rounded-lg font-bold"/,
+	);
 	assert.match(
 		source,
 		/const submitButtonLabel = isSaving\s*\?\s*["']재고 등록 중["']\s*:\s*["']재고 등록["'];?/,

@@ -2353,7 +2353,7 @@ export default function DashboardClient(options = {}) {
 							href="/terms?returnTo=dashboard"
 							aria-label="Joolife 이용약관 보기"
 							title="Joolife 이용약관 보기"
-							className="no-underline text-muted-foreground hover:text-foreground transition-[color,transform] duration-200 py-1.5 px-1 hover:-translate-y-px"
+							className="inline-flex min-h-11 items-center justify-center rounded-lg no-underline text-muted-foreground hover:text-foreground transition-[color,transform] duration-200 px-2 hover:-translate-y-px"
 						>
 							이용약관
 						</a>
@@ -2362,7 +2362,7 @@ export default function DashboardClient(options = {}) {
 							href="/privacy?returnTo=dashboard"
 							aria-label="Joolife 개인정보처리방침 보기"
 							title="Joolife 개인정보처리방침 보기"
-							className="no-underline text-muted-foreground hover:text-foreground transition-[color,transform] duration-200 py-1.5 px-1 hover:-translate-y-px"
+							className="inline-flex min-h-11 items-center justify-center rounded-lg no-underline text-muted-foreground hover:text-foreground transition-[color,transform] duration-200 px-2 hover:-translate-y-px"
 						>
 							개인정보처리방침
 						</a>
@@ -2371,7 +2371,7 @@ export default function DashboardClient(options = {}) {
 							href="/subscription"
 							aria-label="Joolife 프리미엄 구독 화면 열기"
 							title="Joolife 프리미엄 구독 화면 열기"
-							className="no-underline text-primary font-semibold hover:text-foreground transition-[color,transform] duration-200 py-1.5 px-1 hover:-translate-y-px"
+							className="inline-flex min-h-11 items-center justify-center rounded-lg no-underline text-primary font-semibold hover:text-foreground transition-[color,transform] duration-200 px-2 hover:-translate-y-px"
 						>
 							⭐ 프리미엄
 						</a>

@@ -117,7 +117,7 @@ export default function ExcelExportButton(options = {}) {
 			title={
 				isPreparing ? "개체 엑셀 다운로드 준비 중" : "개체 엑셀 다운로드"
 			}
-			className="gap-1.5 font-bold shadow-md"
+			className="min-h-11 gap-1.5 font-bold shadow-md"
 		>
 			<Download size={14} className="text-[#1D6F42]" aria-hidden="true" />
 			{isPreparing ? "개체 엑셀 다운로드 준비 중..." : "개체 엑셀 다운로드"}

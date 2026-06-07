@@ -30,6 +30,7 @@ test("shared empty state component exposes an action button without custom depen
 	assert.match(source, /onClick=\{handleAction\}/);
 	assert.match(source, /aria-label=\{actionLabel\}/);
 	assert.match(source, /title=\{actionLabel\}/);
+	assert.match(source, /className="mt-4 min-h-11 rounded-xl px-4"/);
 });
 
 test("operational tabs use action-oriented empty states", () => {
@@ -446,6 +447,10 @@ test("feed building filter chips expose selected state and Korean labels", () =>
 	assert.match(source, /title=\{actionLabel\}/);
 	assert.match(
 		source,
+		/className=\{`min-h-11 rounded-full px-4 py-2 font-bold text-\[13px\] whitespace-nowrap shadow-sm/,
+	);
+	assert.match(
+		source,
 		/const chipText = disabled \? "급여 기록 저장 중\.\.\." : children;?/,
 	);
 	assert.match(source, /\{chipText\}/);
@@ -643,6 +648,10 @@ test("inventory create form waits for async saves before re-enabling submit", ()
 	assert.match(
 		source,
 		/onClick=\{toggleAddForm\}\s+disabled=\{isSaving\}\s+aria-busy=\{isSaving\}\s+aria-label=\{addFormButtonLabel\}\s+title=\{addFormButtonLabel\}/,
+	);
+	assert.match(
+		source,
+		/className="min-h-11 text-\[13px\] text-green-400 border-green-500\/50 hover:bg-green-500\/10 px-4 py-2 rounded-lg font-bold"/,
 	);
 	assert.match(source, /\{addFormButtonText\}/);
 	assert.match(
