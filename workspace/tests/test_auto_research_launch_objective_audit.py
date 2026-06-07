@@ -774,6 +774,70 @@ def test_collect_current_inputs_uses_one_snapshot_for_selector(monkeypatch, tmp_
     assert any("github dirty_count=0" in evidence for evidence in selection["selected"]["evidence"])
 
 
+def test_collect_current_inputs_uses_recent_browser_inventory_after_live_timeout(monkeypatch, tmp_path: Path) -> None:
+    (tmp_path / ".tmp").mkdir()
+    browser_artifact = tmp_path / ".tmp" / "browser-qa-inventory.json"
+    browser_artifact.write_text(json.dumps(_browser_inventory()), encoding="utf-8")
+
+    readiness = _clean_readiness(external_blockers=1)
+    assert isinstance(readiness["overall"], dict)
+    readiness["overall"]["workspace_blocker_count"] = 1
+    readiness["overall"]["local_blocker_count"] = 1
+    readiness["overall"]["publish_blocker_count"] = 1
+    assert isinstance(readiness["workspace_gates"], dict)
+    readiness["workspace_gates"]["github_release"] = {
+        "required_workflows": [
+            {"name": "root-quality-gate", "status": "missing", "conclusion": None},
+            {"name": "active-project-matrix", "status": "missing", "conclusion": None},
+        ]
+    }
+    github_inventory = _github_inventory()
+    assert isinstance(github_inventory["git"], dict)
+    github_inventory["git"]["status"] = {"stdout": "## main...origin/main [ahead 9]"}
+
+    def fake_run_json(_root: Path, command: list[str], _timeout: int) -> dict[str, object]:
+        command_text = " ".join(command)
+        if "product_readiness_score.py" in command_text:
+            data = readiness
+        elif "github_project_inventory.py" in command_text:
+            data = github_inventory
+        elif "browser_qa_inventory.py" in command_text:
+            return {
+                "available": False,
+                "returncode": None,
+                "stdout": "",
+                "stderr": "timed out after 120 seconds",
+                "data": {},
+            }
+        elif "dependency_freshness_inventory.py" in command_text:
+            data = _dependency_inventory()
+        else:
+            data = _code_review_gate()
+        return {"available": True, "returncode": 0, "stdout": json.dumps(data), "stderr": "", "data": data}
+
+    monkeypatch.setattr(launch_objective_audit, "_run_json", fake_run_json)
+    monkeypatch.setattr(
+        launch_objective_audit,
+        "_release_authorization_packet_from_inputs",
+        lambda _root, _readiness: {
+            "available": True,
+            "returncode": 0,
+            "stdout": json.dumps(_release_packet()),
+            "stderr": "",
+            "data": _release_packet(),
+        },
+    )
+
+    collected = launch_objective_audit.collect_current_inputs(tmp_path, timeout=1)
+
+    assert collected["browser_inventory"]["available"] is True
+    assert collected["browser_inventory"]["fallback_path"] == ".tmp/browser-qa-inventory.json"
+    assert collected["browser_inventory"]["data"] == _browser_inventory()
+    selection = collected["next_experiment_selection"]["data"]
+    assert selection["status"] == "blocked_publish_only"
+    assert selection["selected"]["kind"] == "current_head_release_checks_unproven"
+
+
 def test_selector_external_only_state_is_evidence_not_duplicate_blocker(tmp_path: Path) -> None:
     _write_required_skill(tmp_path)
     _write_ai_relay(tmp_path)

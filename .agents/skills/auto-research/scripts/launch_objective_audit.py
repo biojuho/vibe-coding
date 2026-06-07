@@ -9,6 +9,7 @@ import json
 import re
 import subprocess
 import sys
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -65,6 +66,10 @@ GRAPH_RELEVANT_SUFFIXES = {
 }
 GRAPH_RELEVANT_FILENAMES = {"Dockerfile", "Makefile", "commit-msg", "pre-commit"}
 GOAL_ACTIVE_STATUSES = {"active", "enabled", "in_progress", "in-progress", "blocked", "waiting"}
+DEFAULT_INVENTORY_CACHE_MAX_AGE_SECONDS = 6 * 60 * 60
+RECENT_INVENTORY_FALLBACKS = {
+    "browser_inventory": ".tmp/browser-qa-inventory.json",
+}
 GOAL_OBJECTIVE_TERMS = (
     "auto-research",
     "product launch",
@@ -99,6 +104,52 @@ def _load_json_object(path: Path) -> dict[str, Any] | None:
     except (FileNotFoundError, OSError, json.JSONDecodeError):
         return None
     return parsed if isinstance(parsed, dict) else None
+
+
+def _recent_json_result(
+    root: Path,
+    *,
+    label: str,
+    rel_path: str,
+    failed_result: dict[str, Any],
+    max_age_seconds: int = DEFAULT_INVENTORY_CACHE_MAX_AGE_SECONDS,
+) -> dict[str, Any] | None:
+    path = root / rel_path
+    try:
+        age_seconds = time.time() - path.stat().st_mtime
+    except (FileNotFoundError, OSError):
+        return None
+    if age_seconds < 0:
+        age_seconds = 0
+    if age_seconds > max_age_seconds:
+        return None
+    data = _load_json_object(path)
+    if data is None:
+        return None
+    stderr = str(failed_result.get("stderr") or "").strip()
+    detail = f"used recent {rel_path} after live {label} helper was unavailable"
+    if stderr:
+        detail = f"{detail}: {stderr}"
+    return {
+        "available": True,
+        "returncode": 0,
+        "stdout": json.dumps(data, ensure_ascii=True),
+        "stderr": detail,
+        "data": data,
+        "fallback_path": rel_path,
+        "fallback_age_seconds": int(age_seconds),
+    }
+
+
+def _with_recent_inventory_fallback(root: Path, label: str, result: dict[str, Any]) -> dict[str, Any]:
+    data = result.get("data") if isinstance(result.get("data"), dict) else {}
+    if result.get("available") is True and data:
+        return result
+    rel_path = RECENT_INVENTORY_FALLBACKS.get(label)
+    if not rel_path:
+        return result
+    fallback = _recent_json_result(root, label=label, rel_path=rel_path, failed_result=result)
+    return fallback or result
 
 
 def _ab_manifest_sort_key(path: Path) -> tuple[int, str] | None:
@@ -1505,7 +1556,10 @@ def collect_current_inputs(root: Path, timeout: int) -> dict[str, dict[str, Any]
             "--json",
         ],
     }
-    collected = {name: _run_json(root, command, timeout) for name, command in commands.items()}
+    collected = {
+        name: _with_recent_inventory_fallback(root, name, _run_json(root, command, timeout))
+        for name, command in commands.items()
+    }
     collected["code_review_gate"] = _code_review_gate_from_inputs(root, timeout)
     readiness_data = collected.get("readiness", {}).get("data")
     collected["release_authorization_packet"] = _release_authorization_packet_from_inputs(
