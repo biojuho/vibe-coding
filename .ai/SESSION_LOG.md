@@ -1464,3 +1464,14 @@
 - `python execution/product_readiness_score.py --json` reports score `96`, state `blocked`, local blockers `0`, agent tasks `0`, publish blockers `1`, external blockers `1`, clean worktree, no open PRs, and fresh current-head QC evidence.
 - `python execution/session_orient.py --json` confirms graph current at `93c8c336`, no open PRs, and `main` ahead of `origin/main` by `638`.
 - Boundary: no push was performed. T-251 was not retried. Remaining blockers are explicit push/current-head GitHub Actions and user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E.
+
+## 2026-06-07 - Codex
+
+- Closed T-1506 as a Hanwoo degraded-state refresh touch-target polish cycle.
+- Browser baseline: authenticated mobile dashboard tab inventory at `390x844` found the repeated degraded-state `새로고침` button on all 8 bottom-tab panels measured `324x36`, below the app's 44px target; other smaller controls remain separate future candidates.
+- Changed `projects/hanwoo-dashboard/src/components/DashboardClient.js`: the `InitialDataStatusBanner` refresh `PremiumButton` now includes `min-h-11`.
+- Changed `projects/hanwoo-dashboard/src/lib/dashboard/initial-data-fallback.test.mjs`: added a source contract for the 44px refresh target.
+- Candidate browser QA passed with 8 refresh buttons, all measured `324x44`, `refreshPass44=8/8`, total small mobile targets reduced from `21` to `7`, horizontal overflow `0`, bad responses `0`, and only expected degraded-state warnings.
+- Evidence: `.tmp/hanwoo-t1505-tab-inventory-mobile.json`, `.tmp/hanwoo-t1505-refresh-target-candidate.json`, `.tmp/ab-manifest-hanwoo-t1505-refresh-target.json`, `output/playwright/hanwoo-t1505-tab-inventory-mobile.png`, and `output/playwright/hanwoo-t1505-refresh-target-candidate.png`.
+- Verification: focused source test passed (`3 passed`); related source tests passed (`59 passed`); Hanwoo project QC passed (`530 passed`, lint/build/smoke passed); `git diff --check` passed; graph refresh is current at `0e70dc70`; code-review gate returned advisory WARN (`risk_score=0.30`) covered by focused/browser/project QC; A/B selected `adopt_candidate` with `score_delta=2.3333333333333335`.
+- Boundary: code commit `0e70dc70` is local only. No push was performed. T-251 was not retried. Current HEAD also includes separate Shorts Manager T-1505 commit `f69349c8`, so refresh full canonical active-project QC/readiness before current-head release claims.
