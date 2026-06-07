@@ -1574,3 +1574,10 @@
 - Changed `workspace/tests/test_shorts_manager.py`: locked the localized shortcut nav label and rejects the old label.
 - Verification: focused Shorts Manager pytest passed (`2 passed`); targeted Ruff check passed; `py_compile` passed; `git diff --check` passed with CRLF warning only; Shorts Maker V2 project QC passed at current HEAD via `.tmp/project_qc_runner_shorts_t1542.json` (`1640 passed`, `12 skipped`, `29 warnings`, lint pass); staged/pre-commit code-review gate returned advisory WARN (`risk_score=0.30`) covered by the direct shortcut regression.
 - Boundary: code commit `58190d19` is local only. No push was performed. T-251 was not retried. Refresh graph/current-head readiness/release-selector evidence before release claims because HEAD advanced again after T-1541.
+
+## 2026-06-07 - Codex
+
+- Closed T-1543 as a no-code full canonical QC/readiness refresh after T-1540/T-1541/T-1542.
+- Refreshed canonical active-project QC at code baseline `a51bfa31` via `.tmp/project_qc_runner_latest.json`.
+- Verification: Blind-to-X passed (`1844 passed`, `9 skipped`, lint pass); Shorts Maker V2 passed (`1640 passed`, `12 skipped`, `29 warnings`, lint pass); Hanwoo passed (`536 passed`, lint/build/smoke pass); Knowledge Dashboard passed (`62 passed`, lint/build/smoke pass). The artifact reports full-workspace coverage and canonical latest written.
+- Boundary: no push was performed and T-251 was not retried. Final readiness/release-selector evidence must be rerun after the follow-up `.ai` documentation commits before any release claim.

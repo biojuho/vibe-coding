@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-06-07 |
 | Tool | Codex |
+| Work | **T-1543 full canonical QC/readiness refresh**. After T-1540 Hanwoo AI widget polish and T-1541/T-1542 Shorts Manager polish, refreshed the canonical full active-project QC artifact at code baseline `a51bfa31`. `.tmp/project_qc_runner_latest.json` passed with full-workspace coverage: Blind-to-X `1844 passed`, `9 skipped`, lint pass; Shorts Maker V2 `1640 passed`, `12 skipped`, `29 warnings`, lint pass; Hanwoo `536 passed`, lint/build/smoke passed; Knowledge Dashboard `62 passed`, lint/build/smoke passed. |
+| Next Priorities | After these `.ai` docs commits, rerun `session_orient.py --json`, `product_readiness_score.py --json`, release authorization packet generation, selector, launch audit, and completion audit. Expected remaining boundaries are explicit push/current-head GitHub Actions plus user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E. Do not push without explicit authorization and do not retry T-251 before credential reset/resync. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-07 |
+| Tool | Codex |
 | Work | **T-1542 Shorts Manager shortcut-nav localization**. Closed a follow-up consistency issue at code commit `58190d19`: `_render_operator_shortcuts()` now exposes the quick-jump navigation as `쇼츠 운영 빠른 이동`, matching the compact Korean visible title introduced in T-1541 instead of leaving `Shorts Manager 빠른 이동` in the accessibility tree. `workspace/tests/test_shorts_manager.py` locks the localized nav label and rejects the old label. Verification passed focused Shorts Manager pytest (`2 passed`), targeted Ruff check, `py_compile`, `git diff --check` with CRLF warning only, advisory staged/pre-commit code-review gate WARN (`risk_score=0.30`) covered by the direct shortcut regression, and current-head Shorts Maker V2 project QC `.tmp/project_qc_runner_shorts_t1542.json` (`1640 passed`, `12 skipped`, `29 warnings`, lint pass). |
 | Next Priorities | Refresh graph/current-head readiness, release packet, selector, launch audit, and completion audit before any release claim. Expected remaining boundaries are explicit push/current-head GitHub Actions plus user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E. Do not push without explicit authorization and do not retry T-251 before credential reset/resync. |
 
