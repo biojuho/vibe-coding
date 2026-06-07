@@ -122,6 +122,45 @@ def test_performance_overview_uses_current_streamlit_width_api(monkeypatch: pyte
     ]
 
 
+def test_performance_overview_uses_korean_operator_copy(monkeypatch: pytest.MonkeyPatch) -> None:
+    _module, fake_streamlit = _import_performance_overview(monkeypatch)
+    rendered_text = "\n".join(str(payload) for _name, payload, _kwargs in fake_streamlit.events)
+
+    required_labels = [
+        "운영 성과",
+        "시스템 상태",
+        "마지막 백업",
+        "KPI 요약",
+        "게시 콘텐츠",
+        "오늘 API 비용",
+        "파이프라인 성공률",
+        "기록 없음",
+        "게시 추이",
+        "API 비용 분석",
+        "플랫폼 성과",
+        "페이지를 열 때마다 데이터가 새로고침됩니다.",
+    ]
+    for label in required_labels:
+        assert label in rendered_text
+
+    legacy_labels = [
+        "Performance Overview",
+        "Cross-project KPI dashboard",
+        "System Health",
+        "Last Backup",
+        "KPI Summary",
+        "Total Content Published",
+        "API Cost Today",
+        "Pipeline Success Rate",
+        "Publishing Trends",
+        "Platform Performance",
+        "N/A",
+        "files",
+    ]
+    for label in legacy_labels:
+        assert label not in rendered_text
+
+
 def test_performance_overview_detects_chartable_row_ranges(monkeypatch: pytest.MonkeyPatch) -> None:
     module, _fake_streamlit = _import_performance_overview(monkeypatch)
 
@@ -163,3 +202,37 @@ def test_performance_overview_source_avoids_deprecated_width_api() -> None:
     assert 'st.dataframe(data, width="stretch", **kwargs)' in source
     assert "if _has_multiple_rows(df_trend):" in source
     assert "if _has_multiple_rows(df_daily):" in source
+
+
+def test_performance_overview_source_locks_mobile_operator_labels() -> None:
+    source = (WORKSPACE_ROOT / "execution" / "pages" / "performance_overview.py").read_text(encoding="utf-8")
+
+    for label in [
+        '"게시 콘텐츠"',
+        '"오늘 API 비용"',
+        '"콘텐츠당 비용(오늘)"',
+        '"감시기 마지막 실행"',
+        '"디버그 DB 항목"',
+        '"기록 없음"',
+        '"모듈 없음"',
+        '"게시 수"',
+        '"비용(USD)"',
+        '"제공자"',
+        '"호출 수"',
+        '"최근 30일 게시 데이터가 아직 없습니다."',
+        '"플랫폼 데이터가 아직 없습니다. 결과 대시보드에 콘텐츠를 등록하세요."',
+    ]:
+        assert label in source
+
+    for legacy_label in [
+        '"Total Content Published"',
+        '"API Cost Today"',
+        '"Cost / Content (today)"',
+        '"Last Watchdog Run"',
+        '"Debug DB Entries"',
+        '"N/A"',
+        '"files"',
+        '"No publishing data found for the last 30 days."',
+        '"No platform data available yet. Register content in the Result Dashboard."',
+    ]:
+        assert legacy_label not in source

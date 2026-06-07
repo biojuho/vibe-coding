@@ -1,5 +1,5 @@
 """
-📈 Performance Overview — Cross-project KPI Dashboard
+📈 운영 성과 대시보드 — 프로젝트 통합 KPI
 
 Aggregates data from multiple sources:
 - result_tracker_db: content publishing metrics
@@ -71,16 +71,18 @@ except ImportError:
 
 # ── Page config ───────────────────────────────────────────────
 st.set_page_config(
-    page_title="Performance Overview - Joolife",
+    page_title="운영 성과 - Joolife",
     page_icon="📈",
     layout="wide",
 )
 
-st.title("📈 Performance Overview")
-st.caption("Cross-project KPI dashboard — content, costs, platform metrics, system health")
+st.title("📈 운영 성과")
+st.caption("콘텐츠 · 비용 · 플랫폼 · 시스템 상태를 한 화면에서 확인합니다.")
 
 PROJECT_ROOT = WORKSPACE_ROOT
 TMP_DIR = PROJECT_ROOT / ".tmp"
+NO_RECORD_LABEL = "기록 없음"
+MODULE_MISSING_LABEL = "모듈 없음"
 
 
 # ── Helper: load JSON safely ─────────────────────────────────
@@ -136,24 +138,24 @@ def _watchdog_stats() -> dict:
 
 
 # ══════════════════════════════════════════════════════════════
-# SIDEBAR: System Health
+# SIDEBAR: 시스템 상태
 # ══════════════════════════════════════════════════════════════
 with st.sidebar:
-    st.header("🩺 System Health")
+    st.header("🩺 시스템 상태")
 
     # Last backup
     backup_data = _load_json(TMP_DIR / "backup_status.json")
     if backup_data:
         last_backup = backup_data.get("last_backup") or backup_data.get("timestamp", "—")
-        st.metric("Last Backup", str(last_backup)[:16])
+        st.metric("마지막 백업", str(last_backup)[:16])
     else:
-        st.metric("Last Backup", "N/A")
+        st.metric("마지막 백업", NO_RECORD_LABEL)
 
     # Last watchdog run
     wd = _watchdog_stats()
-    st.metric("Last Watchdog Run", str(wd["last_run"] or "N/A")[:16])
+    st.metric("감시기 마지막 실행", str(wd["last_run"] or NO_RECORD_LABEL)[:16])
     if wd["success_rate"] is not None:
-        st.metric("Watchdog Success Rate", f"{wd['success_rate']}%")
+        st.metric("감시기 성공률", f"{wd['success_rate']}%")
 
     # LLM cache size
     llm_cache_dir = TMP_DIR / "llm_cache"
@@ -161,24 +163,24 @@ with st.sidebar:
         cache_files = list(llm_cache_dir.glob("*"))
         total_bytes = sum(f.stat().st_size for f in cache_files if f.is_file())
         size_mb = round(total_bytes / (1024 * 1024), 2)
-        st.metric("LLM Cache", f"{len(cache_files)} files ({size_mb} MB)")
+        st.metric("LLM 캐시", f"{len(cache_files)}개 ({size_mb} MB)")
     else:
-        st.metric("LLM Cache", "N/A")
+        st.metric("LLM 캐시", NO_RECORD_LABEL)
 
     # Debug DB entry count
     if _DEBUG_OK:
         debug_init_db()
         dstats = debug_get_stats()
-        st.metric("Debug DB Entries", dstats.get("total_entries", 0))
+        st.metric("디버그 DB 항목", dstats.get("total_entries", 0))
     else:
-        st.metric("Debug DB Entries", "N/A (module missing)")
+        st.metric("디버그 DB 항목", MODULE_MISSING_LABEL)
 
 
 # ══════════════════════════════════════════════════════════════
-# SECTION 1: KPI Cards
+# SECTION 1: KPI 카드
 # ══════════════════════════════════════════════════════════════
 st.divider()
-st.subheader("KPI Summary")
+st.subheader("KPI 요약")
 
 # Gather KPI values
 total_content = 0
@@ -198,24 +200,24 @@ cost_per_content = round(api_cost_today / total_content, 4) if total_content > 0
 pipeline_rate = wd["success_rate"]
 
 k1, k2, k3, k4 = st.columns(4)
-k1.metric("Total Content Published", f"{total_content:,}" if _RT_OK else "N/A")
-k2.metric("API Cost Today", f"${api_cost_today:.4f}" if _API_OK else "N/A")
+k1.metric("게시 콘텐츠", f"{total_content:,}" if _RT_OK else MODULE_MISSING_LABEL)
+k2.metric("오늘 API 비용", f"${api_cost_today:.4f}" if _API_OK else MODULE_MISSING_LABEL)
 k3.metric(
-    "Cost / Content (today)",
-    f"${cost_per_content:.4f}" if (_RT_OK and _API_OK) else "N/A",
+    "콘텐츠당 비용(오늘)",
+    f"${cost_per_content:.4f}" if (_RT_OK and _API_OK) else MODULE_MISSING_LABEL,
 )
 k4.metric(
-    "Pipeline Success Rate",
-    f"{pipeline_rate}%" if pipeline_rate is not None else "N/A",
-    help="From watchdog_history.json",
+    "파이프라인 성공률",
+    f"{pipeline_rate}%" if pipeline_rate is not None else NO_RECORD_LABEL,
+    help="watchdog_history.json 기준",
 )
 
 
 # ══════════════════════════════════════════════════════════════
-# SECTION 2: Publishing Trends (last 30 days)
+# SECTION 2: 게시 추이(최근 30일)
 # ══════════════════════════════════════════════════════════════
 st.divider()
-st.subheader("📊 Publishing Trends (Last 30 Days)")
+st.subheader("📊 게시 추이(최근 30일)")
 
 if _RT_OK:
     trend = rt_daily_trend(days=30)
@@ -223,60 +225,70 @@ if _RT_OK:
         df_trend = pd.DataFrame(trend)
         df_trend["day"] = pd.to_datetime(df_trend["day"])
         df_trend = df_trend.set_index("day")
+        df_trend = df_trend.rename(columns={"count": "게시 수"})
         if _has_multiple_rows(df_trend):
-            _render_line_chart(df_trend[["count"]])
+            _render_line_chart(df_trend[["게시 수"]])
         else:
-            st.info("Only one publishing data point is available for the last 30 days.")
+            st.info("최근 30일 게시 데이터가 1건뿐입니다.")
             _render_dataframe(df_trend.reset_index(), hide_index=True)
     else:
-        st.info("No publishing data found for the last 30 days.")
+        st.info("최근 30일 게시 데이터가 아직 없습니다.")
 else:
-    st.warning("result_tracker_db module not available — cannot show publishing trends.")
+    st.warning("게시 추이를 표시하려면 result_tracker_db 모듈이 필요합니다.")
 
 
 # ══════════════════════════════════════════════════════════════
-# SECTION 3: API Cost Breakdown (last 30 days)
+# SECTION 3: API 비용 분석(최근 30일)
 # ══════════════════════════════════════════════════════════════
 st.divider()
-st.subheader("💰 API Cost Breakdown (Last 30 Days)")
+st.subheader("💰 API 비용 분석(최근 30일)")
 
 if _API_OK:
     col_daily, col_provider = st.columns(2)
 
     with col_daily:
-        st.caption("Daily Cost Trend")
+        st.caption("일별 비용 추이")
         daily = get_daily_breakdown(days=30)
         if daily:
             df_daily = pd.DataFrame(daily)
             df_daily["day"] = pd.to_datetime(df_daily["day"])
             df_daily = df_daily.set_index("day")
+            df_daily = df_daily.rename(columns={"cost": "비용(USD)"})
             if _has_multiple_rows(df_daily):
-                _render_bar_chart(df_daily[["cost"]])
+                _render_bar_chart(df_daily[["비용(USD)"]])
             else:
-                st.info("Only one API cost data point is available for the last 30 days.")
+                st.info("최근 30일 API 비용 데이터가 1건뿐입니다.")
                 _render_dataframe(df_daily.reset_index(), hide_index=True)
         else:
-            st.info("No API cost data for the last 30 days.")
+            st.info("최근 30일 API 비용 데이터가 없습니다.")
 
     with col_provider:
-        st.caption("Cost by Provider")
+        st.caption("제공자별 비용")
         providers = get_provider_breakdown(days=30)
         if providers:
             df_prov = pd.DataFrame(providers)
             df_prov = df_prov[["provider", "calls", "tokens", "cost"]]
             df_prov["cost"] = df_prov["cost"].apply(lambda x: round(x, 4))
+            df_prov = df_prov.rename(
+                columns={
+                    "provider": "제공자",
+                    "calls": "호출 수",
+                    "tokens": "토큰",
+                    "cost": "비용(USD)",
+                }
+            )
             _render_dataframe(df_prov, hide_index=True)
         else:
-            st.info("No provider data available.")
+            st.info("제공자 데이터가 없습니다.")
 else:
-    st.warning("api_usage_tracker module not available — cannot show API cost breakdown.")
+    st.warning("API 비용 분석에는 api_usage_tracker 모듈이 필요합니다.")
 
 
 # ══════════════════════════════════════════════════════════════
-# SECTION 4: Platform Performance
+# SECTION 4: 플랫폼 성과
 # ══════════════════════════════════════════════════════════════
 st.divider()
-st.subheader("📱 Platform Performance")
+st.subheader("📱 플랫폼 성과")
 
 if _RT_OK:
     platform_data = rt_platform_summary()
@@ -289,23 +301,23 @@ if _RT_OK:
             engagement = round(total_l / total_v * 100, 2) if total_v > 0 else 0.0
             rows.append(
                 {
-                    "Platform": p.get("platform", "").upper(),
-                    "Content Count": count,
-                    "Total Views": f"{total_v:,}",
-                    "Total Likes": f"{total_l:,}",
-                    "Total Comments": f"{p.get('total_comments', 0):,}",
-                    "Avg Views": f"{p.get('avg_views', 0):,.0f}",
-                    "Engagement Rate": f"{engagement}%",
+                    "플랫폼": p.get("platform", "").upper(),
+                    "콘텐츠 수": count,
+                    "총 조회수": f"{total_v:,}",
+                    "총 좋아요": f"{total_l:,}",
+                    "총 댓글": f"{p.get('total_comments', 0):,}",
+                    "평균 조회수": f"{p.get('avg_views', 0):,.0f}",
+                    "참여율": f"{engagement}%",
                 }
             )
         df_platform = pd.DataFrame(rows)
         _render_dataframe(df_platform, hide_index=True)
     else:
-        st.info("No platform data available yet. Register content in the Result Dashboard.")
+        st.info("플랫폼 데이터가 아직 없습니다. 결과 대시보드에 콘텐츠를 등록하세요.")
 else:
-    st.warning("result_tracker_db module not available — cannot show platform performance.")
+    st.warning("플랫폼 성과에는 result_tracker_db 모듈이 필요합니다.")
 
 
 # ── Footer ────────────────────────────────────────────────────
 st.divider()
-st.caption("Data refreshes on each page load. Use sidebar for system health status.")
+st.caption("페이지를 열 때마다 데이터가 새로고침됩니다. 시스템 상태는 사이드바에서 확인하세요.")
