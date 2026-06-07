@@ -1276,3 +1276,12 @@
 - Graph/orientation: `py -3.13 -m code_review_graph update --repo . --skip-flows` refreshed the graph; `python execution/session_orient.py --json` confirmed graph current at `98a562ac`, clean worktree, and `main` ahead of `origin/main` by `508`.
 - Release/audit: release packet is `ready_for_authorization` with suggested `git push origin main`, but explicit authorization is required and current-head Actions are unavailable until push/user push. Launch objective audit local coverage is complete; completion audit remains `incomplete` with `9/14` complete and `5` blocked.
 - Boundary: no push was performed. T-251 was not retried. Remaining blockers are explicit push/current-head GitHub Actions (`root-quality-gate`, `active-project-matrix`) plus external/user-owned Hanwoo T-251 Supabase credential reset and live Prisma CRUD E2E.
+
+## 2026-06-07 - Codex
+
+- Closed T-1472 as a current-head full launch-gate refresh after T-1470/T-1471 and follow-up context/docs commits.
+- Full canonical active-project QC: `python execution/project_qc_runner.py --json --artifact .tmp/project_qc_runner_latest.json` passed at checked local HEAD `46eb2d4c`.
+- QC totals by project: Blind-to-X `1838 passed`, `9 skipped`, lint pass; Shorts Maker V2 `1640 passed`, `12 skipped`, `29 warnings`, lint pass; Hanwoo `527 passed`, lint/build/smoke pass; Knowledge `62 passed`, lint/build/smoke pass.
+- Readiness: `python execution/product_readiness_score.py --json` reported score `96`, state `blocked`, local blockers `0`, clean worktree, no open PRs, publish blockers `1`, and external blockers `1`.
+- Graph/orientation: `python execution/session_orient.py --json` confirmed graph current at `46eb2d4c`, clean worktree, no open PRs, and `main` ahead of `origin/main` by `519`.
+- Boundary: no push was performed. T-251 was not retried. Remaining blockers are explicit push/current-head GitHub Actions (`root-quality-gate`, `active-project-matrix`) plus external/user-owned Hanwoo T-251 Supabase credential reset and live Prisma CRUD E2E.
