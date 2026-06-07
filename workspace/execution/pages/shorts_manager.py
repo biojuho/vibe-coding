@@ -89,6 +89,15 @@ STYLE_OPTIONS = ["default", "bold", "neon", "subtitle", "cta"]
 _FLASH_KEY = "shorts_manager_flash"
 _DELETE_CONFIRM_KEY = "shorts_manager_pending_delete_id"
 _RUN_BLOCKING_OPS_STATUSES = {"setup_required", "critical"}
+_ISSUE_LABELS = {
+    "channel_settings_missing": "채널 설정 없음",
+    "missing_brand_assets": "브랜드 에셋 누락",
+    "brand_asset_missing": "브랜드 에셋 누락",
+    "missing_bgm": "BGM 누락",
+    "bgm_missing": "BGM 누락",
+    "failed_jobs_present": "실패 작업 있음",
+    "low_disk_space": "디스크 공간 부족",
+}
 
 # ---------------------------------------------------------------------------
 # 페이지 설정
@@ -219,7 +228,7 @@ def _format_issue_labels(issues: list[str]) -> list[str]:
     labels = []
     for issue in issues:
         label = issue.split(":", 1)[1] if ":" in issue else issue
-        labels.append(label.replace("_", " "))
+        labels.append(_ISSUE_LABELS.get(label, label.replace("_", " ")))
     return labels
 
 

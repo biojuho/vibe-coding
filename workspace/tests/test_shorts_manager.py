@@ -293,8 +293,8 @@ def test_youtube_badge_escapes_user_supplied_url(shorts_manager) -> None:
 
 def test_format_issue_labels_and_settings_indexes(shorts_manager) -> None:
     assert shorts_manager._format_issue_labels(["preflight:missing_brand_assets", "low_disk_space"]) == [
-        "missing brand assets",
-        "low disk space",
+        "브랜드 에셋 누락",
+        "디스크 공간 부족",
     ]
     assert shorts_manager._voice_index({"voice": "nova"}) == shorts_manager.VOICE_OPTIONS.index("nova")
     assert shorts_manager._voice_index({"voice": "unknown"}) == 0
@@ -320,14 +320,14 @@ def test_generation_run_blockers_prevent_unconfigured_channel_execution(shorts_m
         ]
     )
 
-    assert blockers == {"심리학": "채널 설정 저장 후 실행 가능: channel settings missing"}
+    assert blockers == {"심리학": "채널 설정 저장 후 실행 가능: 채널 설정 없음"}
     assert (
         shorts_manager._generation_run_block_reason(
             {"status": "pending", "channel": "심리학"},
             blockers,
             v2_available=True,
         )
-        == "채널 설정 저장 후 실행 가능: channel settings missing"
+        == "채널 설정 저장 후 실행 가능: 채널 설정 없음"
     )
     assert (
         shorts_manager._generation_run_block_reason(
@@ -644,7 +644,7 @@ def test_render_channel_readiness_sorts_and_formats_issues(shorts_manager, monke
     captions = [payload for name, payload in shorts_manager.st.events if name == "caption"]
     assert markdowns
     assert "AI/기술" in markdowns[0]
-    assert any("missing brand assets, missing bgm" in str(payload) for payload in captions)
+    assert any("브랜드 에셋 누락, BGM 누락" in str(payload) for payload in captions)
 
 
 def test_render_failure_triage_and_review_queue(shorts_manager, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -685,7 +685,7 @@ def test_render_failure_triage_and_review_queue(shorts_manager, monkeypatch: pyt
     shorts_manager._render_manual_review_queue()
 
     captions = [str(payload) for name, payload in shorts_manager.st.events if name == "caption"]
-    assert any("사전 점검: missing brand assets" in payload for payload in captions)
+    assert any("사전 점검: 브랜드 에셋 누락" in payload for payload in captions)
     assert any("메모: thumbnail missing" in payload for payload in captions)
 
 
