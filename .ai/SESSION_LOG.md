@@ -1662,7 +1662,7 @@
 
 ## 2026-06-08 - Codex
 
-- Refreshed current-head launch evidence after T-1565 context commits at local HEAD `2528388c`.
+- Refreshed launch evidence after T-1565 context commits at pre-context audit baseline `2528388c`; later relay/goal commits are documentation-only, so live `session_orient.py --json` remains the source for exact current HEAD/ahead count.
 - Corrected the active relay surface with final Hub evidence: focused Hub pytest `57 passed`; code-review gate PASS (`risk_score=0.00`); Playwright mobile QA at `390x844` with total targets `48`, app targets `44`, small targets `[]`, minimum app target `44x44`, body overflow `false`, and console/page/network failures empty.
 - Verification: `session_orient.py --json` reported a clean worktree, no open PRs, graph current at `2528388c`, and `main` ahead of `origin/main` by `805`; `product_readiness_score.py --json` reported score `96`, local blockers `0`, agent tasks `0`, publish blockers `1`, external blockers `1`; release packet was `ready_for_authorization`; selector returned `blocked_publish_only`; launch audit coverage was complete; completion audit remained `11/15` complete with `4` blocked items.
 - Boundary: no push was performed and T-251 was not retried. No adoptable local candidate remains; remaining work is explicit push/user push for current-head `root-quality-gate` and `active-project-matrix`, plus user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E.
