@@ -1841,6 +1841,11 @@ export default function DashboardClient(options = {}) {
 					cattle={cattleList}
 					buildings={safeBuildings}
 					onRecordCalving={handleRecordCalving}
+					onOpenCattleRegistration={() =>
+						handleQuickAction({
+							id: "add-cattle",
+						})
+					}
 				/>
 			);
 		if (activeTab === "sales") {

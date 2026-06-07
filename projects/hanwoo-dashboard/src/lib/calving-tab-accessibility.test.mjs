@@ -11,6 +11,28 @@ function readSource(relativePath) {
 	return readFileSync(path.join(SRC_ROOT, relativePath), "utf8");
 }
 
+test("calving empty state opens the cattle registration path", () => {
+	const source = readSource("components/tabs/CalvingTab.js");
+	const dashboardSource = readSource("components/DashboardClient.js");
+
+	assert.match(source, /import EmptyState from ["']@\/components\/ui\/empty-state["'];/);
+	assert.match(source, /import \{ ClipboardPlus \} from ["']lucide-react["'];/);
+	assert.match(source, /onOpenCattleRegistration/);
+	assert.match(
+		source,
+		/const handleOpenCattleRegistration =\s+typeof onOpenCattleRegistration === ["']function["']\s+\?\s+onOpenCattleRegistration\s+:\s+null;/,
+	);
+	assert.match(source, /<EmptyState[\s\S]*?icon=\{ClipboardPlus\}/);
+	assert.match(source, /title="현재 임신우가 없습니다"/);
+	assert.match(source, /actionLabel="임신우 등록하기"/);
+	assert.match(source, /onAction=\{handleOpenCattleRegistration\}/);
+	assert.doesNotMatch(source, /현재 임신우가 없습니다\.[\s\S]*?<\/div>/);
+	assert.match(
+		dashboardSource,
+		/<CalvingTab[\s\S]*?onOpenCattleRegistration=\{\(\) =>[\s\S]*?handleQuickAction\(\{[\s\S]*?id: ["']add-cattle["'][\s\S]*?\}\)[\s\S]*?\}/,
+	);
+});
+
 test("calving tab form fields expose explicit labels and invalid states", () => {
 	const source = readSource("components/tabs/CalvingTab.js");
 

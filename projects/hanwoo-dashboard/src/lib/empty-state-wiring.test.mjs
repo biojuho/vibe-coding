@@ -57,6 +57,13 @@ test("operational tabs use action-oriented empty states", () => {
 			handler: "setIsAdding(true)",
 		},
 		{
+			file: "components/tabs/CalvingTab.js",
+			icon: "ClipboardPlus",
+			title: "현재 임신우가 없습니다",
+			action: "임신우 등록하기",
+			handler: "handleOpenCattleRegistration",
+		},
+		{
 			file: "components/tabs/ScheduleTab.js",
 			icon: "CalendarPlus",
 			title: "예정된 일정이 없습니다",

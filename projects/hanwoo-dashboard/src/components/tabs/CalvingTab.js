@@ -1,11 +1,13 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { ClipboardPlus } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { useAppFeedback } from "@/components/feedback/FeedbackProvider";
 import { btnPrimary, inputStyle } from "@/components/ui/common";
+import EmptyState from "@/components/ui/empty-state";
 import {
 	calvingRecordSchema,
 	createCalvingFormValues,
@@ -57,10 +59,14 @@ function normalizeCalvingTabOptions(options) {
 }
 
 export default function CalvingTab(options = {}) {
-	const { cattle, buildings = [], onRecordCalving } =
+	const { cattle, buildings = [], onRecordCalving, onOpenCattleRegistration } =
 		normalizeCalvingTabOptions(options);
 	const handleRecordCalving =
 		typeof onRecordCalving === "function" ? onRecordCalving : async () => false;
+	const handleOpenCattleRegistration =
+		typeof onOpenCattleRegistration === "function"
+			? onOpenCattleRegistration
+			: null;
 	const safeCattle = useMemo(() => normalizeCalvingCattle(cattle), [cattle]);
 	const safeBuildings = useMemo(
 		() => normalizeCalvingBuildings(buildings),
@@ -182,9 +188,13 @@ export default function CalvingTab(options = {}) {
 
 			<div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
 				{pregnantCows.length === 0 ? (
-					<div className="clay-inset rounded-[24px] px-6 py-10 text-center text-sm text-[color:var(--color-text-muted)]">
-						현재 임신우가 없습니다.
-					</div>
+					<EmptyState
+						icon={ClipboardPlus}
+						title="현재 임신우가 없습니다"
+						description="임신 상태의 개체를 먼저 등록하면 예정일, 분만 처리, 송아지 등록 흐름을 이어갈 수 있습니다."
+						actionLabel="임신우 등록하기"
+						onAction={handleOpenCattleRegistration}
+					/>
 				) : (
 					pregnantCows.map((cow) => {
 						const daysLeft = getDaysUntilCalving(cow.pregnancyDate);
