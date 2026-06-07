@@ -291,12 +291,12 @@ def test_global_delete_confirmation_renders_top_level_actions(shorts_manager) ->
     assert buttons[0]["kwargs"]["type"] == "primary"
 
 
-def test_global_delete_confirmation_source_is_sticky_near_top() -> None:
+def test_global_delete_confirmation_source_is_fixed_near_top() -> None:
     source = (WORKSPACE_ROOT / "execution" / "pages" / "shorts_manager.py").read_text(encoding="utf-8")
 
     assert 'key="shorts_delete_confirmation"' in source
     assert ".st-key-shorts_delete_confirmation" in source
-    assert "position: sticky" in source
+    assert "position: fixed" in source
     assert "z-index: 1000" in source
 
 

@@ -170,10 +170,19 @@ def _inject_mobile_touch_target_styles() -> None:
 }
 
 .st-key-shorts_delete_confirmation {
-  position: sticky;
-  top: 0.5rem;
+  position: fixed;
+  top: 4rem;
+  left: 50%;
+  right: auto;
+  width: min(760px, calc(100vw - 2rem));
+  transform: translateX(-50%);
   z-index: 1000;
   background: rgb(255, 255, 255);
+  border-radius: 8px;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.18);
+  box-sizing: border-box;
+  max-height: min(52vh, 24rem);
+  overflow-y: auto;
 }
 
 @media (max-width: 640px) {
@@ -198,7 +207,9 @@ def _inject_mobile_touch_target_styles() -> None:
   }
 
   .st-key-shorts_delete_confirmation {
-    top: 0.25rem;
+    top: 3.5rem;
+    width: calc(100vw - 1.5rem);
+    max-height: 48vh;
   }
 
   .shorts-operator-shortcuts a {
