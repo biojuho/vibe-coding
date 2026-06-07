@@ -280,14 +280,45 @@ def test_render_plotly_chart_uses_current_stretch_width_api(shorts_analytics) ->
 
     shorts_analytics._render_plotly_chart("figure")
 
-    assert fake_streamlit.events == [("plotly_chart", "figure", {"width": "stretch"})]
+    assert fake_streamlit.events == [
+        (
+            "plotly_chart",
+            "figure",
+            {
+                "width": "stretch",
+                "config": {
+                    "displayModeBar": False,
+                    "displaylogo": False,
+                    "responsive": True,
+                },
+            },
+        )
+    ]
+
+
+def test_shorts_analytics_page_config_uses_korean_operator_title(shorts_analytics) -> None:
+    fake_streamlit = shorts_analytics.st
+
+    assert (
+        "set_page_config",
+        {"page_title": "쇼츠 성과 분석 - Joolife", "page_icon": "📊", "layout": "wide"},
+        {},
+    ) in fake_streamlit.events
 
 
 def test_shorts_analytics_source_avoids_deprecated_plotly_width_api() -> None:
     source = (WORKSPACE_ROOT / "execution" / "pages" / "shorts_analytics.py").read_text(encoding="utf-8")
 
     assert "use_container_width=True" not in source
-    assert 'st.plotly_chart(fig, width="stretch")' in source
+    assert 'st.plotly_chart(fig, width="stretch", config=PLOTLY_CHART_CONFIG)' in source
+
+
+def test_shorts_analytics_hides_plotly_modebar_and_keeps_charts_responsive() -> None:
+    source = (WORKSPACE_ROOT / "execution" / "pages" / "shorts_analytics.py").read_text(encoding="utf-8")
+
+    assert '"displayModeBar": False' in source
+    assert '"displaylogo": False' in source
+    assert '"responsive": True' in source
 
 
 def test_shorts_analytics_source_labels_shorts_revenue_as_rpm() -> None:
@@ -298,7 +329,7 @@ def test_shorts_analytics_source_labels_shorts_revenue_as_rpm() -> None:
     assert "Shorts CPM" not in source
 
 
-def test_shorts_analytics_injects_mobile_tab_touch_targets(shorts_analytics) -> None:
+def test_shorts_analytics_injects_mobile_touch_targets(shorts_analytics) -> None:
     fake_streamlit = shorts_analytics.st
     fake_streamlit.events.clear()
 
@@ -308,10 +339,13 @@ def test_shorts_analytics_injects_mobile_tab_touch_targets(shorts_analytics) -> 
     name, css, kwargs = fake_streamlit.events[0]
     assert name == "markdown"
     assert kwargs == {"unsafe_allow_html": True}
+    assert 'button[data-testid="stBaseButton-header"]' in css
+    assert 'button[data-testid="stMainMenuButton"]' in css
+    assert 'a[href^="#"]' in css
     assert "div[role='tablist']" in css
     assert "button[role='tab']" in css
-    assert "min-height: 44px" in css
-    assert "min-width: 44px" in css
+    assert "min-height: 44px !important" in css
+    assert "min-width: 44px !important" in css
 
 
 def test_workspace_dependencies_include_plotly_for_shorts_analytics_runtime() -> None:

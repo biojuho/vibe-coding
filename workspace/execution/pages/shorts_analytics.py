@@ -32,7 +32,7 @@ try:
 except ImportError as e:
     _MODULE_ERR = str(e)
 
-st.set_page_config(page_title="Shorts Analytics", page_icon="📊", layout="wide")
+st.set_page_config(page_title="쇼츠 성과 분석 - Joolife", page_icon="📊", layout="wide")
 
 if not _MODULE_OK:
     st.error(f"모듈 로드 실패: {_MODULE_ERR}")
@@ -59,6 +59,8 @@ COLORS = {
     "gradient": ["#7c3aed", "#a78bfa", "#c4b5fd", "#ddd6fe"],
     "channels": ["#f472b6", "#38bdf8", "#facc15", "#4ade80", "#fb923c"],
 }
+
+PLOTLY_CHART_CONFIG = {"displayModeBar": False, "displaylogo": False, "responsive": True}
 
 
 _CHANNEL_LABEL_ALIASES = {
@@ -171,6 +173,20 @@ def _inject_mobile_touch_target_styles() -> None:
         """
 <style>
 @media (max-width: 640px) {
+  div[data-testid="stToolbar"] button,
+  div[data-testid="stToolbar"] a,
+  div[data-testid="stToolbar"] [role="button"],
+  button[data-testid="stBaseButton-header"],
+  button[data-testid="stMainMenuButton"],
+  button[data-testid="stBaseButton-headerNoPadding"],
+  div[data-testid="stHeaderActionElements"] a,
+  a[href^="#"] {
+    min-height: 44px !important;
+    min-width: 44px !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
   div[role='tablist'] {
     flex-wrap: wrap;
     gap: 0.25rem;
@@ -278,7 +294,7 @@ def _render_dataframe(data: list[dict]) -> None:
 
 
 def _render_plotly_chart(fig: object) -> None:
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, width="stretch", config=PLOTLY_CHART_CONFIG)
 
 
 # ===========================================================================
