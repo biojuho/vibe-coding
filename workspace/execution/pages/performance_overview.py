@@ -206,11 +206,9 @@ k3.metric(
     "콘텐츠당 비용(오늘)",
     f"${cost_per_content:.4f}" if (_RT_OK and _API_OK) else MODULE_MISSING_LABEL,
 )
-k4.metric(
-    "파이프라인 성공률",
-    f"{pipeline_rate}%" if pipeline_rate is not None else NO_RECORD_LABEL,
-    help="watchdog_history.json 기준",
-)
+with k4:
+    st.metric("파이프라인 성공률", f"{pipeline_rate}%" if pipeline_rate is not None else NO_RECORD_LABEL)
+    st.caption("자동 점검 이력 기준")
 
 
 # ══════════════════════════════════════════════════════════════
