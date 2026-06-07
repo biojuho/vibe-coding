@@ -498,90 +498,92 @@ export default function ScheduleTab(options = {}) {
 				</button>
 			</div>
 
-			<div className="clay-page-section mb-5 p-3">
-				<div className="mb-2 grid grid-cols-7 gap-1 text-center sm:gap-2">
-					{["일", "월", "화", "수", "목", "금", "토"].map((label, index) => (
-						<div
-							key={label}
-							className="text-[11px] font-semibold"
-							style={{
-								color:
-									index === 0
-										? "var(--color-danger)"
-										: "var(--color-text-secondary)",
-							}}
-						>
-							{label}
-						</div>
-					))}
-				</div>
-
-				<div className="grid grid-cols-7 gap-1 sm:gap-2">
-					{monthDays.map((day, index) => {
-						if (!day) {
-							return (
-								<div
-									key={`empty-${index}`}
-									className="clay-inset min-h-[78px] min-w-11 rounded-[16px]"
-								/>
-							);
-						}
-
-						const dateStr = day.toISOString().split("T")[0];
-						const dayEvents = currentMonthEvents.filter(
-							(event) => toDateKey(event.date) === dateStr,
-						);
-						const isToday = dateStr === new Date().toISOString().split("T")[0];
-
-						return (
-							<button
-								type="button"
-								key={dateStr}
-								onClick={() => openFormForDate(dateStr)}
-								aria-label={`${dateStr} 일정 등록 열기`}
-								title={`${dateStr} 일정 등록 열기`}
-								className="min-w-11 rounded-[16px] border p-2"
+			<div className="clay-page-section mb-5 px-1 py-3 sm:p-3">
+				<div className="-mx-1 overflow-x-auto px-1 pb-1">
+					<div className="mb-2 grid min-w-[314px] grid-cols-7 gap-px text-center sm:gap-2">
+						{["일", "월", "화", "수", "목", "금", "토"].map((label, index) => (
+							<div
+								key={label}
+								className="text-[11px] font-semibold"
 								style={{
-									minHeight: "78px",
-									background: isToday
-										? "color-mix(in srgb, var(--chart-clay-1) 14%, var(--color-surface-elevated))"
-										: "var(--surface-gradient)",
-									borderColor: isToday
-										? "color-mix(in srgb, var(--chart-clay-1) 38%, transparent)"
-										: "var(--color-surface-stroke)",
-									textAlign: "left",
-									font: "inherit",
-									cursor: "pointer",
-									boxShadow: "var(--shadow-sm)",
+									color:
+										index === 0
+											? "var(--color-danger)"
+											: "var(--color-text-secondary)",
 								}}
 							>
-								<div className="mb-1 text-[11px] font-semibold text-[color:var(--color-text)]">
-									{day.getDate()}
-								</div>
-								<div className="grid gap-1">
-									{dayEvents.slice(0, 3).map((event) => {
-										const typeStyle =
-											TYPE_STYLES[event.type] || TYPE_STYLES.General;
+								{label}
+							</div>
+						))}
+					</div>
 
-										return (
-											<div
-												key={event.id}
-												className="truncate rounded-full px-2 py-0.5 text-[9px] font-bold text-white"
-												style={{ background: typeStyle.color }}
-											>
-												{event.title}
+					<div className="grid min-w-[314px] grid-cols-7 gap-px sm:gap-2">
+						{monthDays.map((day, index) => {
+							if (!day) {
+								return (
+									<div
+										key={`empty-${index}`}
+										className="clay-inset min-h-[78px] min-w-11 rounded-[16px]"
+									/>
+								);
+							}
+
+							const dateStr = day.toISOString().split("T")[0];
+							const dayEvents = currentMonthEvents.filter(
+								(event) => toDateKey(event.date) === dateStr,
+							);
+							const isToday = dateStr === new Date().toISOString().split("T")[0];
+
+							return (
+								<button
+									type="button"
+									key={dateStr}
+									onClick={() => openFormForDate(dateStr)}
+									aria-label={`${dateStr} 일정 등록 열기`}
+									title={`${dateStr} 일정 등록 열기`}
+									className="min-w-11 rounded-[16px] border p-2"
+									style={{
+										minHeight: "78px",
+										background: isToday
+											? "color-mix(in srgb, var(--chart-clay-1) 14%, var(--color-surface-elevated))"
+											: "var(--surface-gradient)",
+										borderColor: isToday
+											? "color-mix(in srgb, var(--chart-clay-1) 38%, transparent)"
+											: "var(--color-surface-stroke)",
+										textAlign: "left",
+										font: "inherit",
+										cursor: "pointer",
+										boxShadow: "var(--shadow-sm)",
+									}}
+								>
+									<div className="mb-1 text-[11px] font-semibold text-[color:var(--color-text)]">
+										{day.getDate()}
+									</div>
+									<div className="grid gap-1">
+										{dayEvents.slice(0, 3).map((event) => {
+											const typeStyle =
+												TYPE_STYLES[event.type] || TYPE_STYLES.General;
+
+											return (
+												<div
+													key={event.id}
+													className="truncate rounded-full px-2 py-0.5 text-[9px] font-bold text-white"
+													style={{ background: typeStyle.color }}
+												>
+													{event.title}
+												</div>
+											);
+										})}
+										{dayEvents.length > 3 ? (
+											<div className="text-center text-[9px] font-semibold text-[color:var(--color-text-muted)]">
+												+{dayEvents.length - 3}
 											</div>
-										);
-									})}
-									{dayEvents.length > 3 ? (
-										<div className="text-center text-[9px] font-semibold text-[color:var(--color-text-muted)]">
-											+{dayEvents.length - 3}
-										</div>
-									) : null}
-								</div>
-							</button>
-						);
-					})}
+										) : null}
+									</div>
+								</button>
+							);
+						})}
+					</div>
 				</div>
 			</div>
 

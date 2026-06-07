@@ -967,8 +967,13 @@ test("schedule calendar navigation exposes Korean labels and touch targets", () 
 test("schedule calendar date cells are semantic buttons", () => {
 	const source = readSource("components/tabs/ScheduleTab.js");
 
-	assert.match(source, /className="mb-2 grid grid-cols-7 gap-1 text-center sm:gap-2"/);
-	assert.match(source, /className="grid grid-cols-7 gap-1 sm:gap-2"/);
+	assert.match(source, /className="clay-page-section mb-5 px-1 py-3 sm:p-3"/);
+	assert.match(source, /className="-mx-1 overflow-x-auto px-1 pb-1"/);
+	assert.match(
+		source,
+		/className="mb-2 grid min-w-\[314px\] grid-cols-7 gap-px text-center sm:gap-2"/,
+	);
+	assert.match(source, /className="grid min-w-\[314px\] grid-cols-7 gap-px sm:gap-2"/);
 	assert.match(
 		source,
 		/className="clay-inset min-h-\[78px\] min-w-11 rounded-\[16px\]"/,
