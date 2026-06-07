@@ -1528,9 +1528,9 @@
 
 ## 2026-06-07 - Codex
 
-- Closed T-1529 as a current-head full canonical QC/readiness refresh after T-1527/T-1528.
-- Ran `python execution\project_qc_runner.py --json --artifact .tmp\project_qc_runner_latest.json --timeout-seconds 700` at current local HEAD `8870fe71`.
+- Closed T-1529 as a full canonical QC/readiness refresh after T-1527/T-1528.
+- Ran `python execution\project_qc_runner.py --json --artifact .tmp\project_qc_runner_latest.json --timeout-seconds 700` at code/QC baseline `8870fe71`; later `.ai` commits are documentation-only and readiness reports no relevant active-project changes since the QC artifact.
 - Full active-project QC passed: Blind-to-X `1844 passed`, `9 skipped`, lint pass; Shorts Maker V2 `1640 passed`, `12 skipped`, `29 warnings`, lint pass; Hanwoo `533 passed`, lint/build/smoke passed; Knowledge Dashboard `62 passed`, lint/build/smoke passed.
-- `product_readiness_score.py --json` reports score `96`, clean worktree, fresh current-head QC artifacts, local blockers `0`, agent tasks `0`, publish blockers `1`, external blockers `1`.
-- `session_orient.py --json` reports graph current at `8870fe71`, no open PRs, and no stale HANDOFF head claim.
+- `product_readiness_score.py --json` reports score `96`, clean worktree, fresh QC artifacts, local blockers `0`, agent tasks `0`, publish blockers `1`, external blockers `1`.
+- `session_orient.py --json` reports a current graph, no open PRs, and no stale HANDOFF head claim after the HANDOFF wording correction.
 - Boundary: no push was performed. T-251 was not retried. Remaining blockers are explicit push/current-head GitHub Actions and user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E.
