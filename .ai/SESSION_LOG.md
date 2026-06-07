@@ -1376,3 +1376,11 @@
 - Changed `workspace/tests/test_youtube_metadata.py`, `workspace/tests/test_youtube_uploader.py`, and `workspace/tests/test_shorts_manager.py`: locked helper limits, uploader upload kwargs, and Shorts Manager fallback metadata behavior.
 - Verification: focused workspace pytest passed (`54 passed`), Ruff check passed, Ruff format check passed, `git diff --check` passed, graph refresh is current at `2174fba4`, and staged code-review gate returned advisory WARN `risk_score=0.35`, covered by focused helper/uploader/manager tests.
 - Boundary: code commit `2174fba4` is local only. No push was performed. T-251 was not retried. Unrelated Hanwoo T-1490 WIP and `workspace/tests/test_shorts_manager_helpers.py` WIP remain unstaged and must stay separate.
+
+## 2026-06-07 - Codex
+
+- Closed T-1492 as the helper-test coverage follow-up for T-1491 Shorts YouTube upload metadata.
+- Changed `workspace/tests/test_shorts_manager_helpers.py`: the helper-only Shorts Manager harness now stubs `execution.youtube_uploader` with the real `build_shorts_upload_metadata` helper instead of a generic mock.
+- Updated helper expectations for `_build_upload_metadata()` to match sanitized hashtags and API-safe fallback tags from the new shared metadata contract.
+- Verification: focused workspace pytest passed (`74 passed`), Ruff check passed, Ruff format check passed, `git diff --check` passed, and staged code-review gate returned advisory WARN `risk_score=0.30`, covered by focused helper/uploader/manager tests.
+- Boundary: code commit `ece7251c` is local only. No push was performed. T-251 was not retried.
