@@ -30,6 +30,11 @@ test("ear tag scanner modal exposes dialog purpose and hides visual-only scanner
 		/title="이표 스캐너 닫기"[\s\S]*?aria-label="이표 스캐너 닫기"/,
 	);
 	assert.doesNotMatch(source, /aria-label="닫기"/);
+	assert.match(
+		source,
+		/className="inline-flex min-h-11 min-w-11 items-center justify-center[\s\S]*?<X size=\{18\} aria-hidden="true" \/>/,
+	);
+	assert.doesNotMatch(source, /className="p-2 text-muted-foreground/);
 	assert.match(source, /<X size=\{18\} aria-hidden="true" \/>/);
 });
 

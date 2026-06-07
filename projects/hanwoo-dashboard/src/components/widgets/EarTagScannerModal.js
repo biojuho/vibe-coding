@@ -372,7 +372,7 @@ export default function EarTagScannerModal(options = {}) {
 							playTactileClick();
 							handleClose();
 						}}
-						className="p-2 text-muted-foreground hover:text-foreground rounded-full hover:bg-white/10 transition-colors"
+						className="inline-flex min-h-11 min-w-11 items-center justify-center text-muted-foreground hover:text-foreground rounded-full hover:bg-white/10 transition-colors"
 						title="이표 스캐너 닫기"
 						aria-label="이표 스캐너 닫기"
 					>
