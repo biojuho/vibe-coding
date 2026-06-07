@@ -32,6 +32,15 @@ const widgetSettingsGridStyle = {
 	gap: "8px",
 };
 
+const widgetSettingsGridViewportStyle = {
+	maxHeight: "220px",
+	overflowY: "auto",
+	overscrollBehavior: "contain",
+	paddingRight: "2px",
+	paddingBottom: "8px",
+	scrollPaddingBottom: "16px",
+};
+
 const widgetSettingsControlStyle = {
 	display: "grid",
 	gridTemplateColumns: "1fr",
@@ -500,8 +509,9 @@ export default function SettingsTab(options = {}) {
 					>
 						홈 화면에 표시할 위젯을 선택해 주세요.
 					</div>
-					<div style={widgetSettingsGridStyle}>
-						{safeWidgetRegistry.map((widget) => {
+					<div style={widgetSettingsGridViewportStyle}>
+						<div style={widgetSettingsGridStyle}>
+							{safeWidgetRegistry.map((widget) => {
 							const isOn = safeWidgetVisible[widget.id] !== false;
 
 							return (
@@ -571,7 +581,8 @@ export default function SettingsTab(options = {}) {
 									</button>
 								</div>
 							);
-						})}
+							})}
+						</div>
 					</div>
 				</div>
 			) : null}
