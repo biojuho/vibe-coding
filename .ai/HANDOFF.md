@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-06-07 |
 | Tool | Codex |
+| Work | **T-1539 launch-audit robustness refresh**. Fixed a local audit-output quality defect at code commit `f88340ad` found while rerunning the completion audit. `browser_qa_inventory.py` now checks PNG nonblank state by restoring scanlines and returning as soon as a different pixel is found instead of accumulating every decoded pixel buffer; the full retained screenshot inventory now completes and reports browser coverage `4/4`, fresh usable screenshots `4/4`, and fresh nonblank screenshots `4/4`. `launch_objective_audit.py` now reads top-level `gates.candidate` A/B manifests like `ab_decision.py`, so `.tmp/ab-manifest-t1537.json` is correctly reported as required gates passed `4/4` instead of a false blocker. Verification passed focused auto-research pytest (`61 passed`), targeted Ruff, `py_compile`, `browser_qa_inventory.py --json`, `launch_objective_audit.py`, `completion_audit.py --allow-incomplete`, and `git diff --check` with CRLF warnings only. |
+| Next Priorities | After the scoped commit, rerun `session_orient.py --json`, `product_readiness_score.py --json`, release packet generation, selector, and completion audit. Expected remaining boundaries are still explicit push/current-head GitHub Actions plus user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E. Do not push without explicit authorization and do not retry T-251 before credential reset/resync. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-07 |
+| Tool | Codex |
 | Work | **T-1538 no-code launch-boundary evidence refresh**. Refreshed Hanwoo project QC at the current local line with `.tmp/project_qc_runner_hanwoo_t1537.json`; Hanwoo `test/lint/build/smoke` passed (`535 passed`; build succeeded after one real Next build-lock retry; smoke only known accepted 405/200 warnings). `product_readiness_score.py --json` still reports score `96`, local blockers `0`, agent tasks `0`, publish blockers `1`, external blockers `1`. `next_experiment_selector.py` reports `blocked_publish_only` / `current_head_release_checks_unproven`, so no adoptable local candidate remains until explicit push or user push allows current-head Actions. |
 | Next Priorities | Generate/reuse `.tmp/release-authorization-packet.json` for the final current HEAD, then push only with explicit authorization or ask the user to push. After push, wait for `root-quality-gate` and `active-project-matrix` on the exact pushed HEAD. Do not retry T-251 until Supabase credentials are reset/resynced. |
 
