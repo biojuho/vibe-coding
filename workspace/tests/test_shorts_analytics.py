@@ -135,7 +135,7 @@ def test_channel_performance_rows_label_cpv_as_dollars_per_1k(shorts_analytics) 
     rows = shorts_analytics._build_channel_performance_rows(
         [
             {
-                "channel": "AI/기술",
+                "channel": "AI/Tech",
                 "video_count": 4,
                 "total_views": 2000,
                 "avg_views": 500.0,
@@ -152,8 +152,56 @@ def test_channel_performance_rows_label_cpv_as_dollars_per_1k(shorts_analytics) 
     )
 
     assert rows[0]["CPV ($/1K views)"] == "$1.50/1K"
+    assert rows[0]["채널"] == "AI/기술"
     assert rows[1]["CPV ($/1K views)"] == "-"
     assert "CPV (원/조회)" not in rows[0]
+
+
+def test_channel_label_aliases_normalize_legacy_raw_channels(shorts_analytics) -> None:
+    assert shorts_analytics._display_channel_label("AI/Tech") == "AI/기술"
+    assert shorts_analytics._display_channel_label("space") == "우주/천문학"
+    assert shorts_analytics._display_channel_label("  history  ") == "역사/고고학"
+    assert shorts_analytics._display_channel_label("") == "-"
+
+
+def test_channel_stats_grouping_merges_legacy_and_canonical_labels(shorts_analytics) -> None:
+    rows = shorts_analytics._group_channel_stats_by_display_label(
+        [
+            {
+                "channel": "space",
+                "total": 2,
+                "success": 1,
+                "failed": 1,
+                "pending": 0,
+                "total_cost": 3.0,
+                "avg_cost": 1.0,
+                "avg_duration": 40.0,
+            },
+            {
+                "channel": "우주/천문학",
+                "total": 3,
+                "success": 2,
+                "failed": 0,
+                "pending": 1,
+                "total_cost": 4.0,
+                "avg_cost": 2.0,
+                "avg_duration": 50.0,
+            },
+        ]
+    )
+
+    assert rows == [
+        {
+            "channel": "우주/천문학",
+            "total": 5,
+            "success": 3,
+            "failed": 1,
+            "pending": 1,
+            "total_cost": 7.0,
+            "avg_cost": pytest.approx(5.0 / 3),
+            "avg_duration": pytest.approx(140.0 / 3),
+        }
+    ]
 
 
 def test_cpv_data_skips_zero_view_or_zero_cost_channels_and_sorts(shorts_analytics) -> None:
@@ -162,13 +210,50 @@ def test_cpv_data_skips_zero_view_or_zero_cost_channels_and_sorts(shorts_analyti
             {"channel": "slow", "video_count": 1, "total_views": 1000, "total_cost": 4.0},
             {"channel": "free", "video_count": 1, "total_views": 1000, "total_cost": 0.0},
             {"channel": "empty", "video_count": 1, "total_views": 0, "total_cost": 1.0},
-            {"channel": "fast", "video_count": 2, "total_views": 4000, "total_cost": 2.0},
+            {"channel": "AI/Tech", "video_count": 2, "total_views": 4000, "total_cost": 2.0},
         ]
     )
 
-    assert [row["channel"] for row in rows] == ["fast", "slow"]
+    assert [row["channel"] for row in rows] == ["AI/기술", "slow"]
     assert rows[0]["cpv_1k"] == 0.5
     assert rows[1]["cpv_1k"] == 4.0
+
+
+def test_channel_performance_grouping_merges_labels_and_recomputes_averages(shorts_analytics) -> None:
+    rows = shorts_analytics._group_channel_performance_by_display_label(
+        [
+            {
+                "channel": "AI/Tech",
+                "video_count": 1,
+                "total_views": 1000,
+                "avg_views": 1000.0,
+                "avg_ctr": 2.0,
+                "avg_watch_sec": 20.0,
+                "total_cost": 1.0,
+            },
+            {
+                "channel": "AI/기술",
+                "video_count": 3,
+                "total_views": 9000,
+                "avg_views": 3000.0,
+                "avg_ctr": 4.0,
+                "avg_watch_sec": 40.0,
+                "total_cost": 2.0,
+            },
+        ]
+    )
+
+    assert rows == [
+        {
+            "channel": "AI/기술",
+            "video_count": 4,
+            "total_views": 10000,
+            "avg_views": 2500.0,
+            "avg_ctr": pytest.approx(3.5),
+            "avg_watch_sec": pytest.approx(35.0),
+            "total_cost": 3.0,
+        }
+    ]
 
 
 def test_revenue_and_roi_helpers_use_shorts_rpm_range(shorts_analytics) -> None:
@@ -211,6 +296,22 @@ def test_shorts_analytics_source_labels_shorts_revenue_as_rpm() -> None:
     assert "채널별 Shorts 수익 잠재력 (RPM 추정)" in source
     assert "Shorts RPM(수익/1천회 engaged views)" in source
     assert "Shorts CPM" not in source
+
+
+def test_shorts_analytics_injects_mobile_tab_touch_targets(shorts_analytics) -> None:
+    fake_streamlit = shorts_analytics.st
+    fake_streamlit.events.clear()
+
+    shorts_analytics._inject_mobile_touch_target_styles()
+
+    assert len(fake_streamlit.events) == 1
+    name, css, kwargs = fake_streamlit.events[0]
+    assert name == "markdown"
+    assert kwargs == {"unsafe_allow_html": True}
+    assert "div[role='tablist']" in css
+    assert "button[role='tab']" in css
+    assert "min-height: 44px" in css
+    assert "min-width: 44px" in css
 
 
 def test_workspace_dependencies_include_plotly_for_shorts_analytics_runtime() -> None:

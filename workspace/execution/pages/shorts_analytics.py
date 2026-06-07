@@ -61,6 +61,133 @@ COLORS = {
 }
 
 
+_CHANNEL_LABEL_ALIASES = {
+    "ai": "AI/기술",
+    "ai/tech": "AI/기술",
+    "ai-tech": "AI/기술",
+    "ai_tech": "AI/기술",
+    "ai tech": "AI/기술",
+    "astronomy": "우주/천문학",
+    "health": "의학/건강",
+    "history": "역사/고고학",
+    "medical": "의학/건강",
+    "psychology": "심리학",
+    "space": "우주/천문학",
+}
+
+
+def _display_channel_label(channel: object) -> str:
+    value = str(channel or "").strip()
+    if not value:
+        return "-"
+    return _CHANNEL_LABEL_ALIASES.get(value.lower(), value)
+
+
+def _group_channel_stats_by_display_label(channel_stats: list[dict]) -> list[dict[str, float | int | str]]:
+    grouped: dict[str, dict[str, float | int | str]] = {}
+    for item in channel_stats:
+        label = _display_channel_label(item.get("channel"))
+        bucket = grouped.setdefault(
+            label,
+            {
+                "channel": label,
+                "total": 0,
+                "success": 0,
+                "failed": 0,
+                "pending": 0,
+                "total_cost": 0.0,
+                "avg_cost": 0.0,
+                "avg_duration": 0.0,
+                "_avg_cost_weight": 0.0,
+                "_avg_duration_weight": 0.0,
+            },
+        )
+        success = int(item.get("success", 0) or 0)
+        bucket["total"] = int(bucket["total"]) + int(item.get("total", 0) or 0)
+        bucket["success"] = int(bucket["success"]) + success
+        bucket["failed"] = int(bucket["failed"]) + int(item.get("failed", 0) or 0)
+        bucket["pending"] = int(bucket["pending"]) + int(item.get("pending", 0) or 0)
+        bucket["total_cost"] = float(bucket["total_cost"]) + float(item.get("total_cost", 0.0) or 0.0)
+        bucket["_avg_cost_weight"] = (
+            float(bucket["_avg_cost_weight"]) + float(item.get("avg_cost", 0.0) or 0.0) * success
+        )
+        bucket["_avg_duration_weight"] = (
+            float(bucket["_avg_duration_weight"]) + float(item.get("avg_duration", 0.0) or 0.0) * success
+        )
+
+    rows: list[dict[str, float | int | str]] = []
+    for bucket in grouped.values():
+        success = int(bucket["success"])
+        avg_cost_weight = float(bucket.pop("_avg_cost_weight"))
+        avg_duration_weight = float(bucket.pop("_avg_duration_weight"))
+        bucket["avg_cost"] = avg_cost_weight / success if success else 0.0
+        bucket["avg_duration"] = avg_duration_weight / success if success else 0.0
+        rows.append(bucket)
+    return rows
+
+
+def _group_channel_performance_by_display_label(ch_perf: list[dict]) -> list[dict[str, float | int | str]]:
+    grouped: dict[str, dict[str, float | int | str]] = {}
+    for item in ch_perf:
+        label = _display_channel_label(item.get("channel"))
+        bucket = grouped.setdefault(
+            label,
+            {
+                "channel": label,
+                "video_count": 0,
+                "total_views": 0,
+                "avg_views": 0.0,
+                "avg_ctr": 0.0,
+                "avg_watch_sec": 0.0,
+                "total_cost": 0.0,
+                "_ctr_weight": 0.0,
+                "_watch_weight": 0.0,
+            },
+        )
+        video_count = int(item.get("video_count", 0) or 0)
+        bucket["video_count"] = int(bucket["video_count"]) + video_count
+        bucket["total_views"] = int(bucket["total_views"]) + int(item.get("total_views", 0) or 0)
+        bucket["total_cost"] = float(bucket["total_cost"]) + float(item.get("total_cost", 0.0) or 0.0)
+        bucket["_ctr_weight"] = float(bucket["_ctr_weight"]) + float(item.get("avg_ctr", 0.0) or 0.0) * video_count
+        bucket["_watch_weight"] = (
+            float(bucket["_watch_weight"]) + float(item.get("avg_watch_sec", 0.0) or 0.0) * video_count
+        )
+
+    rows: list[dict[str, float | int | str]] = []
+    for bucket in grouped.values():
+        video_count = int(bucket["video_count"])
+        total_views = int(bucket["total_views"])
+        ctr_weight = float(bucket.pop("_ctr_weight"))
+        watch_weight = float(bucket.pop("_watch_weight"))
+        bucket["avg_views"] = total_views / video_count if video_count else 0.0
+        bucket["avg_ctr"] = ctr_weight / video_count if video_count else 0.0
+        bucket["avg_watch_sec"] = watch_weight / video_count if video_count else 0.0
+        rows.append(bucket)
+    return sorted(rows, key=lambda item: int(item["total_views"]), reverse=True)
+
+
+def _inject_mobile_touch_target_styles() -> None:
+    st.markdown(
+        """
+<style>
+@media (max-width: 640px) {
+  div[role='tablist'] {
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+
+  div[role='tablist'] button[role='tab'] {
+    min-height: 44px;
+    min-width: 44px;
+    padding-block: 0.35rem;
+  }
+}
+</style>
+""",
+        unsafe_allow_html=True,
+    )
+
+
 def _summarize_youtube_performance(perf_data: list[dict]) -> dict[str, float | int]:
     total_views = sum(item.get("yt_views", 0) or 0 for item in perf_data)
     total_likes = sum(item.get("yt_likes", 0) or 0 for item in perf_data)
@@ -93,7 +220,7 @@ def _build_channel_performance_rows(ch_perf: list[dict]) -> list[dict[str, str |
         cpv_1k = _cpv_per_1k(total_cost, total_views)
         rows.append(
             {
-                "채널": item["channel"],
+                "채널": _display_channel_label(item["channel"]),
                 "영상 수": item["video_count"],
                 "총 조회수": f"{total_views:,}",
                 "평균 조회수": f"{item['avg_views']:,.0f}",
@@ -114,7 +241,7 @@ def _build_cpv_data(ch_perf: list[dict]) -> list[dict[str, float | int | str]]:
             continue
         rows.append(
             {
-                "channel": item["channel"],
+                "channel": _display_channel_label(item["channel"]),
                 "cpv_1k": cpv_1k,
                 "total_views": total_views,
                 "total_cost": total_cost,
@@ -157,6 +284,8 @@ def _render_plotly_chart(fig: object) -> None:
 # ===========================================================================
 # 탭 구성
 # ===========================================================================
+_inject_mobile_touch_target_styles()
+
 tab_prod, tab_youtube, tab_roi, tab_hooks = st.tabs(["📦 생산 현황", "📈 YouTube 성과", "💰 ROI 분석", "🎣 훅 패턴"])
 
 # ===========================================================================
@@ -250,7 +379,7 @@ with tab_prod:
     st.divider()
 
     # ── 채널별 분석 ───────────────────────────────────────────
-    channel_stats = get_channel_stats()
+    channel_stats = _group_channel_stats_by_display_label(get_channel_stats())
     if channel_stats:
         st.subheader("채널별 분석")
         col_a, col_b = st.columns(2)
@@ -383,7 +512,7 @@ with tab_youtube:
         st.divider()
 
         # ── 채널별 성과 비교 ──────────────────────────────────
-        ch_perf = get_channel_performance_summary()
+        ch_perf = _group_channel_performance_by_display_label(get_channel_performance_summary())
         if ch_perf:
             st.subheader("채널별 YouTube 성과 비교")
 
@@ -441,7 +570,7 @@ with tab_youtube:
             views = item.get("yt_views") or 0
             likes = item.get("yt_likes") or 0
             comments = item.get("yt_comments") or 0
-            channel = item.get("channel", "")
+            channel = _display_channel_label(item.get("channel", ""))
             title = item.get("title") or item.get("topic", "")
             yt_url = item.get("youtube_url", "")
 
@@ -463,7 +592,7 @@ with tab_roi:
     st.header("💰 ROI / 비용 효율성 분석")
     st.caption("비용 대비 성과를 측정하여 최적 투자 전략 도출")
 
-    ch_perf = get_channel_performance_summary()
+    ch_perf = _group_channel_performance_by_display_label(get_channel_performance_summary())
 
     if not ch_perf or all(c["total_views"] == 0 for c in ch_perf):
         st.info(
