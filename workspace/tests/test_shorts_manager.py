@@ -406,6 +406,18 @@ def test_shorts_manager_source_wraps_code_paths_on_mobile() -> None:
     assert "_render_wrapped_code(video)" in source
 
 
+def test_shorts_manager_source_adds_mobile_touch_target_styles() -> None:
+    source = (WORKSPACE_ROOT / "execution" / "pages" / "shorts_manager.py").read_text(encoding="utf-8")
+
+    assert "def _inject_mobile_touch_target_styles() -> None:" in source
+    assert "div[role='tablist']" in source
+    assert "flex-wrap: wrap" in source
+    assert "min-height: 44px" in source
+    assert "min-width: 44px" in source
+    assert "unsafe_allow_html=True" in source
+    assert "_inject_mobile_touch_target_styles()" in source
+
+
 def test_render_wrapped_code_uses_streamlit_line_wrapping(shorts_manager) -> None:
     shorts_manager.st.events.clear()
 
@@ -420,6 +432,20 @@ def test_render_wrapped_code_uses_streamlit_line_wrapping(shorts_manager) -> Non
             },
         )
     ]
+
+
+def test_inject_mobile_touch_target_styles_renders_css(shorts_manager) -> None:
+    shorts_manager.st.events.clear()
+
+    shorts_manager._inject_mobile_touch_target_styles()
+
+    markdowns = [payload for name, payload in shorts_manager.st.events if name == "markdown"]
+    assert any(
+        "div[role='tablist']" in str(payload)
+        and "min-height: 44px" in str(payload)
+        and "min-width: 44px" in str(payload)
+        for payload in markdowns
+    )
 
 
 def test_default_auth_status_and_upload_gate(shorts_manager, monkeypatch: pytest.MonkeyPatch) -> None:

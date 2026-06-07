@@ -112,6 +112,37 @@ if not _MODULE_OK:
 init_db()
 
 
+def _inject_mobile_touch_target_styles() -> None:
+    st.markdown(
+        """
+<style>
+@media (max-width: 640px) {
+  div[role='tablist'] {
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    overflow-x: visible;
+  }
+
+  div[role='tablist'] button[role='tab'],
+  div[data-testid='stButton'] button,
+  div[data-testid='stFormSubmitButton'] button {
+    min-height: 44px;
+  }
+
+  div[role='tablist'] button[role='tab'] {
+    min-width: 44px;
+    flex: 0 0 auto;
+  }
+}
+</style>
+""",
+        unsafe_allow_html=True,
+    )
+
+
+_inject_mobile_touch_target_styles()
+
+
 # ---------------------------------------------------------------------------
 # 헬퍼 함수
 # ---------------------------------------------------------------------------
