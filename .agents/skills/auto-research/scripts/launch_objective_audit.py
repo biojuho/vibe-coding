@@ -1087,29 +1087,37 @@ def _readiness_item(readiness: dict[str, Any]) -> dict[str, Any]:
     workspace_blockers = int(overall.get("workspace_blocker_count") or 0)
     publish_blockers = int(overall.get("publish_blocker_count") or 0)
     agent_tasks = int(overall.get("agent_task_count") or 0)
-    complete = local_blockers == 0 and workspace_blockers == 0 and agent_tasks == 0
     publish_boundary_blocked = (
         workspace_blockers > 0 and publish_blockers >= workspace_blockers and local_blockers == 0 and agent_tasks == 0
     )
+    non_publish_workspace_blockers = 0 if publish_boundary_blocked else workspace_blockers
+    complete = local_blockers == 0 and non_publish_workspace_blockers == 0 and agent_tasks == 0
     blockers = []
     if local_blockers:
         blockers.append(f"local_blocker_count={local_blockers}")
-    if workspace_blockers:
+    if non_publish_workspace_blockers:
         blockers.append(f"workspace_blocker_count={workspace_blockers}")
     if agent_tasks:
         blockers.append(f"agent_task_count={agent_tasks}")
+    evidence = [
+        f"product_readiness_score overall score={overall.get('score')}, state={overall.get('state')}.",
+        "readiness blocker counts: "
+        f"workspace={workspace_blockers}, local={local_blockers}, publish={publish_blockers}, "
+        f"agent_tasks={agent_tasks}.",
+        "Required workflows: "
+        + ", ".join(
+            f"{workflow.get('name')}={workflow.get('conclusion') or workflow.get('status')}" for workflow in workflows
+        ),
+    ]
+    if publish_boundary_blocked:
+        evidence.append(
+            "Local readiness gates are green; the publish/current-head Actions boundary is tracked "
+            "separately by the release authorization and selector audit items."
+        )
     return _item(
         "Verify local product-readiness gates before claiming launch readiness.",
         ["execution/product_readiness_score.py", ".tmp/project_qc_runner_latest.json", ".github/workflows"],
-        [
-            f"product_readiness_score overall score={overall.get('score')}, state={overall.get('state')}.",
-            f"workspace/local/publish/agent blockers={workspace_blockers}/{local_blockers}/{publish_blockers}/{agent_tasks}.",
-            "Required workflows: "
-            + ", ".join(
-                f"{workflow.get('name')}={workflow.get('conclusion') or workflow.get('status')}"
-                for workflow in workflows
-            ),
-        ],
+        evidence,
         complete=complete,
         blockers=blockers,
         verified=bool(readiness),

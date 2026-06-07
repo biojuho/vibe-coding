@@ -554,7 +554,7 @@ def test_manifest_is_complete_when_all_requirements_have_current_evidence(tmp_pa
     assert any("next experiment selector" in evidence for evidence in skill_item["evidence"])
 
 
-def test_readiness_publish_boundary_has_complete_coverage_with_blocker(tmp_path: Path) -> None:
+def test_readiness_publish_boundary_has_complete_coverage_without_duplicate_blocker(tmp_path: Path) -> None:
     _write_required_skill(tmp_path)
     _write_ai_relay(tmp_path)
     readiness = _clean_readiness()
@@ -588,10 +588,18 @@ def test_readiness_publish_boundary_has_complete_coverage_with_blocker(tmp_path:
     readiness_item = next(
         item for item in manifest["items"] if item["requirement"].startswith("Verify local product-readiness")
     )
+    result = completion_audit.audit_manifest(manifest)
 
     assert readiness_item["coverage"] == "complete"
-    assert readiness_item["blockers"] == ["workspace_blocker_count=1"]
-    assert any("workspace/local/publish/agent blockers=1/0/1/0" in item for item in readiness_item["evidence"])
+    assert readiness_item["blockers"] == []
+    assert not any(issue["requirement"] == readiness_item["requirement"] for issue in result["issues"])
+    assert any(
+        "readiness blocker counts: workspace=1, local=0, publish=1, agent_tasks=0." in item
+        for item in readiness_item["evidence"]
+    )
+    assert any(
+        "publish/current-head Actions boundary is tracked separately" in item for item in readiness_item["evidence"]
+    )
 
 
 def test_readiness_local_workspace_blocker_remains_partial(tmp_path: Path) -> None:
@@ -616,7 +624,10 @@ def test_readiness_local_workspace_blocker_remains_partial(tmp_path: Path) -> No
 
     assert readiness_item["coverage"] == "partial"
     assert readiness_item["blockers"] == ["local_blocker_count=1", "workspace_blocker_count=1"]
-    assert any("workspace/local/publish/agent blockers=1/1/0/0" in item for item in readiness_item["evidence"])
+    assert any(
+        "readiness blocker counts: workspace=1, local=1, publish=0, agent_tasks=0." in item
+        for item in readiness_item["evidence"]
+    )
 
 
 def test_release_authorization_packet_publish_boundary_is_direct_audit_item(tmp_path: Path) -> None:
