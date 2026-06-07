@@ -268,6 +268,18 @@ def test_stale_delete_confirmation_is_cleared(shorts_manager) -> None:
     assert shorts_manager._get_pending_delete_id() == 2
 
 
+def test_page_header_uses_compact_korean_operator_copy(shorts_manager) -> None:
+    titles = [payload for name, payload in shorts_manager.st.events if name == "title"]
+    captions = [payload for name, payload in shorts_manager.st.events if name == "caption"]
+    page_configs = [payload for name, payload in shorts_manager.st.events if name == "set_page_config"]
+
+    assert "🎬 쇼츠 운영" in titles
+    assert "🎬 Shorts Manager" not in titles
+    assert "생성 · 검수 · 업로드 관리" in captions
+    assert "YouTube Shorts 콘텐츠 자동 생성 및 관리" not in captions
+    assert page_configs[0]["page_title"] == "Shorts Manager"
+
+
 def test_global_delete_confirmation_renders_top_level_actions(shorts_manager) -> None:
     shorts_manager.st.session_state[shorts_manager._DELETE_CONFIRM_KEY] = 7
     shorts_manager.st.events.clear()

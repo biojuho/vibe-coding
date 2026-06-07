@@ -1052,8 +1052,8 @@ def _render_thumbnail_preview(thumbnail_path: str) -> None:
 
 all_items = get_all()
 
-st.title("🎬 Shorts Manager")
-st.caption("YouTube Shorts 콘텐츠 자동 생성 및 관리")
+st.title("🎬 쇼츠 운영")
+st.caption("생성 · 검수 · 업로드 관리")
 _render_flash()
 _clear_stale_delete_confirmation({int(item["id"]) for item in all_items})
 _render_global_delete_confirmation(all_items)
