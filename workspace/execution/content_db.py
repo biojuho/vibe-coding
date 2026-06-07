@@ -747,12 +747,16 @@ def get_review_queue_items(
         item = dict(row)
         video_path = str(item.get("video_path") or "")
         thumbnail_path = str(item.get("thumbnail_path") or "")
+        youtube_status = str(item.get("youtube_status") or "").strip().lower()
         video_exists = bool(video_path) and Path(video_path).exists()
         thumbnail_exists = bool(thumbnail_path) and Path(thumbnail_path).exists()
 
         if not video_exists:
             review_status = OPS_STATUS_CRITICAL
             next_action = "영상 재생성 또는 경로 확인"
+        elif youtube_status == "failed":
+            review_status = OPS_STATUS_WARNING
+            next_action = "업로드 오류 확인 후 재시도"
         elif thumbnail_path and not thumbnail_exists:
             review_status = OPS_STATUS_WARNING
             next_action = "썸네일 재생성 확인"

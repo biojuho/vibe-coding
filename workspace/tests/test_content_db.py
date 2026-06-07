@@ -466,6 +466,16 @@ def test_review_queue_items_include_file_readiness(monkeypatch, tmp_path):
         thumbnail_path=str(thumb_ok),
     )
 
+    upload_failed_id = cdb.add_topic("Upload failed", channel="space")
+    cdb.update_job(
+        upload_failed_id,
+        status="success",
+        video_path=str(video_ok),
+        thumbnail_path=str(thumb_ok),
+        youtube_status="failed",
+        youtube_error="quotaExceeded",
+    )
+
     warning_id = cdb.add_topic("Missing thumb", channel="space")
     cdb.update_job(
         warning_id,
@@ -487,6 +497,9 @@ def test_review_queue_items_include_file_readiness(monkeypatch, tmp_path):
 
     assert by_topic["Healthy"]["review_status"] == cdb.OPS_STATUS_HEALTHY
     assert by_topic["Healthy"]["next_action"] == "수동 검수 진행"
+    assert by_topic["Upload failed"]["review_status"] == cdb.OPS_STATUS_WARNING
+    assert by_topic["Upload failed"]["next_action"] == "업로드 오류 확인 후 재시도"
+    assert by_topic["Upload failed"]["youtube_error"] == "quotaExceeded"
     assert by_topic["Missing thumb"]["review_status"] == cdb.OPS_STATUS_WARNING
     assert by_topic["Missing thumb"]["thumbnail_exists"] is False
     assert by_topic["Missing video"]["review_status"] == cdb.OPS_STATUS_CRITICAL

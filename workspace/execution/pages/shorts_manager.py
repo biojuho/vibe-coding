@@ -549,6 +549,8 @@ def _render_manual_review_queue(limit: int = 6) -> None:
             )
             if item.get("notes"):
                 st.caption(f"메모: {item['notes']}")
+            if item.get("youtube_error"):
+                st.caption(f"업로드 오류: {item['youtube_error']}")
             st.caption(f"다음 액션: {item.get('next_action', '-')}")
 
 

@@ -706,6 +706,7 @@ def test_render_failure_triage_and_review_queue(shorts_manager, monkeypatch: pyt
                 "video_exists": True,
                 "thumbnail_exists": False,
                 "notes": "thumbnail missing",
+                "youtube_error": "quotaExceeded",
                 "next_action": "썸네일 재생성",
             }
         ],
@@ -718,6 +719,7 @@ def test_render_failure_triage_and_review_queue(shorts_manager, monkeypatch: pyt
     captions = [str(payload) for name, payload in shorts_manager.st.events if name == "caption"]
     assert any("사전 점검: 브랜드 에셋 누락" in payload for payload in captions)
     assert any("메모: thumbnail missing" in payload for payload in captions)
+    assert any("업로드 오류: quotaExceeded" in payload for payload in captions)
 
 
 def test_render_manifest_sync_panel_shows_summary_details(shorts_manager, monkeypatch: pytest.MonkeyPatch) -> None:
