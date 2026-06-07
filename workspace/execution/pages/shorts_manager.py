@@ -161,7 +161,10 @@ def _inject_mobile_touch_target_styles() -> None:
 
   div[role='tablist'] button[role='tab'],
   div[data-testid='stButton'] button,
-  div[data-testid='stFormSubmitButton'] button {
+  div[data-testid='stFormSubmitButton'] button,
+  div[data-baseweb='select'],
+  div[data-baseweb='input'],
+  div[data-baseweb='input'] input {
     min-height: 44px;
   }
 

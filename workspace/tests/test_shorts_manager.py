@@ -415,6 +415,9 @@ def test_shorts_manager_source_adds_mobile_touch_target_styles() -> None:
     assert "flex-wrap: wrap" in source
     assert "min-height: 44px" in source
     assert "min-width: 44px" in source
+    assert "div[data-baseweb='select']" in source
+    assert "div[data-baseweb='input']" in source
+    assert "div[data-baseweb='input'] input" in source
     assert "unsafe_allow_html=True" in source
     assert "_inject_mobile_touch_target_styles()" in source
 
