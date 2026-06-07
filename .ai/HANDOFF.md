@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-06-07 |
 | Tool | Codex |
+| Work | **T-1544 launch-boundary handoff refresh**. Reconciled the post-T-1543 relay after follow-up `.ai` documentation commits. The last exact release-boundary audit before this handoff still showed readiness score `96`, local blockers `0`, agent tasks `0`, publish blockers `1`, external blockers `1`, release packet `ready_for_authorization`, selector `blocked_publish_only`, and completion audit `10/14` with `4` blocked items. This is a relay update only; because this context commit advances HEAD again, exact current-head release evidence must be rerun after the commit before any release claim. |
+| Next Priorities | Rerun `session_orient.py --json`, `product_readiness_score.py --json`, release packet, selector, launch audit, and completion audit for the final current HEAD. Expected remaining boundaries are still explicit push/user push plus current-head GitHub Actions (`root-quality-gate`, `active-project-matrix`) and user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E. Do not push without explicit authorization and do not retry T-251 before credential reset/resync. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-07 |
+| Tool | Codex |
 | Work | **T-1543 final release-boundary confirmation**. After the full canonical active-project QC refresh at code baseline `a51bfa31` and the follow-up `.ai` commits through HEAD `90e06ed1`, reran `session_orient.py --json`, `product_readiness_score.py --json`, release authorization packet generation, selector, launch audit, and completion audit. Current evidence: clean worktree, graph current at `90e06ed1`, readiness score `96`, local blockers `0`, agent tasks `0`, publish blockers `1`, external blockers `1`; `.tmp/release-authorization-packet.json` is `ready_for_authorization` for HEAD `90e06ed1`; `.tmp/next-experiment.json` is `blocked_publish_only`; `.tmp/launch-objective-audit.json` has local coverage complete; completion audit is `10/14` complete with `4` blocked items. |
 | Next Priorities | No adoptable local candidate remains. The only remaining boundaries are explicit push/user push so current-head GitHub Actions can prove `root-quality-gate` and `active-project-matrix`, plus user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E. Do not push without explicit authorization and do not retry T-251 before credential reset/resync. |
 
