@@ -156,7 +156,9 @@ body {
 
 .icon-btn {
 	border: none;
-	padding: 10px 16px;
+	min-width: 72px;
+	min-height: 72px;
+	padding: 0 18px;
 	border-radius: 999px;
 	font-family: "Nunito", sans-serif;
 	font-size: 13px;
@@ -165,6 +167,9 @@ body {
 	color: #1f2937;
 	cursor: pointer;
 	pointer-events: auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
 }
 
 .icon-btn:hover {
@@ -219,11 +224,16 @@ body {
 	background: rgba(255, 255, 255, 0.75);
 	color: #334155;
 	border-radius: 999px;
-	padding: 6px 10px;
+	min-width: 72px;
+	min-height: 72px;
+	padding: 0 14px;
 	font-size: 11px;
 	font-weight: 800;
 	letter-spacing: 0.3px;
 	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
 }
 
 .difficulty-btn:hover {
@@ -283,6 +293,7 @@ p.subtitle {
 }
 
 .btn {
+	min-height: 72px;
 	padding: 16px 40px;
 	font-family: "Nunito", sans-serif;
 	font-size: 20px;
@@ -345,6 +356,7 @@ p.subtitle {
 	background: rgba(255, 255, 255, 0.75);
 	color: #334155;
 	border-radius: 999px;
+	min-height: 72px;
 	padding: 9px 16px;
 	font-family: "Nunito", sans-serif;
 	font-size: 13px;
@@ -386,6 +398,7 @@ p.subtitle {
 
 /* --- Stats Screen --- */
 .btn-compact {
+	min-height: 72px;
 	padding: 10px 24px;
 	font-size: 15px;
 	margin-top: 12px;

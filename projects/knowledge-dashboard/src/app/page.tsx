@@ -199,7 +199,7 @@ function TabBar({
 						aria-controls={`panel-${tab.id}`}
 						tabIndex={selected ? 0 : -1}
 						onClick={() => onTabChange(tab.id)}
-						className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
+						className={`flex min-h-11 items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
 							selected
 								? "bg-white/10 text-white shadow-sm"
 								: "text-slate-400 hover:text-slate-200 hover:bg-white/5"
@@ -672,7 +672,7 @@ export default function Dashboard() {
 										type="button"
 										onClick={() => setSearchTerm("")}
 										aria-label="검색어 지우기"
-										className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-white focus-visible:outline-none focus-visible:text-blue-400"
+										className="absolute inset-y-0 right-0 flex min-w-11 items-center justify-center text-slate-400 hover:text-white focus-visible:outline-none focus-visible:text-blue-400"
 									>
 										<X className="h-4 w-4" />
 									</button>

@@ -139,7 +139,7 @@ export default function ExportMenu({
 							type="button"
 							role="menuitem"
 							onClick={item.onSelect}
-							className="block w-full rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:bg-white/10"
+							className="flex min-h-11 w-full items-center rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:bg-white/10"
 						>
 							{item.label}
 						</button>
