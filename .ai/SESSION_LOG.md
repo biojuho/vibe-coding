@@ -1534,3 +1534,11 @@
 - `product_readiness_score.py --json` reports score `96`, clean worktree, fresh QC artifacts, local blockers `0`, agent tasks `0`, publish blockers `1`, external blockers `1`.
 - `session_orient.py --json` reports a current graph, no open PRs, and no stale HANDOFF head claim after the HANDOFF wording correction.
 - Boundary: no push was performed. T-251 was not retried. Remaining blockers are explicit push/current-head GitHub Actions and user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E.
+
+## 2026-06-07 - Codex
+
+- Closed T-1530 as a Hanwoo outbox notification copy output-quality repair.
+- Changed `projects/hanwoo-dashboard/scripts/outbox-worker.mjs`: repaired corrupted Korean calving notification copy so persisted read-model snapshots say `분만 예정일이 ${daysLeft}일 남았습니다.`, and removed corrupted section-comment characters.
+- Added `projects/hanwoo-dashboard/src/lib/outbox-worker-copy.test.mjs`: locks valid Korean estrus/calving notification copy and rejects replacement/mojibake text.
+- Verification: `rg` found no replacement characters in touched files; `node --check scripts\outbox-worker.mjs` passed; Hanwoo source tests passed (`534 passed`); Hanwoo lint passed; Hanwoo project QC passed via `.tmp\project_qc_runner_hanwoo_t1530.json` (`534 passed`, lint/build/smoke passed); `git diff --check` passed with CRLF warning only.
+- Boundary: code commit `9e9ec78a` is local only. Code-review gate returned advisory WARN (`risk_score=0.45`) for broader worker coverage gaps, covered by the direct copy guard plus full Hanwoo QC. No push was performed. T-251 was not retried. Preserve unrelated unstaged WIP if present.
