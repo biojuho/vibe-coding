@@ -81,7 +81,7 @@ export async function getExpenseRecords(filters = {}) {
 			}),
 		);
 	} catch (error) {
-		console.error("Failed to fetch expenses:", error);
+		console.warn("Degraded expenses fetch:", error);
 		return [];
 	}
 }

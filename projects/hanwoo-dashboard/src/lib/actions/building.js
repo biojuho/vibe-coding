@@ -29,7 +29,7 @@ export async function getBuildings() {
 			await prisma.building.findMany({ orderBy: { name: "asc" } }),
 		);
 	} catch (e) {
-		console.error("Failed to fetch buildings:", e);
+		console.warn("Degraded buildings fetch:", e);
 		return [];
 	}
 }

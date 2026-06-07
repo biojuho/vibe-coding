@@ -25,7 +25,7 @@ export async function getFeedStandards() {
 	try {
 		return normalizeFeedActionRows(await prisma.feedStandard.findMany());
 	} catch (error) {
-		console.error("Failed to fetch feed standards:", error);
+		console.warn("Degraded feed standards fetch:", error);
 		return [];
 	}
 }
@@ -66,7 +66,7 @@ export async function getFeedHistory() {
 			}),
 		);
 	} catch (e) {
-		console.error("Failed to fetch feed history:", e);
+		console.warn("Degraded feed history fetch:", e);
 		return [];
 	}
 }

@@ -38,7 +38,7 @@ export async function getRealTimeMarketPrice() {
 			return cachedMarketPrice;
 		}
 	} catch (err) {
-		console.error("Market price cache read failed (falling back to API):", err);
+		console.warn("Market price cache read degraded (falling back to API):", err);
 	}
 
 	const marketPrice = normalizeLiveMarketPrice(await fetchMarketPrice());

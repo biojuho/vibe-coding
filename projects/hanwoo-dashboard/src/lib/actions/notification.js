@@ -68,7 +68,7 @@ export async function getNotifications() {
 
 		return notifications;
 	} catch (error) {
-		console.error("Failed to get notifications:", error);
+		console.warn("Degraded notifications fetch:", error);
 		return [];
 	}
 }

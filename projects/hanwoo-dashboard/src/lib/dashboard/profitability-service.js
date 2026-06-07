@@ -224,7 +224,7 @@ export async function getProfitabilityEstimates() {
 			},
 		};
 	} catch (err) {
-		console.error("수익성 추정 오류:", err);
+		console.warn("Degraded profitability estimate:", err);
 		const errorMessage = OPERATOR_FACING_ERROR_MESSAGES.has(err?.message)
 			? err.message
 			: PROFITABILITY_UNAVAILABLE_MESSAGE;

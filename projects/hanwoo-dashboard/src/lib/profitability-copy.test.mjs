@@ -20,7 +20,7 @@ test("profitability service surfaces Korean operator-facing error copy", () => {
 	assert.match(source, /시세 정보를 해석하지 못했습니다/);
 	assert.doesNotMatch(source, /수익성 시뮬레이션에 사용할 시세 데이터가 없습니다/);
 	assert.doesNotMatch(source, /시세 데이터를 해석하지 못했습니다/);
-	assert.match(source, /수익성 추정 오류/);
+	assert.match(source, /Degraded profitability estimate/);
 	assert.match(
 		source,
 		/수익성 예측을 불러오지 못했습니다\. 잠시 후 다시 시도해 주세요\./,

@@ -29,7 +29,7 @@ export async function getScheduleEvents() {
 			await prisma.scheduleEvent.findMany({ orderBy: { date: "asc" } }),
 		);
 	} catch (e) {
-		console.error("Failed to fetch schedule:", e);
+		console.warn("Degraded schedule fetch:", e);
 		return [];
 	}
 }

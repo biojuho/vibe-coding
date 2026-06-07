@@ -34,7 +34,7 @@ export async function getInventory() {
 			}),
 		);
 	} catch (error) {
-		console.error("Failed to fetch inventory:", error);
+		console.warn("Degraded inventory fetch:", error);
 		return [];
 	}
 }

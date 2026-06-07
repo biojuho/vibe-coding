@@ -83,6 +83,17 @@ test("home route degrades initial data failures instead of crashing the shell", 
 	const pageSource = readSource("app/page.js");
 	const dashboardClientSource = readSource("components/DashboardClient.js");
 	const globalCssSource = readSource("app/globals.css");
+	const readFallbackSources = [
+		"lib/actions/inventory.js",
+		"lib/actions/expense.js",
+		"lib/actions/feed.js",
+		"lib/actions/building.js",
+		"lib/actions/schedule.js",
+		"lib/actions/notification.js",
+		"lib/actions/market.js",
+		"lib/dashboard/profitability-service.js",
+	].map(readSource);
+	const readFallbackSource = readFallbackSources.join("\n");
 
 	assert.match(pageSource, /async function loadInitialDataSection\(loader\)/);
 	assert.match(pageSource, /isNextControlFlowError\(error\)/);
@@ -142,4 +153,17 @@ test("home route degrades initial data failures instead of crashing the shell", 
 		/grid-template-columns: repeat\(8, minmax\(0, 1fr\)\)/,
 	);
 	assert.match(globalCssSource, /\.tab-item \{[\s\S]*?min-width: 0;/);
+	assert.doesNotMatch(
+		readFallbackSource,
+		/console\.error\(["'](?:Failed to fetch inventory|Failed to fetch expenses|Failed to fetch feed standards|Failed to fetch feed history|Failed to fetch buildings|Failed to fetch schedule|Failed to get notifications|Market price cache read failed|수익성 추정 오류)/,
+	);
+	assert.match(readFallbackSource, /Degraded inventory fetch/);
+	assert.match(readFallbackSource, /Degraded expenses fetch/);
+	assert.match(readFallbackSource, /Degraded feed standards fetch/);
+	assert.match(readFallbackSource, /Degraded feed history fetch/);
+	assert.match(readFallbackSource, /Degraded buildings fetch/);
+	assert.match(readFallbackSource, /Degraded schedule fetch/);
+	assert.match(readFallbackSource, /Degraded notifications fetch/);
+	assert.match(readFallbackSource, /Market price cache read degraded/);
+	assert.match(readFallbackSource, /Degraded profitability estimate/);
 });
