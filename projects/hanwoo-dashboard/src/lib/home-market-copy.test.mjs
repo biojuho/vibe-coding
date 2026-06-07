@@ -940,7 +940,7 @@ test("market price widget uses Korean product copy for visible states", () => {
 	assert.doesNotMatch(source, /\?[가-힣]/);
 });
 
-test("schedule calendar navigation exposes Korean accessible labels", () => {
+test("schedule calendar navigation exposes Korean labels and touch targets", () => {
 	const source = readSource("components/tabs/ScheduleTab.js");
 
 	assert.match(source, /aria-label="이전 달 보기"/);
@@ -949,11 +949,15 @@ test("schedule calendar navigation exposes Korean accessible labels", () => {
 	assert.match(source, /title="다음 달 보기"/);
 	assert.match(
 		source,
-		/<ChevronLeft\s+className="text-\[color:var\(--color-text-secondary\)\]"\s+aria-hidden="true"\s+\/>/,
+		/className="clay-pressable inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-\[color:var\(--color-text-secondary\)\]"/,
 	);
 	assert.match(
 		source,
-		/<ChevronRight\s+className="text-\[color:var\(--color-text-secondary\)\]"\s+aria-hidden="true"\s+\/>/,
+		/<ChevronLeft\s+className="h-5 w-5"\s+aria-hidden="true"\s+\/>/,
+	);
+	assert.match(
+		source,
+		/<ChevronRight\s+className="h-5 w-5"\s+aria-hidden="true"\s+\/>/,
 	);
 	assert.match(source, /<PlusCircle size=\{14\} aria-hidden="true" \/>/);
 	assert.doesNotMatch(source, /aria-label="Previous month"/);

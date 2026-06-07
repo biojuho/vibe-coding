@@ -452,6 +452,7 @@ export default function ScheduleTab(options = {}) {
 			<div className="mb-3 flex items-center justify-between px-1">
 				<button
 					type="button"
+					className="clay-pressable inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-[color:var(--color-text-secondary)]"
 					onClick={() =>
 						setCurrentDate(
 							new Date(
@@ -465,7 +466,7 @@ export default function ScheduleTab(options = {}) {
 					title="이전 달 보기"
 				>
 					<ChevronLeft
-						className="text-[color:var(--color-text-secondary)]"
+						className="h-5 w-5"
 						aria-hidden="true"
 					/>
 				</button>
@@ -477,6 +478,7 @@ export default function ScheduleTab(options = {}) {
 				</div>
 				<button
 					type="button"
+					className="clay-pressable inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-[color:var(--color-text-secondary)]"
 					onClick={() =>
 						setCurrentDate(
 							new Date(
@@ -490,7 +492,7 @@ export default function ScheduleTab(options = {}) {
 					title="다음 달 보기"
 				>
 					<ChevronRight
-						className="text-[color:var(--color-text-secondary)]"
+						className="h-5 w-5"
 						aria-hidden="true"
 					/>
 				</button>
