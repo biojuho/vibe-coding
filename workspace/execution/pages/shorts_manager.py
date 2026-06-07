@@ -88,6 +88,7 @@ VOICE_OPTIONS = ["alloy", "ash", "coral", "echo", "fable", "nova", "onyx", "sage
 STYLE_OPTIONS = ["default", "bold", "neon", "subtitle", "cta"]
 _FLASH_KEY = "shorts_manager_flash"
 _DELETE_CONFIRM_KEY = "shorts_manager_pending_delete_id"
+_RUN_BLOCKING_OPS_STATUSES = {"setup_required", "critical"}
 
 # ---------------------------------------------------------------------------
 # 페이지 설정
@@ -220,6 +221,38 @@ def _format_issue_labels(issues: list[str]) -> list[str]:
         label = issue.split(":", 1)[1] if ":" in issue else issue
         labels.append(label.replace("_", " "))
     return labels
+
+
+def _build_generation_run_blockers(readiness_summary: list[dict[str, Any]]) -> dict[str, str]:
+    blockers: dict[str, str] = {}
+    for item in readiness_summary:
+        channel = str(item.get("channel", "")).strip()
+        if not channel or str(item.get("status", "")) not in _RUN_BLOCKING_OPS_STATUSES:
+            continue
+
+        next_action = str(item.get("next_action") or "채널 준비 상태를 먼저 해결하세요.").strip()
+        issue_labels = _format_issue_labels(list(item.get("issues") or []))
+        reason = f"{next_action} 후 실행 가능"
+        if issue_labels:
+            reason = f"{reason}: {', '.join(issue_labels)}"
+        blockers[channel] = reason
+    return blockers
+
+
+def _generation_run_block_reason(
+    item: dict[str, Any],
+    readiness_blockers: dict[str, str],
+    *,
+    v2_available: bool,
+) -> str:
+    if item.get("status") not in ("pending", "failed"):
+        return ""
+    if not v2_available:
+        return "shorts-maker-v2 엔진 경로를 확인하세요."
+    channel = str(item.get("channel", "")).strip()
+    if not channel:
+        return "채널을 지정해야 실행할 수 있습니다."
+    return readiness_blockers.get(channel, "")
 
 
 def _scan_manifests() -> None:
@@ -389,9 +422,9 @@ def _style_index(settings: dict[str, Any] | None) -> int:
 # ---------------------------------------------------------------------------
 # UI 시작
 # ---------------------------------------------------------------------------
-def _render_channel_readiness(channels: list[str]) -> None:
+def _render_channel_readiness(channels: list[str], summary: list[dict[str, Any]] | None = None) -> None:
     st.subheader("채널 준비 상태")
-    summary = get_channel_readiness_summary(channels=channels)
+    summary = summary if summary is not None else get_channel_readiness_summary(channels=channels)
     if not summary:
         st.info("표시할 채널 상태가 없습니다.")
         return
@@ -513,7 +546,9 @@ def _render_manual_review_queue(limit: int = 6) -> None:
 st.title("🎬 Shorts Manager")
 st.caption("YouTube Shorts 콘텐츠 자동 생성 및 관리")
 _render_flash()
-_render_channel_readiness(CHANNELS)
+channel_readiness_summary = get_channel_readiness_summary(channels=CHANNELS)
+generation_run_blockers = _build_generation_run_blockers(channel_readiness_summary)
+_render_channel_readiness(CHANNELS, summary=channel_readiness_summary)
 
 auth_status = _default_auth_status()
 
@@ -710,12 +745,17 @@ with right:
         """실행·업로드·재시도·Notion·삭제 버튼 영역을 렌더링한다."""
         btn_col1, btn_col2, btn_col3, btn_col4, btn_col5 = st.columns(5)
         with btn_col1:
-            can_run = item["status"] in ("pending", "failed") and v2_ok
+            run_block_reason = _generation_run_block_reason(
+                item,
+                generation_run_blockers,
+                v2_available=v2_ok,
+            )
+            can_run = item["status"] in ("pending", "failed") and not run_block_reason
             if st.button(
                 "실행",
                 key=f"run_{key_prefix}_{item['id']}",
                 disabled=not can_run,
-                help="v2 파이프라인 실행",
+                help=run_block_reason or "v2 파이프라인 실행",
                 **_stretch_button_kwargs(),
             ):
                 pid = _launch_v2(item["id"], item["topic"], item.get("channel", ""))
@@ -724,6 +764,8 @@ with right:
                 else:
                     _set_flash("error", "실행 실패")
                 st.rerun()
+            if run_block_reason:
+                st.caption(f"생성 잠금: {run_block_reason}")
         with btn_col2:
             can_upload = (
                 upload_allowed

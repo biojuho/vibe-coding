@@ -302,6 +302,76 @@ def test_format_issue_labels_and_settings_indexes(shorts_manager) -> None:
     assert shorts_manager._style_index({"style_preset": "unknown"}) == 0
 
 
+def test_generation_run_blockers_prevent_unconfigured_channel_execution(shorts_manager) -> None:
+    blockers = shorts_manager._build_generation_run_blockers(
+        [
+            {
+                "channel": "심리학",
+                "status": "setup_required",
+                "next_action": "채널 설정 저장",
+                "issues": ["setup:channel_settings_missing"],
+            },
+            {
+                "channel": "AI/기술",
+                "status": "warning",
+                "next_action": "브랜드 에셋 생성",
+                "issues": ["warning:brand_asset_missing"],
+            },
+        ]
+    )
+
+    assert blockers == {"심리학": "채널 설정 저장 후 실행 가능: channel settings missing"}
+    assert (
+        shorts_manager._generation_run_block_reason(
+            {"status": "pending", "channel": "심리학"},
+            blockers,
+            v2_available=True,
+        )
+        == "채널 설정 저장 후 실행 가능: channel settings missing"
+    )
+    assert (
+        shorts_manager._generation_run_block_reason(
+            {"status": "pending", "channel": "AI/기술"},
+            blockers,
+            v2_available=True,
+        )
+        == ""
+    )
+    assert (
+        shorts_manager._generation_run_block_reason(
+            {"status": "pending", "channel": ""},
+            blockers,
+            v2_available=True,
+        )
+        == "채널을 지정해야 실행할 수 있습니다."
+    )
+    assert (
+        shorts_manager._generation_run_block_reason(
+            {"status": "pending", "channel": "AI/기술"},
+            blockers,
+            v2_available=False,
+        )
+        == "shorts-maker-v2 엔진 경로를 확인하세요."
+    )
+    assert (
+        shorts_manager._generation_run_block_reason(
+            {"status": "success", "channel": "심리학"},
+            blockers,
+            v2_available=True,
+        )
+        == ""
+    )
+
+
+def test_shorts_manager_source_wires_generation_lock_to_run_button() -> None:
+    source = (WORKSPACE_ROOT / "execution" / "pages" / "shorts_manager.py").read_text(encoding="utf-8")
+
+    assert "generation_run_blockers = _build_generation_run_blockers(channel_readiness_summary)" in source
+    assert "run_block_reason = _generation_run_block_reason(" in source
+    assert 'help=run_block_reason or "v2 파이프라인 실행"' in source
+    assert "생성 잠금:" in source
+
+
 def test_default_auth_status_and_upload_gate(shorts_manager, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(shorts_manager, "_YT_OK", False)
     monkeypatch.setattr(shorts_manager, "_YT_ERR", "missing module")
