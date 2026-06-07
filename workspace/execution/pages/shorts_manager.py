@@ -552,6 +552,20 @@ def _render_manual_review_queue(limit: int = 6) -> None:
             st.caption(f"다음 액션: {item.get('next_action', '-')}")
 
 
+def _render_thumbnail_preview(thumbnail_path: str) -> None:
+    if not thumbnail_path:
+        return
+    if not Path(thumbnail_path).exists():
+        return
+
+    with st.expander("썸네일 미리보기"):
+        try:
+            st.image(thumbnail_path, width=320)
+        except Exception:
+            st.warning("썸네일 미리보기를 표시할 수 없습니다.")
+            st.caption(f"파일 경로: {thumbnail_path}")
+
+
 st.title("🎬 Shorts Manager")
 st.caption("YouTube Shorts 콘텐츠 자동 생성 및 관리")
 _render_flash()
@@ -877,9 +891,7 @@ with right:
                     _render_item_buttons(item, key_prefix)
 
                 thumb = item.get("thumbnail_path", "")
-                if thumb and Path(thumb).exists():
-                    with st.expander("썸네일 미리보기"):
-                        st.image(thumb, width=320)
+                _render_thumbnail_preview(thumb)
 
                 video = item.get("video_path", "")
                 if video and Path(video).exists():

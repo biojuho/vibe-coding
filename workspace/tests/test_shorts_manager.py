@@ -517,6 +517,37 @@ def test_scan_manifests_updates_matching_jobs(shorts_manager, monkeypatch: pytes
     ]
 
 
+def test_render_thumbnail_preview_handles_bad_files(
+    shorts_manager, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    shorts_manager.st.events.clear()
+
+    shorts_manager._render_thumbnail_preview(str(tmp_path / "missing.png"))
+
+    assert shorts_manager.st.events == []
+
+    valid_thumbnail = tmp_path / "valid.png"
+    valid_thumbnail.write_bytes(b"png")
+
+    shorts_manager._render_thumbnail_preview(str(valid_thumbnail))
+
+    assert ("image", str(valid_thumbnail)) in shorts_manager.st.events
+
+    corrupt_thumbnail = tmp_path / "corrupt.png"
+    corrupt_thumbnail.write_bytes(b"not a displayable image")
+
+    def fail_image(*args, **kwargs) -> None:
+        raise ValueError("bad image")
+
+    monkeypatch.setattr(shorts_manager.st, "image", fail_image)
+    shorts_manager.st.events.clear()
+
+    shorts_manager._render_thumbnail_preview(str(corrupt_thumbnail))
+
+    assert ("warning", "썸네일 미리보기를 표시할 수 없습니다.") in shorts_manager.st.events
+    assert ("caption", f"파일 경로: {corrupt_thumbnail}") in shorts_manager.st.events
+
+
 def test_launch_v2_starts_process_and_handles_failure(
     shorts_manager, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
