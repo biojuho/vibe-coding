@@ -1426,6 +1426,16 @@
 
 ## 2026-06-07 - Codex
 
+- Added a T-1503 follow-up for Hanwoo Schedule date-cell touch targets after the initial candidate exposed a narrow-mobile overlap risk.
+- Changed `projects/hanwoo-dashboard/src/components/tabs/ScheduleTab.js`: wrapped the weekday/date grids in an internal horizontal scroll container, changed the mobile calendar section to `px-1 py-3 sm:p-3`, gave both grids `min-w-[314px]`, and tightened mobile grid gaps to `gap-px sm:gap-2` so seven 44px cells do not overlap.
+- Changed `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs`: locked the updated mobile padding, internal scroll container, minimum grid width, and gap contract.
+- Browser QA measured mobile-390, mobile-360, mobile-320, and desktop-1280 with body `xOverflow=0`, `allDateButtonsPass44=true`, and `noDateButtonOverlap=true`; min date widths were `48.844`, `44.562`, `44`, and `70.562`.
+- Evidence: `.tmp/hanwoo-t1503-schedule-calendar-browser.json` plus screenshots under `output/playwright/hanwoo-t1503-schedule-calendar-*`.
+- Verification: focused home-market source test passed (`56 passed`); Hanwoo project QC passed (`530 passed`, lint/build/smoke passed); `git diff --check` passed with CRLF warnings only; graph refresh is current at `b3af6219`; staged/commit code-review gate returned advisory WARN (`risk_score=0.30`) covered by focused/browser/project QC.
+- Boundary: code commit `b3af6219` is local only. Worktree is clean, `main` is ahead of `origin/main` by `636`, no push was performed, and T-251 was not retried.
+
+## 2026-06-07 - Codex
+
 - Closed T-1502 as a Shorts Manager Streamlit runtime dependency contract cycle.
 - Product-quality gap: `workspace/execution/pages/shorts_manager.py` imports Streamlit, but the workspace dependency list did not explicitly include it, so a fresh install could generate or hold Shorts output while the operator review/control surface fails before opening.
 - Changed `workspace/pyproject.toml`: added `streamlit>=1.58.0`.
