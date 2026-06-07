@@ -1146,9 +1146,31 @@ body {
   max-height: 220px;
 }
 
+.settings-widget-card {
+  --settings-widget-card-padding: 18px 20px;
+  --settings-widget-card-margin-bottom: 20px;
+  --settings-widget-title-margin-bottom: 14px;
+  --settings-widget-description-margin-bottom: 12px;
+}
+
+.settings-farm-form {
+  --settings-farm-form-margin-top: 0;
+}
+
 @media (max-width: 640px) {
+  .settings-widget-card {
+    --settings-widget-card-padding: 12px 16px;
+    --settings-widget-card-margin-bottom: 12px;
+    --settings-widget-title-margin-bottom: 8px;
+    --settings-widget-description-margin-bottom: 8px;
+  }
+
   .settings-widget-grid-viewport {
-    max-height: 104px;
+    max-height: 72px;
+  }
+
+  .settings-farm-form {
+    --settings-farm-form-margin-top: 96px;
   }
 }
 

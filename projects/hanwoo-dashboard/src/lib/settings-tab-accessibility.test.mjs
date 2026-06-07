@@ -263,6 +263,20 @@ test("settings tab normalizes widget controls and callbacks before rendering", (
 	assert.match(source, /const widgetSettingsNameStyle = \{/);
 	assert.match(source, /overflowWrap:\s*["']anywhere["']/);
 	assert.match(source, /className="settings-widget-grid-viewport"/);
+	assert.match(source, /className="settings-widget-card"/);
+	assert.match(source, /className="settings-farm-form"/);
+	assert.match(
+		source,
+		/padding:\s*["']var\(--settings-widget-card-padding, 18px 20px\)["']/,
+	);
+	assert.match(
+		source,
+		/marginBottom:\s*["']var\(--settings-widget-card-margin-bottom, 20px\)["']/,
+	);
+	assert.match(
+		source,
+		/marginTop:\s*["']var\(--settings-farm-form-margin-top, 0\)["']/,
+	);
 	assert.match(source, /style=\{widgetSettingsGridViewportStyle\}/);
 	assert.match(source, /<div style=\{widgetSettingsGridStyle\}>/);
 	assert.match(source, /<div key=\{widget\.id\} style=\{widgetSettingsControlStyle\}>/);

@@ -2272,7 +2272,7 @@ export default function DashboardClient(options = {}) {
 					onCloseFieldMode={() => setIsFieldMode(false)}
 				/>
 			) : (
-				<div className="max-w-[600px] mx-auto p-4 relative">
+				<div className="dashboard-content-shell max-w-[600px] mx-auto p-4 relative">
 					<InitialDataStatusBanner
 						status={initialDataLoadStatus}
 						onRetry={handleRefreshInitialData}

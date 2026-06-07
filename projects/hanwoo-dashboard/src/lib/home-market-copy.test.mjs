@@ -67,7 +67,12 @@ test("dashboard stacking context keeps mobile tab bar fixed", () => {
 	assert.match(source, /\.settings-widget-grid-viewport\s*\{[\s\S]*?max-height:\s*220px;/);
 	assert.match(
 		source,
-		/@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.settings-widget-grid-viewport\s*\{[\s\S]*?max-height:\s*104px;/,
+		/\.settings-widget-card\s*\{[\s\S]*?--settings-widget-card-padding:\s*18px 20px;[\s\S]*?--settings-widget-card-margin-bottom:\s*20px;[\s\S]*?--settings-widget-title-margin-bottom:\s*14px;[\s\S]*?--settings-widget-description-margin-bottom:\s*12px;/,
+	);
+	assert.match(source, /\.settings-farm-form\s*\{[\s\S]*?--settings-farm-form-margin-top:\s*0;/);
+	assert.match(
+		source,
+		/@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.settings-widget-card\s*\{[\s\S]*?--settings-widget-card-padding:\s*12px 16px;[\s\S]*?--settings-widget-card-margin-bottom:\s*12px;[\s\S]*?--settings-widget-title-margin-bottom:\s*8px;[\s\S]*?--settings-widget-description-margin-bottom:\s*8px;[\s\S]*?\.settings-widget-grid-viewport\s*\{[\s\S]*?max-height:\s*72px;[\s\S]*?\.settings-farm-form\s*\{[\s\S]*?--settings-farm-form-margin-top:\s*96px;/,
 	);
 	assert.match(
 		source,

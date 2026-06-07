@@ -475,12 +475,13 @@ export default function SettingsTab(options = {}) {
 
 			{safeWidgetRegistry.length > 0 ? (
 				<div
+					className="settings-widget-card"
 					style={{
 						background: "var(--color-bg-card)",
-						padding: "18px 20px",
+						padding: "var(--settings-widget-card-padding, 18px 20px)",
 						borderRadius: "16px",
 						boxShadow: "var(--shadow-sm)",
-						marginBottom: "20px",
+						marginBottom: "var(--settings-widget-card-margin-bottom, 20px)",
 					}}
 				>
 					<div
@@ -488,7 +489,7 @@ export default function SettingsTab(options = {}) {
 							fontSize: "14px",
 							fontWeight: 700,
 							color: "var(--color-text)",
-							marginBottom: "14px",
+							marginBottom: "var(--settings-widget-title-margin-bottom, 14px)",
 							display: "flex",
 							alignItems: "center",
 							gap: "8px",
@@ -503,7 +504,7 @@ export default function SettingsTab(options = {}) {
 						style={{
 							fontSize: "11px",
 							color: "var(--color-text-muted)",
-							marginBottom: "12px",
+							marginBottom: "var(--settings-widget-description-margin-bottom, 12px)",
 						}}
 					>
 						홈 화면에 표시할 위젯을 선택해 주세요.
@@ -590,12 +591,14 @@ export default function SettingsTab(options = {}) {
 			) : null}
 
 			<form
+				className="settings-farm-form"
 				onSubmit={handleFarmSubmit}
 				style={{
 					background: "var(--color-bg-card)",
 					padding: "20px",
 					borderRadius: "16px",
 					boxShadow: "var(--shadow-sm)",
+					marginTop: "var(--settings-farm-form-margin-top, 0)",
 					marginBottom: "30px",
 				}}
 			>
