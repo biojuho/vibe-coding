@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-06-07 |
 | Tool | Codex |
+| Work | **T-1538 no-code launch-boundary evidence refresh**. Refreshed Hanwoo project QC at the current local line with `.tmp/project_qc_runner_hanwoo_t1537.json`; Hanwoo `test/lint/build/smoke` passed (`535 passed`; build succeeded after one real Next build-lock retry; smoke only known accepted 405/200 warnings). `product_readiness_score.py --json` still reports score `96`, local blockers `0`, agent tasks `0`, publish blockers `1`, external blockers `1`. `next_experiment_selector.py` reports `blocked_publish_only` / `current_head_release_checks_unproven`, so no adoptable local candidate remains until explicit push or user push allows current-head Actions. |
+| Next Priorities | Generate/reuse `.tmp/release-authorization-packet.json` for the final current HEAD, then push only with explicit authorization or ask the user to push. After push, wait for `root-quality-gate` and `active-project-matrix` on the exact pushed HEAD. Do not retry T-251 until Supabase credentials are reset/resynced. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-07 |
+| Tool | Codex |
 | Work | **T-1537 Shorts Manager mobile readiness controls polish**. Continued the Shorts Manager operator-output quality loop. `workspace/execution/pages/shorts_manager.py` now raises Streamlit number stepper buttons and checkbox labels to the 44px mobile target, keeps number steppers at least 44px wide, and localizes channel-readiness `voice/style` captions to `음성/스타일`. `workspace/tests/test_shorts_manager.py` locks the mobile CSS selectors and rejects the old English readiness labels. Verification passed focused Shorts Manager pytest (`45 passed`), targeted Ruff check, Ruff format check, `py_compile`, browser QA at `390x844` (`hasEnglishVoiceStyle=false`, `koreanVoiceStyleCount=5`, `horizontalOverflow=false`, screenshot `output/playwright/shorts-manager-t1537-channel-readiness-copy.png`), and staged/commit code-review gate exit 0 with advisory WARN (`risk_score=0.30`) covered by direct source/render/browser tests. Code commit `273a511a` is local only. |
 | Next Priorities | Worktree should be checked with `python execution/session_orient.py --json` before continuing. Remaining release boundaries are explicit push/current-head GitHub Actions plus user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E. Do not push without explicit authorization and do not retry T-251 before credential reset/resync. |
 
