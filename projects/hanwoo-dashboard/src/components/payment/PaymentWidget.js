@@ -18,10 +18,13 @@ const PAYMENT_WIDGET_TIMEOUT_MESSAGE =
 	"결제창을 불러오는 시간이 길어지고 있습니다. 새로고침 후 다시 시도해 주세요.";
 const PAYMENT_WIDGET_LOAD_ERROR_MESSAGE =
 	"결제창을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.";
+const PAYMENT_WIDGET_UNAVAILABLE_MESSAGE =
+	"결제 설정을 확인해야 합니다. 관리자에게 Toss 결제위젯 키와 UI 설정을 확인해 달라고 요청해 주세요.";
 const PAYMENT_WIDGET_PENDING_MESSAGE = "결제 수단을 불러오는 중입니다.";
 const PAYMENT_PREPARING_MESSAGE = "결제를 준비하고 있습니다.";
 const PAYMENT_REQUEST_ERROR_MESSAGE =
 	"결제 요청을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+const PAYMENT_WIDGET_UNAVAILABLE_BUTTON_LABEL = "결제 설정 확인 필요";
 const PAYMENT_BUTTON_PREFIX = "결제하기";
 const PAYMENT_SUCCESS_PATH = "/subscription/success";
 const PAYMENT_FAIL_PATH = "/subscription/fail";
@@ -101,6 +104,22 @@ function normalizePaymentAmount(amount) {
 	return 0;
 }
 
+function isPaymentWidgetUnavailableError(error) {
+	const errorMessage = error instanceof Error ? error.message : String(error ?? "");
+
+	return (
+		errorMessage === PAYMENT_WIDGET_PENDING_MESSAGE ||
+		errorMessage === PAYMENT_WIDGET_UNAVAILABLE_MESSAGE ||
+		errorMessage.includes("결제 UI가 아직 렌더링되지 않았습니다")
+	);
+}
+
+function getPaymentRequestErrorMessage(error) {
+	return isPaymentWidgetUnavailableError(error)
+		? PAYMENT_WIDGET_UNAVAILABLE_MESSAGE
+		: PAYMENT_REQUEST_ERROR_MESSAGE;
+}
+
 export default function PaymentWidget(options = {}) {
 	const {
 		clientKey,
@@ -109,6 +128,7 @@ export default function PaymentWidget(options = {}) {
 		orderName,
 		customerName,
 		customerEmail,
+		isClientKeyConfigured = true,
 	} = normalizePaymentWidgetOptions(options);
 	const paymentWidgetRef = useRef(null);
 	const paymentRequestInFlightRef = useRef(false);
@@ -116,13 +136,17 @@ export default function PaymentWidget(options = {}) {
 	const [price] = useState(() => normalizePaymentAmount(amount));
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [isWidgetReady, setIsWidgetReady] = useState(false);
+	const [isWidgetUnavailable, setIsWidgetUnavailable] = useState(false);
 	const [errorMessage, setErrorMessage] = useState("");
-	const isPaymentButtonBusy = isSubmitting || !isWidgetReady;
+	const isPaymentButtonBusy =
+		isSubmitting || !isWidgetReady || isWidgetUnavailable;
 	const paymentButtonLabel = isSubmitting
 		? PAYMENT_PREPARING_MESSAGE
+		: isWidgetUnavailable
+			? PAYMENT_WIDGET_UNAVAILABLE_BUTTON_LABEL
 			: !isWidgetReady
-			? PAYMENT_WIDGET_PENDING_MESSAGE
-			: `${PAYMENT_BUTTON_PREFIX} ${price.toLocaleString()}원`;
+				? PAYMENT_WIDGET_PENDING_MESSAGE
+				: `${PAYMENT_BUTTON_PREFIX} ${price.toLocaleString()}원`;
 
 	useEffect(() => {
 		isMountedRef.current = true;
@@ -134,14 +158,30 @@ export default function PaymentWidget(options = {}) {
 
 	useEffect(() => {
 		let cancelled = false;
+		let widgetReadyTimeoutId = null;
 
 		paymentWidgetRef.current = null;
 		deferPaymentWidgetTask(() => {
 			if (!cancelled) {
 				setIsWidgetReady(false);
+				setIsWidgetUnavailable(false);
 				setErrorMessage("");
 			}
 		});
+
+		if (!isClientKeyConfigured) {
+			deferPaymentWidgetTask(() => {
+				if (!cancelled) {
+					setIsWidgetReady(false);
+					setIsWidgetUnavailable(true);
+					setErrorMessage(PAYMENT_WIDGET_UNAVAILABLE_MESSAGE);
+				}
+			});
+
+			return () => {
+				cancelled = true;
+			};
+		}
 
 		void (async () => {
 			try {
@@ -154,7 +194,7 @@ export default function PaymentWidget(options = {}) {
 					return;
 				}
 
-				paymentWidget.renderPaymentMethods(
+				const paymentMethodsWidget = paymentWidget.renderPaymentMethods(
 					"#payment-widget",
 					{ value: price },
 					{ variantKey: "DEFAULT" },
@@ -164,13 +204,37 @@ export default function PaymentWidget(options = {}) {
 					variantKey: "AGREEMENT",
 				});
 				paymentWidgetRef.current = paymentWidget;
-				setIsWidgetReady(true);
+				widgetReadyTimeoutId = window.setTimeout(() => {
+					if (!cancelled) {
+						paymentWidgetRef.current = null;
+						setIsWidgetReady(false);
+						setIsWidgetUnavailable(true);
+						setErrorMessage(PAYMENT_WIDGET_TIMEOUT_MESSAGE);
+					}
+				}, PAYMENT_WIDGET_TIMEOUT_MS);
+				paymentMethodsWidget.on("ready", () => {
+					if (cancelled) {
+						return;
+					}
+
+					if (widgetReadyTimeoutId !== null) {
+						window.clearTimeout(widgetReadyTimeoutId);
+						widgetReadyTimeoutId = null;
+					}
+
+					setIsWidgetUnavailable(false);
+					setErrorMessage("");
+					setIsWidgetReady(true);
+				});
 			} catch (error) {
 				if (cancelled) {
 					return;
 				}
 
 				console.error("Payment widget initialization failed", error);
+				paymentWidgetRef.current = null;
+				setIsWidgetReady(false);
+				setIsWidgetUnavailable(true);
 				setErrorMessage(
 					isTimeoutError(error)
 						? PAYMENT_WIDGET_TIMEOUT_MESSAGE
@@ -181,8 +245,11 @@ export default function PaymentWidget(options = {}) {
 
 		return () => {
 			cancelled = true;
+			if (widgetReadyTimeoutId !== null) {
+				window.clearTimeout(widgetReadyTimeoutId);
+			}
 		};
-	}, [clientKey, customerKey, price]);
+	}, [clientKey, customerKey, isClientKeyConfigured, price]);
 
 	const handlePayment = async () => {
 		if (paymentRequestInFlightRef.current) {
@@ -196,7 +263,7 @@ export default function PaymentWidget(options = {}) {
 
 			const paymentWidget = paymentWidgetRef.current;
 			if (!paymentWidget) {
-				throw new Error(PAYMENT_WIDGET_PENDING_MESSAGE);
+				throw new Error(PAYMENT_WIDGET_UNAVAILABLE_MESSAGE);
 			}
 
 			setIsSubmitting(true);
@@ -247,11 +314,12 @@ export default function PaymentWidget(options = {}) {
 			await paymentWidget.requestPayment(requestPayload);
 		} catch (error) {
 			console.error("Payment Request Failed", error);
-			setErrorMessage(
-				error.message === PAYMENT_WIDGET_PENDING_MESSAGE
-					? PAYMENT_WIDGET_PENDING_MESSAGE
-					: PAYMENT_REQUEST_ERROR_MESSAGE,
-			);
+			if (isPaymentWidgetUnavailableError(error)) {
+				paymentWidgetRef.current = null;
+				setIsWidgetReady(false);
+				setIsWidgetUnavailable(true);
+			}
+			setErrorMessage(getPaymentRequestErrorMessage(error));
 		} finally {
 			paymentRequestInFlightRef.current = false;
 			if (isMountedRef.current) {
@@ -275,6 +343,7 @@ export default function PaymentWidget(options = {}) {
 			</h2>
 			{errorMessage ? (
 				<p
+					id="payment-widget-error"
 					role="alert"
 					style={{
 						marginBottom: "16px",
@@ -297,6 +366,7 @@ export default function PaymentWidget(options = {}) {
 				onClick={handlePayment}
 				disabled={isPaymentButtonBusy}
 				aria-busy={isPaymentButtonBusy}
+				aria-describedby={errorMessage ? "payment-widget-error" : undefined}
 				aria-label={paymentButtonLabel}
 				title={paymentButtonLabel}
 				style={{

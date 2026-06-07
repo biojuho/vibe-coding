@@ -2,9 +2,7 @@ import PaymentWidget from "@/components/payment/PaymentWidget";
 import { requireAuthenticatedSession } from "@/lib/auth-guard";
 import { buildCustomerKey, PREMIUM_SUBSCRIPTION } from "@/lib/subscription";
 
-const clientKey =
-	process.env.NEXT_PUBLIC_TOSS_PAYMENTS_CLIENT_KEY ||
-	"test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq";
+const clientKey = process.env.NEXT_PUBLIC_TOSS_PAYMENTS_CLIENT_KEY || "";
 
 export default async function SubscriptionPage() {
 	const session = await requireAuthenticatedSession({ redirectToLogin: true });
@@ -38,6 +36,7 @@ export default async function SubscriptionPage() {
 
 			<PaymentWidget
 				clientKey={clientKey}
+				isClientKeyConfigured={Boolean(clientKey)}
 				customerKey={customerKey}
 				amount={PREMIUM_SUBSCRIPTION.amount}
 				orderName={PREMIUM_SUBSCRIPTION.displayName}

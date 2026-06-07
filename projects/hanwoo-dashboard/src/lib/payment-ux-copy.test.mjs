@@ -18,6 +18,8 @@ test("payment widget exposes Korean product copy for checkout states", () => {
 	assert.match(source, /결제 수단을 불러오는 중입니다/);
 	assert.match(source, /결제를 준비하고 있습니다/);
 	assert.match(source, /결제 요청을 완료하지 못했습니다/);
+	assert.match(source, /결제 설정을 확인해야 합니다/);
+	assert.match(source, /결제 설정 확인 필요/);
 	assert.match(source, /결제하기/);
 	assert.doesNotMatch(source, /Subscription checkout/);
 	assert.doesNotMatch(source, /Loading payment methods/);
@@ -57,11 +59,15 @@ test("payment widget waits for async payment requests before re-enabling checkou
 	);
 	assert.match(
 		source,
-		/const isPaymentButtonBusy = isSubmitting \|\| !isWidgetReady;/,
+		/const \[isWidgetUnavailable, setIsWidgetUnavailable\] = useState\(false\)/,
 	);
 	assert.match(
 		source,
-		/const paymentButtonLabel = isSubmitting\s+\? PAYMENT_PREPARING_MESSAGE\s+: !isWidgetReady\s+\? PAYMENT_WIDGET_PENDING_MESSAGE\s+: `\$\{PAYMENT_BUTTON_PREFIX\} \$\{price\.toLocaleString\(\)\}원`;/,
+		/const isPaymentButtonBusy =\s+isSubmitting \|\| !isWidgetReady \|\| isWidgetUnavailable;/,
+	);
+	assert.match(
+		source,
+		/const paymentButtonLabel = isSubmitting\s+\? PAYMENT_PREPARING_MESSAGE\s+: isWidgetUnavailable\s+\? PAYMENT_WIDGET_UNAVAILABLE_BUTTON_LABEL\s+: !isWidgetReady\s+\? PAYMENT_WIDGET_PENDING_MESSAGE\s+: `\$\{PAYMENT_BUTTON_PREFIX\} \$\{price\.toLocaleString\(\)\}원`;/,
 	);
 	assert.match(
 		source,
@@ -83,6 +89,7 @@ test("payment widget waits for async payment requests before re-enabling checkou
 	);
 	assert.match(source, /disabled=\{isPaymentButtonBusy\}/);
 	assert.match(source, /aria-busy=\{isPaymentButtonBusy\}/);
+	assert.match(source, /aria-describedby=\{errorMessage \? "payment-widget-error" : undefined\}/);
 	assert.match(source, /aria-label=\{paymentButtonLabel\}/);
 	assert.match(source, /title=\{paymentButtonLabel\}/);
 	assert.match(source, /cursor: isPaymentButtonBusy \? "wait" : "pointer"/);
@@ -145,13 +152,51 @@ test("payment widget load-state reset avoids lint suppressions", () => {
 	);
 	assert.match(
 		source,
-		/deferPaymentWidgetTask\(\(\) => \{\s+if \(!cancelled\) \{\s+setIsWidgetReady\(false\);\s+setErrorMessage\(""\);/,
+		/deferPaymentWidgetTask\(\(\) => \{\s+if \(!cancelled\) \{\s+setIsWidgetReady\(false\);\s+setIsWidgetUnavailable\(false\);\s+setErrorMessage\(""\);/,
 	);
 	assert.doesNotMatch(
 		source,
 		/queueMicrotask\(\(\) => \{\s+if \(!cancelled\) \{/,
 	);
 	assert.doesNotMatch(source, /eslint-disable/);
+});
+
+test("payment widget waits for Toss ready events and blocks unavailable setup", () => {
+	const source = readSource("components/payment/PaymentWidget.js");
+	const subscriptionSource = readSource("app/subscription/page.js");
+
+	assert.match(source, /isClientKeyConfigured = true/);
+	assert.match(
+		source,
+		/function isPaymentWidgetUnavailableError\(error\) \{/,
+	);
+	assert.match(source, /PAYMENT_WIDGET_UNAVAILABLE_MESSAGE/);
+	assert.match(source, /PAYMENT_WIDGET_UNAVAILABLE_BUTTON_LABEL/);
+	assert.match(
+		source,
+		/if \(!isClientKeyConfigured\) \{\s+deferPaymentWidgetTask\(\(\) => \{\s+if \(!cancelled\) \{\s+setIsWidgetReady\(false\);\s+setIsWidgetUnavailable\(true\);\s+setErrorMessage\(PAYMENT_WIDGET_UNAVAILABLE_MESSAGE\);/,
+	);
+	assert.match(
+		source,
+		/const paymentMethodsWidget = paymentWidget\.renderPaymentMethods\(/,
+	);
+	assert.match(
+		source,
+		/paymentMethodsWidget\.on\("ready", \(\) => \{\s+if \(cancelled\) \{\s+return;\s+\}/,
+	);
+	assert.match(source, /setIsWidgetUnavailable\(false\);\s+setErrorMessage\(""\);\s+setIsWidgetReady\(true\);/);
+	assert.match(
+		source,
+		/setErrorMessage\(getPaymentRequestErrorMessage\(error\)\);/,
+	);
+	assert.match(source, /id="payment-widget-error"/);
+
+	assert.match(
+		subscriptionSource,
+		/const clientKey = process\.env\.NEXT_PUBLIC_TOSS_PAYMENTS_CLIENT_KEY \|\| "";/,
+	);
+	assert.match(subscriptionSource, /isClientKeyConfigured=\{Boolean\(clientKey\)\}/);
+	assert.doesNotMatch(subscriptionSource, /test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq/);
 });
 
 test("subscription result pages avoid bare English loading and status copy", () => {
