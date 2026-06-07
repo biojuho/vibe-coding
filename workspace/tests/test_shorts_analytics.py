@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import sys
+import tomllib
 import types
 from pathlib import Path
 
@@ -202,3 +203,18 @@ def test_shorts_analytics_source_avoids_deprecated_plotly_width_api() -> None:
 
     assert "use_container_width=True" not in source
     assert 'st.plotly_chart(fig, width="stretch")' in source
+
+
+def test_shorts_analytics_source_labels_shorts_revenue_as_rpm() -> None:
+    source = (WORKSPACE_ROOT / "execution" / "pages" / "shorts_analytics.py").read_text(encoding="utf-8")
+
+    assert "채널별 Shorts 수익 잠재력 (RPM 추정)" in source
+    assert "Shorts RPM(수익/1천회 engaged views)" in source
+    assert "Shorts CPM" not in source
+
+
+def test_workspace_dependencies_include_plotly_for_shorts_analytics_runtime() -> None:
+    pyproject = tomllib.loads((WORKSPACE_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    dependencies = pyproject["project"]["dependencies"]
+
+    assert any(dependency.startswith("plotly>=") for dependency in dependencies)

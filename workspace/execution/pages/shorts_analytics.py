@@ -513,8 +513,8 @@ with tab_roi:
         st.divider()
 
         # ── 채널별 수익 잠재력 ────────────────────────────────
-        st.subheader("채널별 수익 잠재력 (AdSense 추정)")
-        st.caption("Shorts CPM $0.04~0.10 기준 추정 (국가/카테고리별 차이 있음)")
+        st.subheader("채널별 Shorts 수익 잠재력 (RPM 추정)")
+        st.caption("Shorts RPM(수익/1천회 engaged views) $0.04~0.10 기준 추정 (국가/카테고리별 차이 있음)")
 
         for c in ch_perf:
             if c["total_views"] > 0:
