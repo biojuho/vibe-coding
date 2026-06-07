@@ -1677,3 +1677,11 @@
 - Code-review gate: advisory WARN (`risk_score=0.30`) for graph-reported helper test gaps, covered by direct tests and browser QA.
 - Launch evidence after the code commit: clean worktree, graph current at `a8fc49c8`, readiness score `96`, local blockers `0`, agent tasks `0`, publish blockers `1`, external blockers `1`, release packet `ready_for_authorization`, selector `blocked_publish_only`, and completion audit `11/15` complete with `4` blocked items.
 - Boundary: no push was performed and T-251 was not retried. Remaining work is explicit push/user push for current-head GitHub Actions plus user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E.
+
+## 2026-06-08 - Codex
+
+- Completed T-1567b as an auto-research launch-audit robustness follow-up at local code commit `7fa3183c`.
+- Changed `.agents/skills/auto-research/scripts/launch_objective_audit.py`: added output-quality and Korean goal phrases (`결과물 품질`, `고품질 output`, `고품질 결과물`, `실사용 가능한 결과물`) to the resumable goal/objective mapping terms.
+- Changed `workspace/tests/test_auto_research_launch_objective_audit.py`: added a regression that a Korean goal for directly usable high-quality output maps the relay item to complete.
+- Verification: focused launch audit pytest passed (`46 passed`); Ruff check passed; Ruff format check passed; `py_compile` passed; `git diff --check` passed with CRLF warnings only; graph update completed; staged code-review gate returned advisory WARN (`risk_score=0.30`) covered by focused tests; A/B helper adopted the candidate from `.tmp/ab-manifest-t1567b-korean-output-quality-goal.json` with `score_delta=1.8333333333333333`.
+- Boundary: no push was performed and T-251 was not retried. Preserve unrelated visible WIP in `workspace/execution/pages/daily_report.py`, `workspace/tests/test_daily_report.py`, and `daily-report-t1567-candidate-mobile.png`; it was not part of T-1567b.

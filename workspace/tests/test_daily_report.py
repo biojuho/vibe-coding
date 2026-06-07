@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import builtins
 from datetime import date
+from pathlib import Path
 
 import execution.daily_report as dr
+
+WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_generate_report_includes_llm_bridge(monkeypatch):
@@ -112,3 +115,46 @@ def test_collect_api_alerts_returns_empty_shape_when_import_fails(monkeypatch):
     assert result["alert_count"] == 0
     assert result["alerts"] == []
     assert "error" in result
+
+
+def test_daily_report_page_inserts_workspace_root_for_execution_imports():
+    source = (WORKSPACE_ROOT / "execution" / "pages" / "daily_report.py").read_text(encoding="utf-8")
+
+    assert "WORKSPACE_ROOT = Path(__file__).resolve().parents[2]" in source
+    assert "sys.path.insert(0, str(WORKSPACE_ROOT))" in source
+    assert "Path(__file__).resolve().parent.parent" not in source
+
+
+def test_daily_report_page_uses_korean_operator_copy():
+    source = (WORKSPACE_ROOT / "execution" / "pages" / "daily_report.py").read_text(encoding="utf-8")
+
+    assert 'st.set_page_config(page_title="일일 리포트 - Joolife"' in source
+    assert 'st.title("📝 일일 운영 리포트")' in source
+    assert '"리포트 날짜"' in source
+    assert '"리포트 생성"' in source
+    assert '"총 커밋"' in source
+    assert '"API 알림"' in source
+    assert '"Daily Report - Joolife"' not in source
+    assert 'st.title("📝 Daily Report")' not in source
+    assert '"Generate Report"' not in source
+
+
+def test_daily_report_page_hides_plotly_modebar_and_uses_current_width_api():
+    source = (WORKSPACE_ROOT / "execution" / "pages" / "daily_report.py").read_text(encoding="utf-8")
+
+    assert 'PLOTLY_CHART_CONFIG = {"displayModeBar": False, "displaylogo": False, "responsive": True}' in source
+    assert 'st.plotly_chart(fig, width="stretch", config=PLOTLY_CHART_CONFIG)' in source
+    assert "use_container_width=True" not in source
+    assert 'font_color="#1f2933"' in source
+
+
+def test_daily_report_page_has_mobile_touch_target_css():
+    source = (WORKSPACE_ROOT / "execution" / "pages" / "daily_report.py").read_text(encoding="utf-8")
+
+    assert "def _inject_mobile_touch_target_styles()" in source
+    assert 'div[data-testid="stDateInput"] button' in source
+    assert 'div[data-testid="stButton"] button' in source
+    assert 'button[data-testid="stMainMenuButton"]' in source
+    assert 'a[href^="#"]' in source
+    assert "min-height: 44px !important" in source
+    assert "min-width: 44px !important" in source
