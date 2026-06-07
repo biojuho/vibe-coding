@@ -78,21 +78,28 @@ def _inject_scheduler_dashboard_mobile_css() -> None:
   div[data-testid='stNumberInput'] button,
   div[data-baseweb='select'],
   div[data-baseweb='input'] {
-    min-height: 44px;
+    min-height: 44px !important;
+  }
+  div[data-testid='stTextInput'] input,
+  div[data-testid='stNumberInput'] input,
+  div[data-baseweb='select'] > div,
+  div[data-baseweb='input'] > div {
+    min-height: 44px !important;
+    height: 44px !important;
   }
   div[data-testid='stNumberInput'] button,
   div[data-testid='stButton'] button,
   div[data-testid='stFormSubmitButton'] button {
-    min-width: 44px;
+    min-width: 44px !important;
   }
   div[data-testid='stExpander'] summary {
-    min-height: 44px;
+    min-height: 44px !important;
     align-items: center;
   }
   button[aria-label='Main menu'],
   button[data-testid='stBaseButton-header'] {
-    min-height: 44px;
-    min-width: 44px;
+    min-height: 44px !important;
+    min-width: 44px !important;
   }
 }
 </style>

@@ -242,10 +242,13 @@ def test_scheduler_dashboard_injects_mobile_touch_target_css(monkeypatch: pytest
     assert "div[data-testid='stTextInput'] input" in css
     assert "div[data-testid='stNumberInput']" in css
     assert "div[data-testid='stExpander'] summary" in css
+    assert "div[data-baseweb='select'] > div" in css
+    assert "div[data-baseweb='input'] > div" in css
     assert "button[aria-label='Main menu']" in css
     assert "button[data-testid='stBaseButton-header']" in css
-    assert "min-height: 44px" in css
-    assert "min-width: 44px" in css
+    assert "min-height: 44px !important" in css
+    assert "height: 44px !important" in css
+    assert "min-width: 44px !important" in css
 
 
 def test_scheduler_dashboard_formats_status_reason_and_log_codes(monkeypatch: pytest.MonkeyPatch) -> None:
