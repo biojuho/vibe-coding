@@ -423,29 +423,45 @@ export default function SettingsTab(options = {}) {
 					title={isDark ? "다크모드 끄기" : "다크모드 켜기"}
 					style={{
 						width: "52px",
-						height: "28px",
-						borderRadius: "14px",
+						height: "44px",
+						borderRadius: "22px",
 						border: "none",
 						cursor: "pointer",
 						position: "relative",
-						background: isDark ? "var(--color-primary)" : "var(--color-border)",
-						transition: "background 0.3s ease",
+						display: "inline-flex",
+						alignItems: "center",
+						justifyContent: "center",
+						padding: 0,
+						background: "transparent",
 					}}
 				>
 					<div
-						style={{
-							width: "22px",
-							height: "22px",
-							borderRadius: "50%",
-							background: "var(--color-bg-card)",
-							position: "absolute",
-							top: "3px",
-							left: isDark ? "27px" : "3px",
-							transition: "left 0.3s ease",
-							boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
-						}}
 						aria-hidden="true"
-					/>
+						style={{
+							width: "52px",
+							height: "28px",
+							borderRadius: "14px",
+							position: "relative",
+							background: isDark
+								? "var(--color-primary)"
+								: "var(--color-border)",
+							transition: "background 0.3s ease",
+						}}
+					>
+						<div
+							style={{
+								width: "22px",
+								height: "22px",
+								borderRadius: "50%",
+								background: "var(--color-bg-card)",
+								position: "absolute",
+								top: "3px",
+								left: isDark ? "27px" : "3px",
+								transition: "left 0.3s ease",
+								boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+							}}
+						/>
+					</div>
 				</button>
 			</div>
 
@@ -512,32 +528,46 @@ export default function SettingsTab(options = {}) {
 										title={`${widget.label} 위젯 ${isOn ? "숨기기" : "보이기"}`}
 										style={{
 											width: "44px",
-											height: "24px",
-											borderRadius: "12px",
+											height: "44px",
+											borderRadius: "22px",
 											border: "none",
 											cursor: "pointer",
 											justifySelf: "end",
 											position: "relative",
-											background: isOn
-												? "var(--color-success)"
-												: "var(--color-border)",
-											transition: "background 0.3s ease",
+											display: "inline-flex",
+											alignItems: "center",
+											justifyContent: "center",
+											padding: 0,
+											background: "transparent",
 										}}
 									>
 										<div
-											style={{
-												width: "18px",
-												height: "18px",
-												borderRadius: "50%",
-												background: "var(--color-bg-card)",
-												position: "absolute",
-												top: "3px",
-												left: isOn ? "23px" : "3px",
-												transition: "left 0.3s ease",
-												boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-											}}
 											aria-hidden="true"
-										/>
+											style={{
+												width: "44px",
+												height: "24px",
+												borderRadius: "12px",
+												position: "relative",
+												background: isOn
+													? "var(--color-success)"
+													: "var(--color-border)",
+												transition: "background 0.3s ease",
+											}}
+										>
+											<div
+												style={{
+													width: "18px",
+													height: "18px",
+													borderRadius: "50%",
+													background: "var(--color-bg-card)",
+													position: "absolute",
+													top: "3px",
+													left: isOn ? "23px" : "3px",
+													transition: "left 0.3s ease",
+													boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+												}}
+											/>
+										</div>
 									</button>
 								</div>
 							);

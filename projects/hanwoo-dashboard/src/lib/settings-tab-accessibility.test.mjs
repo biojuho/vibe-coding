@@ -35,6 +35,14 @@ test("settings tab switch controls expose Korean accessible names and checked st
 	);
 	assert.match(
 		source,
+		/aria-checked=\{isDark\}[\s\S]*?width:\s*["']52px["'][\s\S]*?height:\s*["']44px["'][\s\S]*?background:\s*["']transparent["'][\s\S]*?width:\s*["']52px["'][\s\S]*?height:\s*["']28px["']/,
+	);
+	assert.match(
+		source,
+		/aria-checked=\{isOn\}[\s\S]*?width:\s*["']44px["'][\s\S]*?height:\s*["']44px["'][\s\S]*?background:\s*["']transparent["'][\s\S]*?width:\s*["']44px["'][\s\S]*?height:\s*["']24px["']/,
+	);
+	assert.match(
+		source,
 		/<Settings\s+size=\{20\}\s+className=["']text-\[color:var\(--color-text\)\]["']\s+aria-hidden=["']true["']\s*\/>/,
 	);
 	assert.match(source, /<MapPin size=\{16\} aria-hidden=["']true["'] \/>/);
