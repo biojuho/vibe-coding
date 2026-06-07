@@ -704,6 +704,7 @@ def test_shorts_manager_source_adds_mobile_touch_target_styles() -> None:
     assert "div[data-baseweb='input']" in source
     assert "div[data-baseweb='input'] input" in source
     assert "ul[data-testid='stSelectboxVirtualDropdown'] li[role='option']" in source
+    assert "div[data-testid='stExpander'] details summary" in source
     assert "button[data-testid='stNumberInputStepDown']" in source
     assert "button[data-testid='stNumberInputStepUp']" in source
     assert "div[data-testid='stCheckbox'] label" in source
@@ -777,6 +778,7 @@ def test_inject_mobile_touch_target_styles_renders_css(shorts_manager) -> None:
         and "button[data-testid='stNumberInputStepDown']" in str(payload)
         and "button[data-testid='stNumberInputStepUp']" in str(payload)
         and "ul[data-testid='stSelectboxVirtualDropdown'] li[role='option']" in str(payload)
+        and "div[data-testid='stExpander'] details summary" in str(payload)
         and ".st-key-shorts_delete_confirmation" in str(payload)
         for payload in markdowns
     )

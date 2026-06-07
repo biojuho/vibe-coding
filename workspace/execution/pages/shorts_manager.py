@@ -205,6 +205,12 @@ def _inject_mobile_touch_target_styles() -> None:
     min-height: 44px;
   }
 
+  div[data-testid='stExpander'] details summary {
+    min-height: 44px !important;
+    display: flex;
+    align-items: center;
+  }
+
   ul[data-testid='stSelectboxVirtualDropdown'] li[role='option'] {
     display: flex;
     align-items: center;
