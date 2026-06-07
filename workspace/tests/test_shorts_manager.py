@@ -691,6 +691,9 @@ def test_shorts_manager_source_adds_mobile_touch_target_styles() -> None:
     assert "div[data-baseweb='select']" in source
     assert "div[data-baseweb='input']" in source
     assert "div[data-baseweb='input'] input" in source
+    assert "button[data-testid='stNumberInputStepDown']" in source
+    assert "button[data-testid='stNumberInputStepUp']" in source
+    assert "div[data-testid='stCheckbox'] label" in source
     assert "unsafe_allow_html=True" in source
     assert "_inject_mobile_touch_target_styles()" in source
 
@@ -758,6 +761,8 @@ def test_inject_mobile_touch_target_styles_renders_css(shorts_manager) -> None:
         "div[role='tablist']" in str(payload)
         and "min-height: 44px" in str(payload)
         and "min-width: 44px" in str(payload)
+        and "button[data-testid='stNumberInputStepDown']" in str(payload)
+        and "button[data-testid='stNumberInputStepUp']" in str(payload)
         and ".st-key-shorts_delete_confirmation" in str(payload)
         for payload in markdowns
     )
@@ -1142,6 +1147,8 @@ def test_render_channel_readiness_sorts_and_formats_issues(shorts_manager, monke
     captions = [payload for name, payload in shorts_manager.st.events if name == "caption"]
     assert markdowns
     assert "AI/기술" in markdowns[0]
+    assert "음성: `nova` | 스타일: `bold`" in captions
+    assert not any("voice:" in str(payload) or "style:" in str(payload) for payload in captions)
     assert any("브랜드 에셋 누락, BGM 누락" in str(payload) for payload in captions)
 
 

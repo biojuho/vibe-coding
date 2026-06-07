@@ -197,8 +197,16 @@ def _inject_mobile_touch_target_styles() -> None:
   div[data-testid='stFormSubmitButton'] button,
   div[data-baseweb='select'],
   div[data-baseweb='input'],
-  div[data-baseweb='input'] input {
+  div[data-baseweb='input'] input,
+  button[data-testid='stNumberInputStepDown'],
+  button[data-testid='stNumberInputStepUp'],
+  div[data-testid='stCheckbox'] label {
     min-height: 44px;
+  }
+
+  button[data-testid='stNumberInputStepDown'],
+  button[data-testid='stNumberInputStepUp'] {
+    min-width: 44px;
   }
 
   div[role='tablist'] button[role='tab'] {
@@ -912,7 +920,7 @@ def _render_channel_readiness(channels: list[str], summary: list[dict[str, Any]]
                     f"**{item['channel']}** {_ops_badge(item['status'])}",
                     unsafe_allow_html=True,
                 )
-                st.caption(f"voice: `{item['voice'] or '-'}` | style: `{item['style_preset'] or '-'}`")
+                st.caption(f"음성: `{item['voice'] or '-'}` | 스타일: `{item['style_preset'] or '-'}`")
             with meta_col:
                 st.caption(
                     "BGM: "
