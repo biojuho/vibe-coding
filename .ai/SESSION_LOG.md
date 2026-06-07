@@ -1455,3 +1455,12 @@
 - Candidate browser QA passed with date buttons `44x78`, `small_date_button_count=0`, `schedule_small_target_count=1` (shared degraded-state refresh button only), `xOverflow=false`, bad responses `0`, screenshot `output/playwright/hanwoo-t1503-schedule-date-target-candidate.png`, and JSON `.tmp/hanwoo-t1503-schedule-date-target-candidate.json`.
 - Verification: related source tests passed (`64 passed`); full Hanwoo project QC passed (`530 passed`, lint/build/smoke passed); `git diff --check` passed with CRLF warnings only; graph refresh completed; staged/commit code-review gate returned advisory WARN `risk_score=0.30`, covered by focused/browser/project QC; A/B selected `adopt_candidate` with `score_delta=0.6075875246548323`.
 - Boundary: code commit `5b693ec8` is local only. No push was performed. T-251 was not retried. Refresh current-head readiness/release-selector evidence before release claims because HEAD advanced past the T-1501 canonical full-workspace artifact.
+
+## 2026-06-07 - Codex
+
+- Closed T-1504 as a current-head full canonical QC/readiness refresh after the T-1503 Hanwoo schedule follow-up and context commits.
+- Ran `python execution/project_qc_runner.py --json --artifact .tmp/project_qc_runner_latest.json` at local HEAD `93c8c336`.
+- Full active-project QC passed: Blind-to-X `1842 passed`, `9 skipped`, lint pass; Shorts Maker V2 `1640 passed`, `12 skipped`, lint pass; Hanwoo `530 passed`, lint/build/smoke passed; Knowledge Dashboard `62 passed`, lint/build/smoke passed.
+- `python execution/product_readiness_score.py --json` reports score `96`, state `blocked`, local blockers `0`, agent tasks `0`, publish blockers `1`, external blockers `1`, clean worktree, no open PRs, and fresh current-head QC evidence.
+- `python execution/session_orient.py --json` confirms graph current at `93c8c336`, no open PRs, and `main` ahead of `origin/main` by `638`.
+- Boundary: no push was performed. T-251 was not retried. Remaining blockers are explicit push/current-head GitHub Actions and user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E.
