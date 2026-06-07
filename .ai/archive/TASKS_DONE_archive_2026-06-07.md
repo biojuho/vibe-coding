@@ -796,3 +796,7 @@
 ## Rotation 2026-06-07 (archived DONE rows beyond the newest 5)
 
 | T-1517 | `[blind-to-x/notion]` Uses X weighted length in reviewer-facing Notion output. The X upload card now reports `X 가중 글자 수` using the existing weighted counter instead of raw string length, matching X official URL/CJK/emoji counting behavior and preventing Korean drafts or long URLs from being misclassified as copy-ready. Tests lock Korean overflow (`282/280`) and long URL normalization (`27/280`). Verification passed focused Notion tests (`53 passed`), targeted Ruff check/format check, `git diff --check`, Blind-to-X project QC (`1844 passed`, `9 skipped`, lint pass), and code-review gate advisory WARN covered by focused/project QC. Code commit `2ab2a4f6` is local only. No push was performed and T-251 was not retried. | Codex | 2026-06-07 |
+
+## Rotation 2026-06-07 (archived DONE rows beyond the newest 5)
+
+| T-1524 | `[workspace/shorts-manager]` Localized channel-settings form labels. The Korean operator UI no longer shows the English field labels `Voice`, `Style preset`, `Font color`, and `Image style prefix`; it now uses `음성`, `스타일 프리셋`, `자막 색상`, and `이미지 스타일 프롬프트`. Candidate browser QA measured English labels `4 -> 0`, Korean labels `0 -> 4`, no horizontal overflow, and browser failures `0`; A/B adopted candidate. Verification passed Shorts Maker V2 project QC, full active-project QC, graph refresh, and clean-worktree readiness. Code commit `e1d41f20` is local only. No push was performed and T-251 was not retried. | Codex | 2026-06-07 |
