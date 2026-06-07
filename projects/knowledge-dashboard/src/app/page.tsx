@@ -615,7 +615,7 @@ export default function Dashboard() {
 		<div className="min-h-screen bg-[#0f172a] text-white p-4 sm:p-6 lg:p-8 relative overflow-hidden font-sans">
 			<a
 				href="#main"
-				className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-blue-600 focus:px-4 focus:py-2 focus:text-sm focus:text-white"
+				className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:flex focus:min-h-11 focus:items-center focus:rounded-md focus:bg-blue-600 focus:px-4 focus:py-2 focus:text-sm focus:text-white"
 			>
 				본문으로 건너뛰기
 			</a>

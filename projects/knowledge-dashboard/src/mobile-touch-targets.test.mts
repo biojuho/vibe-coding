@@ -30,5 +30,6 @@ test("dashboard tab and export menu actions keep mobile-safe touch targets", () 
 
 	assert.match(pageSource, /flex min-h-11 items-center gap-2/);
 	assert.match(pageSource, /flex min-w-11 items-center justify-center/);
+	assert.match(pageSource, /focus:flex focus:min-h-11 focus:items-center/);
 	assert.match(exportMenuSource, /flex min-h-11 w-full items-center/);
 });
