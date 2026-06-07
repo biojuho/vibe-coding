@@ -753,6 +753,128 @@ def _upload_single(item: dict[str, Any], retry: bool = False) -> dict[str, Any]:
     return result
 
 
+def _render_item_action_buttons(
+    item: dict[str, Any],
+    key_prefix: str,
+    *,
+    generation_run_blockers: dict[str, str],
+    v2_available: bool,
+    auth_status: dict[str, Any],
+) -> None:
+    """실행·업로드·재시도·Notion·삭제 버튼 영역을 렌더링한다."""
+    btn_col1, btn_col2, btn_col3, btn_col4, btn_col5 = st.columns(5)
+    with btn_col1:
+        run_block_reason = _generation_run_block_reason(
+            item,
+            generation_run_blockers,
+            v2_available=v2_available,
+        )
+        can_run = item["status"] in ("pending", "failed") and not run_block_reason
+        if st.button(
+            "실행",
+            key=f"run_{key_prefix}_{item['id']}",
+            disabled=not can_run,
+            help=run_block_reason or "v2 파이프라인 실행",
+            **_stretch_button_kwargs(),
+        ):
+            pid = _launch_v2(
+                item["id"],
+                item["topic"],
+                _canonical_channel_label(item.get("channel", "")),
+            )
+            if pid:
+                _set_flash("success", f"실행됨 (PID {pid})")
+            else:
+                _set_flash("error", "실행 실패")
+            st.rerun()
+        if run_block_reason:
+            st.caption(f"생성 잠금: {run_block_reason}")
+    with btn_col2:
+        upload_block_reason = _youtube_item_upload_block_reason(item, auth_status, retry=False)
+        can_upload = not upload_block_reason
+        if st.button(
+            "YT 업로드",
+            key=f"yt_{key_prefix}_{item['id']}",
+            disabled=not can_upload,
+            help=upload_block_reason or "YouTube 업로드",
+            **_stretch_button_kwargs(),
+        ):
+            try:
+                result = _upload_single(item, retry=False)
+                _set_flash("success", f"업로드 완료: {result['youtube_url']}")
+            except Exception as exc:
+                update_job(item["id"], youtube_status="failed", youtube_error=str(exc)[:300])
+                _set_flash("error", f"업로드 실패: {exc}")
+            st.rerun()
+    with btn_col3:
+        retry_block_reason = _youtube_item_upload_block_reason(item, auth_status, retry=True)
+        can_retry = not retry_block_reason
+        if st.button(
+            "YT 재시도",
+            key=f"ytretry_{key_prefix}_{item['id']}",
+            disabled=not can_retry,
+            help=retry_block_reason or "업로드 실패 건 재시도",
+            **_stretch_button_kwargs(),
+        ):
+            try:
+                result = _upload_single(item, retry=True)
+                _set_flash("success", f"재업로드 완료: {result['youtube_url']}")
+            except Exception as exc:
+                update_job(item["id"], youtube_status="failed", youtube_error=str(exc)[:300])
+                _set_flash("error", f"재업로드 실패: {exc}")
+            st.rerun()
+    with btn_col4:
+        notion_synced = bool(item.get("notion_page_id", ""))
+        notion_btn_label = "📋 Notion↑" if not notion_synced else "📋 Notion↻"
+        item_notion_block_reason = _notion_sync_block_reason()
+        if st.button(
+            notion_btn_label,
+            key=f"notion_{key_prefix}_{item['id']}",
+            disabled=bool(item_notion_block_reason),
+            help=item_notion_block_reason or ("Notion에 동기화" if not notion_synced else "Notion 업데이트"),
+            **_stretch_button_kwargs(),
+        ):
+            result = notion_sync_item(item["id"])
+            action = result["action"]
+            if action in ("created", "updated"):
+                _set_flash("success", f"Notion {action}: {result.get('page_id', '')[:8]}")
+            else:
+                _set_flash("error", f"Notion 오류: {result.get('error', '')}")
+            st.rerun()
+    with btn_col5:
+        if _get_pending_delete_id() == item["id"]:
+            st.caption("삭제 확인 필요")
+            if st.button(
+                "삭제 확인",
+                key=f"del_confirm_{key_prefix}_{item['id']}",
+                help="이 항목을 영구 삭제합니다",
+                type="primary",
+                **_stretch_button_kwargs(),
+            ):
+                _delete_item_with_confirmation(item["id"])
+                st.rerun()
+            if st.button(
+                "취소",
+                key=f"del_cancel_{key_prefix}_{item['id']}",
+                help="삭제 확인을 취소합니다",
+                **_stretch_button_kwargs(),
+            ):
+                _cancel_delete_confirmation(item["id"])
+                _set_flash("info", "삭제 취소됨")
+                st.rerun()
+        elif st.button(
+            "삭제",
+            key=f"del_{key_prefix}_{item['id']}",
+            help="삭제 확인을 엽니다",
+            **_stretch_button_kwargs(),
+        ):
+            _request_delete_confirmation(item["id"])
+            st.rerun()
+
+    for reason in _card_external_action_reasons(item, auth_status):
+        st.caption(reason)
+
+
 def _voice_index(settings: dict[str, Any] | None) -> int:
     voice = (settings or {}).get("voice", "alloy")
     return VOICE_OPTIONS.index(voice) if voice in VOICE_OPTIONS else 0
@@ -865,7 +987,13 @@ def _render_manifest_sync_panel() -> None:
             st.caption(f"- [{_display_channel_label(item['channel'])}] {item['topic']} / {item['status']}")
 
 
-def _render_manual_review_queue(limit: int = 6) -> None:
+def _render_manual_review_queue(
+    limit: int = 6,
+    *,
+    generation_run_blockers: dict[str, str] | None = None,
+    v2_available: bool = False,
+    auth_status: dict[str, Any] | None = None,
+) -> None:
     st.subheader("수동 검수 큐")
     review_items = get_review_queue_items(limit=limit)
     if not review_items:
@@ -880,6 +1008,14 @@ def _render_manual_review_queue(limit: int = 6) -> None:
                 f"&nbsp; **{item.get('title') or item.get('topic') or '-'}**",
                 unsafe_allow_html=True,
             )
+            if generation_run_blockers is not None and auth_status is not None:
+                _render_item_action_buttons(
+                    item,
+                    key_prefix=f"review_{item['id']}",
+                    generation_run_blockers=generation_run_blockers,
+                    v2_available=v2_available,
+                    auth_status=auth_status,
+                )
             st.caption(
                 f"생성: {item.get('updated_at', '-')[:16]} | "
                 f"영상: {'있음' if item.get('video_exists') else '없음'} | "
@@ -919,6 +1055,7 @@ generation_run_blockers = _build_generation_run_blockers(channel_readiness_summa
 _render_channel_readiness(CHANNELS, summary=channel_readiness_summary)
 
 auth_status = _default_auth_status()
+v2_ok = _V2_DIR.exists()
 
 status_col, batch_col = st.columns([1, 2])
 with status_col:
@@ -1000,11 +1137,13 @@ with manifest_col:
     _render_manifest_sync_panel()
 with review_col:
     _section_anchor("shorts-review-queue")
-    _render_manual_review_queue()
+    _render_manual_review_queue(
+        generation_run_blockers=generation_run_blockers,
+        v2_available=v2_ok,
+        auth_status=auth_status,
+    )
 
 left, right = st.columns([1, 3])
-
-v2_ok = _V2_DIR.exists()
 
 with left:
     _section_anchor("shorts-add-topic")
@@ -1111,120 +1250,6 @@ with right:
         if item.get("youtube_error"):
             st.caption(f"업로드 오류: {item['youtube_error']}")
 
-    def _render_item_buttons(item: dict[str, Any], key_prefix: str) -> None:
-        """실행·업로드·재시도·Notion·삭제 버튼 영역을 렌더링한다."""
-        btn_col1, btn_col2, btn_col3, btn_col4, btn_col5 = st.columns(5)
-        with btn_col1:
-            run_block_reason = _generation_run_block_reason(
-                item,
-                generation_run_blockers,
-                v2_available=v2_ok,
-            )
-            can_run = item["status"] in ("pending", "failed") and not run_block_reason
-            if st.button(
-                "실행",
-                key=f"run_{key_prefix}_{item['id']}",
-                disabled=not can_run,
-                help=run_block_reason or "v2 파이프라인 실행",
-                **_stretch_button_kwargs(),
-            ):
-                pid = _launch_v2(
-                    item["id"],
-                    item["topic"],
-                    _canonical_channel_label(item.get("channel", "")),
-                )
-                if pid:
-                    _set_flash("success", f"실행됨 (PID {pid})")
-                else:
-                    _set_flash("error", "실행 실패")
-                st.rerun()
-            if run_block_reason:
-                st.caption(f"생성 잠금: {run_block_reason}")
-        with btn_col2:
-            upload_block_reason = _youtube_item_upload_block_reason(item, auth_status, retry=False)
-            can_upload = not upload_block_reason
-            if st.button(
-                "YT 업로드",
-                key=f"yt_{key_prefix}_{item['id']}",
-                disabled=not can_upload,
-                help=upload_block_reason or "YouTube 업로드",
-                **_stretch_button_kwargs(),
-            ):
-                try:
-                    result = _upload_single(item, retry=False)
-                    _set_flash("success", f"업로드 완료: {result['youtube_url']}")
-                except Exception as exc:
-                    update_job(item["id"], youtube_status="failed", youtube_error=str(exc)[:300])
-                    _set_flash("error", f"업로드 실패: {exc}")
-                st.rerun()
-        with btn_col3:
-            retry_block_reason = _youtube_item_upload_block_reason(item, auth_status, retry=True)
-            can_retry = not retry_block_reason
-            if st.button(
-                "YT 재시도",
-                key=f"ytretry_{key_prefix}_{item['id']}",
-                disabled=not can_retry,
-                help=retry_block_reason or "업로드 실패 건 재시도",
-                **_stretch_button_kwargs(),
-            ):
-                try:
-                    result = _upload_single(item, retry=True)
-                    _set_flash("success", f"재업로드 완료: {result['youtube_url']}")
-                except Exception as exc:
-                    update_job(item["id"], youtube_status="failed", youtube_error=str(exc)[:300])
-                    _set_flash("error", f"재업로드 실패: {exc}")
-                st.rerun()
-        with btn_col4:
-            notion_synced = bool(item.get("notion_page_id", ""))
-            notion_btn_label = "📋 Notion↑" if not notion_synced else "📋 Notion↻"
-            item_notion_block_reason = _notion_sync_block_reason()
-            if st.button(
-                notion_btn_label,
-                key=f"notion_{key_prefix}_{item['id']}",
-                disabled=bool(item_notion_block_reason),
-                help=item_notion_block_reason or ("Notion에 동기화" if not notion_synced else "Notion 업데이트"),
-                **_stretch_button_kwargs(),
-            ):
-                result = notion_sync_item(item["id"])
-                action = result["action"]
-                if action in ("created", "updated"):
-                    _set_flash("success", f"Notion {action}: {result.get('page_id', '')[:8]}")
-                else:
-                    _set_flash("error", f"Notion 오류: {result.get('error', '')}")
-                st.rerun()
-        with btn_col5:
-            if _get_pending_delete_id() == item["id"]:
-                st.caption("삭제 확인 필요")
-                if st.button(
-                    "삭제 확인",
-                    key=f"del_confirm_{key_prefix}_{item['id']}",
-                    help="이 항목을 영구 삭제합니다",
-                    type="primary",
-                    **_stretch_button_kwargs(),
-                ):
-                    _delete_item_with_confirmation(item["id"])
-                    st.rerun()
-                if st.button(
-                    "취소",
-                    key=f"del_cancel_{key_prefix}_{item['id']}",
-                    help="삭제 확인을 취소합니다",
-                    **_stretch_button_kwargs(),
-                ):
-                    _cancel_delete_confirmation(item["id"])
-                    _set_flash("info", "삭제 취소됨")
-                    st.rerun()
-            elif st.button(
-                "삭제",
-                key=f"del_{key_prefix}_{item['id']}",
-                help="삭제 확인을 엽니다",
-                **_stretch_button_kwargs(),
-            ):
-                _request_delete_confirmation(item["id"])
-                st.rerun()
-
-        for reason in _card_external_action_reasons(item, auth_status):
-            st.caption(reason)
-
     def _render_items(items_to_show: list[dict[str, Any]], key_prefix: str = "all") -> None:
         if not items_to_show:
             st.info("항목이 없습니다.")
@@ -1232,7 +1257,13 @@ with right:
         for item in items_to_show:
             with st.container():
                 _render_item_header(item)
-                _render_item_buttons(item, key_prefix)
+                _render_item_action_buttons(
+                    item,
+                    key_prefix,
+                    generation_run_blockers=generation_run_blockers,
+                    v2_available=v2_ok,
+                    auth_status=auth_status,
+                )
 
                 thumb = item.get("thumbnail_path", "")
                 _render_thumbnail_preview(thumb)

@@ -664,7 +664,8 @@ def test_shorts_manager_source_keeps_card_actions_full_width() -> None:
     source = (WORKSPACE_ROOT / "execution" / "pages" / "shorts_manager.py").read_text(encoding="utf-8")
 
     assert "row1, row2 = st.columns([4, 1.4])" not in source
-    assert "_render_item_header(item)\n                _render_item_buttons(item, key_prefix)" in source
+    assert "def _render_item_action_buttons(" in source
+    assert "_render_item_header(item)\n                _render_item_action_buttons(" in source
 
 
 def test_shorts_manager_source_wraps_code_paths_on_mobile() -> None:
@@ -1173,6 +1174,55 @@ def test_render_failure_triage_and_review_queue(shorts_manager, monkeypatch: pyt
     assert any("사전 점검: 브랜드 에셋 누락" in payload for payload in captions)
     assert any("메모: thumbnail missing" in payload for payload in captions)
     assert any("업로드 오류: quotaExceeded" in payload for payload in captions)
+
+
+def test_render_manual_review_queue_exposes_action_buttons(shorts_manager, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        shorts_manager,
+        "get_review_queue_items",
+        lambda limit=6: [
+            {
+                "id": 77,
+                "status": "success",
+                "channel": "AI/기술",
+                "topic": "Review Topic",
+                "review_status": "warning",
+                "title": "Review Me",
+                "updated_at": "2026-03-31 19:00:00",
+                "video_path": "ready.mp4",
+                "video_exists": True,
+                "thumbnail_exists": True,
+                "youtube_status": "failed",
+                "youtube_error": "quotaExceeded",
+                "notion_page_id": "",
+                "next_action": "업로드 오류 확인 후 재시도",
+            }
+        ],
+    )
+    auth_status = {
+        "has_credentials_file": False,
+        "has_token_file": False,
+        "token_valid_or_refreshable": False,
+        "ready": False,
+        "reason": "credentials missing",
+    }
+
+    shorts_manager.st.events.clear()
+    shorts_manager._render_manual_review_queue(
+        generation_run_blockers={},
+        v2_available=True,
+        auth_status=auth_status,
+    )
+
+    buttons = [payload for name, payload in shorts_manager.st.events if name == "button"]
+    assert [button["label"] for button in buttons] == [
+        "실행",
+        "YT 업로드",
+        "YT 재시도",
+        "📋 Notion↑",
+        "삭제",
+    ]
+    assert all("review_77_77" in button["kwargs"]["key"] for button in buttons)
 
 
 def test_render_manifest_sync_panel_shows_summary_details(shorts_manager, monkeypatch: pytest.MonkeyPatch) -> None:
