@@ -6,6 +6,7 @@ Streamlit UI 코드는 직접 임포트하면 st.set_page_config()이 호출되�
 
 from __future__ import annotations
 
+import importlib
 import sys
 from unittest.mock import MagicMock, patch
 
@@ -41,6 +42,8 @@ with patch.dict("sys.modules", {"streamlit": _mock_st, "psutil": _mock_psutil}):
     _mock_st.warning = MagicMock()
     _mock_st.error = MagicMock()
     _mock_st.rerun = MagicMock()
+
+    HUB = importlib.import_module("execution.joolife_hub")
 
     from execution.joolife_hub import (
         PROJECTS,
@@ -84,6 +87,16 @@ class TestBuildInlineLaunch:
         assert "run" in result
         assert "app.py" in result
 
+    def test_streamlit_command_with_declared_port(self):
+        result = _build_inline_launch("streamlit run app.py", port=8512)
+        assert result[-2:] == ["--server.port", "8512"]
+
+    def test_streamlit_command_keeps_existing_port(self):
+        result = _build_inline_launch("streamlit run app.py --server.port=9000", port=8512)
+        assert result.count("--server.port") == 0
+        assert "--server.port=9000" in result
+        assert "8512" not in result
+
     def test_python_command(self):
         result = _build_inline_launch("python script.py --flag")
         assert sys.executable in result
@@ -109,11 +122,22 @@ class TestBuildLaunchCommand:
         assert isinstance(cmd, list)
         assert use_shell is False
 
+    def test_inline_streamlit_port(self):
+        cmd, use_shell = _build_launch_command("streamlit run app.py", open_in_new_terminal=False, port=8512)
+        assert use_shell is False
+        assert cmd[-2:] == ["--server.port", "8512"]
+
     @patch("os.name", "nt")
     def test_new_terminal_windows(self):
         cmd, use_shell = _build_terminal_launch("python main.py")
         assert "cmd" in cmd
         assert use_shell is True
+
+    @patch("os.name", "nt")
+    def test_new_terminal_streamlit_port(self):
+        cmd, use_shell = _build_terminal_launch("streamlit run app.py", port=8512)
+        assert use_shell is True
+        assert "--server.port 8512" in cmd[-1]
 
 
 # ── _group_projects_by_category 테스트 ────────────────────────
@@ -178,6 +202,16 @@ class TestProjectsRegistry:
         categories = {p["category"] for p in PROJECTS}
         assert len(categories) >= 3  # At least 3 different categories
 
+    def test_shorts_manager_declared_port_is_in_launch_command(self):
+        shorts_project = next(p for p in PROJECTS if p["key"] == "shorts")
+        command, use_shell = _build_launch_command(
+            shorts_project["cmd"],
+            open_in_new_terminal=False,
+            port=shorts_project["port"],
+        )
+        assert use_shell is False
+        assert command[-2:] == ["--server.port", "8512"]
+
 
 # ── _resolve_target_directory 테스트 ──────────────────────────
 
@@ -186,15 +220,19 @@ class TestResolveTargetDirectory:
     def test_existing_directory(self, tmp_path):
         subdir = tmp_path / "testdir"
         subdir.mkdir()
-        with patch("execution.joolife_hub.Path.__new__"):
-            # Just test that the function works with a real path
-            result = _resolve_target_directory(".")
-            # Should resolve to project root's parent (execution/)
-            assert result is not None or True  # May or may not exist depending on cwd
+        hub = HUB
+
+        original_root = hub.REPO_ROOT
+        hub.REPO_ROOT = tmp_path
+        try:
+            result = _resolve_target_directory("testdir")
+            assert result == subdir.resolve()
+        finally:
+            hub.REPO_ROOT = original_root
 
     def test_nonexistent_directory(self):
         """_resolve_target_directory returns None and calls st.error for non-existent path."""
-        import execution.joolife_hub as hub
+        hub = HUB
 
         mock_local_st = MagicMock()
         original_st = hub.st
@@ -236,7 +274,7 @@ class TestBuildLaunchCommandNewTerminal:
     @patch("os.name", "posix")
     def test_new_terminal_non_windows(self):
         """_build_terminal_launch warns on non-Windows."""
-        import execution.joolife_hub as hub
+        hub = HUB
 
         mock_local_st = MagicMock()
         original_st = hub.st
@@ -255,7 +293,7 @@ class TestBuildLaunchCommandNewTerminal:
 class TestRegisterLaunchedProcess:
     def test_register_calls_pm(self):
         """_register_launched_process calls pm.register with correct args."""
-        import execution.joolife_hub as hub
+        hub = HUB
 
         with patch.object(hub, "pm") as mock_pm:
             hub._register_launched_process(
@@ -280,7 +318,7 @@ class TestRegisterLaunchedProcess:
 class TestNotifyLaunchStatus:
     def _run_with_mocked_st(self, func, *args, pid_exists=True, **kwargs):
         """Helper to run a hub function with mocked st and psutil."""
-        import execution.joolife_hub as hub
+        hub = HUB
 
         mock_local_st = MagicMock()
         mock_ps = MagicMock()
@@ -297,7 +335,7 @@ class TestNotifyLaunchStatus:
 
     def test_pid_exists(self):
         """_notify_launch_status toasts success when pid exists."""
-        import execution.joolife_hub as hub
+        hub = HUB
 
         mock_st = self._run_with_mocked_st(
             hub._notify_launch_status,
@@ -309,7 +347,7 @@ class TestNotifyLaunchStatus:
 
     def test_pid_not_exists(self):
         """_notify_launch_status warns when pid does not exist."""
-        import execution.joolife_hub as hub
+        hub = HUB
 
         mock_st = self._run_with_mocked_st(
             hub._notify_launch_status,
@@ -326,7 +364,7 @@ class TestNotifyLaunchStatus:
 class TestLaunchProcess:
     def test_launch_success(self):
         """launch_process starts subprocess and registers it."""
-        import execution.joolife_hub as hub
+        hub = HUB
 
         mock_popen = MagicMock()
         mock_popen.pid = 5678
@@ -342,9 +380,32 @@ class TestLaunchProcess:
             mock_reg.assert_called_once()
             mock_notify.assert_called_once()
 
+    def test_launch_streamlit_declared_port_reaches_subprocess(self):
+        """launch_process appends declared port to Streamlit subprocess args."""
+        hub = HUB
+
+        mock_popen = MagicMock()
+        mock_popen.pid = 5678
+        with (
+            patch.object(hub, "_resolve_target_directory", return_value=MagicMock()),
+            patch.object(hub, "subprocess") as mock_sub_mod,
+            patch.object(hub, "_register_launched_process"),
+            patch.object(hub, "_notify_launch_status"),
+        ):
+            mock_sub_mod.Popen.return_value = mock_popen
+            hub.launch_process(
+                "streamlit run workspace/execution/pages/shorts_manager.py",
+                working_directory=".",
+                process_name="Shorts Manager",
+                port=8512,
+            )
+
+        launch_args = mock_sub_mod.Popen.call_args.args[0]
+        assert launch_args[-2:] == ["--server.port", "8512"]
+
     def test_launch_exception(self):
         """launch_process shows error on exception."""
-        import execution.joolife_hub as hub
+        hub = HUB
 
         mock_local_st = MagicMock()
         orig_st = hub.st
@@ -362,7 +423,7 @@ class TestLaunchProcess:
 
     def test_launch_target_none(self):
         """launch_process returns early when target directory is None."""
-        import execution.joolife_hub as hub
+        hub = HUB
 
         with (
             patch.object(hub, "_resolve_target_directory", return_value=None),
@@ -378,7 +439,7 @@ class TestLaunchProcess:
 class TestRenderProcessSummaryStatus:
     def test_render_process_summary(self):
         """_render_process_summary calls st.markdown and st.caption."""
-        import execution.joolife_hub as hub
+        hub = HUB
         from execution.process_manager import TrackedProcess
 
         proc = TrackedProcess(pid=111, name="Test", command="cmd", cwd=".", launched_at="2026-01-01")
@@ -394,7 +455,7 @@ class TestRenderProcessSummaryStatus:
 
     def test_render_process_status_with_port(self):
         """_render_process_status shows port link when port is set."""
-        import execution.joolife_hub as hub
+        hub = HUB
         from execution.process_manager import TrackedProcess
 
         proc = TrackedProcess(pid=111, name="Test", command="cmd", cwd=".", launched_at="2026-01-01", port=8000)
@@ -409,7 +470,7 @@ class TestRenderProcessSummaryStatus:
 
     def test_render_process_status_no_port(self):
         """_render_process_status without port doesn't show port link."""
-        import execution.joolife_hub as hub
+        hub = HUB
         from execution.process_manager import TrackedProcess
 
         proc = TrackedProcess(pid=111, name="Test", command="cmd", cwd=".", launched_at="2026-01-01", port=None)
@@ -429,7 +490,7 @@ class TestRenderProcessSummaryStatus:
 class TestHandleButtons:
     def test_handle_stop_button_clicked(self):
         """_handle_stop_button kills process and reruns when clicked."""
-        import execution.joolife_hub as hub
+        hub = HUB
 
         mock_local_st = MagicMock()
         mock_local_st.button.return_value = True
@@ -445,7 +506,7 @@ class TestHandleButtons:
 
     def test_handle_stop_button_not_clicked(self):
         """_handle_stop_button does nothing when button not clicked."""
-        import execution.joolife_hub as hub
+        hub = HUB
 
         mock_local_st = MagicMock()
         mock_local_st.button.return_value = False
@@ -460,7 +521,7 @@ class TestHandleButtons:
 
     def test_handle_restart_button_clicked(self):
         """_handle_restart_button kills and relaunches when clicked."""
-        import execution.joolife_hub as hub
+        hub = HUB
         from execution.process_manager import TrackedProcess
 
         proc = TrackedProcess(pid=333, name="Svc", command="python svc.py", cwd=".", launched_at="now", port=8000)
@@ -484,7 +545,7 @@ class TestHandleButtons:
 class TestRenderProcessRowMonitor:
     def test_render_process_row(self):
         """_render_process_row creates columns and renders subcomponents."""
-        import execution.joolife_hub as hub
+        hub = HUB
         from execution.process_manager import TrackedProcess
 
         proc = TrackedProcess(pid=444, name="Row", command="cmd", cwd=".", launched_at="now", port=None)
@@ -505,7 +566,7 @@ class TestRenderProcessRowMonitor:
 
     def test_render_process_monitor_no_processes(self):
         """_render_process_monitor does nothing with no running processes."""
-        import execution.joolife_hub as hub
+        hub = HUB
 
         mock_local_st = MagicMock()
         orig_st = hub.st
@@ -520,7 +581,7 @@ class TestRenderProcessRowMonitor:
 
     def test_render_process_monitor_with_processes(self):
         """_render_process_monitor renders expander with processes."""
-        import execution.joolife_hub as hub
+        hub = HUB
         from execution.process_manager import TrackedProcess
 
         proc = TrackedProcess(pid=555, name="Mon", command="cmd", cwd=".", launched_at="now")
@@ -546,7 +607,7 @@ class TestRenderProcessRowMonitor:
 
     def test_render_process_monitor_kill_all(self):
         """_render_process_monitor kills all when button clicked (lines 267-269)."""
-        import execution.joolife_hub as hub
+        hub = HUB
         from execution.process_manager import TrackedProcess
 
         proc = TrackedProcess(pid=555, name="Mon", command="cmd", cwd=".", launched_at="now")
@@ -586,7 +647,7 @@ class TestRenderProcessRowMonitor:
 class TestRenderCard:
     def test_render_card_npm_with_port(self):
         """render_card shows localhost link for npm commands with port."""
-        import execution.joolife_hub as hub
+        hub = HUB
 
         project = {
             "key": "test_npm",
@@ -611,7 +672,7 @@ class TestRenderCard:
 
     def test_render_card_launch_button_click(self):
         """render_card calls launch_process when button is clicked."""
-        import execution.joolife_hub as hub
+        hub = HUB
 
         project = {
             "key": "test_btn",

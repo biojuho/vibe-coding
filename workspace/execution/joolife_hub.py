@@ -93,23 +93,37 @@ def _resolve_target_directory(working_directory: str) -> Path | None:
     return target_directory
 
 
-def _normalize_terminal_command(command: str) -> str:
+def _has_streamlit_port_arg(command_parts: list[str]) -> bool:
+    return any(part == "--server.port" or part.startswith("--server.port=") for part in command_parts)
+
+
+def _append_streamlit_port(command_parts: list[str], port: int | None) -> list[str]:
+    if port is None or not command_parts or command_parts[0] != "streamlit":
+        return command_parts
+    if _has_streamlit_port_arg(command_parts):
+        return command_parts
+    return [*command_parts, "--server.port", str(port)]
+
+
+def _normalize_terminal_command(command: str, port: int | None = None) -> str:
+    command_parts = _append_streamlit_port(command.split(), port)
+    command = " ".join(command_parts)
     if command.startswith("python"):
         return f"{sys.executable} {command[7:]}"
     return command
 
 
-def _build_terminal_launch(command: str) -> tuple[list[str], bool]:
+def _build_terminal_launch(command: str, port: int | None = None) -> tuple[list[str], bool]:
     if os.name != "nt":
         st.warning("New terminal not supported on non-Windows yet.")
-        return command.split(), False
-    terminal_command = _normalize_terminal_command(command)
+        return _append_streamlit_port(command.split(), port), False
+    terminal_command = _normalize_terminal_command(command, port=port)
     return ["cmd", "/c", "start", "cmd", "/k", terminal_command], True
 
 
-def _build_inline_launch(command: str) -> list[str]:
+def _build_inline_launch(command: str, port: int | None = None) -> list[str]:
     if command.startswith("streamlit"):
-        streamlit_args = command.split()[1:]
+        streamlit_args = _append_streamlit_port(command.split(), port)[1:]
         return [sys.executable, "-m", "streamlit", *streamlit_args]
     if command.startswith("python"):
         python_args = command.split()[1:]
@@ -121,10 +135,14 @@ def _build_inline_launch(command: str) -> list[str]:
     return command_parts
 
 
-def _build_launch_command(command: str, open_in_new_terminal: bool) -> tuple[list[str], bool]:
+def _build_launch_command(
+    command: str,
+    open_in_new_terminal: bool,
+    port: int | None = None,
+) -> tuple[list[str], bool]:
     if open_in_new_terminal:
-        return _build_terminal_launch(command)
-    return _build_inline_launch(command), False
+        return _build_terminal_launch(command, port=port)
+    return _build_inline_launch(command, port=port), False
 
 
 def _register_launched_process(
@@ -162,7 +180,7 @@ def launch_process(
     if target_directory is None:
         return
 
-    launch_command, use_shell = _build_launch_command(command, open_in_new_terminal)
+    launch_command, use_shell = _build_launch_command(command, open_in_new_terminal, port=port)
     display_name = process_name or command
 
     try:
