@@ -355,6 +355,62 @@ def _can_attempt_upload(auth_status: dict[str, Any]) -> bool:
     return _YT_OK and bool(auth_status.get("has_credentials_file"))
 
 
+def _youtube_upload_setup_block_reason(auth_status: dict[str, Any]) -> str:
+    if not _YT_OK:
+        return str(auth_status.get("reason") or _YT_ERR or "YouTube 업로더 사용 불가")
+    if not auth_status.get("has_credentials_file"):
+        return "credentials.json 설정 필요"
+    return ""
+
+
+def _youtube_item_upload_block_reason(
+    item: dict[str, Any],
+    auth_status: dict[str, Any],
+    *,
+    retry: bool,
+) -> str:
+    if item.get("status") != "success":
+        return "영상 생성 완료 후 업로드 가능"
+    if not item.get("video_path"):
+        return "영상 파일 경로가 있어야 업로드 가능"
+
+    youtube_status = str(item.get("youtube_status") or "")
+    if retry:
+        if youtube_status != "failed":
+            return "업로드 실패 항목만 재시도 가능"
+    elif youtube_status:
+        return "업로드 전 항목만 신규 업로드 가능"
+
+    setup_reason = _youtube_upload_setup_block_reason(auth_status)
+    if setup_reason:
+        return f"YouTube 업로드 설정 필요: {setup_reason}"
+    return ""
+
+
+def _notion_sync_block_reason() -> str:
+    if not _NOTION_OK:
+        return f"Notion 동기화 모듈 로드 실패: {_NOTION_ERR}" if _NOTION_ERR else "Notion 동기화 사용 불가"
+    if not notion_is_configured():
+        return "NOTION_API_KEY 및 NOTION_SHORTS_DATABASE_ID 설정 필요"
+    return ""
+
+
+def _card_external_action_reasons(item: dict[str, Any], auth_status: dict[str, Any]) -> list[str]:
+    reasons: list[str] = []
+    youtube_status = str(item.get("youtube_status") or "")
+    if item.get("status") == "success" and item.get("video_path") and youtube_status in ("", "failed"):
+        retry = youtube_status == "failed"
+        youtube_reason = _youtube_item_upload_block_reason(item, auth_status, retry=retry)
+        if youtube_reason:
+            label = "YT 재시도 잠금" if retry else "YT 업로드 잠금"
+            reasons.append(f"{label}: {youtube_reason}")
+
+    notion_reason = _notion_sync_block_reason()
+    if notion_reason:
+        reasons.append(f"Notion 동기화 잠금: {notion_reason}")
+    return reasons
+
+
 def _render_auth_status(auth_status: dict[str, Any]) -> None:
     st.subheader("YouTube 인증 상태")
     if not _YT_OK:
@@ -616,10 +672,11 @@ with sync_col:
         _set_flash("success", "manifest 동기화 완료")
         st.rerun()
 with notion_col:
-    notion_ready = _NOTION_OK and notion_is_configured()
+    notion_block_reason = _notion_sync_block_reason()
+    notion_ready = not notion_block_reason
     if st.button(
         "📋 전체 Notion 동기화",
-        help="모든 항목을 Notion DB에 동기화합니다" if notion_ready else "NOTION_SHORTS_DATABASE_ID 설정 필요",
+        help="모든 항목을 Notion DB에 동기화합니다" if notion_ready else notion_block_reason,
         disabled=not notion_ready,
         **_stretch_button_kwargs(),
     ):
@@ -660,7 +717,6 @@ with review_col:
 left, right = st.columns([1, 3])
 
 v2_ok = _V2_DIR.exists()
-upload_allowed = _can_attempt_upload(auth_status)
 
 with left:
     st.subheader("새 콘텐츠 추가")
@@ -792,17 +848,13 @@ with right:
             if run_block_reason:
                 st.caption(f"생성 잠금: {run_block_reason}")
         with btn_col2:
-            can_upload = (
-                upload_allowed
-                and item["status"] == "success"
-                and item.get("video_path", "")
-                and not item.get("youtube_status")
-            )
+            upload_block_reason = _youtube_item_upload_block_reason(item, auth_status, retry=False)
+            can_upload = not upload_block_reason
             if st.button(
                 "YT 업로드",
                 key=f"yt_{key_prefix}_{item['id']}",
                 disabled=not can_upload,
-                help="YouTube 업로드",
+                help=upload_block_reason or "YouTube 업로드",
                 **_stretch_button_kwargs(),
             ):
                 try:
@@ -813,17 +865,13 @@ with right:
                     _set_flash("error", f"업로드 실패: {exc}")
                 st.rerun()
         with btn_col3:
-            can_retry = (
-                upload_allowed
-                and item["status"] == "success"
-                and item.get("video_path", "")
-                and item.get("youtube_status") == "failed"
-            )
+            retry_block_reason = _youtube_item_upload_block_reason(item, auth_status, retry=True)
+            can_retry = not retry_block_reason
             if st.button(
                 "YT 재시도",
                 key=f"ytretry_{key_prefix}_{item['id']}",
                 disabled=not can_retry,
-                help="업로드 실패 건 재시도",
+                help=retry_block_reason or "업로드 실패 건 재시도",
                 **_stretch_button_kwargs(),
             ):
                 try:
@@ -836,11 +884,12 @@ with right:
         with btn_col4:
             notion_synced = bool(item.get("notion_page_id", ""))
             notion_btn_label = "📋 Notion↑" if not notion_synced else "📋 Notion↻"
+            item_notion_block_reason = _notion_sync_block_reason()
             if st.button(
                 notion_btn_label,
                 key=f"notion_{key_prefix}_{item['id']}",
-                disabled=not (_NOTION_OK and notion_is_configured()),
-                help="Notion에 동기화" if not notion_synced else "Notion 업데이트",
+                disabled=bool(item_notion_block_reason),
+                help=item_notion_block_reason or ("Notion에 동기화" if not notion_synced else "Notion 업데이트"),
                 **_stretch_button_kwargs(),
             ):
                 result = notion_sync_item(item["id"])
@@ -879,6 +928,9 @@ with right:
             ):
                 _request_delete_confirmation(item["id"])
                 st.rerun()
+
+        for reason in _card_external_action_reasons(item, auth_status):
+            st.caption(reason)
 
     def _render_items(items_to_show: list[dict[str, Any]], key_prefix: str = "all") -> None:
         if not items_to_show:

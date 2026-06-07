@@ -113,9 +113,11 @@ class _FakeStreamlit(types.ModuleType):
         return value
 
     def button(self, *args, **kwargs) -> bool:
+        self._record("button", {"label": args[0] if args else "", "kwargs": kwargs})
         return False
 
     def form_submit_button(self, *args, **kwargs) -> bool:
+        self._record("form_submit_button", {"label": args[0] if args else "", "kwargs": kwargs})
         return False
 
 
@@ -372,6 +374,16 @@ def test_shorts_manager_source_wires_generation_lock_to_run_button() -> None:
     assert "생성 잠금:" in source
 
 
+def test_shorts_manager_source_wires_external_action_lock_copy() -> None:
+    source = (WORKSPACE_ROOT / "execution" / "pages" / "shorts_manager.py").read_text(encoding="utf-8")
+
+    assert "upload_block_reason = _youtube_item_upload_block_reason(item, auth_status, retry=False)" in source
+    assert 'help=upload_block_reason or "YouTube 업로드"' in source
+    assert "item_notion_block_reason = _notion_sync_block_reason()" in source
+    assert "for reason in _card_external_action_reasons(item, auth_status):" in source
+    assert "Notion 동기화 잠금:" in source
+
+
 def test_default_auth_status_and_upload_gate(shorts_manager, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(shorts_manager, "_YT_OK", False)
     monkeypatch.setattr(shorts_manager, "_YT_ERR", "missing module")
@@ -385,6 +397,42 @@ def test_default_auth_status_and_upload_gate(shorts_manager, monkeypatch: pytest
     monkeypatch.setattr(shorts_manager, "_YT_OK", True)
     assert shorts_manager._can_attempt_upload({"has_credentials_file": True}) is True
     assert shorts_manager._can_attempt_upload({"has_credentials_file": False}) is False
+
+
+def test_external_action_block_reasons_explain_missing_setup(shorts_manager) -> None:
+    auth_status = {
+        "has_credentials_file": False,
+        "has_token_file": False,
+        "token_valid_or_refreshable": False,
+        "ready": False,
+        "reason": "credentials missing",
+    }
+    item = {
+        "status": "success",
+        "video_path": "ready.mp4",
+        "youtube_status": "",
+        "notion_page_id": "",
+    }
+
+    assert (
+        shorts_manager._youtube_item_upload_block_reason(item, auth_status, retry=False)
+        == "YouTube 업로드 설정 필요: credentials.json 설정 필요"
+    )
+    assert (
+        shorts_manager._youtube_item_upload_block_reason(item, auth_status, retry=True)
+        == "업로드 실패 항목만 재시도 가능"
+    )
+    assert shorts_manager._notion_sync_block_reason() == "NOTION_API_KEY 및 NOTION_SHORTS_DATABASE_ID 설정 필요"
+    assert shorts_manager._card_external_action_reasons(item, auth_status) == [
+        "YT 업로드 잠금: YouTube 업로드 설정 필요: credentials.json 설정 필요",
+        "Notion 동기화 잠금: NOTION_API_KEY 및 NOTION_SHORTS_DATABASE_ID 설정 필요",
+    ]
+
+    failed_item = {**item, "youtube_status": "failed"}
+    assert (
+        shorts_manager._youtube_item_upload_block_reason(failed_item, auth_status, retry=True)
+        == "YouTube 업로드 설정 필요: credentials.json 설정 필요"
+    )
 
 
 def test_build_upload_metadata_and_reset_fields(shorts_manager, monkeypatch: pytest.MonkeyPatch) -> None:
