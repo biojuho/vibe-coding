@@ -61,3 +61,16 @@ test("proxy leaves public health and PWA assets outside auth redirects", () => {
 	assert.match(proxySource, /api\/auth/);
 	assert.match(proxySource, /subscription\/fail/);
 });
+
+test("committed service worker fallback stays build-agnostic", () => {
+	const serviceWorkerSource = readProjectFile("public/sw.js");
+
+	assert.match(serviceWorkerSource, /NEXT_ENABLE_PWA=1/);
+	assert.match(serviceWorkerSource, /self\.skipWaiting\(\)/);
+	assert.match(serviceWorkerSource, /self\.clients\.claim\(\)/);
+	assert.match(serviceWorkerSource, /CACHE_PREFIXES = \["serwist-", "workbox-"\]/);
+	assert.doesNotMatch(serviceWorkerSource, /\/_next\/static\//);
+	assert.doesNotMatch(serviceWorkerSource, /precacheAndRoute/);
+	assert.doesNotMatch(serviceWorkerSource, /__SW_MANIFEST|__WB_MANIFEST/);
+	assert.doesNotMatch(serviceWorkerSource, /revision:\s*["'][a-f0-9]{16,}["']/);
+});
