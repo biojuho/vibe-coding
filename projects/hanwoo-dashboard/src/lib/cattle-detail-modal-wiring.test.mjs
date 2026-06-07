@@ -19,7 +19,10 @@ test("cattle detail breeding actions use an in-app date form instead of browser 
 	assert.match(source, /type="date"/);
 	assert.match(source, /handleSaveBreedingRecord/);
 	assert.match(source, /onUpdate\(nextCattle/);
-	assert.match(source, /successTitle:\s*activeBreedingAction\s*===\s*["']pregnancy["']/);
+	assert.match(
+		source,
+		/successTitle:\s*activeBreedingAction\s*===\s*["']pregnancy["']/,
+	);
 });
 
 test("cattle detail breeding date validation is announced with the date input", () => {
@@ -44,7 +47,10 @@ test("cattle detail breeding date validation is announced with the date input", 
 		source,
 		/aria-describedby=\{\s*breedingError\s*\?\s*breedingDateErrorId\s*:\s*undefined\s*\}/,
 	);
-	assert.match(source, /<div[\s\S]*?id=\{breedingDateErrorId\}[\s\S]*?role="alert"/);
+	assert.match(
+		source,
+		/<div[\s\S]*?id=\{breedingDateErrorId\}[\s\S]*?role="alert"/,
+	);
 });
 
 test("cattle detail shows a real calving due date from pregnancy date", () => {
@@ -96,12 +102,18 @@ test("cattle detail uses operator-readable breeding countdown labels", () => {
 	const source = readSource("components/forms/CattleDetailModal.js");
 
 	assert.match(source, /function formatDaysLeftLabel\(daysLeft\) \{/);
-	assert.match(source, /return daysLeft === 0 \? "오늘" : `\$\{daysLeft\}일 남음`;/);
+	assert.match(
+		source,
+		/return daysLeft === 0 \? "오늘" : `\$\{daysLeft\}일 남음`;/,
+	);
 	assert.match(
 		source,
 		/formatDaysLeftLabel\(\s*getDaysUntilEstrus\(cattle\.lastEstrus\),\s*\)/,
 	);
-	assert.doesNotMatch(source, /`D-\$\{getDaysUntilEstrus\(cattle\.lastEstrus\)\}`/);
+	assert.doesNotMatch(
+		source,
+		/`D-\$\{getDaysUntilEstrus\(cattle\.lastEstrus\)\}`/,
+	);
 });
 
 test("cattle detail weight chart exposes an accessible chart summary", () => {
@@ -160,7 +172,10 @@ test("cattle form and detail icon-only navigation controls have Korean labels", 
 	assert.match(formSource, /id="cattle-form-title"/);
 	assert.match(formSource, /<label htmlFor="cattle-name"/);
 	assert.match(formSource, /id="cattle-name"/);
-	assert.match(formSource, /const cattleNameRegistration = register\("name"\);/);
+	assert.match(
+		formSource,
+		/const cattleNameRegistration = register\("name"\);/,
+	);
 	assert.match(formSource, /\{\.\.\.cattleNameRegistration\}/);
 	assert.match(
 		formSource,
@@ -464,7 +479,10 @@ test("cattle tag lookup progress and results are announced", () => {
 		/const tagLookupButtonText = lookupLoading\s*\?\s*["']이력번호 조회 중\.\.\.["']\s*:\s*["']이력번호 조회["'];?/,
 	);
 	assert.match(formSource, /const tagNumberDescriptionIds\s*=\s*\[/);
-	assert.match(formSource, /errors\.tagNumber\s*\?\s*tagNumberErrorId\s*:\s*null/);
+	assert.match(
+		formSource,
+		/errors\.tagNumber\s*\?\s*tagNumberErrorId\s*:\s*null/,
+	);
 	assert.match(formSource, /lookupMsg\s*\?\s*tagLookupMessageId\s*:\s*null/);
 	assert.match(formSource, /aria-describedby=\{tagNumberDescriptionIds\}/);
 	assert.match(formSource, /aria-busy=\{lookupLoading\}/);
@@ -473,7 +491,10 @@ test("cattle tag lookup progress and results are announced", () => {
 	assert.match(formSource, /\{tagLookupButtonText\}/);
 	assert.doesNotMatch(formSource, /태그 조회/);
 	assert.match(formSource, /id=\{tagLookupMessageId\}/);
-	assert.match(formSource, /role=\{lookupMsg\.ok \? ["']status["'] : ["']alert["']\}/);
+	assert.match(
+		formSource,
+		/role=\{lookupMsg\.ok \? ["']status["'] : ["']alert["']\}/,
+	);
 	assert.match(
 		formSource,
 		/aria-live=\{lookupMsg\.ok \? ["']polite["'] : ["']assertive["']\}/,
@@ -545,27 +566,50 @@ test("cattle form waits for async saves before re-enabling submit actions", () =
 		/type="submit"[\s\S]*?disabled=\{isSaving\}[\s\S]*?aria-busy=\{isSaving\}[\s\S]*?aria-label=\{submitButtonLabel\}[\s\S]*?title=\{submitButtonLabel\}/,
 	);
 	assert.match(formSource, /\{submitButtonText\}/);
-	assert.doesNotMatch(formSource, /\{isSaving \? ["']개체 정보 저장 중\.\.\.["'] : ["']저장하기["']\}/);
+	assert.doesNotMatch(
+		formSource,
+		/\{isSaving \? ["']개체 정보 저장 중\.\.\.["'] : ["']저장하기["']\}/,
+	);
 });
 
 test("cattle form keeps mobile save actions visible while fields scroll", () => {
 	const formSource = readSource("components/forms/CattleForm.js");
 
+	assert.match(
+		formSource,
+		/const cattleFormActionBarPadding =\s*["']16px 24px max\(24px, env\(safe-area-inset-bottom, 0px\)\)["'];?/,
+	);
 	assert.match(formSource, /height: "calc\(100vh - 20px\)"/);
 	assert.match(formSource, /maxHeight: "calc\(100vh - 20px\)"/);
 	assert.match(formSource, /overflow: "hidden"/);
 	assert.match(
 		formSource,
-		/<form[\s\S]*?flex: "1 1 auto"[\s\S]*?minHeight: 0[\s\S]*?overflowY: "auto"/,
+		/<form[\s\S]*?flex: "1 1 auto"[\s\S]*?minHeight: 0[\s\S]*?padding: 0[\s\S]*?overflow: "hidden"/,
 	);
 	assert.match(
 		formSource,
-		/position: "sticky"[\s\S]*?bottom: 0[\s\S]*?zIndex: 3/,
+		/<div[\s\S]*?flex: "1 1 auto"[\s\S]*?minHeight: 0[\s\S]*?overflowY: "auto"[\s\S]*?scrollPaddingBottom: "24px"/,
+	);
+	assert.match(formSource, /style=\{\{ width: "44px", height: "44px" \}\}/);
+	assert.match(formSource, /padding: "10px 14px"[\s\S]*?minHeight: "44px"/);
+	assert.match(
+		formSource,
+		/id="cattle-genetic-father"[\s\S]*?minHeight: "44px"[\s\S]*?padding: "10px 12px"/,
 	);
 	assert.match(
 		formSource,
-		/padding: "16px 24px max\(24px, env\(safe-area-inset-bottom\)\)"/,
+		/id="cattle-genetic-mother"[\s\S]*?minHeight: "44px"[\s\S]*?padding: "10px 12px"/,
 	);
+	assert.match(
+		formSource,
+		/position: "sticky"[\s\S]*?bottom: 0[\s\S]*?zIndex: 3[\s\S]*?flexShrink: 0/,
+	);
+	assert.match(formSource, /padding: cattleFormActionBarPadding/);
+	assert.match(
+		formSource,
+		/whiteSpace: "nowrap"[\s\S]*?wordBreak: "keep-all"[\s\S]*?whiteSpace: "nowrap"[\s\S]*?wordBreak: "keep-all"/,
+	);
+	assert.doesNotMatch(formSource, /margin(?:Right|Bottom|Left): "-24px"/);
 });
 
 test("cattle form normalizes malformed building payloads before rendering", () => {
@@ -715,11 +759,11 @@ test("cattle detail breeding records wait for async saves before re-enabling sub
 		detailSource,
 		/type="submit"[\s\S]*?disabled=\{isBreedingSaving\}[\s\S]*?aria-busy=\{isBreedingSaving\}[\s\S]*?aria-label=\{breedingSubmitButtonLabel\}[\s\S]*?title=\{breedingSubmitButtonLabel\}/,
 	);
-	assert.match(
+	assert.match(detailSource, /\{breedingSubmitButtonText\}/);
+	assert.doesNotMatch(
 		detailSource,
-		/\{breedingSubmitButtonText\}/,
+		/\{isBreedingSaving \? ["']번식 기록 저장 중\.\.\.["'] : ["']저장["']\}/,
 	);
-	assert.doesNotMatch(detailSource, /\{isBreedingSaving \? ["']번식 기록 저장 중\.\.\.["'] : ["']저장["']\}/);
 });
 
 test("cattle detail decorative icons are hidden from assistive tech", () => {

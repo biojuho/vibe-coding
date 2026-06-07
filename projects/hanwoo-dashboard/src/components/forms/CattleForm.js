@@ -21,6 +21,9 @@ const errorTextStyle = {
 	fontWeight: 600,
 };
 
+const cattleFormActionBarPadding =
+	"16px 24px max(24px, env(safe-area-inset-bottom, 0px))";
+
 function toIsoDateOrNull(value) {
 	const inputDate = toInputDate(value);
 	return inputDate
@@ -77,7 +80,9 @@ export default function CattleForm({
 	const tagLookupButtonLabel = lookupLoading
 		? "이력번호 조회 중"
 		: "이력번호 조회";
-	const tagLookupButtonText = lookupLoading ? "이력번호 조회 중..." : "이력번호 조회";
+	const tagLookupButtonText = lookupLoading
+		? "이력번호 조회 중..."
+		: "이력번호 조회";
 
 	const safeBuildings = useMemo(
 		() => normalizeCattleFormBuildings(buildings),
@@ -300,7 +305,7 @@ export default function CattleForm({
 						aria-label={cancelButtonLabel}
 						title={cancelButtonLabel}
 						className="btn btn-ghost btn-icon"
-						style={{ width: "42px", height: "42px" }}
+						style={{ width: "44px", height: "44px" }}
 					>
 						<BackIcon />
 					</button>
@@ -338,447 +343,477 @@ export default function CattleForm({
 						flexDirection: "column",
 						flex: "1 1 auto",
 						minHeight: 0,
-						gap: "18px",
-						padding: "24px",
-						overflowY: "auto",
+						gap: 0,
+						padding: 0,
+						overflow: "hidden",
 					}}
 				>
-					<input type="hidden" {...register("geneticInfo.grade")} />
+					<div
+						style={{
+							display: "flex",
+							flexDirection: "column",
+							flex: "1 1 auto",
+							minHeight: 0,
+							gap: "18px",
+							padding: "24px",
+							overflowY: "auto",
+							scrollPaddingBottom: "24px",
+						}}
+					>
+						<input type="hidden" {...register("geneticInfo.grade")} />
 
-					<div>
-						<label htmlFor="cattle-name" style={labelStyle}>
-							이름 (별명)
-						</label>
-						<input
-							id="cattle-name"
-							className="input"
-							style={inputStyle}
-							placeholder="예: 순심이"
-							aria-invalid={Boolean(errors.name)}
-							aria-describedby={errors.name ? "cattle-name-error" : undefined}
-							{...cattleNameRegistration}
-							ref={(element) => {
-								cattleNameRegistration.ref(element);
-								cattleNameInputRef.current = element;
-							}}
-						/>
-						{errors.name ? (
-							<div id="cattle-name-error" role="alert" style={errorTextStyle}>
-								{errors.name.message}
-							</div>
-						) : null}
-					</div>
-
-					<div>
-						<label htmlFor="cattle-tag-number" style={labelStyle}>
-							이력번호
-						</label>
-						<div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+						<div>
+							<label htmlFor="cattle-name" style={labelStyle}>
+								이름 (별명)
+							</label>
 							<input
-								id="cattle-tag-number"
+								id="cattle-name"
 								className="input"
-								style={{ ...inputStyle, flex: 1 }}
-								placeholder="002082037849"
-								aria-invalid={Boolean(errors.tagNumber)}
-								aria-describedby={tagNumberDescriptionIds}
-								{...register("tagNumber")}
-							/>
-							<button
-								type="button"
-								onClick={handleLookup}
-								disabled={lookupLoading}
-								aria-busy={lookupLoading}
-								aria-label={tagLookupButtonLabel}
-								title={tagLookupButtonLabel}
-								style={{
-									padding: "10px 14px",
-									borderRadius: "var(--radius-md)",
-									border: "1px solid var(--color-primary)",
-									background: "var(--color-primary)",
-									color: "white",
-									fontSize: "13px",
-									fontWeight: 700,
-									cursor: lookupLoading ? "wait" : "pointer",
-									whiteSpace: "nowrap",
-									opacity: lookupLoading ? 0.7 : 1,
-									transition: "all var(--transition-fast)",
+								style={inputStyle}
+								placeholder="예: 순심이"
+								aria-invalid={Boolean(errors.name)}
+								aria-describedby={errors.name ? "cattle-name-error" : undefined}
+								{...cattleNameRegistration}
+								ref={(element) => {
+									cattleNameRegistration.ref(element);
+									cattleNameInputRef.current = element;
 								}}
-							>
-								{tagLookupButtonText}
-							</button>
-						</div>
-						{errors.tagNumber ? (
-							<div id={tagNumberErrorId} role="alert" style={errorTextStyle}>
-								{errors.tagNumber.message}
-							</div>
-						) : null}
-						{lookupMsg ? (
-							<div
-								id={tagLookupMessageId}
-								role={lookupMsg.ok ? "status" : "alert"}
-								aria-live={lookupMsg.ok ? "polite" : "assertive"}
-								style={{
-									fontSize: "12px",
-									marginTop: "6px",
-									color: lookupMsg.ok
-										? "var(--color-success)"
-										: "var(--color-danger)",
-									fontWeight: 600,
-								}}
-							>
-								{lookupMsg.text}
-							</div>
-						) : null}
-					</div>
-
-					<div
-						style={{
-							display: "grid",
-							gridTemplateColumns: "1fr 1fr",
-							gap: "14px",
-						}}
-					>
-						<div>
-							<label htmlFor="cattle-building" style={labelStyle}>
-								축사
-							</label>
-							<select
-								id="cattle-building"
-								className="input"
-								style={inputStyle}
-								aria-invalid={Boolean(errors.buildingId)}
-								aria-describedby={
-									errors.buildingId ? "cattle-building-error" : undefined
-								}
-								{...register("buildingId")}
-							>
-								{safeBuildings.map((building) => (
-									<option key={building.id} value={building.id}>
-										{building.name}
-									</option>
-								))}
-							</select>
-							{errors.buildingId ? (
-								<div
-									id="cattle-building-error"
-									role="alert"
-									style={errorTextStyle}
-								>
-									{errors.buildingId.message}
-								</div>
-							) : null}
-						</div>
-
-						<div>
-							<label htmlFor="cattle-pen-number" style={labelStyle}>
-								칸 번호
-							</label>
-							<select
-								id="cattle-pen-number"
-								className="input"
-								style={inputStyle}
-								aria-invalid={Boolean(errors.penNumber)}
-								aria-describedby={
-									errors.penNumber ? "cattle-pen-number-error" : undefined
-								}
-								{...register("penNumber")}
-							>
-								{[...Array(12)].map((_, index) => (
-									<option key={index + 1} value={index + 1}>
-										{index + 1}번 칸
-									</option>
-								))}
-							</select>
-							{errors.penNumber ? (
-								<div
-									id="cattle-pen-number-error"
-									role="alert"
-									style={errorTextStyle}
-								>
-									{errors.penNumber.message}
-								</div>
-							) : null}
-						</div>
-					</div>
-
-					<div
-						style={{
-							display: "grid",
-							gridTemplateColumns: "1fr 1fr",
-							gap: "14px",
-						}}
-					>
-						<div>
-							<label htmlFor="cattle-gender" style={labelStyle}>
-								성별
-							</label>
-							<select
-								id="cattle-gender"
-								className="input"
-								style={inputStyle}
-								aria-invalid={Boolean(errors.gender)}
-								aria-describedby={
-									errors.gender ? "cattle-gender-error" : undefined
-								}
-								{...register("gender")}
-							>
-								<option value="암">암</option>
-								<option value="수">수</option>
-							</select>
-							{errors.gender ? (
-								<div
-									id="cattle-gender-error"
-									role="alert"
-									style={errorTextStyle}
-								>
-									{errors.gender.message}
-								</div>
-							) : null}
-						</div>
-
-						<div>
-							<label htmlFor="cattle-status" style={labelStyle}>
-								상태
-							</label>
-							<select
-								id="cattle-status"
-								className="input"
-								style={inputStyle}
-								aria-invalid={Boolean(errors.status)}
-								aria-describedby={
-									errors.status ? "cattle-status-error" : undefined
-								}
-								{...register("status")}
-							>
-								{BREED_STATUS_OPTIONS.map((option) => (
-									<option key={option} value={option}>
-										{option}
-									</option>
-								))}
-							</select>
-							{errors.status ? (
-								<div
-									id="cattle-status-error"
-									role="alert"
-									style={errorTextStyle}
-								>
-									{errors.status.message}
-								</div>
-							) : null}
-						</div>
-					</div>
-
-					<div>
-						<label htmlFor="cattle-birth-date" style={labelStyle}>
-							생년월일
-						</label>
-						<input
-							id="cattle-birth-date"
-							type="date"
-							className="input"
-							style={inputStyle}
-							aria-invalid={Boolean(errors.birthDate)}
-							aria-describedby={
-								errors.birthDate ? "cattle-birth-date-error" : undefined
-							}
-							{...register("birthDate")}
-						/>
-						{errors.birthDate ? (
-							<div
-								id="cattle-birth-date-error"
-								role="alert"
-								style={errorTextStyle}
-							>
-								{errors.birthDate.message}
-							</div>
-						) : null}
-					</div>
-
-					<div>
-						<label htmlFor="cattle-weight" style={labelStyle}>
-							현재 체중 (kg)
-						</label>
-						<input
-							id="cattle-weight"
-							type="number"
-							className="input"
-							style={inputStyle}
-							aria-invalid={Boolean(errors.weight)}
-							aria-describedby={
-								errors.weight ? "cattle-weight-error" : undefined
-							}
-							{...register("weight")}
-						/>
-						{errors.weight ? (
-							<div id="cattle-weight-error" role="alert" style={errorTextStyle}>
-								{errors.weight.message}
-							</div>
-						) : null}
-					</div>
-
-					<div
-						style={{
-							display: "grid",
-							gridTemplateColumns: "1fr 1fr",
-							gap: "14px",
-						}}
-					>
-						<div>
-							<label htmlFor="cattle-purchase-price" style={labelStyle}>
-								구입가격 (원)
-							</label>
-							<input
-								id="cattle-purchase-price"
-								type="number"
-								className="input"
-								style={inputStyle}
-								placeholder="예: 3500000"
-								aria-invalid={Boolean(errors.purchasePrice)}
-								aria-describedby={
-									errors.purchasePrice
-										? "cattle-purchase-price-error"
-										: undefined
-								}
-								{...register("purchasePrice")}
 							/>
-							{errors.purchasePrice ? (
-								<div
-									id="cattle-purchase-price-error"
-									role="alert"
-									style={errorTextStyle}
-								>
-									{errors.purchasePrice.message}
+							{errors.name ? (
+								<div id="cattle-name-error" role="alert" style={errorTextStyle}>
+									{errors.name.message}
 								</div>
 							) : null}
 						</div>
 
 						<div>
-							<label htmlFor="cattle-purchase-date" style={labelStyle}>
-								구입일자
+							<label htmlFor="cattle-tag-number" style={labelStyle}>
+								이력번호
 							</label>
-							<input
-								id="cattle-purchase-date"
-								type="date"
-								className="input"
-								style={inputStyle}
-								aria-invalid={Boolean(errors.purchaseDate)}
-								aria-describedby={
-									errors.purchaseDate ? "cattle-purchase-date-error" : undefined
-								}
-								{...register("purchaseDate")}
-							/>
-							{errors.purchaseDate ? (
-								<div
-									id="cattle-purchase-date-error"
-									role="alert"
-									style={errorTextStyle}
+							<div
+								style={{ display: "flex", gap: "8px", alignItems: "center" }}
+							>
+								<input
+									id="cattle-tag-number"
+									className="input"
+									style={{ ...inputStyle, flex: 1 }}
+									placeholder="002082037849"
+									aria-invalid={Boolean(errors.tagNumber)}
+									aria-describedby={tagNumberDescriptionIds}
+									{...register("tagNumber")}
+								/>
+								<button
+									type="button"
+									onClick={handleLookup}
+									disabled={lookupLoading}
+									aria-busy={lookupLoading}
+									aria-label={tagLookupButtonLabel}
+									title={tagLookupButtonLabel}
+									style={{
+										padding: "10px 14px",
+										minHeight: "44px",
+										borderRadius: "var(--radius-md)",
+										border: "1px solid var(--color-primary)",
+										background: "var(--color-primary)",
+										color: "white",
+										fontSize: "13px",
+										fontWeight: 700,
+										cursor: lookupLoading ? "wait" : "pointer",
+										whiteSpace: "nowrap",
+										opacity: lookupLoading ? 0.7 : 1,
+										transition: "all var(--transition-fast)",
+									}}
 								>
-									{errors.purchaseDate.message}
+									{tagLookupButtonText}
+								</button>
+							</div>
+							{errors.tagNumber ? (
+								<div id={tagNumberErrorId} role="alert" style={errorTextStyle}>
+									{errors.tagNumber.message}
+								</div>
+							) : null}
+							{lookupMsg ? (
+								<div
+									id={tagLookupMessageId}
+									role={lookupMsg.ok ? "status" : "alert"}
+									aria-live={lookupMsg.ok ? "polite" : "assertive"}
+									style={{
+										fontSize: "12px",
+										marginTop: "6px",
+										color: lookupMsg.ok
+											? "var(--color-success)"
+											: "var(--color-danger)",
+										fontWeight: 600,
+									}}
+								>
+									{lookupMsg.text}
 								</div>
 							) : null}
 						</div>
-					</div>
 
-					<div
-						style={{
-							background: "var(--color-border-light)",
-							padding: "18px",
-							borderRadius: "var(--radius-md)",
-							marginTop: "6px",
-						}}
-					>
-						<div
-							style={{
-								fontSize: "14px",
-								fontWeight: 700,
-								marginBottom: "14px",
-								color: "var(--color-primary-light)",
-								display: "flex",
-								alignItems: "center",
-								gap: "6px",
-							}}
-						>
-							혈통 정보 (선택)
-						</div>
 						<div
 							style={{
 								display: "grid",
 								gridTemplateColumns: "1fr 1fr",
-								gap: "12px",
+								gap: "14px",
 							}}
 						>
 							<div>
-								<label htmlFor="cattle-genetic-father" style={labelStyle}>
-									부 (KPN)
+								<label htmlFor="cattle-building" style={labelStyle}>
+									축사
 								</label>
-								<input
-									id="cattle-genetic-father"
+								<select
+									id="cattle-building"
 									className="input"
-									style={{ ...inputStyle, padding: "10px 12px" }}
-									aria-invalid={Boolean(errors.geneticInfo?.father)}
+									style={inputStyle}
+									aria-invalid={Boolean(errors.buildingId)}
 									aria-describedby={
-										errors.geneticInfo?.father
-											? "cattle-genetic-father-error"
-											: undefined
+										errors.buildingId ? "cattle-building-error" : undefined
 									}
-									{...register("geneticInfo.father")}
-								/>
-								{errors.geneticInfo?.father ? (
+									{...register("buildingId")}
+								>
+									{safeBuildings.map((building) => (
+										<option key={building.id} value={building.id}>
+											{building.name}
+										</option>
+									))}
+								</select>
+								{errors.buildingId ? (
 									<div
-										id="cattle-genetic-father-error"
+										id="cattle-building-error"
 										role="alert"
 										style={errorTextStyle}
 									>
-										{errors.geneticInfo.father.message}
+										{errors.buildingId.message}
 									</div>
 								) : null}
 							</div>
+
 							<div>
-								<label htmlFor="cattle-genetic-mother" style={labelStyle}>
-									모 (이력)
+								<label htmlFor="cattle-pen-number" style={labelStyle}>
+									칸 번호
 								</label>
-								<input
-									id="cattle-genetic-mother"
+								<select
+									id="cattle-pen-number"
 									className="input"
-									style={{ ...inputStyle, padding: "10px 12px" }}
-									aria-invalid={Boolean(errors.geneticInfo?.mother)}
+									style={inputStyle}
+									aria-invalid={Boolean(errors.penNumber)}
 									aria-describedby={
-										errors.geneticInfo?.mother
-											? "cattle-genetic-mother-error"
-											: undefined
+										errors.penNumber ? "cattle-pen-number-error" : undefined
 									}
-									{...register("geneticInfo.mother")}
-								/>
-								{errors.geneticInfo?.mother ? (
+									{...register("penNumber")}
+								>
+									{[...Array(12)].map((_, index) => (
+										<option key={index + 1} value={index + 1}>
+											{index + 1}번 칸
+										</option>
+									))}
+								</select>
+								{errors.penNumber ? (
 									<div
-										id="cattle-genetic-mother-error"
+										id="cattle-pen-number-error"
 										role="alert"
 										style={errorTextStyle}
 									>
-										{errors.geneticInfo.mother.message}
+										{errors.penNumber.message}
 									</div>
 								) : null}
 							</div>
 						</div>
-					</div>
 
-					<div>
-						<label htmlFor="cattle-memo" style={labelStyle}>
-							메모
-						</label>
-						<textarea
-							id="cattle-memo"
-							className="input"
-							style={{ ...inputStyle, height: "90px", resize: "none" }}
-							aria-invalid={Boolean(errors.memo)}
-							aria-describedby={errors.memo ? "cattle-memo-error" : undefined}
-							{...register("memo")}
-						/>
-						{errors.memo ? (
-							<div id="cattle-memo-error" role="alert" style={errorTextStyle}>
-								{errors.memo.message}
+						<div
+							style={{
+								display: "grid",
+								gridTemplateColumns: "1fr 1fr",
+								gap: "14px",
+							}}
+						>
+							<div>
+								<label htmlFor="cattle-gender" style={labelStyle}>
+									성별
+								</label>
+								<select
+									id="cattle-gender"
+									className="input"
+									style={inputStyle}
+									aria-invalid={Boolean(errors.gender)}
+									aria-describedby={
+										errors.gender ? "cattle-gender-error" : undefined
+									}
+									{...register("gender")}
+								>
+									<option value="암">암</option>
+									<option value="수">수</option>
+								</select>
+								{errors.gender ? (
+									<div
+										id="cattle-gender-error"
+										role="alert"
+										style={errorTextStyle}
+									>
+										{errors.gender.message}
+									</div>
+								) : null}
 							</div>
-						) : null}
+
+							<div>
+								<label htmlFor="cattle-status" style={labelStyle}>
+									상태
+								</label>
+								<select
+									id="cattle-status"
+									className="input"
+									style={inputStyle}
+									aria-invalid={Boolean(errors.status)}
+									aria-describedby={
+										errors.status ? "cattle-status-error" : undefined
+									}
+									{...register("status")}
+								>
+									{BREED_STATUS_OPTIONS.map((option) => (
+										<option key={option} value={option}>
+											{option}
+										</option>
+									))}
+								</select>
+								{errors.status ? (
+									<div
+										id="cattle-status-error"
+										role="alert"
+										style={errorTextStyle}
+									>
+										{errors.status.message}
+									</div>
+								) : null}
+							</div>
+						</div>
+
+						<div>
+							<label htmlFor="cattle-birth-date" style={labelStyle}>
+								생년월일
+							</label>
+							<input
+								id="cattle-birth-date"
+								type="date"
+								className="input"
+								style={inputStyle}
+								aria-invalid={Boolean(errors.birthDate)}
+								aria-describedby={
+									errors.birthDate ? "cattle-birth-date-error" : undefined
+								}
+								{...register("birthDate")}
+							/>
+							{errors.birthDate ? (
+								<div
+									id="cattle-birth-date-error"
+									role="alert"
+									style={errorTextStyle}
+								>
+									{errors.birthDate.message}
+								</div>
+							) : null}
+						</div>
+
+						<div>
+							<label htmlFor="cattle-weight" style={labelStyle}>
+								현재 체중 (kg)
+							</label>
+							<input
+								id="cattle-weight"
+								type="number"
+								className="input"
+								style={inputStyle}
+								aria-invalid={Boolean(errors.weight)}
+								aria-describedby={
+									errors.weight ? "cattle-weight-error" : undefined
+								}
+								{...register("weight")}
+							/>
+							{errors.weight ? (
+								<div
+									id="cattle-weight-error"
+									role="alert"
+									style={errorTextStyle}
+								>
+									{errors.weight.message}
+								</div>
+							) : null}
+						</div>
+
+						<div
+							style={{
+								display: "grid",
+								gridTemplateColumns: "1fr 1fr",
+								gap: "14px",
+							}}
+						>
+							<div>
+								<label htmlFor="cattle-purchase-price" style={labelStyle}>
+									구입가격 (원)
+								</label>
+								<input
+									id="cattle-purchase-price"
+									type="number"
+									className="input"
+									style={inputStyle}
+									placeholder="예: 3500000"
+									aria-invalid={Boolean(errors.purchasePrice)}
+									aria-describedby={
+										errors.purchasePrice
+											? "cattle-purchase-price-error"
+											: undefined
+									}
+									{...register("purchasePrice")}
+								/>
+								{errors.purchasePrice ? (
+									<div
+										id="cattle-purchase-price-error"
+										role="alert"
+										style={errorTextStyle}
+									>
+										{errors.purchasePrice.message}
+									</div>
+								) : null}
+							</div>
+
+							<div>
+								<label htmlFor="cattle-purchase-date" style={labelStyle}>
+									구입일자
+								</label>
+								<input
+									id="cattle-purchase-date"
+									type="date"
+									className="input"
+									style={inputStyle}
+									aria-invalid={Boolean(errors.purchaseDate)}
+									aria-describedby={
+										errors.purchaseDate
+											? "cattle-purchase-date-error"
+											: undefined
+									}
+									{...register("purchaseDate")}
+								/>
+								{errors.purchaseDate ? (
+									<div
+										id="cattle-purchase-date-error"
+										role="alert"
+										style={errorTextStyle}
+									>
+										{errors.purchaseDate.message}
+									</div>
+								) : null}
+							</div>
+						</div>
+
+						<div
+							style={{
+								background: "var(--color-border-light)",
+								padding: "18px",
+								borderRadius: "var(--radius-md)",
+								marginTop: "6px",
+							}}
+						>
+							<div
+								style={{
+									fontSize: "14px",
+									fontWeight: 700,
+									marginBottom: "14px",
+									color: "var(--color-primary-light)",
+									display: "flex",
+									alignItems: "center",
+									gap: "6px",
+								}}
+							>
+								혈통 정보 (선택)
+							</div>
+							<div
+								style={{
+									display: "grid",
+									gridTemplateColumns: "1fr 1fr",
+									gap: "12px",
+								}}
+							>
+								<div>
+									<label htmlFor="cattle-genetic-father" style={labelStyle}>
+										부 (KPN)
+									</label>
+									<input
+										id="cattle-genetic-father"
+										className="input"
+										style={{
+											...inputStyle,
+											minHeight: "44px",
+											padding: "10px 12px",
+										}}
+										aria-invalid={Boolean(errors.geneticInfo?.father)}
+										aria-describedby={
+											errors.geneticInfo?.father
+												? "cattle-genetic-father-error"
+												: undefined
+										}
+										{...register("geneticInfo.father")}
+									/>
+									{errors.geneticInfo?.father ? (
+										<div
+											id="cattle-genetic-father-error"
+											role="alert"
+											style={errorTextStyle}
+										>
+											{errors.geneticInfo.father.message}
+										</div>
+									) : null}
+								</div>
+								<div>
+									<label htmlFor="cattle-genetic-mother" style={labelStyle}>
+										모 (이력)
+									</label>
+									<input
+										id="cattle-genetic-mother"
+										className="input"
+										style={{
+											...inputStyle,
+											minHeight: "44px",
+											padding: "10px 12px",
+										}}
+										aria-invalid={Boolean(errors.geneticInfo?.mother)}
+										aria-describedby={
+											errors.geneticInfo?.mother
+												? "cattle-genetic-mother-error"
+												: undefined
+										}
+										{...register("geneticInfo.mother")}
+									/>
+									{errors.geneticInfo?.mother ? (
+										<div
+											id="cattle-genetic-mother-error"
+											role="alert"
+											style={errorTextStyle}
+										>
+											{errors.geneticInfo.mother.message}
+										</div>
+									) : null}
+								</div>
+							</div>
+						</div>
+
+						<div>
+							<label htmlFor="cattle-memo" style={labelStyle}>
+								메모
+							</label>
+							<textarea
+								id="cattle-memo"
+								className="input"
+								style={{ ...inputStyle, height: "90px", resize: "none" }}
+								aria-invalid={Boolean(errors.memo)}
+								aria-describedby={errors.memo ? "cattle-memo-error" : undefined}
+								{...register("memo")}
+							/>
+							{errors.memo ? (
+								<div id="cattle-memo-error" role="alert" style={errorTextStyle}>
+									{errors.memo.message}
+								</div>
+							) : null}
+						</div>
 					</div>
 
 					<div
@@ -786,13 +821,11 @@ export default function CattleForm({
 							position: "sticky",
 							bottom: 0,
 							zIndex: 3,
+							flexShrink: 0,
 							display: "flex",
 							gap: "12px",
-							marginTop: "28px",
-							marginRight: "-24px",
-							marginBottom: "-24px",
-							marginLeft: "-24px",
-							padding: "16px 24px max(24px, env(safe-area-inset-bottom))",
+							marginTop: 0,
+							padding: cattleFormActionBarPadding,
 							borderTop:
 								"1px solid color-mix(in srgb, var(--color-border-custom) 35%, transparent)",
 							background:
@@ -812,6 +845,8 @@ export default function CattleForm({
 							className="btn btn-secondary"
 							style={{
 								...btnSecondary,
+								whiteSpace: "nowrap",
+								wordBreak: "keep-all",
 								transition: "all 0.2s cubic-bezier(0.22,1,0.36,1)",
 							}}
 						>
@@ -826,6 +861,8 @@ export default function CattleForm({
 							className="btn btn-primary"
 							style={{
 								...btnPrimary,
+								whiteSpace: "nowrap",
+								wordBreak: "keep-all",
 								transition: "all 0.2s cubic-bezier(0.22,1,0.36,1)",
 							}}
 						>
