@@ -800,3 +800,7 @@
 ## Rotation 2026-06-07 (archived DONE rows beyond the newest 5)
 
 | T-1524 | `[workspace/shorts-manager]` Localized channel-settings form labels. The Korean operator UI no longer shows the English field labels `Voice`, `Style preset`, `Font color`, and `Image style prefix`; it now uses `음성`, `스타일 프리셋`, `자막 색상`, and `이미지 스타일 프롬프트`. Candidate browser QA measured English labels `4 -> 0`, Korean labels `0 -> 4`, no horizontal overflow, and browser failures `0`; A/B adopted candidate. Verification passed Shorts Maker V2 project QC, full active-project QC, graph refresh, and clean-worktree readiness. Code commit `e1d41f20` is local only. No push was performed and T-251 was not retried. | Codex | 2026-06-07 |
+
+## Rotation 2026-06-07 (archived DONE rows beyond the newest 5)
+
+| T-1544 | `[workspace/launch-gates]` Reconciled the launch-boundary relay after T-1543 context commits. Last exact audit before this relay update showed readiness score `96`, local blockers `0`, agent tasks `0`, publish blockers `1`, external blockers `1`, release packet `ready_for_authorization`, selector `blocked_publish_only`, and completion audit `10/14` with `4` blocked items. No push was performed and T-251 was not retried; rerun exact current-head release evidence after the context commit before release claims. | Codex | 2026-06-07 |
