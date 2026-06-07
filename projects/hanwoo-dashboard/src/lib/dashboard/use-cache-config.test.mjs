@@ -39,6 +39,18 @@ describe("use cache — configuration", () => {
 			"Next dev server should accept Playwright QA sessions opened through 127.0.0.1",
 		);
 	});
+
+	it("next.config.mjs keeps the dev indicator away from mobile tab controls", () => {
+		const configContent = readFileSync(
+			resolve(ROOT, "next.config.mjs"),
+			"utf-8",
+		);
+		assert.match(
+			configContent,
+			/devIndicators:\s*\{\s*position:\s*["']top-right["']\s*,?\s*\}/,
+			"Next dev indicator should not sit on top of the fixed mobile tab bar during browser QA",
+		);
+	});
 });
 
 describe("use cache — cached-queries module", () => {
