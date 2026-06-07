@@ -1434,3 +1434,14 @@
 - Verification: focused Shorts Manager pytest passed (`30 passed`); targeted Ruff passed; `py_compile` passed; `git diff --check` passed with CRLF warnings only; `py -3.13 -m uv lock --check` passed; A/B selected `adopt_candidate` (`score_delta=0.9`); Shorts Maker V2 project QC passed (`1640 passed`, `12 skipped`, `29 warnings`, lint pass).
 - Tooling note: `uv` was installed for this session as a Python module and invoked with `py -3.13 -m uv`; it may still not be on the PowerShell PATH as a bare `uv` command.
 - Boundary: code commit `84581170` is local only. No push was performed. T-251 was not retried. A separate unstaged Hanwoo `ScheduleTab.js` calendar-grid WIP is visible and must stay separate. Remaining launch blockers are explicit push/current-head GitHub Actions plus external/user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E.
+
+## 2026-06-07 - Codex
+
+- Closed T-1503 as a Hanwoo Schedule tab mobile touch-target polish cycle.
+- External references checked: W3C WCAG 2.2 target-size guidance and Material/Android touch-target guidance. Hanwoo keeps the stricter app-level 44px target while exceeding WCAG AA.
+- Browser baseline: authenticated mobile Schedule tab at `390x844` measured calendar date buttons at `40.56-40.58px` wide, with `small_date_button_count=30`, `schedule_small_target_count=32`, and horizontal overflow `0`.
+- Changed `projects/hanwoo-dashboard/src/components/tabs/ScheduleTab.js`: mobile weekday/date grids now use `gap-1 sm:gap-2`; empty cells and date buttons use `min-w-11`; the schedule add button uses `min-h-11`.
+- Changed `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs` and `projects/hanwoo-dashboard/src/lib/tab-header-accessibility.test.mjs`: locked date grid, date-cell, placeholder-cell, and add-button touch-target source contracts.
+- Candidate browser QA passed with date buttons `44x78`, `small_date_button_count=0`, `schedule_small_target_count=1` (shared degraded-state refresh button only), `xOverflow=false`, bad responses `0`, screenshot `output/playwright/hanwoo-t1503-schedule-date-target-candidate.png`, and JSON `.tmp/hanwoo-t1503-schedule-date-target-candidate.json`.
+- Verification: related source tests passed (`64 passed`); full Hanwoo project QC passed (`530 passed`, lint/build/smoke passed); `git diff --check` passed with CRLF warnings only; graph refresh completed; staged/commit code-review gate returned advisory WARN `risk_score=0.30`, covered by focused/browser/project QC; A/B selected `adopt_candidate` with `score_delta=0.6075875246548323`.
+- Boundary: code commit `5b693ec8` is local only. No push was performed. T-251 was not retried. Refresh current-head readiness/release-selector evidence before release claims because HEAD advanced past the T-1501 canonical full-workspace artifact.
