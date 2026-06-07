@@ -387,6 +387,13 @@ def test_shorts_manager_source_wires_external_action_lock_copy() -> None:
     assert "Notion 동기화 잠금:" in source
 
 
+def test_shorts_manager_source_keeps_card_actions_full_width() -> None:
+    source = (WORKSPACE_ROOT / "execution" / "pages" / "shorts_manager.py").read_text(encoding="utf-8")
+
+    assert "row1, row2 = st.columns([4, 1.4])" not in source
+    assert "_render_item_header(item)\n                _render_item_buttons(item, key_prefix)" in source
+
+
 def test_default_auth_status_and_upload_gate(shorts_manager, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(shorts_manager, "_YT_OK", False)
     monkeypatch.setattr(shorts_manager, "_YT_ERR", "missing module")

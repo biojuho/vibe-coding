@@ -935,11 +935,8 @@ with right:
             return
         for item in items_to_show:
             with st.container():
-                row1, row2 = st.columns([4, 1.4])
-                with row1:
-                    _render_item_header(item)
-                with row2:
-                    _render_item_buttons(item, key_prefix)
+                _render_item_header(item)
+                _render_item_buttons(item, key_prefix)
 
                 thumb = item.get("thumbnail_path", "")
                 _render_thumbnail_preview(thumb)
