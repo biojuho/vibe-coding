@@ -1475,3 +1475,21 @@
 - Evidence: `.tmp/hanwoo-t1505-tab-inventory-mobile.json`, `.tmp/hanwoo-t1505-refresh-target-candidate.json`, `.tmp/ab-manifest-hanwoo-t1505-refresh-target.json`, `output/playwright/hanwoo-t1505-tab-inventory-mobile.png`, and `output/playwright/hanwoo-t1505-refresh-target-candidate.png`.
 - Verification: focused source test passed (`3 passed`); related source tests passed (`59 passed`); Hanwoo project QC passed (`530 passed`, lint/build/smoke passed); `git diff --check` passed; graph refresh is current at `0e70dc70`; code-review gate returned advisory WARN (`risk_score=0.30`) covered by focused/browser/project QC; A/B selected `adopt_candidate` with `score_delta=2.3333333333333335`.
 - Boundary: code commit `0e70dc70` is local only. No push was performed. T-251 was not retried. Current HEAD also includes separate Shorts Manager T-1505 commit `f69349c8`, so refresh full canonical active-project QC/readiness before current-head release claims.
+
+## 2026-06-07 - Codex
+
+- Closed T-1505 as a Shorts Manager operator-shortcut polish cycle.
+- Changed `workspace/execution/pages/shorts_manager.py`: added a top shortcut nav to the practical operator sections, escaped section anchors, and 44px-min shortcut link styling with mobile wrapping.
+- Changed `workspace/tests/test_shorts_manager.py`: added source and helper regressions for shortcut rendering, internal links, anchor escaping, and mobile flex sizing.
+- Verification: focused Shorts Manager pytest passed (`33 passed`); targeted Ruff passed; `py_compile` passed; `git diff --check` passed with CRLF warnings only; staged/commit code-review gate returned advisory WARN (`risk_score=0.40`) covered by direct source/helper tests.
+- Boundary: code commit `f69349c8` is local only. No push was performed. T-251 was not retried.
+
+## 2026-06-07 - Codex
+
+- Closed T-1507 as a current-head full canonical QC/readiness refresh after T-1505/T-1506.
+- Ran `py -3.13 -m code_review_graph update --repo . --skip-flows`; graph is current at `8335bb5b`.
+- Ran `python execution/project_qc_runner.py --json --artifact .tmp/project_qc_runner_latest.json --timeout-seconds 300`.
+- Full active-project QC passed: Blind-to-X `1842 passed`, `9 skipped`, lint pass; Shorts Maker V2 `1640 passed`, `12 skipped`, `29 warnings`, lint pass; Hanwoo `530 passed`, lint/build/smoke passed; Knowledge Dashboard `62 passed`, lint/build/smoke passed.
+- `product_readiness_score.py --json` reports score `96`, state `blocked`, local blockers `0`, agent tasks `0`, publish blockers `1`, external blockers `1`, clean worktree, no open PRs, and fresh current-head QC evidence.
+- `release_authorization_packet.py --json` is `ready_for_authorization`; `next_experiment_selector.py` is `blocked_publish_only`, selecting current-head release checks.
+- Boundary: no push was performed. T-251 was not retried. Remaining blockers are explicit push/current-head GitHub Actions and user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E.
