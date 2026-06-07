@@ -33,12 +33,11 @@ const widgetSettingsGridStyle = {
 };
 
 const widgetSettingsGridViewportStyle = {
-	maxHeight: "220px",
 	overflowY: "auto",
 	overscrollBehavior: "contain",
 	paddingRight: "2px",
-	paddingBottom: "8px",
-	scrollPaddingBottom: "16px",
+	paddingBottom: "12px",
+	scrollPaddingBottom: "64px",
 };
 
 const widgetSettingsControlStyle = {
@@ -509,7 +508,10 @@ export default function SettingsTab(options = {}) {
 					>
 						홈 화면에 표시할 위젯을 선택해 주세요.
 					</div>
-					<div style={widgetSettingsGridViewportStyle}>
+					<div
+						className="settings-widget-grid-viewport"
+						style={widgetSettingsGridViewportStyle}
+					>
 						<div style={widgetSettingsGridStyle}>
 							{safeWidgetRegistry.map((widget) => {
 								const isOn = safeWidgetVisible[widget.id] !== false;

@@ -55,11 +55,42 @@ test("dashboard stacking context keeps mobile tab bar fixed", () => {
 		source,
 		/\.dashboard-container > :not\(\.tab-bar\):not\(\.modal-overlay\)\s*\{/,
 	);
+	assert.match(source, /\.dashboard-content-shell\s*\{[\s\S]*?min-height:\s*calc\(100svh - var\(--dashboard-tabbar-offset\)\);/);
+	assert.match(
+		source,
+		/@supports not \(height:\s*100svh\)\s*\{[\s\S]*?\.dashboard-content-shell\s*\{[\s\S]*?min-height:\s*calc\(100vh - var\(--dashboard-tabbar-offset\)\);/,
+	);
 	assert.match(
 		source,
 		/\.dashboard-container :is\([\s\S]*?\[role="switch"\][\s\S]*?\)\s*\{[\s\S]*?scroll-margin-bottom:\s*var\(--dashboard-tabbar-offset\);/,
 	);
+	assert.match(source, /\.settings-widget-grid-viewport\s*\{[\s\S]*?max-height:\s*220px;/);
+	assert.match(
+		source,
+		/@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.settings-widget-grid-viewport\s*\{[\s\S]*?max-height:\s*104px;/,
+	);
+	assert.match(
+		source,
+		/@media \(min-width:\s*900px\)\s*\{[\s\S]*?\.tab-bar\s*\{[\s\S]*?top:\s*50%;[\s\S]*?left:\s*24px;[\s\S]*?bottom:\s*auto;[\s\S]*?grid-template-columns:\s*1fr;/,
+	);
+	assert.match(
+		source,
+		/@media \(min-width:\s*900px\)\s*\{[\s\S]*?\.dashboard-container\s*\{[\s\S]*?padding-bottom:\s*24px;[\s\S]*?scroll-padding-bottom:\s*24px;/,
+	);
+	assert.match(
+		source,
+		/@media \(min-width:\s*900px\)\s*\{[\s\S]*?\.dashboard-content-shell\s*\{[\s\S]*?min-height:\s*auto;/,
+	);
 	assert.doesNotMatch(source, /\.dashboard-container > \*\s*\{/);
+});
+
+test("dashboard content shell keeps footer controls clear of the mobile tab bar", () => {
+	const source = readSource("components/DashboardClient.js");
+
+	assert.match(
+		source,
+		/className="dashboard-content-shell max-w-\[600px\] mx-auto p-4 relative"/,
+	);
 });
 
 test("dashboard cattle mutation catch paths use safe Korean fallback copy", () => {
