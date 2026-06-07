@@ -213,3 +213,124 @@ def test_keep_days_parameter(tmp_path, keep_days, expected_archived):
     else:
         assert result["status"] == "rotated"
         assert result["archived"] == expected_archived
+
+
+def test_keep_count_caps_a_same_day_burst(tmp_path):
+    """A burst of addenda all dated today is bounded by --keep-count.
+
+    The pure date cutoff cannot help here (all five are within the window);
+    keep_count must still archive the oldest three. This is the 312-in-3-days
+    bloat scenario in miniature.
+    """
+    _write_handoff(
+        tmp_path,
+        [
+            _build_addendum("2026-05-08", "newest"),
+            _build_addendum("2026-05-08", "second"),
+            _build_addendum("2026-05-08", "third"),
+            _build_addendum("2026-05-08", "fourth"),
+            _build_addendum("2026-05-08", "oldest"),
+        ],
+    )
+    result = rotator.rotate(
+        tmp_path,
+        keep_days=7,
+        today=date(2026, 5, 8),
+        keep_count=2,
+    )
+    assert result["status"] == "rotated"
+    assert result["kept"] == 2
+    assert result["archived"] == 3
+
+    handoff_text = (tmp_path / ".ai" / "HANDOFF.md").read_text(encoding="utf-8")
+    assert "newest" in handoff_text
+    assert "second" in handoff_text
+    assert "third" not in handoff_text
+    assert "oldest" not in handoff_text
+
+    archive_text = (tmp_path / ".ai" / "archive" / "HANDOFF_archive_2026-05-08.md").read_text(encoding="utf-8")
+    assert "oldest" in archive_text
+
+
+def test_keep_count_combines_with_keep_days(tmp_path):
+    """keep_days archives the stale ones; keep_count caps the recent remainder."""
+    _write_handoff(
+        tmp_path,
+        [
+            _build_addendum("2026-05-08", "recent-new"),
+            _build_addendum("2026-05-07", "recent-old"),
+            _build_addendum("2026-04-01", "ancient"),
+        ],
+    )
+    result = rotator.rotate(
+        tmp_path,
+        keep_days=7,
+        today=date(2026, 5, 8),
+        keep_count=1,
+    )
+    assert result["status"] == "rotated"
+    assert result["kept"] == 1
+    assert result["archived"] == 2
+    handoff_text = (tmp_path / ".ai" / "HANDOFF.md").read_text(encoding="utf-8")
+    assert "recent-new" in handoff_text
+    assert "recent-old" not in handoff_text
+    assert "ancient" not in handoff_text
+
+
+def test_max_lines_trims_until_file_fits(tmp_path):
+    """--max-lines bounds the rewritten file regardless of dates."""
+    _write_handoff(
+        tmp_path,
+        [_build_addendum("2026-05-08", f"entry-{i:02d}") for i in range(8)],
+    )
+    max_lines = 25
+    result = rotator.rotate(
+        tmp_path,
+        keep_days=7,
+        today=date(2026, 5, 8),
+        max_lines=max_lines,
+    )
+    assert result["status"] == "rotated"
+    assert result["archived"] > 0
+    assert result["kept"] >= 1
+
+    handoff_text = (tmp_path / ".ai" / "HANDOFF.md").read_text(encoding="utf-8")
+    assert len(handoff_text.splitlines()) <= max_lines
+    # Newest survives, oldest is archived.
+    assert "entry-00" in handoff_text
+    assert "entry-07" not in handoff_text
+
+
+def test_max_lines_keeps_at_least_the_newest(tmp_path):
+    """An impossibly small budget still keeps the single newest addendum."""
+    _write_handoff(
+        tmp_path,
+        [
+            _build_addendum("2026-05-08", "keep-me-newest"),
+            _build_addendum("2026-05-08", "drop-me"),
+            _build_addendum("2026-05-08", "drop-me-too"),
+        ],
+    )
+    result = rotator.rotate(
+        tmp_path,
+        keep_days=7,
+        today=date(2026, 5, 8),
+        max_lines=1,
+    )
+    assert result["status"] == "rotated"
+    assert result["kept"] == 1
+    handoff_text = (tmp_path / ".ai" / "HANDOFF.md").read_text(encoding="utf-8")
+    assert "keep-me-newest" in handoff_text
+    assert "drop-me" not in handoff_text
+
+
+def test_no_caps_preserves_date_only_behavior(tmp_path):
+    """With keep_count/max_lines unset, behavior matches the original day cutoff."""
+    _write_handoff(
+        tmp_path,
+        [_build_addendum("2026-05-08", f"entry-{i:02d}") for i in range(10)],
+    )
+    result = rotator.rotate(tmp_path, keep_days=7, today=date(2026, 5, 8))
+    assert result["status"] == "noop"
+    assert result["archived"] == 0
+    assert result["kept"] == 10

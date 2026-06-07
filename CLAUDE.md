@@ -109,10 +109,16 @@
 
 ### HANDOFF 로테이션 규칙
 
-- HANDOFF.md의 "Current Addendum" 스택은 **최근 7일**만 유지 (이전엔 무한 누적되어 280줄까지 비대화)
-- 7일 초과분은 `.ai/archive/HANDOFF_archive_<rotation_date>.md`로 자동 이동
-- 도구: `python execution/handoff_rotator.py` (dry-run: `--check`, JSON: `--json`, 보존 기간 조정: `--keep-days N`)
-- 세션 종료 시 HANDOFF.md가 200줄 넘으면 실행 권장. 멱등이므로 부담 없이 반복 가능
+- HANDOFF.md의 "Current Addendum" 스택은 **최근 7일 + 최신 N개/200줄** 안으로 유지 (날짜만으로는 자동 루프가 3일에 312개·580KB까지 쌓은 사례 있음 — 날짜 컷오프는 keep window 안의 폭주를 못 막는다)
+- 초과분은 `.ai/archive/HANDOFF_archive_<rotation_date>.md`로 자동 이동
+- 도구: `python execution/handoff_rotator.py` (dry-run: `--check`, JSON: `--json`, 날짜: `--keep-days N`, 개수 상한: `--keep-count N`, 줄 상한: `--max-lines N` 기본 200, `0`이면 비활성)
+- 세션 종료 시 인자 없이 실행하면 200줄로 자동 트림. 멱등이므로 부담 없이 반복 가능
+
+### TASKS DONE 로테이션 규칙
+
+- TASKS.md `## DONE (Latest N)` 섹션은 **최신 N개**(기본 5)만 유지 (이전엔 라벨과 달리 무한 누적되어 793개·626KB까지 비대화)
+- 초과분은 `.ai/archive/TASKS_DONE_archive_<rotation_date>.md`로 이동하며 TODO/IN_PROGRESS 섹션은 건드리지 않음
+- 도구: `python execution/tasks_done_rotator.py` (dry-run: `--check`, JSON: `--json`, 개수: `--keep-count N`)
 
 ## 컨텍스트 계층 (Context Hierarchy)
 

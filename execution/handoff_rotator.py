@@ -7,10 +7,19 @@ two weeks. This script reads each addendum block, splits them by date against a
 configurable cutoff, rewrites HANDOFF.md with only the recent ones, and appends
 the archived blocks to `.ai/archive/HANDOFF_archive_<rotation_date>.md`.
 
+The date cutoff alone is not enough. An automated loop (e.g. the auto-research
+self-improvement loop) can append dozens of addenda per day, all dated within
+the keep window, so a pure ``--keep-days`` rotation no-ops while the file grows
+unbounded (observed: 312 addenda / ~580KB in 3 days). ``--max-lines`` (default
+200) and ``--keep-count`` bound the file regardless of dates and implement the
+session-close "over 200 lines" trigger that the day cutoff cannot.
+
 Usage:
-    python execution/handoff_rotator.py            # rotate using --keep-days=7
+    python execution/handoff_rotator.py            # --keep-days=7, --max-lines=200
     python execution/handoff_rotator.py --check    # dry-run summary
     python execution/handoff_rotator.py --keep-days 14
+    python execution/handoff_rotator.py --keep-count 20   # cap to 20 newest
+    python execution/handoff_rotator.py --max-lines 0     # disable the line cap
 """
 
 from __future__ import annotations
@@ -100,19 +109,64 @@ def parse_addenda(lines: list[str], start: int, end: int) -> list[Addendum]:
     return results
 
 
+def _select_kept(
+    recent: list[Addendum],
+    *,
+    keep_count: int | None,
+    max_lines: int | None,
+    fixed_overhead: int,
+) -> list[Addendum]:
+    """Return the newest addenda to keep after applying the count/line caps.
+
+    ``recent`` is in document order (newest first, matching how HANDOFF.md
+    stacks the latest addendum on top). The count cap keeps at most
+    ``keep_count`` of them; the line cap then greedily keeps newest addenda
+    while the rewritten file (``fixed_overhead`` + kept spans) stays within
+    ``max_lines``. At least the single newest addendum is always kept whenever
+    any recent addendum exists, so a tiny budget never empties the section.
+    """
+    kept = list(recent)
+    if keep_count is not None and keep_count >= 0:
+        kept = kept[:keep_count]
+    if max_lines is not None and max_lines > 0 and kept:
+        budget = max_lines - fixed_overhead
+        trimmed: list[Addendum] = []
+        used = 0
+        for addendum in kept:
+            cost = addendum.end - addendum.start
+            if trimmed and used + cost > budget:
+                break
+            trimmed.append(addendum)
+            used += cost
+        kept = trimmed
+    return kept
+
+
 def rotate(
     repo_root: Path,
     *,
     keep_days: int,
     today: date,
+    keep_count: int | None = None,
+    max_lines: int | None = None,
     dry_run: bool = False,
 ) -> dict:
     """Rotate stale addenda. Returns a structured result dict.
 
+    An addendum is archived when it falls outside any configured cap:
+      - older than ``keep_days`` (date cutoff), or
+      - beyond the newest ``keep_count`` addenda, or
+      - beyond the ``max_lines`` budget for the rewritten file.
+
+    The date cutoff alone is not enough: a burst of many addenda dated within
+    the keep window (e.g. an automated loop writing dozens per day) leaves the
+    file unbounded. ``keep_count``/``max_lines`` bound it regardless of dates,
+    which is what the session-close "over 200 lines" trigger relies on.
+
     Status values:
       - "skip":   HANDOFF.md missing or no Current Addendum section.
-      - "noop":   nothing to archive (everything is within the keep window).
-      - "rotated": addenda older than the cutoff were moved to archive.
+      - "noop":   nothing to archive (everything is within the caps).
+      - "rotated": addenda outside the caps were moved to archive.
     """
     handoff = repo_root / ".ai" / "HANDOFF.md"
     if not handoff.exists():
@@ -127,8 +181,17 @@ def rotate(
     section_start, section_end = rng
     addenda = parse_addenda(lines, section_start, section_end)
     cutoff = today - timedelta(days=keep_days)
-    to_archive = [a for a in addenda if a.date < cutoff]
-    to_keep = [a for a in addenda if a.date >= cutoff]
+    recent = [a for a in addenda if a.date >= cutoff]
+    addenda_span = sum(a.end - a.start for a in addenda)
+    fixed_overhead = len(lines) - addenda_span
+    to_keep = _select_kept(
+        recent,
+        keep_count=keep_count,
+        max_lines=max_lines,
+        fixed_overhead=fixed_overhead,
+    )
+    keep_set = set(to_keep)
+    to_archive = [a for a in addenda if a not in keep_set]
 
     if not to_archive:
         return {
@@ -209,6 +272,20 @@ def main(argv: list[str] | None = None) -> int:
         help="Keep addenda dated within the last N days (default: 7).",
     )
     parser.add_argument(
+        "--keep-count",
+        type=int,
+        default=None,
+        help="Also keep at most N most-recent addenda regardless of date (default: no count cap).",
+    )
+    parser.add_argument(
+        "--max-lines",
+        type=int,
+        default=200,
+        help="Trim oldest addenda until the rewritten HANDOFF.md fits within N "
+        "lines (default: 200; 0 disables). Implements the session-close "
+        "'over 200 lines' rotation trigger that the date cutoff alone cannot.",
+    )
+    parser.add_argument(
         "--today",
         type=str,
         default=None,
@@ -231,6 +308,8 @@ def main(argv: list[str] | None = None) -> int:
         args.repo_root,
         keep_days=args.keep_days,
         today=today,
+        keep_count=args.keep_count,
+        max_lines=args.max_lines,
         dry_run=args.check,
     )
     if args.json:
