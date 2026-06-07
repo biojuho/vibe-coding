@@ -73,7 +73,7 @@ class _FakeStreamlit(types.ModuleType):
         self._record("title", args[0] if args else None)
 
     def code(self, *args, **kwargs) -> None:
-        self._record("code", args[0] if args else None)
+        self._record("code", {"value": args[0] if args else None, "kwargs": kwargs})
 
     def image(self, *args, **kwargs) -> None:
         self._record("image", args[0] if args else None)
@@ -404,6 +404,22 @@ def test_shorts_manager_source_wraps_code_paths_on_mobile() -> None:
     assert '_render_wrapped_code(_V2_DIR / "config.yaml")' in source
     assert "_render_wrapped_code(_resolve_v2_python())" in source
     assert "_render_wrapped_code(video)" in source
+
+
+def test_render_wrapped_code_uses_streamlit_line_wrapping(shorts_manager) -> None:
+    shorts_manager.st.events.clear()
+
+    shorts_manager._render_wrapped_code(Path("C:/Users/example/projects/shorts-maker-v2/config.yaml"))
+
+    assert shorts_manager.st.events == [
+        (
+            "code",
+            {
+                "value": "C:\\Users\\example\\projects\\shorts-maker-v2\\config.yaml",
+                "kwargs": {"language": None, "wrap_lines": True},
+            },
+        )
+    ]
 
 
 def test_default_auth_status_and_upload_gate(shorts_manager, monkeypatch: pytest.MonkeyPatch) -> None:
