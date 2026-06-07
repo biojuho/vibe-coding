@@ -712,6 +712,19 @@ def test_shorts_manager_source_adds_operator_shortcuts_to_deep_sections() -> Non
     assert "flex: 1 1 calc(50% - 0.5rem)" in source
 
 
+def test_shorts_manager_source_localizes_channel_settings_form_labels() -> None:
+    source = (WORKSPACE_ROOT / "execution" / "pages" / "shorts_manager.py").read_text(encoding="utf-8")
+
+    assert 'st.selectbox("음성", options=VOICE_OPTIONS' in source
+    assert 'st.selectbox("스타일 프리셋", options=STYLE_OPTIONS' in source
+    assert 'st.text_input("자막 색상", value=channel_settings.get("font_color"' in source
+    assert '"이미지 스타일 프롬프트",' in source
+    assert 'st.selectbox("Voice"' not in source
+    assert 'st.selectbox("Style preset"' not in source
+    assert 'st.text_input("Font color"' not in source
+    assert '"Image style prefix",' not in source
+
+
 def test_workspace_dependencies_include_streamlit_for_shorts_manager_runtime() -> None:
     pyproject = tomllib.loads((WORKSPACE_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     dependencies = pyproject["project"]["dependencies"]

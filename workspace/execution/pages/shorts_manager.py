@@ -1168,11 +1168,11 @@ with left:
     settings_channel = st.selectbox("설정 채널", options=CHANNELS, key="settings_channel")
     channel_settings = get_channel_settings(settings_channel) or {}
     with st.form(f"channel_settings_form_{settings_channel}"):
-        voice = st.selectbox("Voice", options=VOICE_OPTIONS, index=_voice_index(channel_settings))
-        style_preset = st.selectbox("Style preset", options=STYLE_OPTIONS, index=_style_index(channel_settings))
-        font_color = st.text_input("Font color", value=channel_settings.get("font_color", "#FFD700"))
+        voice = st.selectbox("음성", options=VOICE_OPTIONS, index=_voice_index(channel_settings))
+        style_preset = st.selectbox("스타일 프리셋", options=STYLE_OPTIONS, index=_style_index(channel_settings))
+        font_color = st.text_input("자막 색상", value=channel_settings.get("font_color", "#FFD700"))
         image_prefix = st.text_area(
-            "Image style prefix",
+            "이미지 스타일 프롬프트",
             value=channel_settings.get("image_style_prefix", ""),
             height=80,
             placeholder="예: cinematic documentary lighting, high contrast",
