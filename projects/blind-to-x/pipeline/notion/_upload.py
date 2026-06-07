@@ -14,6 +14,7 @@ from config import (
     ERROR_NOTION_UPLOAD_FAILED,
 )
 from pipeline.draft_contract import iter_publishable_drafts
+from pipeline.regulation_checker import x_weighted_character_count
 
 logger = logging.getLogger(__name__)
 
@@ -214,10 +215,10 @@ class NotionUploadMixin:
         if not body:
             return []
 
-        char_count = len(body)
+        char_count = x_weighted_character_count(body)
         length_status = "OK" if char_count <= self.X_MAX_CHARS else "초과"
         lines = [
-            f"본문 글자 수: {char_count}/{self.X_MAX_CHARS}자 ({length_status})",
+            f"X 가중 글자 수: {char_count}/{self.X_MAX_CHARS}자 ({length_status})",
             "본문에는 원문 링크와 해시태그를 넣지 않고, 필요하면 첫 답글로 분리",
             "업로드 순서: X 본문 복사 → 이미지 첨부 → 게시 → 첫 답글에 원문/해시태그 추가",
         ]

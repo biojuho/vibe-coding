@@ -883,7 +883,7 @@ async def test_upload_groups_diagnostics_and_raw_content_into_toggles(mock_ensur
         if block.get("type") == "bulleted_list_item"
     ]
     assert "권장 채널: X" in top_level_bullets
-    assert "본문 글자 수: 22/280자 (OK)" in top_level_bullets
+    assert "X 가중 글자 수: 39/280자 (OK)" in top_level_bullets
     assert any("업로드 순서: X 본문 복사" in text for text in top_level_bullets)
     assert "운영 상태: Ready to Post" in top_level_bullets
     assert any("X Post URL" in text for text in top_level_bullets)
@@ -916,6 +916,22 @@ async def test_upload_groups_diagnostics_and_raw_content_into_toggles(mock_ensur
     ]
     assert "원문 스크린샷" in raw_headings
     assert "원문 내용" in raw_headings
+
+
+def test_x_upload_check_lines_use_weighted_count_for_korean_body(mock_config):
+    uploader = NotionUploader(mock_config)
+
+    lines = uploader._build_x_upload_check_lines({"twitter": "가" * 141})
+
+    assert "X 가중 글자 수: 282/280자 (초과)" in lines
+
+
+def test_x_upload_check_lines_use_weighted_count_for_urls(mock_config):
+    uploader = NotionUploader(mock_config)
+
+    lines = uploader._build_x_upload_check_lines({"twitter": "a https://example.com/very/long/path b"})
+
+    assert "X 가중 글자 수: 27/280자 (OK)" in lines
 
 
 def test_build_content_intelligence_lines_formats_optional_signals(mock_config):
