@@ -257,3 +257,37 @@ def test_result_dashboard_stretch_button_kwargs(monkeypatch: pytest.MonkeyPatch)
     )
 
     assert module._stretch_button_kwargs() == {"width": "stretch"}
+
+
+def test_result_dashboard_injects_mobile_touch_target_css(monkeypatch: pytest.MonkeyPatch) -> None:
+    module, fake_streamlit = _import_page(
+        monkeypatch,
+        "execution.pages.result_dashboard",
+        with_data=False,
+    )
+    fake_streamlit.events.clear()
+
+    module._inject_result_dashboard_mobile_css()
+
+    markdowns = [(payload, kwargs) for name, payload, kwargs in fake_streamlit.events if name == "markdown"]
+    assert markdowns
+    css, kwargs = markdowns[-1]
+    assert kwargs == {"unsafe_allow_html": True}
+    assert "@media (max-width: 640px)" in css
+    assert "div[role='tablist']" in css
+    assert "button[role='tab']" in css
+    assert "min-height: 44px" in css
+    assert "min-width: 44px" in css
+    assert "div[data-baseweb='select']" in css
+    assert "div[data-baseweb='input'] input" in css
+    assert "div[data-testid='stTextArea'] textarea" in css
+    assert "div[data-testid='stDateInput'] input" in css
+
+
+def test_result_dashboard_source_calls_mobile_touch_target_css() -> None:
+    source = Path("workspace/execution/pages/result_dashboard.py").read_text(encoding="utf-8")
+
+    assert "def _inject_result_dashboard_mobile_css() -> None:" in source
+    assert "_inject_result_dashboard_mobile_css()\n\n\n# " in source
+    assert "flex-wrap: wrap" in source
+    assert "overflow-x: visible" in source

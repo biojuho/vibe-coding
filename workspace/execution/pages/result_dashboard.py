@@ -84,6 +84,42 @@ def _render_dataframe(data) -> None:
     st.dataframe(data, width="stretch", hide_index=True)
 
 
+def _inject_result_dashboard_mobile_css() -> None:
+    st.markdown(
+        """
+<style>
+@media (max-width: 640px) {
+  div[role='tablist'] {
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    overflow-x: visible;
+  }
+
+  div[role='tablist'] button[role='tab'],
+  div[data-testid='stButton'] button,
+  div[data-testid='stFormSubmitButton'] button,
+  div[data-baseweb='select'],
+  div[data-baseweb='input'],
+  div[data-baseweb='input'] input,
+  div[data-testid='stTextArea'] textarea,
+  div[data-testid='stDateInput'] input {
+    min-height: 44px;
+  }
+
+  div[role='tablist'] button[role='tab'] {
+    min-width: 44px;
+    flex: 0 0 auto;
+  }
+}
+</style>
+""",
+        unsafe_allow_html=True,
+    )
+
+
+_inject_result_dashboard_mobile_css()
+
+
 # ===========================================================================
 # 사이드바: 통계 수집 + 요약
 # ===========================================================================
