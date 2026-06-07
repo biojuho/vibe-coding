@@ -7,6 +7,7 @@ import argparse
 import json
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +16,7 @@ SCRIPT_ROOT = Path(".agents") / "skills" / "auto-research" / "scripts"
 INPUT_ERROR_KEY = "_input_error"
 DEFAULT_LIVE_HELPER_TIMEOUT = 30
 DEFAULT_DEPENDENCY_HELPER_TIMEOUT = 10
+DEFAULT_CACHE_MAX_AGE_SECONDS = 6 * 60 * 60
 
 
 def _input_error(label: str, reason: str, **extra: Any) -> dict[str, Any]:
@@ -93,6 +95,36 @@ def _run_data(result: dict[str, Any], *, label: str) -> dict[str, Any]:
         returncode=result.get("returncode"),
         detail=result.get("stderr"),
     )
+
+
+def _load_recent_json(path: Path, *, label: str, max_age_seconds: int) -> dict[str, Any] | None:
+    try:
+        age_seconds = time.time() - path.stat().st_mtime
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        return _input_error(label, "unreadable cached artifact", path=str(path), detail=str(exc))
+    if age_seconds < 0:
+        age_seconds = 0
+    if age_seconds > max_age_seconds:
+        return None
+    return _load_json(path, label=label)
+
+
+def _run_data_with_recent_fallback(
+    result: dict[str, Any],
+    *,
+    label: str,
+    fallback_path: Path,
+    max_age_seconds: int,
+) -> dict[str, Any]:
+    data = _run_data(result, label=label)
+    if INPUT_ERROR_KEY not in data:
+        return data
+    fallback = _load_recent_json(fallback_path, label=label, max_age_seconds=max_age_seconds)
+    if fallback is None:
+        return data
+    return fallback
 
 
 def _as_dict(value: Any) -> dict[str, Any]:
@@ -515,7 +547,7 @@ def _collect_inputs(args: argparse.Namespace) -> dict[str, dict[str, Any]]:
     if args.github:
         github_inventory = _load_json(args.github, label="github")
     else:
-        github_inventory = _run_data(
+        github_inventory = _run_data_with_recent_fallback(
             _run_json(
                 root,
                 [
@@ -529,22 +561,26 @@ def _collect_inputs(args: argparse.Namespace) -> dict[str, dict[str, Any]]:
                 args.timeout,
             ),
             label="github",
+            fallback_path=root / ".tmp" / "github-project-inventory.json",
+            max_age_seconds=args.cache_max_age_seconds,
         )
     if args.browser:
         browser_inventory = _load_json(args.browser, label="browser")
     else:
-        browser_inventory = _run_data(
+        browser_inventory = _run_data_with_recent_fallback(
             _run_json(
                 root,
                 [sys.executable, str(SCRIPT_ROOT / "browser_qa_inventory.py"), "--root", str(root), "--json"],
                 args.timeout,
             ),
             label="browser",
+            fallback_path=root / ".tmp" / "browser-qa-inventory.json",
+            max_age_seconds=args.cache_max_age_seconds,
         )
     if args.dependency:
         dependency_inventory = _load_json(args.dependency, label="dependency")
     else:
-        dependency_inventory = _run_data(
+        dependency_inventory = _run_data_with_recent_fallback(
             _run_json(
                 root,
                 [
@@ -559,6 +595,8 @@ def _collect_inputs(args: argparse.Namespace) -> dict[str, dict[str, Any]]:
                 args.timeout,
             ),
             label="dependency",
+            fallback_path=root / ".tmp" / "dependency-freshness-inventory.json",
+            max_age_seconds=args.cache_max_age_seconds,
         )
     return {
         "readiness": readiness,
@@ -596,6 +634,12 @@ def main(argv: list[str] | None = None) -> int:
         type=int,
         default=DEFAULT_LIVE_HELPER_TIMEOUT,
         help="Timeout for each live helper command",
+    )
+    parser.add_argument(
+        "--cache-max-age-seconds",
+        type=int,
+        default=DEFAULT_CACHE_MAX_AGE_SECONDS,
+        help="Maximum age for fallback .tmp inventory artifacts when a live helper times out",
     )
     parser.add_argument("--output", type=Path, help="Optional path to write the selection JSON")
     parser.add_argument("--json", action="store_true", help="Emit JSON instead of text")

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import sys
+import time
 from pathlib import Path
 
 
@@ -279,6 +281,61 @@ def test_cli_live_helper_defaults_are_bounded(tmp_path: Path, capsys, monkeypatc
     assert dependency_command[dependency_command.index("--timeout") + 1] == str(
         next_experiment_selector.DEFAULT_DEPENDENCY_HELPER_TIMEOUT
     )
+
+
+def test_cli_uses_recent_inventory_artifacts_when_live_helpers_timeout(tmp_path: Path, capsys, monkeypatch) -> None:
+    artifact_dir = tmp_path / ".tmp"
+    artifact_dir.mkdir()
+    (artifact_dir / "browser-qa-inventory.json").write_text(json.dumps(_browser()), encoding="utf-8")
+    (artifact_dir / "dependency-freshness-inventory.json").write_text(json.dumps(_dependency()), encoding="utf-8")
+
+    def fake_run_json(root: Path, command: list[str], timeout: int) -> dict[str, object]:
+        command_text = " ".join(command)
+        if "product_readiness_score.py" in command_text:
+            return {"available": True, "returncode": 0, "stderr": "", "data": _readiness(external=1)}
+        if "github_project_inventory.py" in command_text:
+            return {"available": True, "returncode": 0, "stderr": "", "data": _github()}
+        return {"available": False, "returncode": None, "stderr": "timed out", "data": {}}
+
+    monkeypatch.setattr(next_experiment_selector, "_run_json", fake_run_json)
+
+    code = next_experiment_selector.main(["--root", str(tmp_path), "--json"])
+    stdout = json.loads(capsys.readouterr().out)
+
+    assert code == 0
+    assert stdout["status"] == "blocked_external_only"
+    assert stdout["selected"]["kind"] == "external_user_blocker"
+    assert all(candidate["kind"] != "input_evidence_unavailable" for candidate in stdout["ranked_candidates"])
+
+
+def test_cli_ignores_stale_inventory_artifact_fallbacks(tmp_path: Path, capsys, monkeypatch) -> None:
+    artifact_dir = tmp_path / ".tmp"
+    artifact_dir.mkdir()
+    browser = artifact_dir / "browser-qa-inventory.json"
+    dependency = artifact_dir / "dependency-freshness-inventory.json"
+    browser.write_text(json.dumps(_browser()), encoding="utf-8")
+    dependency.write_text(json.dumps(_dependency()), encoding="utf-8")
+    stale_mtime = time.time() - 10
+    os.utime(browser, (stale_mtime, stale_mtime))
+    os.utime(dependency, (stale_mtime, stale_mtime))
+
+    def fake_run_json(root: Path, command: list[str], timeout: int) -> dict[str, object]:
+        command_text = " ".join(command)
+        if "product_readiness_score.py" in command_text:
+            return {"available": True, "returncode": 0, "stderr": "", "data": _readiness(external=1)}
+        if "github_project_inventory.py" in command_text:
+            return {"available": True, "returncode": 0, "stderr": "", "data": _github()}
+        return {"available": False, "returncode": None, "stderr": "timed out", "data": {}}
+
+    monkeypatch.setattr(next_experiment_selector, "_run_json", fake_run_json)
+
+    code = next_experiment_selector.main(["--root", str(tmp_path), "--cache-max-age-seconds", "1", "--json"])
+    stdout = json.loads(capsys.readouterr().out)
+
+    assert code == 0
+    assert stdout["status"] == "candidate"
+    assert stdout["selected"]["kind"] == "input_evidence_unavailable"
+    assert any("helper command unavailable" in item for item in stdout["selected"]["evidence"])
 
 
 def test_cli_missing_input_artifact_does_not_route_to_completion(tmp_path: Path, capsys) -> None:
