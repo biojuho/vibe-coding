@@ -1423,3 +1423,14 @@
 - Candidate browser QA passed with over-parent path code blocks `0`, max code width `243.609375px`, parent width `305.203125px`, ratio `0.7982`, horizontal overflow `0`, no console/page/request failures, and mobile screenshot evidence `output/playwright/shorts-t1497-wrapped-code-mobile.png`.
 - Verification: focused Shorts Manager pytest passed (`3 passed`); related Shorts Manager pytest passed (`47 passed`); targeted Ruff passed; Ruff format check passed; `py_compile` passed; `git diff --check` passed; Shorts Maker V2 project QC passed (`1640 passed`, `12 skipped`, `29 warnings`, lint pass); staged/commit code-review gate returned advisory WARN `risk_score=0.35`, covered by focused/related/browser/project QC; A/B selected `adopt_candidate` with `score_delta=0.5767663812979826`.
 - Boundary: code commit `ac332761` and direct test follow-up commit `101ddde2` are local only. No push was performed. T-251 was not retried. Refresh graph/current orientation and full canonical active-project QC before current-head release claims if newer local commits have landed.
+
+## 2026-06-07 - Codex
+
+- Closed T-1502 as a Shorts Manager Streamlit runtime dependency contract cycle.
+- Product-quality gap: `workspace/execution/pages/shorts_manager.py` imports Streamlit, but the workspace dependency list did not explicitly include it, so a fresh install could generate or hold Shorts output while the operator review/control surface fails before opening.
+- Changed `workspace/pyproject.toml`: added `streamlit>=1.58.0`.
+- Changed `uv.lock`: resolved `streamlit 1.58.0` and linked it into the local `vibe-workspace` dependency graph.
+- Changed `workspace/tests/test_shorts_manager.py`: added a dependency-contract regression so the runtime requirement stays declared.
+- Verification: focused Shorts Manager pytest passed (`30 passed`); targeted Ruff passed; `py_compile` passed; `git diff --check` passed with CRLF warnings only; deterministic TOML lock/dependency contract check passed (`STREAMLIT_DEPENDENCY_CONTRACT_OK`); staged code-review gate passed (`risk_score=0.05`); Shorts Maker V2 project QC passed (`1640 passed`, `12 skipped`, `29 warnings`, lint pass).
+- Tooling boundary: `uv lock --check` could not run because `uv` is not installed/available in the current PowerShell PATH.
+- Boundary: code commit `84581170` is local only. No push was performed. T-251 was not retried. A separate unstaged Hanwoo `ScheduleTab.js` calendar-grid WIP is visible and must stay separate. Remaining launch blockers are explicit push/current-head GitHub Actions plus external/user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E.
