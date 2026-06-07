@@ -268,6 +268,48 @@ def test_stale_delete_confirmation_is_cleared(shorts_manager) -> None:
     assert shorts_manager._get_pending_delete_id() == 2
 
 
+def test_global_delete_confirmation_renders_top_level_actions(shorts_manager) -> None:
+    shorts_manager.st.session_state[shorts_manager._DELETE_CONFIRM_KEY] = 7
+    shorts_manager.st.events.clear()
+
+    shorts_manager._render_global_delete_confirmation(
+        [
+            {
+                "id": 7,
+                "channel": "AI/Tech",
+                "topic": "Queued deletion",
+                "title": "",
+            }
+        ]
+    )
+
+    assert ("warning", "삭제 확인 대기") in shorts_manager.st.events
+    assert ("caption", "[AI/기술] Queued deletion") in shorts_manager.st.events
+    buttons = [payload for name, payload in shorts_manager.st.events if name == "button"]
+    assert [button["label"] for button in buttons] == ["삭제 확인", "취소"]
+    assert buttons[0]["kwargs"]["key"] == "global_del_confirm_7"
+    assert buttons[0]["kwargs"]["type"] == "primary"
+
+
+def test_global_delete_confirmation_source_is_sticky_near_top() -> None:
+    source = (WORKSPACE_ROOT / "execution" / "pages" / "shorts_manager.py").read_text(encoding="utf-8")
+
+    assert 'key="shorts_delete_confirmation"' in source
+    assert ".st-key-shorts_delete_confirmation" in source
+    assert "position: sticky" in source
+    assert "z-index: 1000" in source
+
+
+def test_global_delete_confirmation_clears_stale_pending_item(shorts_manager) -> None:
+    shorts_manager.st.session_state[shorts_manager._DELETE_CONFIRM_KEY] = 99
+    shorts_manager.st.events.clear()
+
+    shorts_manager._render_global_delete_confirmation([{"id": 7, "channel": "AI/기술", "topic": "Visible"}])
+
+    assert shorts_manager._get_pending_delete_id() is None
+    assert shorts_manager.st.events == []
+
+
 def test_formatting_helpers_cover_badges_and_display(shorts_manager) -> None:
     assert "완료" in shorts_manager._status_badge("success")
     assert shorts_manager._fmt_dur(125) == "2:05"
@@ -702,6 +744,7 @@ def test_inject_mobile_touch_target_styles_renders_css(shorts_manager) -> None:
         "div[role='tablist']" in str(payload)
         and "min-height: 44px" in str(payload)
         and "min-width: 44px" in str(payload)
+        and ".st-key-shorts_delete_confirmation" in str(payload)
         for payload in markdowns
     )
 

@@ -169,6 +169,13 @@ def _inject_mobile_touch_target_styles() -> None:
   visibility: hidden;
 }
 
+.st-key-shorts_delete_confirmation {
+  position: sticky;
+  top: 0.5rem;
+  z-index: 1000;
+  background: rgb(255, 255, 255);
+}
+
 @media (max-width: 640px) {
   div[role='tablist'] {
     flex-wrap: wrap;
@@ -188,6 +195,10 @@ def _inject_mobile_touch_target_styles() -> None:
   div[role='tablist'] button[role='tab'] {
     min-width: 44px;
     flex: 0 0 auto;
+  }
+
+  .st-key-shorts_delete_confirmation {
+    top: 0.25rem;
   }
 
   .shorts-operator-shortcuts a {
@@ -269,6 +280,44 @@ def _clear_stale_delete_confirmation(visible_item_ids: set[int]) -> None:
     pending = _get_pending_delete_id()
     if pending is not None and pending not in visible_item_ids:
         _cancel_delete_confirmation(pending)
+
+
+def _render_global_delete_confirmation(all_items: list[dict[str, Any]]) -> None:
+    pending = _get_pending_delete_id()
+    if pending is None:
+        return
+
+    item = next((row for row in all_items if int(row["id"]) == pending), None)
+    if item is None:
+        _cancel_delete_confirmation(pending)
+        return
+
+    title = item.get("title") or item.get("topic") or f"ID {pending}"
+    channel = _display_channel_label(item.get("channel", ""))
+    with st.container(border=True, key="shorts_delete_confirmation"):
+        st.warning("삭제 확인 대기")
+        st.caption(f"[{channel}] {title}")
+        confirm_col, cancel_col = st.columns(2)
+        with confirm_col:
+            if st.button(
+                "삭제 확인",
+                key=f"global_del_confirm_{pending}",
+                help="현재 삭제 대기 중인 항목을 영구 삭제합니다.",
+                type="primary",
+                **_stretch_button_kwargs(),
+            ):
+                _delete_item_with_confirmation(pending)
+                st.rerun()
+        with cancel_col:
+            if st.button(
+                "취소",
+                key=f"global_del_cancel_{pending}",
+                help="삭제 확인을 취소합니다.",
+                **_stretch_button_kwargs(),
+            ):
+                _cancel_delete_confirmation(pending)
+                _set_flash("info", "삭제 취소됨")
+                st.rerun()
 
 
 def _status_badge(status: str) -> str:
@@ -846,9 +895,13 @@ def _render_thumbnail_preview(thumbnail_path: str) -> None:
             st.caption(f"파일 경로: {thumbnail_path}")
 
 
+all_items = get_all()
+
 st.title("🎬 Shorts Manager")
 st.caption("YouTube Shorts 콘텐츠 자동 생성 및 관리")
 _render_flash()
+_clear_stale_delete_confirmation({int(item["id"]) for item in all_items})
+_render_global_delete_confirmation(all_items)
 _render_operator_shortcuts()
 channel_readiness_summary = get_channel_readiness_summary(channels=CHANNELS)
 generation_run_blockers = _build_generation_run_blockers(channel_readiness_summary)
@@ -938,7 +991,6 @@ with review_col:
     _section_anchor("shorts-review-queue")
     _render_manual_review_queue()
 
-all_items = get_all()
 left, right = st.columns([1, 3])
 
 v2_ok = _V2_DIR.exists()
@@ -1013,7 +1065,6 @@ with left:
 with right:
     _section_anchor("shorts-content-list")
     st.subheader("콘텐츠 목록")
-    _clear_stale_delete_confirmation({int(item["id"]) for item in all_items})
     tab_labels = [f"전체 ({len(all_items)})"] + CHANNELS
     tabs = st.tabs(tab_labels)
 
