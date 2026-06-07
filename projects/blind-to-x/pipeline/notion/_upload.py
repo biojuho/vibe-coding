@@ -288,6 +288,39 @@ class NotionUploadMixin:
             f"{name}={self._format_metric_value(score)}" for name, score in values.items() if score not in (None, "")
         )
 
+    @staticmethod
+    def _metric_as_float(value: Any) -> float | None:
+        if value in (None, ""):
+            return None
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    def _build_selection_quality_verdict(self, drafts: dict[str, Any]) -> str:
+        failures = self._metric_as_float(drafts.get("_quality_gate_failures"))
+        warnings = self._metric_as_float(drafts.get("_quality_gate_warnings"))
+        quality_score = self._metric_as_float(drafts.get("_quality_gate_score"))
+        selection_score = self._metric_as_float(drafts.get("_best_of_n_selection_score"))
+        similarity = self._metric_as_float(drafts.get("_max_semantic_similarity"))
+
+        if failures and failures > 0:
+            return f"수정 필요: 품질 게이트 실패 {self._format_metric_value(failures)}건"
+        if quality_score is not None and quality_score < 8:
+            return f"수정 필요: 게시 적합성 {self._format_metric_value(quality_score)}"
+        if similarity is not None and similarity >= 0.75:
+            return f"검수 후 게시: 최근 초안 유사도 {self._format_metric_value(similarity)}"
+        if warnings and warnings > 0:
+            return f"검수 후 게시: 경고 {self._format_metric_value(warnings)}건 확인"
+        if (
+            quality_score is not None
+            and quality_score >= 9
+            and (selection_score is None or selection_score >= 8)
+            and (warnings in (None, 0))
+        ):
+            return "바로 게시 가능"
+        return "검수 후 게시: 선택 근거 확인"
+
     def _build_selection_quality_summary(self, drafts: Any) -> str:
         if not isinstance(drafts, dict):
             return ""
@@ -312,6 +345,9 @@ class NotionUploadMixin:
         warnings = drafts.get("_quality_gate_warnings")
         if warnings not in (None, ""):
             summary_parts.append(f"경고 {self._format_metric_value(warnings)}건")
+
+        if summary_parts:
+            summary_parts.insert(0, self._build_selection_quality_verdict(drafts))
 
         return ", ".join(summary_parts)
 

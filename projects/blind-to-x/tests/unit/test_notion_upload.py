@@ -463,7 +463,10 @@ def test_build_review_brief_summarizes_best_of_n_selection_quality(mock_config):
 
     review_brief = uploader._build_review_brief({}, drafts, analysis)
 
-    expected_summary = "최종 선택점수 8.73, 게시 적합성 9.5, 최근 유사도 0.42(낮을수록 새로움), 실패 0건, 경고 1건"
+    expected_summary = (
+        "검수 후 게시: 경고 1건 확인, 최종 선택점수 8.73, 게시 적합성 9.5, "
+        "최근 유사도 0.42(낮을수록 새로움), 실패 0건, 경고 1건"
+    )
     assert review_brief["selection_quality_summary"] == expected_summary
 
     memo = uploader._build_upload_memo(
@@ -482,6 +485,43 @@ def test_build_review_brief_summarizes_best_of_n_selection_quality(mock_config):
         if block.get("type") == "bulleted_list_item"
     ]
     assert f"선택 품질: {expected_summary}" in bullets
+
+
+def test_build_selection_quality_summary_marks_copy_ready_clean_winner(mock_config):
+    uploader = NotionUploader(mock_config)
+    drafts = {
+        "twitter": "바로 게시할 수 있는 구체적인 X 본문",
+        "_best_of_n_selection_score": 8.9,
+        "_quality_gate_score": 9.3,
+        "_quality_gate_failures": 0,
+        "_quality_gate_warnings": 0,
+        "_max_semantic_similarity": 0.31,
+    }
+
+    summary = uploader._build_selection_quality_summary(drafts)
+
+    assert summary.startswith("바로 게시 가능, ")
+    assert "게시 적합성 9.3" in summary
+    assert "실패 0건" in summary
+    assert "경고 0건" in summary
+
+
+def test_build_selection_quality_summary_marks_failed_winner_for_edit(mock_config):
+    uploader = NotionUploader(mock_config)
+    drafts = {
+        "twitter": "점수는 있어도 그대로 게시하면 안 되는 X 본문",
+        "_best_of_n_selection_score": 8.2,
+        "_quality_gate_score": 7.8,
+        "_quality_gate_failures": 2,
+        "_quality_gate_warnings": 3,
+        "_max_semantic_similarity": 0.22,
+    }
+
+    summary = uploader._build_selection_quality_summary(drafts)
+
+    assert summary.startswith("수정 필요: 품질 게이트 실패 2건, ")
+    assert "게시 적합성 7.8" in summary
+    assert "실패 2건" in summary
 
 
 def test_build_review_brief_skips_selection_quality_when_metadata_absent(mock_config):
