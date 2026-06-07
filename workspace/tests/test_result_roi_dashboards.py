@@ -229,7 +229,41 @@ def test_roi_dashboard_uses_current_plotly_width_api(monkeypatch: pytest.MonkeyP
 
     module._render_plotly_chart("figure")
 
-    assert fake_streamlit.events == [("plotly_chart", "figure", {"width": "stretch"})]
+    assert fake_streamlit.events == [
+        ("plotly_chart", "figure", {"width": "stretch", "config": {"displayModeBar": False}})
+    ]
+
+
+def test_roi_dashboard_injects_mobile_touch_target_css(monkeypatch: pytest.MonkeyPatch) -> None:
+    module, fake_streamlit = _import_page(
+        monkeypatch,
+        "execution.pages.roi_dashboard",
+        with_data=False,
+    )
+    fake_streamlit.events.clear()
+
+    module._inject_roi_dashboard_mobile_css()
+
+    markdowns = [(payload, kwargs) for name, payload, kwargs in fake_streamlit.events if name == "markdown"]
+    assert markdowns
+    css, kwargs = markdowns[-1]
+    assert kwargs == {"unsafe_allow_html": True}
+    assert "@media (max-width: 640px)" in css
+    assert "div[data-testid='stNumberInput']" in css
+    assert "min-height: 44px" in css
+    assert "min-width: 44px" in css
+
+
+def test_roi_dashboard_uses_compact_korean_operator_copy() -> None:
+    source = Path("workspace/execution/pages/roi_dashboard.py").read_text(encoding="utf-8")
+
+    assert 'st.title("쇼츠 ROI")' in source
+    assert "업로드 성과와 제작비를 연결해 채널별 수익성을 점검합니다." in source
+    assert '"Shorts RPM 추정값 ($)"' in source
+    assert "1,000 engaged views당 크리에이터 수익 지표" in source
+    assert "Content ROI Dashboard" not in source
+    assert "YouTube Shorts RPM ($)" not in source
+    assert 'f"{bep_views:,} views"' not in source
 
 
 def test_result_dashboard_uses_current_streamlit_width_api(monkeypatch: pytest.MonkeyPatch) -> None:

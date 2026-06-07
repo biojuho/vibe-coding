@@ -21,7 +21,7 @@ except ImportError as e:
     _MODULE_OK = False
     _MODULE_ERR = str(e)
 
-st.set_page_config(page_title="ROI Dashboard - Joolife", page_icon="💰", layout="wide")
+st.set_page_config(page_title="쇼츠 ROI 분석 - Joolife", page_icon="💰", layout="wide")
 
 if not _MODULE_OK:
     st.error(f"ROI 모듈을 불러올 수 없습니다: {_MODULE_ERR}")
@@ -29,21 +29,47 @@ if not _MODULE_OK:
 
 init_result_db()
 
-st.title("💰 Content ROI Dashboard")
-st.caption("콘텐츠 비용 vs 수익 분석 · 채널별 ROI · 손익분기점 시각화")
+st.title("쇼츠 ROI")
+st.caption("업로드 성과와 제작비를 연결해 채널별 수익성을 점검합니다.")
+
+_PLOTLY_CHART_CONFIG = {"displayModeBar": False}
+
+
+def _inject_roi_dashboard_mobile_css() -> None:
+    st.markdown(
+        """
+<style>
+@media (max-width: 640px) {
+  div[data-testid='stNumberInput'] div[data-baseweb='input'],
+  div[data-testid='stNumberInput'] input,
+  div[data-testid='stNumberInput'] button {
+    min-height: 44px;
+  }
+
+  div[data-testid='stNumberInput'] button {
+    min-width: 44px;
+  }
+}
+</style>
+""",
+        unsafe_allow_html=True,
+    )
+
+
+_inject_roi_dashboard_mobile_css()
 
 
 def _render_plotly_chart(fig) -> None:
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, width="stretch", config=_PLOTLY_CHART_CONFIG)
 
 
 # ── RPM 설정 ──
 rpm = st.sidebar.number_input(
-    "YouTube Shorts RPM ($)",
+    "Shorts RPM 추정값 ($)",
     value=1.5,
     min_value=0.1,
     step=0.1,
-    help="Revenue Per Mille — 1,000 조회당 예상 수익 (USD)",
+    help="YouTube Analytics 기준 Shorts RPM은 1,000 engaged views당 크리에이터 수익 지표입니다.",
 )
 
 calc = ROICalculator(rpm=rpm)
@@ -121,7 +147,7 @@ if channel_data:
         bep_cost = st.number_input("콘텐츠당 비용 ($)", value=0.10, step=0.01, format="%.2f")
     with bep_col2:
         bep_views = calc.calculate_breakeven_views(bep_cost)
-        st.metric("손익분기점 조회수", f"{bep_views:,} views")
+        st.metric("손익분기점 조회수", f"{bep_views:,} 조회")
         st.caption(f"RPM ${rpm} 기준, 이 조회수를 넘으면 수익 발생")
 
     # ── 비용 효율 제안 ──
