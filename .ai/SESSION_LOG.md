@@ -1316,3 +1316,25 @@
 - Verification: `npm.cmd test -- src/lib/diagnostics-copy.test.mjs` passed all Hanwoo tests (`528 passed` due project script glob), `npm.cmd run lint` passed, `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build/smoke (`528 passed`), `git diff --check` passed with CRLF warnings only, code-review graph detect passed (`risk_score=0.00`), and code-review gate advisory WARN (`risk_score=0.55`) is covered by focused/browser/project/graph checks.
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp/ab-manifest-hanwoo-t1479-diagnostics.json --json` returned `adopt_candidate` with `score_delta=0.8333333333333334`.
 - Boundary: no push was performed. T-251 was not retried. Remaining release blockers are explicit push/current-head GitHub Actions plus external/user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E.
+
+## 2026-06-07 - Codex
+
+- Closed T-1482 as a bounded `$auto-research` `blind-to-x` Notion review output-quality cycle.
+- Baseline: the reviewer-facing Best-of-N selection summary exposed raw metrics only, so a reviewer still had to infer whether the generated X draft was copy-ready, needed inspection, or required edits.
+- Changed `projects/blind-to-x/pipeline/notion/_upload.py`: added numeric metric parsing plus `_build_selection_quality_verdict()` and now prefixes `selection_quality_summary` with `바로 게시 가능`, `검수 후 게시: ...`, or `수정 필요: ...` while keeping selection score, quality score, similarity, failure, and warning metrics intact.
+- Changed `projects/blind-to-x/tests/unit/test_notion_upload.py`: updated the warning summary expectation and added clean copy-ready plus failed-candidate regression coverage.
+- Verification: focused Notion pytest passed (`49 passed`); related Best-of-N/Notion/output-quality pytest passed (`107 passed`); targeted Ruff passed; `git diff --check` passed with CRLF warnings only; Blind-to-X project QC passed (`1840 passed`, `9 skipped`, lint pass).
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp/ab-manifest-blind-t1482-selection-verdict.json --json` returned `adopt_candidate` with `score_delta=0.8`.
+- Boundary: code commit `9d70f2af` is local only. No push was performed. T-251 was not retried. Stage-scoped code-review gate warned (`risk_score=0.35`) and is covered by focused/related/project QC.
+
+## 2026-06-07 - Codex
+
+- Closed T-1483 as a bounded `$auto-research` `hanwoo-dashboard` Feed empty-building setup cycle.
+- Baseline browser QA: authenticated mobile Feed under the known DB-degraded/no-building state showed only the `전체` feed filter and feed shell, with no add-building route from the Feed workflow.
+- Changed `projects/hanwoo-dashboard/src/components/tabs/FeedTab.js`: imports the shared `EmptyState`, renders an empty-building setup panel when `safeBuildings.length === 0`, and exposes the add-building action through `onOpenBuildingSetup`.
+- Changed `projects/hanwoo-dashboard/src/components/DashboardClient.js`: wires Feed setup to the existing `handleQuickAction({ id: "add-building", targetTab: "settings" })` path.
+- Changed `projects/hanwoo-dashboard/src/lib/empty-state-wiring.test.mjs` and `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs`: locked the action-oriented Feed empty state copy and DashboardClient quick-action contract.
+- Browser QA: candidate mobile Feed showed the CTA with horizontal overflow `0`, no tabbar overlap, and clicking it selected Settings, opened the building form, and focused `#building-name` above the fixed tabbar. Screenshots: `output/playwright/hanwoo-t1483-feed-empty-building-cta-feed.png` and `output/playwright/hanwoo-t1483-feed-empty-building-cta-settings-focus.png`.
+- Verification: focused source tests passed (`74 passed`); full Hanwoo tests passed (`528 passed`); `npm.cmd run lint` passed; Hanwoo project QC passed (`528 passed`, lint/build/smoke passed); `git diff --check` passed with CRLF warnings only; graph detect reported risk `0.00`; code-review gate advisory WARN is covered by focused/browser/project QC.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp/ab-hanwoo-t1483-feed-empty-building-cta.json --json` returned `adopt_candidate` with `score_delta=0.75`.
+- Boundary: code commit `580eb71e` is local only. No push was performed. T-251 was not retried. Remaining release blockers are explicit push/current-head GitHub Actions plus external/user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E.
