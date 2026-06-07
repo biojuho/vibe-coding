@@ -1566,3 +1566,11 @@
 - Browser A/B at `390x844`: title height improved `142px -> 89px`, first title bottom `254px -> 201px`, visible English title matches `1 -> 0`, visible Korean title matches `0 -> 1`, horizontal overflow stayed `0`; `.tmp/ab-manifest-t1541.json` selected `adopt_candidate` with `score_delta=0.39547521348563824`.
 - Verification: focused Shorts Manager pytest passed (`46 passed`); targeted Ruff check passed; Ruff format check passed; `py_compile` passed; Shorts Maker V2 project QC passed (`1640 passed`, `12 skipped`, lint pass); `git diff --check` passed with CRLF warning only; graph refresh is current at `003ebf9c`; code-review gate/pre-commit returned advisory WARN (`risk_score=0.30`) covered by direct source/browser/project evidence.
 - Boundary: code commit `003ebf9c` is local only. No push was performed. T-251 was not retried. Refresh current-head readiness/release-selector evidence before release claims because HEAD advanced after the previous launch-boundary refresh.
+
+## 2026-06-07 - Codex
+
+- Closed T-1542 as a Shorts Manager shortcut-nav localization follow-up.
+- Changed `workspace/execution/pages/shorts_manager.py`: renamed the quick-jump navigation accessible label from `Shorts Manager 빠른 이동` to `쇼츠 운영 빠른 이동` so the accessibility tree matches the compact Korean visible title from T-1541.
+- Changed `workspace/tests/test_shorts_manager.py`: locked the localized shortcut nav label and rejects the old label.
+- Verification: focused Shorts Manager pytest passed (`2 passed`); targeted Ruff check passed; `py_compile` passed; `git diff --check` passed with CRLF warning only; Shorts Maker V2 project QC passed at current HEAD via `.tmp/project_qc_runner_shorts_t1542.json` (`1640 passed`, `12 skipped`, `29 warnings`, lint pass); staged/pre-commit code-review gate returned advisory WARN (`risk_score=0.30`) covered by the direct shortcut regression.
+- Boundary: code commit `58190d19` is local only. No push was performed. T-251 was not retried. Refresh graph/current-head readiness/release-selector evidence before release claims because HEAD advanced again after T-1541.
