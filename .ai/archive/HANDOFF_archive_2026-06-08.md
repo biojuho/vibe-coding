@@ -168,3 +168,12 @@
 | Tool | Codex |
 | Work | **T-1536 Hanwoo dashboard content-shell scroll bound**. Follow-up to T-1535. `globals.css` now bounds the mobile `.dashboard-content-shell` to the safe viewport height with contained vertical scrolling and resets the bound on desktop; `home-market-copy.test.mjs` locks max-height/overflow/overscroll/fallback contracts. Final browser-click QA still reports mobile and desktop `covered=0`, `small=0`, `xOverflowTabs=0`, bad responses `0`, and `.tmp/project_qc_runner_hanwoo_t1535.json` passed Hanwoo `test/lint/build/smoke`. Code commit `28e7946c` is local only. |
 | Next Priorities | Worktree should be checked with `python execution/session_orient.py --json` before continuing. Remaining release boundaries are explicit push/current-head GitHub Actions plus user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E. Do not push without explicit authorization and do not retry T-251 before credential reset/resync. |
+
+## Rotation 2026-06-08 (archived addenda older than 2026-06-01)
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-07 |
+| Tool | Codex |
+| Work | **T-1545 Blind-to-X output-quality loop documentation closure**. Rechecked the stale `projects/blind-to-x/docs/output_quality_selection_gate_2026-06-07.md` "Next Loop" against current code and tests. The planned operator-facing Notion selection summary is already implemented by T-1462/T-1482/T-1486: `_upload.py` now emits `selection_quality_summary` plus `edit_plan`, and `test_notion_upload.py` locks clean-winner, warning, failure, similarity, missing-metadata, memo, and summary-block behavior. Updated the quality doc so future agents do not reselect that completed loop. External benchmark refresh still points to Buffer/Typefully-style channel-aware, in-editor, human-reviewed output quality as the bar. |
+| Next Priorities | Because this documentation commit advances HEAD again, rerun `session_orient.py --json`, `product_readiness_score.py --json`, release packet, selector, launch audit, and completion audit before any release claim. Expected remaining boundaries are explicit push/user push plus current-head GitHub Actions (`root-quality-gate`, `active-project-matrix`) and user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E. Do not push without explicit authorization and do not retry T-251 before credential reset/resync. |
