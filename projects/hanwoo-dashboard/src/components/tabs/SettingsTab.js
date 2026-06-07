@@ -512,75 +512,75 @@ export default function SettingsTab(options = {}) {
 					<div style={widgetSettingsGridViewportStyle}>
 						<div style={widgetSettingsGridStyle}>
 							{safeWidgetRegistry.map((widget) => {
-							const isOn = safeWidgetVisible[widget.id] !== false;
+								const isOn = safeWidgetVisible[widget.id] !== false;
 
-							return (
-								<div key={widget.id} style={widgetSettingsControlStyle}>
-									<div style={widgetSettingsLabelStyle}>
-										<span aria-hidden="true" style={{ fontSize: "16px" }}>
-											{widget.icon}
-										</span>
-										<span
-											style={widgetSettingsTextStyle}
-											title={widget.description ?? undefined}
-										>
-											<span style={widgetSettingsNameStyle}>
-												{widget.label}
+								return (
+									<div key={widget.id} style={widgetSettingsControlStyle}>
+										<div style={widgetSettingsLabelStyle}>
+											<span aria-hidden="true" style={{ fontSize: "16px" }}>
+												{widget.icon}
 											</span>
-										</span>
-									</div>
-									<button
-										type="button"
-										onClick={() => handleToggleWidget(widget.id)}
-										role="switch"
-										aria-checked={isOn}
-										aria-label={`${widget.label} 위젯 ${isOn ? "숨기기" : "보이기"}`}
-										title={`${widget.label} 위젯 ${isOn ? "숨기기" : "보이기"}`}
-										style={{
-											width: "44px",
-											height: "44px",
-											borderRadius: "22px",
-											border: "none",
-											cursor: "pointer",
-											justifySelf: "end",
-											position: "relative",
-											display: "inline-flex",
-											alignItems: "center",
-											justifyContent: "center",
-											padding: 0,
-											background: "transparent",
-										}}
-									>
-										<div
-											aria-hidden="true"
+											<span
+												style={widgetSettingsTextStyle}
+												title={widget.description ?? undefined}
+											>
+												<span style={widgetSettingsNameStyle}>
+													{widget.label}
+												</span>
+											</span>
+										</div>
+										<button
+											type="button"
+											onClick={() => handleToggleWidget(widget.id)}
+											role="switch"
+											aria-checked={isOn}
+											aria-label={`${widget.label} 위젯 ${isOn ? "숨기기" : "보이기"}`}
+											title={`${widget.label} 위젯 ${isOn ? "숨기기" : "보이기"}`}
 											style={{
 												width: "44px",
-												height: "24px",
-												borderRadius: "12px",
+												height: "44px",
+												borderRadius: "22px",
+												border: "none",
+												cursor: "pointer",
+												justifySelf: "end",
 												position: "relative",
-												background: isOn
-													? "var(--color-success)"
-													: "var(--color-border)",
-												transition: "background 0.3s ease",
+												display: "inline-flex",
+												alignItems: "center",
+												justifyContent: "center",
+												padding: 0,
+												background: "transparent",
 											}}
 										>
 											<div
+												aria-hidden="true"
 												style={{
-													width: "18px",
-													height: "18px",
-													borderRadius: "50%",
-													background: "var(--color-bg-card)",
-													position: "absolute",
-													top: "3px",
-													left: isOn ? "23px" : "3px",
-													transition: "left 0.3s ease",
-													boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+													width: "44px",
+													height: "24px",
+													borderRadius: "12px",
+													position: "relative",
+													background: isOn
+														? "var(--color-success)"
+														: "var(--color-border)",
+													transition: "background 0.3s ease",
 												}}
-											/>
-										</div>
-									</button>
-								</div>
-							);
+											>
+												<div
+													style={{
+														width: "18px",
+														height: "18px",
+														borderRadius: "50%",
+														background: "var(--color-bg-card)",
+														position: "absolute",
+														top: "3px",
+														left: isOn ? "23px" : "3px",
+														transition: "left 0.3s ease",
+														boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+													}}
+												/>
+											</div>
+										</button>
+									</div>
+								);
 							})}
 						</div>
 					</div>
