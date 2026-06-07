@@ -20,6 +20,8 @@ import types
 from pathlib import Path
 from unittest.mock import MagicMock
 
+from execution.youtube_metadata import build_shorts_upload_metadata as _build_shorts_upload_metadata_helper
+
 # ---------------------------------------------------------------------------
 # Stub Streamlit and optional deps — save originals so we can restore later
 # ---------------------------------------------------------------------------
@@ -72,8 +74,14 @@ _pc = types.ModuleType("path_contract")
 _pc.resolve_project_dir = MagicMock(return_value=None)  # type: ignore[attr-defined]
 _stub("path_contract", _pc)
 
-for _m in ("execution.content_db", "execution.youtube_uploader", "execution.notion_shorts_sync"):
-    _stub(_m, MagicMock())
+_stub("execution.content_db", MagicMock())
+_yt = types.ModuleType("execution.youtube_uploader")
+_yt.build_shorts_upload_metadata = _build_shorts_upload_metadata_helper
+_yt.get_auth_status = MagicMock(return_value={})
+_yt.upload_pending_items = MagicMock(return_value=[])
+_yt.upload_video = MagicMock(return_value={})
+_stub("execution.youtube_uploader", _yt)
+_stub("execution.notion_shorts_sync", MagicMock())
 
 # ---------------------------------------------------------------------------
 # exec only the function-definition portion of shorts_manager.py
@@ -204,14 +212,14 @@ class TestBuildUploadMetadata:
     def test_with_channel(self):
         desc, tags = _build_upload_metadata({"topic": "Black Holes", "channel": "space"})
         assert "#space" in desc
-        assert "#Black Holes" in desc
+        assert "#BlackHoles" in desc
         assert "space" in tags
-        assert "shorts" in tags
+        assert "Shorts" in tags
 
     def test_without_channel(self):
         desc, tags = _build_upload_metadata({"topic": "AI", "channel": ""})
         assert "#AI" in desc
-        assert tags == ["shorts"]
+        assert tags == ["AI", "Shorts", "YouTube Shorts"]
 
 
 # ---------------------------------------------------------------------------
