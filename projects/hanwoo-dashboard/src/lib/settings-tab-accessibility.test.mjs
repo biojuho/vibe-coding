@@ -265,6 +265,7 @@ test("settings tab normalizes widget controls and callbacks before rendering", (
 	assert.match(source, /className="settings-widget-grid-viewport"/);
 	assert.match(source, /className="settings-widget-card"/);
 	assert.match(source, /className="settings-farm-form"/);
+	assert.match(source, /className="settings-farm-fields-viewport"/);
 	assert.match(
 		source,
 		/padding:\s*["']var\(--settings-widget-card-padding, 18px 20px\)["']/,
@@ -276,6 +277,10 @@ test("settings tab normalizes widget controls and callbacks before rendering", (
 	assert.match(
 		source,
 		/marginTop:\s*["']var\(--settings-farm-form-margin-top, 0\)["']/,
+	);
+	assert.match(
+		source,
+		/marginBottom:\s*["']var\(--settings-farm-form-margin-bottom, 30px\)["']/,
 	);
 	assert.match(source, /style=\{widgetSettingsGridViewportStyle\}/);
 	assert.match(source, /<div style=\{widgetSettingsGridStyle\}>/);

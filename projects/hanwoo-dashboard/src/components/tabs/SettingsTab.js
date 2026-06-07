@@ -599,7 +599,7 @@ export default function SettingsTab(options = {}) {
 					borderRadius: "16px",
 					boxShadow: "var(--shadow-sm)",
 					marginTop: "var(--settings-farm-form-margin-top, 0)",
-					marginBottom: "30px",
+					marginBottom: "var(--settings-farm-form-margin-bottom, 30px)",
 				}}
 			>
 				<div
@@ -616,7 +616,10 @@ export default function SettingsTab(options = {}) {
 					<MapPin size={16} aria-hidden="true" /> 농장 정보 설정
 				</div>
 
-				<div style={{ display: "grid", gap: "16px" }}>
+				<div
+					className="settings-farm-fields-viewport"
+					style={{ display: "grid", gap: "16px" }}
+				>
 					<div>
 						<PremiumLabel htmlFor="farm-name">농장 이름</PremiumLabel>
 						<PremiumInput

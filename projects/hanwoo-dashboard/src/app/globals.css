@@ -1155,6 +1155,7 @@ body {
 
 .settings-farm-form {
   --settings-farm-form-margin-top: 0;
+  --settings-farm-form-margin-bottom: 30px;
 }
 
 @media (max-width: 640px) {
@@ -1170,7 +1171,16 @@ body {
   }
 
   .settings-farm-form {
-    --settings-farm-form-margin-top: 144px;
+    --settings-farm-form-margin-bottom: 112px;
+  }
+
+  .settings-farm-fields-viewport {
+    max-height: 128px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 2px;
+    padding-bottom: 12px;
+    scroll-padding-bottom: 64px;
   }
 }
 
