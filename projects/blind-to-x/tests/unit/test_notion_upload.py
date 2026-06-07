@@ -468,6 +468,8 @@ def test_build_review_brief_summarizes_best_of_n_selection_quality(mock_config):
         "최근 유사도 0.42(낮을수록 새로움), 실패 0건, 경고 1건"
     )
     assert review_brief["selection_quality_summary"] == expected_summary
+    expected_edit_plan = "경고 있음: 경고 문장 1개만 고친 뒤 훅과 근거가 그대로 살아 있는지 확인합니다."
+    assert review_brief["edit_plan"] == expected_edit_plan
 
     memo = uploader._build_upload_memo(
         {"url": "https://example.com/post"},
@@ -477,6 +479,7 @@ def test_build_review_brief_summarizes_best_of_n_selection_quality(mock_config):
         "",
     )
     assert f"선택 품질: {expected_summary}" in memo
+    assert f"수정 플랜: {expected_edit_plan}" in memo
 
     blocks = uploader._build_summary_section_blocks({}, review_brief, analysis, "", drafts)
     bullets = [
@@ -485,6 +488,7 @@ def test_build_review_brief_summarizes_best_of_n_selection_quality(mock_config):
         if block.get("type") == "bulleted_list_item"
     ]
     assert f"선택 품질: {expected_summary}" in bullets
+    assert f"수정 플랜: {expected_edit_plan}" in bullets
 
 
 def test_build_selection_quality_summary_marks_copy_ready_clean_winner(mock_config):
@@ -504,6 +508,10 @@ def test_build_selection_quality_summary_marks_copy_ready_clean_winner(mock_conf
     assert "게시 적합성 9.3" in summary
     assert "실패 0건" in summary
     assert "경고 0건" in summary
+    assert (
+        uploader._build_selection_edit_plan(drafts, [], True)
+        == "바로 게시 가능: 오탈자만 보고 X 본문을 복사한 뒤 링크와 해시태그는 첫 답글로 분리합니다."
+    )
 
 
 def test_build_selection_quality_summary_marks_failed_winner_for_edit(mock_config):
@@ -522,6 +530,42 @@ def test_build_selection_quality_summary_marks_failed_winner_for_edit(mock_confi
     assert summary.startswith("수정 필요: 품질 게이트 실패 2건, ")
     assert "게시 적합성 7.8" in summary
     assert "실패 2건" in summary
+    assert (
+        uploader._build_selection_edit_plan(drafts, [], True)
+        == "품질 게이트 실패 2건: 진단 상세의 실패 항목을 먼저 고치고 다시 검수합니다."
+    )
+
+
+def test_build_selection_edit_plan_prioritizes_similarity_rewrite(mock_config):
+    uploader = NotionUploader(mock_config)
+    drafts = {
+        "twitter": "예전 초안과 너무 비슷한 X 본문",
+        "_best_of_n_selection_score": 8.5,
+        "_quality_gate_score": 8.7,
+        "_quality_gate_failures": 0,
+        "_quality_gate_warnings": 0,
+        "_max_semantic_similarity": 0.81,
+    }
+
+    edit_plan = uploader._build_selection_edit_plan(drafts, [], True)
+
+    assert edit_plan == "최근 유사도 0.81: 같은 결론은 유지하되 첫 문장 장면과 표현을 새로 씁니다."
+
+
+def test_build_selection_edit_plan_requires_selection_confidence_for_copy_ready(mock_config):
+    uploader = NotionUploader(mock_config)
+    drafts = {
+        "twitter": "품질 점수만 높은 X 본문",
+        "_best_of_n_selection_score": 7.6,
+        "_quality_gate_score": 9.4,
+        "_quality_gate_failures": 0,
+        "_quality_gate_warnings": 0,
+        "_max_semantic_similarity": 0.32,
+    }
+
+    edit_plan = uploader._build_selection_edit_plan(drafts, [], True)
+
+    assert edit_plan == "검수 후 게시: 첫 문장 훅, 근거 보존, 톤 자연스러움만 확인한 뒤 복사합니다."
 
 
 def test_build_review_brief_skips_selection_quality_when_metadata_absent(mock_config):
@@ -538,6 +582,7 @@ def test_build_review_brief_skips_selection_quality_when_metadata_absent(mock_co
     review_brief = uploader._build_review_brief({}, drafts, analysis)
 
     assert review_brief["selection_quality_summary"] == ""
+    assert review_brief["edit_plan"] == "검수 후 게시: 첫 문장 훅, 근거 보존, 톤 자연스러움만 확인한 뒤 복사합니다."
 
     memo = uploader._build_upload_memo(
         {"url": "https://example.com/post"},
@@ -547,6 +592,7 @@ def test_build_review_brief_skips_selection_quality_when_metadata_absent(mock_co
         "",
     )
     assert "선택 품질:" not in memo
+    assert "수정 플랜: 검수 후 게시: 첫 문장 훅, 근거 보존, 톤 자연스러움만 확인한 뒤 복사합니다." in memo
 
     blocks = uploader._build_summary_section_blocks({}, review_brief, analysis, "", drafts)
     bullets = [
@@ -555,6 +601,7 @@ def test_build_review_brief_skips_selection_quality_when_metadata_absent(mock_co
         if block.get("type") == "bulleted_list_item"
     ]
     assert not any(text.startswith("선택 품질:") for text in bullets)
+    assert any(text.startswith("수정 플랜: 검수 후 게시") for text in bullets)
 
 
 @pytest.mark.asyncio

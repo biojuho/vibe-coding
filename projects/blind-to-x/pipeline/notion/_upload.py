@@ -351,6 +351,52 @@ class NotionUploadMixin:
 
         return ", ".join(summary_parts)
 
+    def _build_selection_edit_plan(
+        self,
+        drafts: Any,
+        risk_flags: list[str],
+        has_publishable_draft: bool,
+    ) -> str:
+        if not has_publishable_draft:
+            return "초안 없음: 원문과 공감 앵커가 살아 있으면 재생성하고, 약하면 반려 사유만 남깁니다."
+        if not isinstance(drafts, dict):
+            return "검수 후 게시: 첫 문장 훅, 근거 보존, 톤 자연스러움만 확인한 뒤 복사합니다."
+
+        failures = self._metric_as_float(drafts.get("_quality_gate_failures"))
+        quality_score = self._metric_as_float(drafts.get("_quality_gate_score"))
+        selection_score = self._metric_as_float(drafts.get("_best_of_n_selection_score"))
+        similarity = self._metric_as_float(drafts.get("_max_semantic_similarity"))
+        warnings = self._metric_as_float(drafts.get("_quality_gate_warnings"))
+
+        if failures and failures > 0:
+            return (
+                f"품질 게이트 실패 {self._format_metric_value(failures)}건: "
+                "진단 상세의 실패 항목을 먼저 고치고 다시 검수합니다."
+            )
+        if quality_score is not None and quality_score < 8:
+            return (
+                f"게시 적합성 {self._format_metric_value(quality_score)}: "
+                "훅, 근거, 독자 행동 중 가장 약한 1개만 보강합니다."
+            )
+        if similarity is not None and similarity >= 0.75:
+            return (
+                f"최근 유사도 {self._format_metric_value(similarity)}: "
+                "같은 결론은 유지하되 첫 문장 장면과 표현을 새로 씁니다."
+            )
+        if warnings and warnings > 0:
+            if "팩트 경계" in risk_flags:
+                return "경고 있음: 숫자, 댓글, 인용 해석을 원문 기준으로 낮춰 쓰고 과장 표현을 뺍니다."
+            if "근거 약함" in risk_flags or "훅 약함" in risk_flags:
+                return "경고 있음: 첫 문장에 원문 장면이나 근거를 먼저 넣어 추상도를 낮춥니다."
+            if "독자 핏 약함" in risk_flags:
+                return "경고 있음: 직장인 독자가 자기 상황과 비교할 문장 1개를 보강합니다."
+            if "클리셰" in risk_flags:
+                return "경고 있음: 상투어를 실제 사람이 말할 법한 구체 문장으로 바꿉니다."
+            return "경고 있음: 경고 문장 1개만 고친 뒤 훅과 근거가 그대로 살아 있는지 확인합니다."
+        if quality_score is not None and quality_score >= 9 and (selection_score is None or selection_score >= 8):
+            return "바로 게시 가능: 오탈자만 보고 X 본문을 복사한 뒤 링크와 해시태그는 첫 답글로 분리합니다."
+        return "검수 후 게시: 첫 문장 훅, 근거 보존, 톤 자연스러움만 확인한 뒤 복사합니다."
+
     @staticmethod
     def _format_fact_check_warning_counts(values: Any) -> str:
         if not isinstance(values, dict) or not values:
@@ -473,6 +519,7 @@ class NotionUploadMixin:
             "risk_flags": risk_flags,
             "has_publishable_draft": has_publishable_draft,
             "selection_quality_summary": self._build_selection_quality_summary(drafts),
+            "edit_plan": self._build_selection_edit_plan(drafts, risk_flags, has_publishable_draft),
             "review_focus": self._build_review_focus(analysis, evidence_anchor, risk_flags, has_publishable_draft),
             "feedback_request": self._build_feedback_request(risk_flags, has_publishable_draft),
             "action_steps": self._build_action_steps(has_publishable_draft),
@@ -590,6 +637,8 @@ class NotionUploadMixin:
             summary_lines.append(f"권장 채널: {', '.join(review_brief['publish_platforms'])}")
         if review_brief.get("selection_quality_summary"):
             summary_lines.append(f"선택 품질: {review_brief['selection_quality_summary']}")
+        if review_brief.get("edit_plan"):
+            summary_lines.append(f"수정 플랜: {review_brief['edit_plan']}")
         summary_lines.extend(self._build_x_upload_check_lines(drafts))
         if draft_generation_error:
             summary_lines.append(f"초안 생성 오류: {self._truncate_for_brief(draft_generation_error, limit=140)}")
@@ -803,6 +852,8 @@ class NotionUploadMixin:
             memo_parts.append(f"권장 채널: {', '.join(review_brief['publish_platforms'])}")
         if review_brief.get("selection_quality_summary"):
             memo_parts.append(f"선택 품질: {review_brief['selection_quality_summary']}")
+        if review_brief.get("edit_plan"):
+            memo_parts.append(f"수정 플랜: {review_brief['edit_plan']}")
         if analysis and analysis.get("final_rank_score") not in (None, ""):
             memo_parts.append(f"최종 랭크: {self._format_metric_value(analysis['final_rank_score'])}")
         editorial_avg_score = post_data.get("editorial_avg_score")
