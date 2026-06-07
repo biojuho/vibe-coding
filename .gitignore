@@ -98,6 +98,7 @@ scratch/
 scratch.*
 **/scratch.*
 output/playwright/
+test-results/
 projects/hanwoo-dashboard/test-results/
 
 # ===== Nested Git Repos (renamed for root backup) =====
