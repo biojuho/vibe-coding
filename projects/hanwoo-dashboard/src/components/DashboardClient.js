@@ -362,7 +362,7 @@ function InitialDataStatusBanner(options = {}) {
 				variant="outline"
 				size="sm"
 				onClick={handleRetry}
-				className="w-full border-amber-500/40 bg-white/70 text-amber-950 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-100 sm:w-auto"
+				className="min-h-11 w-full border-amber-500/40 bg-white/70 text-amber-950 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-100 sm:w-auto"
 			>
 				새로고침
 			</PremiumButton>

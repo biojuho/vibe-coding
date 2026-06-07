@@ -118,6 +118,10 @@ test("home route degrades initial data failures instead of crashing the shell", 
 	assert.match(dashboardClientSource, /router\.refresh\(\)/);
 	assert.match(
 		dashboardClientSource,
+		/className="min-h-11 w-full border-amber-500\/40 bg-white\/70 text-amber-950 hover:bg-amber-100 dark:bg-amber-900\/30 dark:text-amber-100 sm:w-auto"/,
+	);
+	assert.match(
+		dashboardClientSource,
 		/mb-7 flex flex-col gap-4 pt-2 pb-1 sm:flex-row/,
 	);
 	assert.match(
