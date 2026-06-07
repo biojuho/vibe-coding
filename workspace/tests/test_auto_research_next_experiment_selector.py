@@ -274,6 +274,21 @@ def test_cli_live_helper_defaults_are_bounded(tmp_path: Path, capsys, monkeypatc
     assert stdout["status"] == "blocked_external_only"
     assert calls
     assert all(timeout == next_experiment_selector.DEFAULT_LIVE_HELPER_TIMEOUT for _, _, timeout in calls)
+    inventory_commands = {
+        "github": [command for _, command, _ in calls if "github_project_inventory.py" in " ".join(command)][0],
+        "browser": [command for _, command, _ in calls if "browser_qa_inventory.py" in " ".join(command)][0],
+        "dependency": [command for _, command, _ in calls if "dependency_freshness_inventory.py" in " ".join(command)][
+            0
+        ],
+    }
+    expected_outputs = {
+        "github": tmp_path / next_experiment_selector.GITHUB_INVENTORY_CACHE,
+        "browser": tmp_path / next_experiment_selector.BROWSER_INVENTORY_CACHE,
+        "dependency": tmp_path / next_experiment_selector.DEPENDENCY_INVENTORY_CACHE,
+    }
+    for label, command in inventory_commands.items():
+        assert "--output" in command
+        assert command[command.index("--output") + 1] == str(expected_outputs[label])
     dependency_calls = [command for _, command, _ in calls if "dependency_freshness_inventory.py" in " ".join(command)]
     assert dependency_calls
     dependency_command = dependency_calls[0]

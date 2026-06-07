@@ -14,9 +14,12 @@ from typing import Any
 
 SCRIPT_ROOT = Path(".agents") / "skills" / "auto-research" / "scripts"
 INPUT_ERROR_KEY = "_input_error"
-DEFAULT_LIVE_HELPER_TIMEOUT = 30
-DEFAULT_DEPENDENCY_HELPER_TIMEOUT = 10
+DEFAULT_LIVE_HELPER_TIMEOUT = 60
+DEFAULT_DEPENDENCY_HELPER_TIMEOUT = 60
 DEFAULT_CACHE_MAX_AGE_SECONDS = 6 * 60 * 60
+GITHUB_INVENTORY_CACHE = Path(".tmp") / "github-project-inventory.json"
+BROWSER_INVENTORY_CACHE = Path(".tmp") / "browser-qa-inventory.json"
+DEPENDENCY_INVENTORY_CACHE = Path(".tmp") / "dependency-freshness-inventory.json"
 
 
 def _input_error(label: str, reason: str, **extra: Any) -> dict[str, Any]:
@@ -556,12 +559,14 @@ def _collect_inputs(args: argparse.Namespace) -> dict[str, dict[str, Any]]:
                     "--root",
                     str(root),
                     "--include-prs",
+                    "--output",
+                    str(root / GITHUB_INVENTORY_CACHE),
                     "--json",
                 ],
                 args.timeout,
             ),
             label="github",
-            fallback_path=root / ".tmp" / "github-project-inventory.json",
+            fallback_path=root / GITHUB_INVENTORY_CACHE,
             max_age_seconds=args.cache_max_age_seconds,
         )
     if args.browser:
@@ -570,11 +575,19 @@ def _collect_inputs(args: argparse.Namespace) -> dict[str, dict[str, Any]]:
         browser_inventory = _run_data_with_recent_fallback(
             _run_json(
                 root,
-                [sys.executable, str(SCRIPT_ROOT / "browser_qa_inventory.py"), "--root", str(root), "--json"],
+                [
+                    sys.executable,
+                    str(SCRIPT_ROOT / "browser_qa_inventory.py"),
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(root / BROWSER_INVENTORY_CACHE),
+                    "--json",
+                ],
                 args.timeout,
             ),
             label="browser",
-            fallback_path=root / ".tmp" / "browser-qa-inventory.json",
+            fallback_path=root / BROWSER_INVENTORY_CACHE,
             max_age_seconds=args.cache_max_age_seconds,
         )
     if args.dependency:
@@ -590,12 +603,14 @@ def _collect_inputs(args: argparse.Namespace) -> dict[str, dict[str, Any]]:
                     str(root),
                     "--timeout",
                     str(dependency_timeout),
+                    "--output",
+                    str(root / DEPENDENCY_INVENTORY_CACHE),
                     "--json",
                 ],
                 args.timeout,
             ),
             label="dependency",
-            fallback_path=root / ".tmp" / "dependency-freshness-inventory.json",
+            fallback_path=root / DEPENDENCY_INVENTORY_CACHE,
             max_age_seconds=args.cache_max_age_seconds,
         )
     return {
