@@ -198,10 +198,16 @@ def _inject_mobile_touch_target_styles() -> None:
   div[data-baseweb='select'],
   div[data-baseweb='input'],
   div[data-baseweb='input'] input,
+  ul[data-testid='stSelectboxVirtualDropdown'] li[role='option'],
   button[data-testid='stNumberInputStepDown'],
   button[data-testid='stNumberInputStepUp'],
   div[data-testid='stCheckbox'] label {
     min-height: 44px;
+  }
+
+  ul[data-testid='stSelectboxVirtualDropdown'] li[role='option'] {
+    display: flex;
+    align-items: center;
   }
 
   button[data-testid='stNumberInputStepDown'],
