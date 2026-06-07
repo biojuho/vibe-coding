@@ -253,12 +253,26 @@ def _scan_manifests() -> None:
             continue
 
 
+def _resolve_v2_python() -> str:
+    """Return the interpreter that can run the shorts-maker-v2 package."""
+    candidates = [
+        _V2_DIR / ".venv" / "Scripts" / "python.exe",
+        _V2_DIR / "venv" / "Scripts" / "python.exe",
+        _V2_DIR / ".venv" / "bin" / "python",
+        _V2_DIR / "venv" / "bin" / "python",
+    ]
+    for candidate in candidates:
+        if candidate.is_file():
+            return str(candidate)
+    return sys.executable
+
+
 def _launch_v2(item_id: int, topic: str, channel: str = "") -> str | None:
     """v2 파이프라인을 백그라운드로 실행. job_id 반환."""
     if not _V2_DIR.exists():
         return None
     cmd = [
-        sys.executable,
+        _resolve_v2_python(),
         "-m",
         "shorts_maker_v2",
         "run",
@@ -648,6 +662,8 @@ with left:
     st.code(str(_V2_DIR / "config.yaml"), language=None)
     if v2_ok:
         st.success("shorts-maker-v2 엔진 감지됨")
+        st.caption("**실행 Python**")
+        st.code(_resolve_v2_python(), language=None)
     else:
         st.error("shorts-maker-v2 디렉토리 없음")
 

@@ -453,6 +453,9 @@ def test_launch_v2_starts_process_and_handles_failure(
     v2_dir = tmp_path / "shorts-maker-v2"
     v2_dir.mkdir(parents=True)
     (v2_dir / "config.yaml").write_text("pipeline: test", encoding="utf-8")
+    v2_python = v2_dir / ".venv" / "Scripts" / "python.exe"
+    v2_python.parent.mkdir(parents=True)
+    v2_python.write_text("", encoding="utf-8")
 
     class _Proc:
         pid = 321
@@ -476,6 +479,7 @@ def test_launch_v2_starts_process_and_handles_failure(
 
     assert pid == "321"
     assert launch_args["cwd"] == str(v2_dir)
+    assert launch_args["cmd"][0] == str(v2_python)
     assert "--topic" in launch_args["cmd"]
     assert "--channel" in launch_args["cmd"]
     assert updates[-1] == (11, {"status": "running"})
@@ -490,6 +494,17 @@ def test_launch_v2_starts_process_and_handles_failure(
 
     assert failed_pid is None
     assert updates[-1] == (12, {"status": "failed", "notes": "spawn failed"})
+
+
+def test_resolve_v2_python_falls_back_to_current_interpreter(
+    shorts_manager, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    v2_dir = tmp_path / "shorts-maker-v2"
+    v2_dir.mkdir(parents=True)
+
+    monkeypatch.setattr(shorts_manager, "_V2_DIR", v2_dir)
+
+    assert shorts_manager._resolve_v2_python() == sys.executable
 
 
 def test_render_auth_status_covers_missing_and_ready_states(shorts_manager) -> None:
