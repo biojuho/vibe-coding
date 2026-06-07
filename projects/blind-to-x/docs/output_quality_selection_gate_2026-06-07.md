@@ -88,6 +88,19 @@ Decision: adopt candidate.
 - `py -3.13 execution\code_review_gate.py --base HEAD~1 --json` -> advisory warn (`risk_score=0.40`), covered by focused, related, and project QC gates
 - `git diff --check` -> pass
 
-## Next Loop
+## Follow-up Completion
 
-The next highest-output-quality step is to add an operator-facing selection summary to Notion review rows, so reviewers see why the candidate won: editorial score, publishability score, warning count, and similarity score. That turns hidden selector quality into visible trust.
+The earlier next loop has since been completed and should not be reselected as new work:
+
+- `08bba0e7` / T-1462 surfaces the selected draft's rationale in the reviewer output.
+- `9d70f2af` / T-1482 adds a readiness verdict from selection metadata.
+- `9d94fbe9` / T-1486 adds concrete Notion edit plans in the memo and `검토 요약` bullets.
+- Current implementation points: `pipeline/notion/_upload.py` builds `selection_quality_summary` and `edit_plan`; `tests/unit/test_notion_upload.py` locks clean-winner, warning, failure, similarity, missing-metadata, memo, and summary-block behavior.
+
+## Current Benchmark Refresh
+
+2026-06-07 external check: Buffer's AI Assistant still emphasizes channel choice, prompt context, tone/length transformations, and human factual review; Typefully's Writing Assistant still emphasizes in-editor draft improvement, hooks, endings, structure, platform fit, and voice continuity. That keeps the local quality bar unchanged: reviewer output must expose why the chosen draft is usable, what still needs editing, and which platform constraints are already satisfied.
+
+## Current Boundary
+
+As of T-1545, this document no longer points to the completed Notion selection-summary follow-up as the next loop. The active workspace goal remains blocked by explicit push/current-head GitHub Actions and user-owned Hanwoo T-251. Start a new local Blind-to-X output-quality experiment only when `next_experiment_selector.py` returns an adoptable candidate or fresh external benchmarking reveals a distinct, testable output gap.
