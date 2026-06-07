@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import json
 import sys
+import tomllib
 import types
 from pathlib import Path
 
@@ -416,6 +417,13 @@ def test_shorts_manager_source_adds_mobile_touch_target_styles() -> None:
     assert "min-width: 44px" in source
     assert "unsafe_allow_html=True" in source
     assert "_inject_mobile_touch_target_styles()" in source
+
+
+def test_workspace_dependencies_include_streamlit_for_shorts_manager_runtime() -> None:
+    pyproject = tomllib.loads((WORKSPACE_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    dependencies = pyproject["project"]["dependencies"]
+
+    assert any(dependency.startswith("streamlit>=") for dependency in dependencies)
 
 
 def test_render_wrapped_code_uses_streamlit_line_wrapping(shorts_manager) -> None:
