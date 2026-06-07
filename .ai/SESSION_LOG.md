@@ -1556,3 +1556,12 @@
 - Changed `workspace/tests/test_shorts_manager.py`: locked the new CSS selectors and localized readiness caption contract, including rejection of the old English `voice:`/`style:` labels.
 - Verification: focused Shorts Manager pytest passed (`45 passed`); targeted Ruff check passed; Ruff format check passed; `py_compile` passed; browser QA at `390x844` measured `hasEnglishVoiceStyle=false`, `koreanVoiceStyleCount=5`, `horizontalOverflow=false` and saved `output/playwright/shorts-manager-t1537-channel-readiness-copy.png`; staged/commit code-review gate returned advisory WARN (`risk_score=0.30`) covered by direct source/render/browser tests.
 - Boundary: code commit `273a511a` is local only. No push was performed. T-251 was not retried. Remaining blockers are explicit push/current-head GitHub Actions and user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E.
+
+## 2026-06-07 - Codex
+
+- Closed T-1541 as a Shorts Manager compact mobile title polish cycle.
+- Changed `workspace/execution/pages/shorts_manager.py`: preserved Streamlit metadata `page_title="Shorts Manager"` while replacing the visible title/caption with compact Korean operator copy, `🎬 쇼츠 운영` and `생성 · 검수 · 업로드 관리`.
+- Changed `workspace/tests/test_shorts_manager.py`: added a regression that locks the compact Korean visible title/caption, rejects the old visible English copy, and preserves the metadata title.
+- Browser A/B at `390x844`: title height improved `142px -> 89px`, first title bottom `254px -> 201px`, visible English title matches `1 -> 0`, visible Korean title matches `0 -> 1`, horizontal overflow stayed `0`; `.tmp/ab-manifest-t1541.json` selected `adopt_candidate` with `score_delta=0.39547521348563824`.
+- Verification: focused Shorts Manager pytest passed (`46 passed`); targeted Ruff check passed; Ruff format check passed; `py_compile` passed; Shorts Maker V2 project QC passed (`1640 passed`, `12 skipped`, lint pass); `git diff --check` passed with CRLF warning only; graph refresh is current at `003ebf9c`; code-review gate/pre-commit returned advisory WARN (`risk_score=0.30`) covered by direct source/browser/project evidence.
+- Boundary: code commit `003ebf9c` is local only. No push was performed. T-251 was not retried. Refresh current-head readiness/release-selector evidence before release claims because HEAD advanced after the previous launch-boundary refresh.
