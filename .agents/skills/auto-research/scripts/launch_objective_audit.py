@@ -69,7 +69,7 @@ QUALITY_ITERATION_TERMS = (
     "browser qa",
 )
 AB_MANIFEST_GLOB = "ab-manifest-*.json"
-TASK_ID_RE = re.compile(r"\b[Tt][-_]?(\d{3,6})\b")
+TASK_ID_RE = re.compile(r"\b[Tt][-_]?(\d{3,6})([a-zA-Z])?\b")
 GOAL_STATUS_RE = re.compile(r"^-\s*Status:\s*(.*?)\s*$", re.IGNORECASE | re.MULTILINE)
 MARKDOWN_CHECKBOX_RE = re.compile(r"^\s*-\s*\[([ xX])\]\s+(.*)$")
 GRAPH_RELEVANT_SUFFIXES = {
@@ -195,7 +195,7 @@ def _ab_manifest_sort_key(path: Path) -> tuple[int, str] | None:
         return None
 
 
-def _ab_manifest_task_id(path: Path, manifest: dict[str, Any]) -> int | None:
+def _ab_manifest_task_id_parts(path: Path, manifest: dict[str, Any]) -> tuple[int, str] | None:
     texts = [path.name, path.stem]
     for key in ("experiment", "task_id", "id"):
         value = manifest.get(key)
@@ -205,8 +205,17 @@ def _ab_manifest_task_id(path: Path, manifest: dict[str, Any]) -> int | None:
     for text in texts:
         match = TASK_ID_RE.search(text)
         if match:
-            return int(match.group(1))
+            suffix = (match.group(2) or "").lower()
+            return int(match.group(1)), suffix
     return None
+
+
+def _ab_manifest_task_id(path: Path, manifest: dict[str, Any]) -> str | None:
+    task_id = _ab_manifest_task_id_parts(path, manifest)
+    if task_id is None:
+        return None
+    number, suffix = task_id
+    return f"{number}{suffix}"
 
 
 def _run_json(root: Path, args: list[str], timeout: int) -> dict[str, Any]:
@@ -1439,7 +1448,7 @@ def _latest_ab_manifest(
     if not tmp_dir.exists():
         return None, None, errors
 
-    scored_candidates: list[tuple[tuple[int, int, int, str], Path, dict[str, Any]]] = []
+    scored_candidates: list[tuple[tuple[int, int, str, int, str], Path, dict[str, Any]]] = []
     for path in tmp_dir.glob(AB_MANIFEST_GLOB):
         sort_key = _ab_manifest_sort_key(path)
         if sort_key is None:
@@ -1449,10 +1458,11 @@ def _latest_ab_manifest(
         if data is None:
             errors.append(f"Ignored invalid A/B manifest artifact: {_rel(root, path)}")
             continue
-        task_id = _ab_manifest_task_id(path, data)
+        task_id = _ab_manifest_task_id_parts(path, data)
         candidate_key = (
             1 if task_id is not None else 0,
-            task_id if task_id is not None else -1,
+            task_id[0] if task_id is not None else -1,
+            task_id[1] if task_id is not None else "",
             sort_key[0],
             sort_key[1],
         )

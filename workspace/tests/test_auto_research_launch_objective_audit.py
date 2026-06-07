@@ -1346,6 +1346,34 @@ def test_ab_item_prefers_highest_task_manifest_over_newer_file_mtime(tmp_path: P
     assert any("Latest A/B manifest selection used task id T-1300" in item for item in ab_item["evidence"])
 
 
+def test_ab_item_prefers_suffixed_task_manifest_over_lower_unsuffixed_task(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+    selected = _write_ab_manifest(
+        tmp_path,
+        name="ab-manifest-t1567b-korean-output-quality-goal.json",
+        experiment="T-1567b Korean output-quality goal recognition",
+    )
+    older_unsuffixed = _write_ab_manifest(
+        tmp_path,
+        name="ab-manifest-t1566-shorts-analytics-mobile-output.json",
+        experiment="T-1566 Shorts Analytics mobile output",
+    )
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+    )
+    ab_item = next(item for item in manifest["items"] if item["requirement"].startswith("Run bounded A/B"))
+
+    assert selected.relative_to(tmp_path).as_posix() in ab_item["artifacts"]
+    assert older_unsuffixed.relative_to(tmp_path).as_posix() not in ab_item["artifacts"]
+    assert any("Latest A/B manifest selection used task id T-1567b" in item for item in ab_item["evidence"])
+
+
 def test_ab_item_can_use_explicit_manifest_override(tmp_path: Path) -> None:
     _write_required_skill(tmp_path)
     _write_ai_relay(tmp_path)
