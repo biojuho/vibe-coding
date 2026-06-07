@@ -48,6 +48,9 @@ test("app metadata and PWA manifest use product-ready Korean copy", () => {
 		manifest.description,
 		"한우 농장의 개체, 번식, 출하, 재고, 일정을 한곳에서 관리하는 운영 대시보드",
 	);
+	assert.equal(manifest.id, "/");
+	assert.equal(manifest.scope, "/");
+	assert.equal(manifest.lang, "ko-KR");
 });
 
 test("proxy leaves public health and PWA assets outside auth redirects", () => {
