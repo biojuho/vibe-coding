@@ -1505,3 +1505,14 @@
 - `product_readiness_score.py --json` reports score `96`, state `blocked`, local blockers `0`, agent tasks `0`, publish blockers `1`, external blockers `1`, clean worktree, no open PRs, and fresh current-head QC evidence.
 - `release_authorization_packet.py --json` is `ready_for_authorization`; `next_experiment_selector.py` is `blocked_publish_only`, selecting current-head release checks.
 - Boundary: no push was performed. T-251 was not retried. Remaining blockers are explicit push/current-head GitHub Actions and user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E.
+
+## 2026-06-07 - Codex
+
+- Closed T-1519 as a Hanwoo PWA manifest identity polish cycle.
+- Baseline public mobile click QA at 320/360/390px covered login legal returns, dashboard legal returns, subscription failure retry, and 404 recovery. Result: `flowsWithErrors=[]`, no small visible targets, no horizontal overflow, no replacement characters, and only the expected intentional 404 for `/privacy-missing`.
+- PWA public resource QA confirmed `/manifest.json`, `/icon-192x192.png`, `/icon-512x512.png`, `/sw.js`, and Workbox return 200 with expected content types.
+- External references checked: MDN/web.dev Web App Manifest guidance for explicit `id`, `scope`, and `lang` metadata.
+- Changed `projects/hanwoo-dashboard/public/manifest.json`: added stable `id: "/"`, root `scope: "/"`, and `lang: "ko-KR"`.
+- Changed `projects/hanwoo-dashboard/src/lib/app-metadata-copy.test.mjs`: locked the new manifest metadata contract.
+- Verification: Hanwoo tests passed (`532 passed`); Hanwoo lint passed; manifest HTTP QA returned 200 JSON with the new fields; Hanwoo project QC passed (`532 passed`, lint/build/smoke passed); `git diff --check` passed with CRLF warnings only; graph current at `f1e37714`; staged/commit code-review gate PASS (`risk_score=0.00`); A/B selected `adopt_candidate` with `score_delta=0.8333333333333334`.
+- Boundary: code commit `f1e37714` is local only. No push was performed. T-251 was not retried. Audit dev server PID 36096 was stopped. Current HEAD advanced past the previous full canonical artifact, so refresh full canonical active-project QC/readiness before release claims.
