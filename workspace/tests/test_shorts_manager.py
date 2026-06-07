@@ -394,6 +394,18 @@ def test_shorts_manager_source_keeps_card_actions_full_width() -> None:
     assert "_render_item_header(item)\n                _render_item_buttons(item, key_prefix)" in source
 
 
+def test_shorts_manager_source_wraps_code_paths_on_mobile() -> None:
+    source = (WORKSPACE_ROOT / "execution" / "pages" / "shorts_manager.py").read_text(encoding="utf-8")
+
+    assert (
+        "def _render_wrapped_code(value: object) -> None:\n    st.code(str(value), language=None, wrap_lines=True)"
+        in source
+    )
+    assert '_render_wrapped_code(_V2_DIR / "config.yaml")' in source
+    assert "_render_wrapped_code(_resolve_v2_python())" in source
+    assert "_render_wrapped_code(video)" in source
+
+
 def test_default_auth_status_and_upload_gate(shorts_manager, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(shorts_manager, "_YT_OK", False)
     monkeypatch.setattr(shorts_manager, "_YT_ERR", "missing module")

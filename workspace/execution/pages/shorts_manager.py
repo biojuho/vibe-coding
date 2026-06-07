@@ -190,6 +190,10 @@ def _stretch_button_kwargs() -> dict[str, str]:
     return {"width": "stretch"}
 
 
+def _render_wrapped_code(value: object) -> None:
+    st.code(str(value), language=None, wrap_lines=True)
+
+
 def _youtube_badge(yt_status: str, yt_url: str = "") -> str:
     if yt_status == "uploaded" and yt_url:
         safe_url = _html.escape(yt_url, quote=True)
@@ -772,11 +776,11 @@ with left:
 
     st.divider()
     st.caption("**파이프라인 설정 경로**")
-    st.code(str(_V2_DIR / "config.yaml"), language=None)
+    _render_wrapped_code(_V2_DIR / "config.yaml")
     if v2_ok:
         st.success("shorts-maker-v2 엔진 감지됨")
         st.caption("**실행 Python**")
-        st.code(_resolve_v2_python(), language=None)
+        _render_wrapped_code(_resolve_v2_python())
     else:
         st.error("shorts-maker-v2 디렉토리 없음")
 
@@ -944,7 +948,7 @@ with right:
                 video = item.get("video_path", "")
                 if video and Path(video).exists():
                     with st.expander("영상 경로"):
-                        st.code(video, language=None)
+                        _render_wrapped_code(video)
 
                 st.divider()
 
