@@ -115,8 +115,9 @@ test("dashboard widget registry is centralized with readable Korean labels", () 
 	assert.doesNotMatch(dashboardSource, /const WIDGET_REGISTRY = \[/);
 	assert.match(
 		settingsSource,
-		/\{widget\.description \? \([\s\S]*?\{widget\.description\}[\s\S]*?\) : null\}/,
+		/title=\{widget\.description \?\? undefined\}/,
 	);
+	assert.doesNotMatch(settingsSource, /style=\{widgetSettingsDescriptionStyle\}/);
 	assert.match(
 		hookSource,
 		/description:\s*['"]켜면 농장 요약 정보를 AI 분석 API로 전송합니다\.['"]/,
@@ -235,6 +236,27 @@ test("settings tab normalizes malformed building payloads before rendering", () 
 test("settings tab normalizes widget controls and callbacks before rendering", () => {
 	const source = readSource("components/tabs/SettingsTab.js");
 
+	assert.match(source, /const widgetSettingsGridStyle = \{/);
+	assert.match(
+		source,
+		/gridTemplateColumns:\s*["']repeat\(auto-fit, minmax\(88px, 1fr\)\)["']/,
+	);
+	assert.match(source, /const widgetSettingsControlStyle = \{/);
+	assert.match(source, /gridTemplateColumns:\s*["']1fr["']/);
+	assert.match(source, /minHeight:\s*["']70px["']/);
+	assert.match(source, /justifySelf:\s*["']end["']/);
+	assert.match(source, /const widgetSettingsLabelStyle = \{/);
+	assert.match(source, /gridTemplateColumns:\s*["']16px minmax\(0, 1fr\)["']/);
+	assert.match(source, /const widgetSettingsNameStyle = \{/);
+	assert.match(source, /overflowWrap:\s*["']anywhere["']/);
+	assert.match(source, /<div style=\{widgetSettingsGridStyle\}>/);
+	assert.match(source, /<div key=\{widget\.id\} style=\{widgetSettingsControlStyle\}>/);
+	assert.match(source, /title=\{widget\.description \?\? undefined\}/);
+	assert.doesNotMatch(source, /const widgetSettingsDescriptionStyle = \{/);
+	assert.doesNotMatch(
+		source,
+		/<div style=\{\{ display: ["']flex["'], flexDirection: ["']column["'], gap: ["']8px["'] \}\}>/,
+	);
 	assert.match(source, /function normalizeSettingsWidgetRegistry\(widgets\) \{/);
 	assert.match(
 		source,

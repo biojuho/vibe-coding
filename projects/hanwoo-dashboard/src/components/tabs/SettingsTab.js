@@ -26,6 +26,47 @@ const errorTextStyle = {
 	fontWeight: 600,
 };
 
+const widgetSettingsGridStyle = {
+	display: "grid",
+	gridTemplateColumns: "repeat(auto-fit, minmax(88px, 1fr))",
+	gap: "8px",
+};
+
+const widgetSettingsControlStyle = {
+	display: "grid",
+	gridTemplateColumns: "1fr",
+	alignItems: "start",
+	gap: "10px",
+	minHeight: "70px",
+	minWidth: 0,
+	padding: "8px",
+	borderRadius: "10px",
+	background: "var(--color-bg)",
+	border: "1px solid var(--color-border)",
+	transition: "all 0.2s ease",
+};
+
+const widgetSettingsLabelStyle = {
+	display: "grid",
+	gridTemplateColumns: "16px minmax(0, 1fr)",
+	alignItems: "center",
+	gap: "8px",
+	minWidth: 0,
+};
+
+const widgetSettingsTextStyle = {
+	minWidth: 0,
+};
+
+const widgetSettingsNameStyle = {
+	display: "block",
+	fontSize: "12px",
+	fontWeight: 700,
+	lineHeight: 1.25,
+	color: "var(--color-text)",
+	overflowWrap: "anywhere",
+};
+
 function normalizeSettingsBuildings(buildings) {
 	return Array.isArray(buildings)
 		? buildings
@@ -443,58 +484,23 @@ export default function SettingsTab(options = {}) {
 					>
 						홈 화면에 표시할 위젯을 선택해 주세요.
 					</div>
-					<div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+					<div style={widgetSettingsGridStyle}>
 						{safeWidgetRegistry.map((widget) => {
 							const isOn = safeWidgetVisible[widget.id] !== false;
 
 							return (
-								<div
-									key={widget.id}
-									style={{
-										display: "flex",
-										justifyContent: "space-between",
-										alignItems: "center",
-										padding: "10px 12px",
-										borderRadius: "10px",
-										background: "var(--color-bg)",
-										border: "1px solid var(--color-border)",
-										transition: "all 0.2s ease",
-									}}
-								>
-									<div
-										style={{
-											display: "flex",
-											alignItems: "center",
-											gap: "10px",
-										}}
-									>
+								<div key={widget.id} style={widgetSettingsControlStyle}>
+									<div style={widgetSettingsLabelStyle}>
 										<span aria-hidden="true" style={{ fontSize: "16px" }}>
 											{widget.icon}
 										</span>
-										<span>
-											<span
-												style={{
-													display: "block",
-													fontSize: "13px",
-													fontWeight: 600,
-													color: "var(--color-text)",
-												}}
-											>
+										<span
+											style={widgetSettingsTextStyle}
+											title={widget.description ?? undefined}
+										>
+											<span style={widgetSettingsNameStyle}>
 												{widget.label}
 											</span>
-											{widget.description ? (
-												<span
-													style={{
-														display: "block",
-														marginTop: "2px",
-														fontSize: "11px",
-														lineHeight: 1.4,
-														color: "var(--color-text-muted)",
-													}}
-												>
-													{widget.description}
-												</span>
-											) : null}
 										</span>
 									</div>
 									<button
@@ -510,6 +516,7 @@ export default function SettingsTab(options = {}) {
 											borderRadius: "12px",
 											border: "none",
 											cursor: "pointer",
+											justifySelf: "end",
 											position: "relative",
 											background: isOn
 												? "var(--color-success)"
