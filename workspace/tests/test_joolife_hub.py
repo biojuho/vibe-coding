@@ -38,6 +38,8 @@ with patch.dict("sys.modules", {"streamlit": _mock_st, "psutil": _mock_psutil}):
     _mock_st.button = MagicMock(return_value=False)
     _mock_st.header = MagicMock()
     _mock_st.subheader = MagicMock()
+    _mock_st.container = MagicMock(return_value=MagicMock(__enter__=MagicMock(), __exit__=MagicMock()))
+    _mock_st.page_link = MagicMock()
     _mock_st.toast = MagicMock()
     _mock_st.warning = MagicMock()
     _mock_st.error = MagicMock()
@@ -50,10 +52,16 @@ with patch.dict("sys.modules", {"streamlit": _mock_st, "psutil": _mock_psutil}):
         _build_inline_launch,
         _build_launch_command,
         _build_terminal_launch,
+        _count_passed_projects,
         _group_projects_by_category,
+        _project_evidence_line,
+        _project_quality_markdown,
+        _qc_project_summary,
         _normalize_terminal_command,
         _project_rows,
         _resolve_target_directory,
+        _safe_int,
+        _status_chip_class,
     )
 
 
@@ -190,7 +198,20 @@ class TestProjectRows:
 
 class TestProjectsRegistry:
     def test_all_have_required_keys(self):
-        required = {"key", "icon", "name", "desc", "cmd", "cwd", "category"}
+        required = {
+            "key",
+            "icon",
+            "name",
+            "status",
+            "desc",
+            "output",
+            "best_for",
+            "quality_signal",
+            "next_action",
+            "cmd",
+            "cwd",
+            "category",
+        }
         for p in PROJECTS:
             assert required.issubset(p.keys()), f"Missing keys in {p['name']}: {required - p.keys()}"
 
@@ -200,7 +221,30 @@ class TestProjectsRegistry:
 
     def test_has_categories(self):
         categories = {p["category"] for p in PROJECTS}
-        assert len(categories) >= 3  # At least 3 different categories
+        assert categories == {"작업 앱", "제품", "운영"}
+
+    def test_registry_explains_usable_outputs(self):
+        for project in PROJECTS:
+            assert len(project["output"]) >= 12
+            assert len(project["best_for"]) >= 12
+            assert len(project["next_action"]) >= 12
+            assert "->" in project["next_action"] or "T-251" in project["next_action"]
+
+    def test_old_generic_english_launcher_copy_removed(self):
+        source = HUB.Path(HUB.__file__).read_text(encoding="utf-8")
+        forbidden = [
+            "Canonical launcher for workspace apps and projects",
+            "YouTube Shorts automation workspace.",
+            "Unified QA/QC status and history viewer.",
+            "API usage and credit tracking dashboard.",
+            "Cattle management web dashboard.",
+            "Workspace Apps",
+            "Open Localhost",
+            '"Launch"',
+        ]
+        for text in forbidden:
+            assert text not in source
+        assert 'button[data-testid="stBaseButton-headerNoPadding"]' in source
 
     def test_shorts_manager_declared_port_is_in_launch_command(self):
         shorts_project = next(p for p in PROJECTS if p["key"] == "shorts")
@@ -211,6 +255,81 @@ class TestProjectsRegistry:
         )
         assert use_shell is False
         assert command[-2:] == ["--server.port", "8512"]
+
+
+# ── output quality / QC helper 테스트 ─────────────────────────
+
+
+class TestOutputQualityHelpers:
+    def test_count_passed_projects(self):
+        snapshot = {
+            "projects": {
+                "a": {"status": "PASS"},
+                "b": {"status": "FAIL"},
+                "c": {"status": "PASS"},
+            }
+        }
+        assert _count_passed_projects(snapshot) == (2, 3)
+
+    def test_count_passed_projects_ignores_malformed_project_rows(self):
+        snapshot = {
+            "projects": {
+                "a": {"status": "PASS"},
+                "b": None,
+                "c": "PASS",
+            }
+        }
+        assert _count_passed_projects(snapshot) == (1, 3)
+
+    def test_safe_int_treats_malformed_counts_as_zero(self):
+        assert _safe_int("12") == 12
+        assert _safe_int(None) == 0
+        assert _safe_int("not-a-count") == 0
+
+    def test_qc_project_summary_uses_live_snapshot(self):
+        snapshot = {
+            "projects": {
+                "shorts-maker-v2": {
+                    "status": "PASS",
+                    "passed": 1640,
+                    "failed": 0,
+                    "skipped": 12,
+                    "coverage": "complete",
+                }
+            }
+        }
+        assert _qc_project_summary(snapshot, "shorts") == "PASS · 1640 passed · 0 failed · 12 skipped · complete"
+
+    def test_qc_project_summary_tolerates_malformed_counts(self):
+        snapshot = {
+            "projects": {
+                "shorts-maker-v2": {
+                    "status": "PASS",
+                    "passed": "not-a-count",
+                    "failed": None,
+                    "skipped": "2",
+                }
+            }
+        }
+        assert _qc_project_summary(snapshot, "shorts") == "PASS · 0 passed · 0 failed · 2 skipped"
+
+    def test_project_evidence_line_falls_back_to_static_quality_signal(self):
+        project = next(p for p in PROJECTS if p["key"] == "api")
+        assert _project_evidence_line(project, snapshot=None) == project["quality_signal"]
+
+    def test_project_quality_markdown_contains_output_use_case_evidence_and_action(self):
+        project = next(p for p in PROJECTS if p["key"] == "hanwoo")
+        rendered = _project_quality_markdown(project, snapshot=None)
+        assert "결과물" in rendered
+        assert "사용 장면" in rendered
+        assert "검증 신호" in rendered
+        assert "다음 행동" in rendered
+        assert "T-251" in rendered
+
+    def test_status_chip_classes_separate_operational_boundaries(self):
+        assert _status_chip_class("운영") == ""
+        assert _status_chip_class("진단") == "warn"
+        assert _status_chip_class("외부 경계 있음") == "blocked"
 
 
 # ── _resolve_target_directory 테스트 ──────────────────────────
@@ -454,7 +573,7 @@ class TestRenderProcessSummaryStatus:
             hub.st = orig_st
 
     def test_render_process_status_with_port(self):
-        """_render_process_status shows port link when port is set."""
+        """_render_process_status shows a stretch-width page link when port is set."""
         hub = HUB
         from execution.process_manager import TrackedProcess
 
@@ -464,7 +583,12 @@ class TestRenderProcessSummaryStatus:
         hub.st = mock_local_st
         try:
             hub._render_process_status(proc)
-            assert mock_local_st.markdown.call_count >= 2
+            mock_local_st.page_link.assert_called_once_with(
+                "http://localhost:8000",
+                label="localhost:8000",
+                icon=":material/open_in_new:",
+                width="stretch",
+            )
         finally:
             hub.st = orig_st
 
@@ -646,14 +770,19 @@ class TestRenderProcessRowMonitor:
 
 class TestRenderCard:
     def test_render_card_npm_with_port(self):
-        """render_card shows localhost link for npm commands with port."""
+        """render_card shows stretch-width localhost page link for declared ports."""
         hub = HUB
 
         project = {
             "key": "test_npm",
             "icon": "T",
             "name": "Test NPM",
-            "desc": "desc",
+            "status": "운영",
+            "desc": "테스트 앱 설명입니다.",
+            "output": "테스트 결과물",
+            "best_for": "테스트 사용 장면",
+            "quality_signal": "테스트 검증 신호",
+            "next_action": "확인 -> 실행 -> 검증",
             "cmd": "npm run dev",
             "cwd": ".",
             "port": 3000,
@@ -665,20 +794,29 @@ class TestRenderCard:
         hub.st = mock_local_st
         try:
             hub.render_card(project)
-            calls = [str(c) for c in mock_local_st.markdown.call_args_list]
-            assert any("localhost" in c for c in calls)
+            mock_local_st.page_link.assert_called_once_with(
+                "http://localhost:3000",
+                label="로컬 열기 · 3000",
+                icon=":material/open_in_new:",
+                width="stretch",
+            )
         finally:
             hub.st = orig_st
 
     def test_render_card_launch_button_click(self):
-        """render_card calls launch_process when button is clicked."""
+        """render_card calls launch_process from the Korean stretch-width action."""
         hub = HUB
 
         project = {
             "key": "test_btn",
             "icon": "B",
             "name": "Btn Test",
-            "desc": "desc",
+            "status": "운영",
+            "desc": "버튼 테스트 설명입니다.",
+            "output": "버튼 테스트 결과물",
+            "best_for": "버튼 실행 사용 장면",
+            "quality_signal": "버튼 테스트 검증 신호",
+            "next_action": "확인 -> 실행 -> 검증",
             "cmd": "python main.py",
             "cwd": ".",
             "category": "Test",
@@ -691,5 +829,7 @@ class TestRenderCard:
             with patch.object(hub, "launch_process") as mock_launch:
                 hub.render_card(project)
             mock_launch.assert_called_once()
+            assert mock_local_st.button.call_args.args[0] == "실행"
+            assert mock_local_st.button.call_args.kwargs["width"] == "stretch"
         finally:
             hub.st = orig_st
