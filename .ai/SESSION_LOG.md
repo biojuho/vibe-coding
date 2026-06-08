@@ -2471,3 +2471,15 @@
 - QA evidence is `.tmp/claude-goal-t1731-doctor-negative-stale-days-qa.json`.
 - Verification passed focused pytest (`3 passed, 107 deselected`), focused help retry (`1 passed`) after one transient full-suite help-wrap failure, full isolated rerun (`160 passed`), Ruff check, Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
 - Removed T-1731 pytest temp dirs after preserving the root `.tmp` QA evidence.
+
+## 2026-06-08 - Codex
+
+- Completed T-1732 as a `claude-goal` slash simple-command extra-arg guard in `claude-goal/` on branch `improve/goal-system`.
+- Continued the `/goal` CLI UX loop after T-1731, preserving existing nested WIP; did not stage, commit, push, revert, call `update_goal`, edit root product code, or retry Hanwoo T-251.
+- Reproduced with isolated temp goal state that direct simple state commands such as `status extra`, `pause extra`, `resume extra`, and clear aliases returned argparse exit `2`, while slash `invoke status extra` silently ran status and slash `invoke pause/resume/clear-alias extra` performed the state mutation.
+- Root cause: `_render_invoke_db_command()` handled simple invoke commands without checking `InvokeCommand.rest`; help routing already ran before dispatch, so trailing non-help args reached DB reads or state changes.
+- Fixed `goal/scripts/claude_goal.py` by adding `INVOKE_SIMPLE_COMMANDS_WITHOUT_ARGS` and a pre-DB `_reject_invoke_simple_command_args()` guard.
+- Added `tests/test_claude_goal.py::test_invoke_simple_commands_reject_unexpected_args_without_mutating` to lock that slash simple commands reject unexpected args and preserve the active goal.
+- Direct after-fix QA now returns exit `2`, empty stdout, `goal error: <command> does not accept arguments: extra`, and no traceback for slash `invoke status/show/get/menu/pause/resume/cancel/clear/none/off/reset/stop extra`; direct simple commands still reject via argparse, and `invoke clear --help extra` still renders help without mutating.
+- QA evidence is `.tmp/claude-goal-t1732-simple-invoke-extra-args-qa.json`.
+- Verification passed focused pytest (`3 passed, 108 deselected`), full isolated pytest (`162 passed`), Ruff check, Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
