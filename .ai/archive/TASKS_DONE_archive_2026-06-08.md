@@ -16,3 +16,7 @@
 ## Rotation 2026-06-08 (archived DONE rows beyond the newest 5)
 
 | T-1553 | `[knowledge-dashboard]` Hardened the focused skip-link target after browser QA found the hidden/focused skip action remained below the 44px mobile target even after the broader T-1552 control pass. `projects/knowledge-dashboard/src/app/page.tsx` now gives the focused skip link `focus:flex focus:min-h-11 focus:items-center`, and `projects/knowledge-dashboard/src/mobile-touch-targets.test.mts` locks the source contract. Final browser QA found no below-44 visible controls in Knowledge Dashboard after T-1553; full active-project QC passed with Knowledge Dashboard `64 passed`. No push and no T-251 retry. | Codex | 2026-06-07 |
+
+## Rotation 2026-06-08 (archived DONE rows beyond the newest 5)
+
+| T-1554 | `[auto-research]` Added direct output-quality objective coverage to the launch manifest. The audit now checks project good-output criteria, external benchmark signals, Good vs Bad output distinction, and iterative baseline/candidate/A-B evidence, with tests for complete and blocked evidence. Completion audit now includes this item and reports `11/15` complete with the same 4 publish/T-251 blockers. No push and no T-251 retry. | Codex | 2026-06-08 |
