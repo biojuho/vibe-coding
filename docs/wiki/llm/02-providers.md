@@ -20,7 +20,7 @@
 | groq | `llama-3.3-70b-versatile` | ✅ 현행 production (131K ctx) | 유지 OK |
 | ollama | `qwen3-coder:30b-a3b-q4_K_M` | ✅ 실재 태그(~22GB VRAM) | 유지하되 **이 PC에선 무거움** → 가벼운 모델 |
 
-> 모델 ID만 바꾸면 되는 일은 [07-playbooks](07-playbooks.md)의 "default 모델 이전" 참고. 다만 `LLMClient`/`LLMRouter`/blind-to-x config 3곳을 함께 봐야 한다([06-per-project](06-per-project.md)).
+> 모델 ID만 바꾸면 되는 일은 [07-playbooks](07-playbooks.md)의 "default 모델 이전" 참고. 다만 `LLMClient`/`LLMRouter`/blind-to-x config 3곳을 함께 봐야 한다([06-per-project](06-per-project.md)). API endpoint, SDK, parser shape가 함께 바뀌면 [37-api-surface-sdk-compatibility-boundary](37-api-surface-sdk-compatibility-boundary.md)의 artifact를 같이 갱신한다.
 
 ---
 
@@ -169,6 +169,7 @@
 - 과금 없음(전기+하드웨어만). 한도 없음 — 하드웨어 한계. 동시성은 `OLLAMA_NUM_PARALLEL`/`OLLAMA_MAX_LOADED_MODELS`.
 - 보안: 로컬 전용(11434 외부 노출 금지), 기본 인증 없음.
 - **이 워크스테이션 현실**: repo default(~22GB VRAM)는 안 돎(Intel Iris Xe/15.75GB) → `gemma3:4b` 등으로 내리거나 ollama 비활성 수용. 자세히는 [local_inference.md](../../../workspace/directives/local_inference.md).
+- 운영 경계: [35-local-inference-hardware-quantization-boundary](35-local-inference-hardware-quantization-boundary.md)에서 서버 health, `/api/tags` installed model, `/api/ps` loaded model/VRAM/context, quantization, OpenAI-compatible feature parity, privacy, and fallback evidence를 분리한다.
 
 ---
 

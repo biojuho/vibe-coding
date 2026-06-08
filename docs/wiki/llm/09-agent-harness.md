@@ -117,6 +117,8 @@ blind-to-x `pipeline/harness_guard.py`가 유일한 프로덕션 진입점이다
 
 **권장**: 일상 한국어 생성은 **language_bridge로 충분**(가장 저렴). **배포/프롬프트 변경 검증**은 **promptfoo**(오프라인이라 런타임 비용 0). **harness_eval**은 *비용을 더 써도 정확도가 중요한* 소수 고가치 생성(예: 최종 발행 카피)에 **선별 적용**한다 — Anthropic 지침대로 "명확한 평가 기준 + 반복 개선이 측정가능한 가치"일 때만. 셋은 배타가 아니라 **층위가 다르다**(런타임 언어 / 런타임 품질 / 오프라인 회귀).
 
+Eval evidence is also layered. [36-evaluation-dataset-llm-judge-rubric-boundary](36-evaluation-dataset-llm-judge-rubric-boundary.md) keeps runtime generator-evaluator logs, promptfoo offline regression, deterministic assertions, LLM-as-judge rubrics, and human review as separate evidence fields.
+
 ## 언제 하네스를 쓰나 (workflow vs agent)
 
 Anthropic 구분: **workflow**(LLM·도구를 사전 정의된 코드 경로로 오케스트레이션) vs **agent**(LLM이 스스로 도구·과정을 동적 결정). 이 repo의 생성 파이프라인은 대부분 **workflow**다(고정 경로). 그래서:

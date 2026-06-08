@@ -53,6 +53,8 @@ ollama → google → groq → deepseek → moonshot → zhipuai → openai → 
 - 노후 default 모델(`gpt-4o-mini`, `grok-3-mini-fast`, `deepseek-chat`, `moonshot-v1-8k`) 정비 권고는 [02-providers](02-providers.md) 참고.
 
 > **이 워크스테이션의 실제 동작**: ollama default(`qwen3-coder:30b-a3b`)는 22GB+ VRAM이 필요한데 이 PC는 Intel Iris Xe iGPU/RAM 15.75GB라 사실상 ollama가 비활성이다. 따라서 실제 1순위는 **Gemini**가 된다. ollama를 쓰려면 `OLLAMA_DEFAULT_MODEL=gemma3:4b` 등 가벼운 모델로 내려야 한다([local_inference.md](../../../workspace/directives/local_inference.md)).
+> Local inference launch evidence has its own boundary: [35-local-inference-hardware-quantization-boundary](35-local-inference-hardware-quantization-boundary.md) separates Ollama server health, installed model tags, memory fit, quantization level, OpenAI-compatible API behavior, privacy, and cloud fallback.
+> API surface launch evidence has its own boundary: [37-api-surface-sdk-compatibility-boundary](37-api-surface-sdk-compatibility-boundary.md) separates Chat Completions, Responses, Anthropic Messages, Gemini GenerateContent, OpenAI-compatible adapters, SDK versions, and parser shapes.
 
 ## Fallback 동작 (L614–684)
 

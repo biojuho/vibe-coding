@@ -19,6 +19,8 @@ Use these layers before any generated output reaches a public surface:
 
 The operating rule is: a public post or Short needs a publish-gate artifact that links these layers. Do not collapse them into one Boolean called `safe`.
 
+Eval scores belong beside this artifact, not inside the final approval Boolean. [36-evaluation-dataset-llm-judge-rubric-boundary](36-evaluation-dataset-llm-judge-rubric-boundary.md) separates offline promptfoo regression, runtime LLM judge logs, deterministic assertions, product quality scores, and human review status.
+
 ## Current Code Facts
 
 ### 1) Blind-to-X Defaults To Human Review, Not Auto-Publish

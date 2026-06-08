@@ -18,6 +18,8 @@ For this workspace, that question has four distinct layers:
 
 Treating all four as "logs" hides the real risk. Token counts are low-risk metadata. Cached drafts, generated scripts, image prompts, audio transcripts, and full rendered prompts can contain private or source-owned content.
 
+Conversation state adds a fifth risk surface. Provider conversation objects, SDK sessions, graph checkpoints, MCP resource snapshots, `.ai` handoff excerpts, and product resume checkpoints can all retain or reintroduce prior context. Use [38-conversation-state-memory-handoff-boundary](38-conversation-state-memory-handoff-boundary.md) to name the state owner before storing or replaying it.
+
 ## Current Code Facts
 
 ### 1) Workspace `LLMClient` Stores Response Content In A Local Cache

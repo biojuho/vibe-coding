@@ -31,6 +31,10 @@
 
 따라서 현재 구현은 비용·관측에는 쓸 수 있지만, 호출 전에는 긴 입력이 모델 context를 넘는지, 하드코딩된 output cap이 긴 JSON/스크립트를 자를지, reasoning/thinking token budget이 응답 예산을 잠식할지 미리 막지 않는다.
 
+Local Ollama adds one more preflight axis: context window and output budget are not enough if the installed quantized model cannot fit memory or load within timeout. See [35-local-inference-hardware-quantization-boundary](35-local-inference-hardware-quantization-boundary.md) for `/api/tags`, `/api/ps`, VRAM/context, and local fallback evidence.
+
+Conversation state is another separate axis: fitting the next request into a context window does not prove which provider response, SDK session, graph checkpoint, MCP resource, `.ai` handoff, or product record carried prior context. Use [38-conversation-state-memory-handoff-boundary](38-conversation-state-memory-handoff-boundary.md) for that artifact.
+
 ## 공식 기준
 
 - OpenAI 모델 비교 문서는 모델별 `Context Window`와 `Max Output Tokens`를 분리해 제공한다. 이 값은 모델별로 바뀌므로 과금·배포 직전 공식 표를 다시 본다.

@@ -86,7 +86,7 @@ Repo implication: Claude customization in this repo should remain prompt/system/
 
 Before any provider fine-tuned/custom model is allowed into runtime config, require all of these:
 
-1. A task-specific eval suite with baseline model results and holdout data.
+1. A task-specific eval suite with baseline model results and holdout data, with dataset/judge/rubric evidence following [36-evaluation-dataset-llm-judge-rubric-boundary](36-evaluation-dataset-llm-judge-rubric-boundary.md).
 2. A training-data manifest with source, consent/retention classification, redaction status, and leak risk.
 3. A prompt/RAG attempt recorded as insufficient, with evidence of the remaining failure mode.
 4. A provider availability check dated within the current cycle.

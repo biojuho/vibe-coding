@@ -91,7 +91,7 @@ For any reusable or user-facing LLM output, preserve these fields where practica
 | Field | Meaning |
 |---|---|
 | `provider` / `model` | Actual provider and model snapshot used |
-| `api_surface` | Chat Completions, Responses, Gemini GenerateContent, Claude Messages, local Ollama, etc. |
+| `api_surface` | Chat Completions, Responses, Gemini GenerateContent, Claude Messages, local Ollama native/OpenAI-compatible, etc.; see [37-api-surface-sdk-compatibility-boundary](37-api-surface-sdk-compatibility-boundary.md) for SDK, endpoint, parser, and compatibility fields. |
 | `sampling` | Explicit `temperature`, `top_p`/`topP`, `top_k`/`topK`, penalties, or `provider_default` markers |
 | `output_limits` | `max_tokens`, `maxOutputTokens`, stop sequences, truncation policy, expected output format |
 | `replay_hint` | `seed` when supported, plus a clear note when unsupported or omitted |
@@ -115,6 +115,7 @@ This is a metadata contract, not a demand to store private prompts or raw provid
 7. Promptfoo passes are valid for the eval provider config they ran, not for production settings that silently differ.
 8. Cache hits need the generation-parameter artifact from the original generation, not only the current request.
 9. Public-output replay evidence should link to the publish-gate artifact from [32-safety-moderation-publish-gates](32-safety-moderation-publish-gates.md), so reviewers can see whether safety, platform policy, and human approval matched the generated run.
+10. Eval replay evidence should link to [36-evaluation-dataset-llm-judge-rubric-boundary](36-evaluation-dataset-llm-judge-rubric-boundary.md), so reviewers can see whether the dataset, judge model, rubric threshold, baseline, and runtime/eval prompt sync matched the generated run.
 
 ## Implementation Checklist
 
@@ -126,6 +127,8 @@ This is a metadata contract, not a demand to store private prompts or raw provid
 6. For Claude, gate sampling fields by model capability and record intentional omission for Opus 4.7+ style models.
 7. Extend promptfoo release evidence so it prints provider config hashes and flags runtime/eval parameter mismatches.
 8. Keep retention/privacy rules from [27-data-retention-privacy-logging](27-data-retention-privacy-logging.md): do not persist raw provider request IDs or full prompts into shared artifacts without classification.
+9. For local Ollama replay, link the generation artifact to [35-local-inference-hardware-quantization-boundary](35-local-inference-hardware-quantization-boundary.md) so model tag, quantization level, load/eval timing, installed/running state, and fallback reason are visible.
+10. For API compatibility replay, link the generation artifact to [37-api-surface-sdk-compatibility-boundary](37-api-surface-sdk-compatibility-boundary.md) so endpoint, SDK package/version, base URL, request fields, response parser, usage shape, and error shape are visible.
 
 ## Pitfalls
 

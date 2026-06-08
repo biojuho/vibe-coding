@@ -8,6 +8,8 @@ Fine-tuned/custom model ID를 도입하는 경우는 단순 모델 교체가 아
 
 Sampling/output parameter changes are a separate release surface from model ID changes. When `temperature`, `top_p`/`topK`, max-token caps, seed, retry/fallback, or cache behavior changes, use [31-generation-parameters-reproducibility](31-generation-parameters-reproducibility.md) instead of treating the change as a model-selection-only update.
 
+Local model selection is also a separate runtime-fit surface. When choosing Ollama or a quantized local tag, use [35-local-inference-hardware-quantization-boundary](35-local-inference-hardware-quantization-boundary.md) to prove server availability, installed tag, memory/context fit, quantization level, and fallback behavior.
+
 ## 폐기·노후화 캘린더 (날짜순) — 시급도 순
 
 | 일정 | 대상 | 상태/근거 | repo 영향 | 권장 |
@@ -49,7 +51,7 @@ Sampling/output parameter changes are a separate release surface from model ID c
 | 최상위 품질(소수 고가치) | `claude-opus-4-8` ($5/$25) | 최상위 | `gpt-5.5` |
 | 초장문 컨텍스트(≥200k) | `claude-sonnet-4-6`(1M, 추가요금 없음) | 롱컨텍스트 표준단가 | `gpt-5.4`(1M) / `deepseek-v4`(1M) |
 | 코딩 에이전트(저가) | `grok-build-0.1` ($1/$2, 256k) | 저가 코딩 특화 | `groq gpt-oss-120b` |
-| 로컬 임베딩/RAG | `ollama embeddinggemma:300m` | CPU 가능, 무료 | — |
+| 로컬 임베딩/RAG | `ollama embeddinggemma:300m` | CPU 가능, 무료 | [35](35-local-inference-hardware-quantization-boundary.md) 기준으로 model/server evidence 필요 |
 
 ### 비용 의식 선택 원칙
 

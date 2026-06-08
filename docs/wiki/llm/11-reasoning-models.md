@@ -40,6 +40,7 @@
 
 - 전부 `LLMClient`를 주입받아 동작 → fallback/비용/캐싱([01](01-architecture.md)/[03](03-cost-caching.md))을 그대로 상속.
 - 설계 의도: **로컬 모델의 약한 단발 추론을, 분해·검증·반증으로 보강**해 클라우드 의존을 줄인다([02-providers](02-providers.md) Ollama 현실 참고 — 이 PC는 무거운 로컬 모델이 안 돎).
+- 로컬 추론을 실제 릴리스 근거로 쓰려면 [35-local-inference-hardware-quantization-boundary](35-local-inference-hardware-quantization-boundary.md)의 서버/model/quantization/hardware/fallback artifact가 먼저 필요하다.
 
 ## A/B — 네이티브 사고 vs 오케스트레이션 추론
 

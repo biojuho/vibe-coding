@@ -17,6 +17,8 @@ Without that split, a stale cache can look like a successful prompt change, and 
 
 Prompt provenance is necessary but not sufficient for replay. The generated output also needs the generation-parameter artifact from [31-generation-parameters-reproducibility](31-generation-parameters-reproducibility.md), because temperature, output caps, provider defaults, fallback, and cache hits can change behavior even when the prompt hash is stable.
 
+Prompt provenance also does not prove continuation state. If a rendered prompt included a conversation summary, reviewer memory, provider response ID, SDK session, graph checkpoint, MCP resource, `.ai` handoff, or product record, the state carrier belongs in [38-conversation-state-memory-handoff-boundary](38-conversation-state-memory-handoff-boundary.md).
+
 ## Current Code Facts
 
 ### 1) Workspace `LLMClient` Hashes Raw Prompt Content Only For Cache
@@ -100,6 +102,7 @@ The rule is not that every exploratory call needs all fields. The rule is that a
 5. A promptfoo pass is valid only for the prompt surface it actually renders. If production uses YAML/code prompt builders, either mirror them into promptfoo fixtures or mark the coverage gap.
 6. Release notes should call out prompt behavior changes separately from model/provider changes.
 7. Prompt hash changes should invalidate or annotate generated media/script/draft artifacts, not just text drafts.
+8. Eval-specific evidence should also follow [36-evaluation-dataset-llm-judge-rubric-boundary](36-evaluation-dataset-llm-judge-rubric-boundary.md): dataset hash, deterministic assertion config, LLM judge model, rubric version, baseline hash, and human-review linkage are separate from prompt provenance.
 
 ## Implementation Checklist
 

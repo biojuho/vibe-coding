@@ -43,7 +43,7 @@ response_format={
 ```
 - strict 모드 규칙: 모든 객체에 **`additionalProperties: false`**, 모든 속성은 **`required`**(옵셔널은 `anyOf`+`null` 타입), 지원 모델에서 **100% 스키마 일치**.
 - refusal을 **일급 에러로 처리**해야 함(거부 시 `refusal` 필드).
-- **호환 프로바이더 주의**: xAI(Grok)는 structured outputs 지원. **deepseek·moonshot·zhipuai·groq는 strict `json_schema` 지원이 제각각**(다수가 `json_object`까지만) → 일괄 적용 불가.
+- **호환 프로바이더 주의**: xAI(Grok)는 structured outputs 지원. **deepseek·moonshot·zhipuai·groq는 strict `json_schema` 지원이 제각각**(다수가 `json_object`까지만) → 일괄 적용 불가. 이 차이는 provider/model 문제가 아니라 API surface 문제이기도 하므로 [37-api-surface-sdk-compatibility-boundary](37-api-surface-sdk-compatibility-boundary.md)의 endpoint/SDK/parser artifact와 함께 기록한다.
 
 ### Google Gemini — `responseSchema`
 ```python

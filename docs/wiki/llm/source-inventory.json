@@ -38,6 +38,20 @@
       "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
     },
     {
+      "url": "https://ai.google.dev/api/generate-content",
+      "host": "ai.google.dev",
+      "pages": [
+        "37-api-surface-sdk-compatibility-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
       "url": "https://ai.google.dev/api/generate-content#v1beta.GenerationConfig",
       "host": "ai.google.dev",
       "pages": [
@@ -450,6 +464,20 @@
       "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
     },
     {
+      "url": "https://api-docs.deepseek.com/api/create-chat-completion",
+      "host": "api-docs.deepseek.com",
+      "pages": [
+        "37-api-surface-sdk-compatibility-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
       "url": "https://api-docs.deepseek.com/news/news260424",
       "host": "api-docs.deepseek.com",
       "pages": [
@@ -522,10 +550,25 @@
       "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
     },
     {
+      "url": "https://api.deepseek.com/v1/chat/completions",
+      "host": "api.deepseek.com",
+      "pages": [
+        "37-api-surface-sdk-compatibility-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
       "url": "https://api.groq.com/openai/v1",
       "host": "api.groq.com",
       "pages": [
-        "02-providers.md"
+        "02-providers.md",
+        "37-api-surface-sdk-compatibility-boundary.md"
       ],
       "topic": "provider-models-pricing-limits",
       "source_type": "official-docs",
@@ -564,6 +607,20 @@
       "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
     },
     {
+      "url": "https://api.openai.com/v1/responses",
+      "host": "api.openai.com",
+      "pages": [
+        "37-api-surface-sdk-compatibility-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
       "url": "https://api.x.ai/v1",
       "host": "api.x.ai",
       "pages": [
@@ -575,6 +632,20 @@
       "cadence_days": 45,
       "last_verified": "2026-06-08",
       "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://api.x.ai/v1/chat/completions",
+      "host": "api.x.ai",
+      "pages": [
+        "37-api-surface-sdk-compatibility-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
       "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
     },
     {
@@ -620,6 +691,34 @@
       "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
     },
     {
+      "url": "https://code.claude.com/docs/en/memory",
+      "host": "code.claude.com",
+      "pages": [
+        "38-conversation-state-memory-handoff-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://console.groq.com/docs/api-reference",
+      "host": "console.groq.com",
+      "pages": [
+        "37-api-surface-sdk-compatibility-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
       "url": "https://console.groq.com/docs/batch",
       "host": "console.groq.com",
       "pages": [
@@ -645,6 +744,20 @@
       "cadence_days": 45,
       "last_verified": "2026-06-08",
       "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://console.groq.com/docs/openai",
+      "host": "console.groq.com",
+      "pages": [
+        "37-api-surface-sdk-compatibility-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
       "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
     },
     {
@@ -719,6 +832,20 @@
       "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
     },
     {
+      "url": "https://developers.openai.com/api/docs/guides/conversation-state",
+      "host": "developers.openai.com",
+      "pages": [
+        "38-conversation-state-memory-handoff-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
       "url": "https://developers.openai.com/api/docs/guides/embeddings",
       "host": "developers.openai.com",
       "pages": [
@@ -747,6 +874,20 @@
       "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
     },
     {
+      "url": "https://developers.openai.com/api/docs/guides/evals",
+      "host": "developers.openai.com",
+      "pages": [
+        "36-evaluation-dataset-llm-judge-rubric-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
       "url": "https://developers.openai.com/api/docs/guides/function-calling",
       "host": "developers.openai.com",
       "pages": [
@@ -764,7 +905,8 @@
       "url": "https://developers.openai.com/api/docs/guides/graders",
       "host": "developers.openai.com",
       "pages": [
-        "30-fine-tuning-custom-model-boundary.md"
+        "30-fine-tuning-custom-model-boundary.md",
+        "36-evaluation-dataset-llm-judge-rubric-boundary.md"
       ],
       "topic": "wiki-maintenance",
       "source_type": "official-docs",
@@ -1090,6 +1232,34 @@
       "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
     },
     {
+      "url": "https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/eval-python-sdk/run-evaluation",
+      "host": "docs.cloud.google.com",
+      "pages": [
+        "36-evaluation-dataset-llm-judge-rubric-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://docs.cloud.google.com/vertex-ai/generative-ai/docs/model-reference/evaluation",
+      "host": "docs.cloud.google.com",
+      "pages": [
+        "36-evaluation-dataset-llm-judge-rubric-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
       "url": "https://docs.github.com/en/actions/concepts/workflows-and-actions/workflow-artifacts",
       "host": "docs.github.com",
       "pages": [
@@ -1135,6 +1305,20 @@
       "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
     },
     {
+      "url": "https://docs.langchain.com/oss/python/langgraph/persistence",
+      "host": "docs.langchain.com",
+      "pages": [
+        "38-conversation-state-memory-handoff-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
       "url": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/sarif-v2.1.0-errata01-complete.pdf",
       "host": "docs.oasis-open.org",
       "pages": [
@@ -1142,6 +1326,20 @@
       ],
       "topic": "wiki-maintenance",
       "source_type": "paper",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://docs.ollama.com/api/chat",
+      "host": "docs.ollama.com",
+      "pages": [
+        "35-local-inference-hardware-quantization-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
       "volatility": "low",
       "cadence_days": 180,
       "last_verified": "2026-06-08",
@@ -1163,10 +1361,26 @@
       "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
     },
     {
+      "url": "https://docs.ollama.com/api/introduction",
+      "host": "docs.ollama.com",
+      "pages": [
+        "35-local-inference-hardware-quantization-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
       "url": "https://docs.ollama.com/api/openai-compatibility",
       "host": "docs.ollama.com",
       "pages": [
-        "02-providers.md"
+        "02-providers.md",
+        "35-local-inference-hardware-quantization-boundary.md",
+        "37-api-surface-sdk-compatibility-boundary.md"
       ],
       "topic": "provider-models-pricing-limits",
       "source_type": "official-docs",
@@ -1177,10 +1391,52 @@
       "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
     },
     {
+      "url": "https://docs.ollama.com/api/ps",
+      "host": "docs.ollama.com",
+      "pages": [
+        "35-local-inference-hardware-quantization-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://docs.ollama.com/api/tags",
+      "host": "docs.ollama.com",
+      "pages": [
+        "35-local-inference-hardware-quantization-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
       "url": "https://docs.ollama.com/capabilities/embeddings",
       "host": "docs.ollama.com",
       "pages": [
         "22-embeddings-rag-dedup.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://docs.ollama.com/capabilities/structured-outputs",
+      "host": "docs.ollama.com",
+      "pages": [
+        "35-local-inference-hardware-quantization-boundary.md"
       ],
       "topic": "wiki-maintenance",
       "source_type": "official-docs",
@@ -1282,6 +1538,20 @@
       "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
     },
     {
+      "url": "https://docs.x.ai/developers/model-capabilities/legacy/chat-completions",
+      "host": "docs.x.ai",
+      "pages": [
+        "37-api-surface-sdk-compatibility-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
       "url": "https://docs.x.ai/developers/model-capabilities/text/structured-outputs",
       "host": "docs.x.ai",
       "pages": [
@@ -1307,6 +1577,20 @@
       "cadence_days": 45,
       "last_verified": "2026-06-08",
       "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://docs.x.ai/developers/rest-api-reference/inference/chat",
+      "host": "docs.x.ai",
+      "pages": [
+        "37-api-surface-sdk-compatibility-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
       "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
     },
     {
@@ -1397,6 +1681,20 @@
       "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
     },
     {
+      "url": "https://huggingface.co/docs/transformers/v4.46.0/en/quantization/overview",
+      "host": "huggingface.co",
+      "pages": [
+        "35-local-inference-hardware-quantization-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
       "url": "https://langfuse.com/docs/administration/data-retention",
       "host": "langfuse.com",
       "pages": [
@@ -1429,6 +1727,20 @@
       "host": "learn.microsoft.com",
       "pages": [
         "34-language-bridge-locale-i18n-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://modelcontextprotocol.io/docs/learn/server-concepts",
+      "host": "modelcontextprotocol.io",
+      "pages": [
+        "38-conversation-state-memory-handoff-boundary.md"
       ],
       "topic": "wiki-maintenance",
       "source_type": "official-docs",
@@ -1481,6 +1793,34 @@
       "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
     },
     {
+      "url": "https://ollama.com/library/gemma3",
+      "host": "ollama.com",
+      "pages": [
+        "35-local-inference-hardware-quantization-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://ollama.com/library/qwen3-coder",
+      "host": "ollama.com",
+      "pages": [
+        "35-local-inference-hardware-quantization-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
       "url": "https://open.bigmodel.cn/api/paas/v4",
       "host": "open.bigmodel.cn",
       "pages": [
@@ -1520,6 +1860,20 @@
       "cadence_days": 45,
       "last_verified": "2026-06-08",
       "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://openai.github.io/openai-agents-python/sessions/",
+      "host": "openai.github.io",
+      "pages": [
+        "38-conversation-state-memory-handoff-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
       "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
     },
     {
@@ -1640,6 +1994,21 @@
       "host": "platform.claude.com",
       "pages": [
         "29-error-taxonomy-refusal-fallback-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/api/messages",
+      "host": "platform.claude.com",
+      "pages": [
+        "37-api-surface-sdk-compatibility-boundary.md",
+        "38-conversation-state-memory-handoff-boundary.md"
       ],
       "topic": "wiki-maintenance",
       "source_type": "official-docs",
@@ -1779,6 +2148,20 @@
       "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
     },
     {
+      "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching",
+      "host": "platform.claude.com",
+      "pages": [
+        "38-conversation-state-memory-handoff-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
       "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices",
       "host": "platform.claude.com",
       "pages": [
@@ -1878,6 +2261,34 @@
       "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
     },
     {
+      "url": "https://platform.claude.com/docs/en/test-and-evaluate/develop-tests",
+      "host": "platform.claude.com",
+      "pages": [
+        "36-evaluation-dataset-llm-judge-rubric-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/test-and-evaluate/eval-tool",
+      "host": "platform.claude.com",
+      "pages": [
+        "36-evaluation-dataset-llm-judge-rubric-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
       "url": "https://platform.kimi.com/docs/pricing/chat-v1",
       "host": "platform.kimi.com",
       "pages": [
@@ -1906,10 +2317,38 @@
       "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
     },
     {
+      "url": "https://platform.openai.com/docs/api-reference/chat",
+      "host": "platform.openai.com",
+      "pages": [
+        "37-api-surface-sdk-compatibility-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
       "url": "https://platform.openai.com/docs/api-reference/moderations",
       "host": "platform.openai.com",
       "pages": [
         "32-safety-moderation-publish-gates.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.openai.com/docs/api-reference/responses",
+      "host": "platform.openai.com",
+      "pages": [
+        "37-api-surface-sdk-compatibility-boundary.md"
       ],
       "topic": "wiki-maintenance",
       "source_type": "official-docs",
@@ -2106,6 +2545,34 @@
       "host": "www.promptfoo.dev",
       "pages": [
         "26-prompt-provenance-versioning.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://www.promptfoo.dev/docs/configuration/expected-outputs/model-graded/",
+      "host": "www.promptfoo.dev",
+      "pages": [
+        "36-evaluation-dataset-llm-judge-rubric-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://www.promptfoo.dev/docs/configuration/expected-outputs/model-graded/llm-rubric/",
+      "host": "www.promptfoo.dev",
+      "pages": [
+        "36-evaluation-dataset-llm-judge-rubric-boundary.md"
       ],
       "topic": "wiki-maintenance",
       "source_type": "official-docs",

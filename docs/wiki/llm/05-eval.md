@@ -9,6 +9,7 @@
 - **promptfoo**(npx, MIT) — YAML 1개로 다중 모델 × 다중 프롬프트 격자 평가.
 - 대상: blind-to-x 드래프트 생성(현재 구현됨). shorts-maker-v2 script 생성은 골든셋 축적 후 별도 SOP로 예정.
 - 용도: **오프라인 회귀**. A/B 트래픽 분기나 runtime 게이팅이 아니다.
+- 평가 데이터셋, LLM-as-judge, 루브릭 threshold, baseline, runtime evaluator, human review 경계는 [36-evaluation-dataset-llm-judge-rubric-boundary](36-evaluation-dataset-llm-judge-rubric-boundary.md)를 따른다. 이 페이지의 promptfoo pass는 회귀 증거이지 publish approval이 아니다.
 
 ## 실제 구성 (구현 확인됨)
 
@@ -29,6 +30,8 @@
   - `not-contains` "확정 수익" / "보장된" — 규제 위반 표현 차단.
   - `llm-rubric` (threshold 0.7): 원문 의도 유지 + 자연스러운 한국어 + 200자 이하 + **CTA(구매·클릭 유도) 미포함**.
 - 길이/CTA 금지 규칙은 이 프로젝트의 콘텐츠 철학과 직접 연결된다(조용한 해설자, CTA 금지).
+
+`javascript`와 `not-contains`는 deterministic assertion이고, `llm-rubric`은 judge model이 매기는 model-graded assertion이다. [36](36-evaluation-dataset-llm-judge-rubric-boundary.md)의 기준대로 결과를 해석할 때는 assertion type, threshold, judge model, rubric prompt, dataset hash를 분리해 남긴다.
 
 프롬프트 파일을 바꾸거나 `projects/blind-to-x/rules/prompts.yaml` 런타임 프롬프트를 바꾸면 [26-prompt-provenance-versioning](26-prompt-provenance-versioning.md)의 기준대로 prompt file hash, runtime template hash, dataset hash, provider/model, schema/parser version을 함께 남긴다. 현재 promptfoo 설정은 `prompts/draft_v_current.txt`를 직접 평가하므로, runtime YAML 변경은 별도 fixture 동기화 없이는 자동 검증되지 않는다.
 
