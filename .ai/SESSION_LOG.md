@@ -2246,6 +2246,18 @@
 
 ## 2026-06-08 - Codex
 
+- Completed T-1718 as a `claude-goal` simple command help copy UX fix in `claude-goal/` on branch `improve/goal-system`.
+- Direct CLI use reproduced that `status --help`, `pause --help`, and `clear --help` showed only `usage` plus `-h/--help`, with no description of whether the command reads state, pauses continuation, resumes it, or clears state.
+- Classification: copy/feedback UX gap, directly observed from the help surfaces.
+- Root cause: `_add_simple_parser()` created simple subcommands without `help` or `description`, so argparse had no command-purpose text to render.
+- Fixed `goal/scripts/claude_goal.py` by adding `SIMPLE_COMMAND_DESCRIPTIONS` for `status`, `pause`, `resume`, and clear aliases and wiring those descriptions into the simple subparsers.
+- Added `tests/test_claude_goal.py::test_simple_command_help_describes_state_effects` to verify direct and slash help include the command-effect descriptions and remain aligned.
+- Verification passed direct temp-DB CLI QA in `.tmp/claude-goal-t1718-cli-qa.json`, focused pytest (`3 passed, 96 deselected`), isolated full pytest rerun (`140 passed`; first full pytest in a parallel batch had a transient child `SyntaxError` while py_compile/Ruff passed), Ruff check, Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
+- External refs checked Python argparse help behavior, GitHub CLI subcommand help, and Vercel CLI `--help` global option.
+- Removed this loop's temp DB and pytest basetemp dirs. No staging, commit, push, revert, `update_goal`, root product edit, or Hanwoo T-251 retry was performed.
+
+## 2026-06-08 - Codex
+
 - Completed T-1714 as a `claude-goal` install-health current-check evidence verifier fix in `claude-goal/` on branch `improve/goal-system`.
 - Reproduced the bug with a real CLI flow, temp settings, and temp goal DB: a strict healthy install-health JSON artifact whose first `checks` item kept `name=settings_json` and `status=ok` but changed `detail` to `tampered check detail` still passed both direct `doctor --install --verify-json <json>` and slash `invoke` verification with return code `0`.
 - Root cause: `_verify_install_health_checks()` validated schema shape, allowed names/statuses, and string detail values, while summary/count verification only recomputed from the artifact's own checks; the verifier did not compare the artifact evidence array with checks recomputed from the current verifier environment.
@@ -2253,3 +2265,28 @@
 - Added `tests/test_claude_goal.py::test_doctor_install_verify_json_rejects_tampered_check_detail_without_traceback` covering direct CLI and slash `invoke` rejection.
 - Verification passed the original check-detail tamper reproducer after the fix (`install-health checks do not match current environment`), focused check-detail pytest (`1 passed, 95 deselected`), focused install-health verifier pytest (`15 passed, 81 deselected`), full claude-goal pytest (`137 passed`), Ruff check, Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
 - Removed this loop's temp repro and pytest basetemp directories after path-safety verification. No staging, commit, push, revert, `update_goal`, root product edit, or Hanwoo T-251 retry was performed.
+
+## 2026-06-08 - Codex
+
+- Completed T-1719 as a `claude-goal` trailing help-token non-mutating UX fix in `claude-goal/` on branch `improve/goal-system`.
+- Preserved the live T-1718 simple-command help-copy relay and existing `claude-goal` WIP; did not stage, commit, push, revert, call `update_goal`, edit root product code, or retry Hanwoo T-251.
+- Earlier isolated CLI reproduction showed that `set --help extra`, `set -h extra`, and `invoke --help extra` could be treated as goal/objective text, while `invoke complete --help extra` could reach custom validation instead of help.
+- Root cause: help handling covered exact `-h`/`--help` forms but not a first help token followed by extra args across legacy set/invoke dispatch and slash subcommand help routing.
+- Fixed `goal/scripts/claude_goal.py` by parsing the leading raw invoke token with `shlex.split()`, checking first positional help flags for direct `invoke`, routing slash subcommand trailing help through direct argparse help, and letting legacy `set -h/--help ...` fall through to argparse.
+- Updated `tests/test_claude_goal.py` to cover trailing help args for direct set, direct invoke, and slash subcommands.
+- Direct isolated CLI QA evidence is workspace `.tmp/claude-goal-t1719-trailing-help-qa.json`: `set --help extra`, `set -h extra`, `invoke --help extra`, and `invoke complete --help extra` all return `0`, show help, avoid `Action: set`, and leave `status` at `No goal is currently set`.
+- Verification passed focused help pytest (`3 passed, 96 deselected`), final isolated full pytest (`141 passed`), Ruff check, Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
+- Note: earlier full-suite attempts were treated as transient/untrusted because one parallel run lost the basetemp path and a first isolated rerun showed child `SyntaxError`/temp-path flakes; the failed cases passed when isolated before the final full-suite pass.
+- Removed this loop's pytest basetemp directories after path-safety verification; left the JSON QA evidence in `.tmp/`.
+
+## 2026-06-08 - Codex
+
+- Completed T-1720 as an LLM Wiki side-effect/idempotency replay boundary reinforcement.
+- Selected the local gap from live state after `next_experiment_selector.py` reported publish/current-head Actions blocked without push authorization: retry-safe external writes were not yet separated from provider retry timing, generation replay, publish approval, or credential readiness.
+- Added `docs/wiki/llm/40-side-effect-idempotency-replay-boundary.md` covering Notion page creation, Cloudinary uploads, X post creation, provider-native idempotency, repo-owned operation keys, side-effect ledgers, unknown-write reconciliation, replay artifacts, and routing rules.
+- Updated `docs/wiki/llm/README.md` and cross-linked pages 20, 23, 32, and 39 so retry, tool execution, publish gates, and credentials all point to the new side-effect replay boundary.
+- Regenerated `docs/wiki/llm/source-inventory.json`; current LLM Wiki audit reports `41` pages, `40` numbered pages, `212` sources, and `0` unexpected manifest warnings.
+- Official references checked: Stripe idempotent requests, Google Cloud retry/idempotency guidance, Google Cloud Run function retries, AWS Lambda Powertools idempotency, Notion create page/status codes, X create post, and Cloudinary upload/deduplication docs.
+- Verification passed `py -3.13 execution\llm_wiki_audit.py --write-source-inventory --json`, no-write audit, strict manifest audit, strict release evidence, focused LLM Wiki/objective pytest (`31 passed`), path-limited `git diff --check`, graph detect risk `0.00`, scoped docs guard low risk, and commit hook code-review gate pass.
+- Committed the docs group as `e78fbea7` (`docs(llm-wiki): add side-effect replay boundary`). No push, product code edit, `update_goal`, or Hanwoo T-251 retry was performed.
+- Remaining boundaries after this cycle: existing dirty `.ai` handoff group, explicit push/user push for current-head `root-quality-gate` and `active-project-matrix`, and user-owned Hanwoo T-251 Supabase credential reset before live retry.
