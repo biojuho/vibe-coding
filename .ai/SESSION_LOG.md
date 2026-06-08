@@ -2560,3 +2560,26 @@
 - Added `tests/test_claude_goal.py::test_invoke_json_rejects_invalid_args_before_db_open`.
 - Direct after-fix QA in `.tmp/claude-goal-t1738-invoke-json-preflight-qa.json` confirms slash `invoke json --unknown` and `invoke json --session-id` with a DB directory return exit `2`, empty stdout, actionable input errors, no DB error, and no traceback; the artifact records A/B `adopt_candidate`.
 - Verification passed focused regression pytest (`1 passed`), JSON command cluster pytest (`4 passed, 115 deselected`), full isolated pytest (`172 passed`), Ruff check, Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
+
+## 2026-06-09 - Codex
+
+- Completed T-1739b as a `claude-goal` missing schema docs no-traceback fix in `claude-goal/` on branch `improve/goal-system`, avoiding a pre-existing nested T-1739 pause-stale artifact.
+- Continued the `/goal` reproduce -> isolate -> root-cause -> fix -> verify loop while preserving existing nested WIP and avoiding the already-recorded T-1738 invoke-json surface; did not stage nested code, push, revert, call `update_goal`, edit root product code, or retry Hanwoo T-251.
+- Reproduced by copying `goal/scripts/claude_goal.py` into a temp install layout without `goal/docs/`: direct and slash `complete --schema`, `contract --schema`, and `doctor --install --schema` returned exit `1` with `FileNotFoundError` tracebacks.
+- Root cause: `render_completion_audit_schema()`, `render_goal_operating_contract_schema()`, and `render_install_health_schema()` used raw `Path.read_text()` while other artifact readers converted `OSError` into clean `ValueError` command errors.
+- Fixed `goal/scripts/claude_goal.py` by routing all three schema renderers through `_read_utf8_text_file()`.
+- Added `tests/test_claude_goal.py::test_schema_commands_report_missing_schema_without_traceback`.
+- Hardened `tests/test_claude_goal.py` and `tests/test_install_goal.py` subprocess decoding with UTF-8/error replacement so Korean Windows paths do not make parent test readers fail while asserting clean child CLI errors.
+- Direct after-fix QA in `.tmp/claude-goal-t1739b-schema-missing-docs-qa.json` confirms all six missing-docs schema cases return exit `2`, empty stdout, `goal error: cannot read <schema>`, and no traceback.
+- Verification passed focused regression pytest (`1 passed, 119 deselected`), schema cluster (`5 passed, 115 deselected`), cp949 helper regression (`1 passed, 119 deselected`), full `tests/test_claude_goal.py` (`120 passed`), installer decoding focused pytest (`3 passed, 18 deselected`), final full isolated pytest (`174 passed`), Ruff check, Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
+
+## 2026-06-09 - Codex
+
+- Completed T-1740 as a `claude-goal` invoke pause-stale argument preflight fix in `claude-goal/` on branch `improve/goal-system`.
+- Continued the `/goal` reproduce -> isolate -> root-cause -> fix -> verify loop while preserving existing nested WIP and the already-recorded T-1739b missing schema-docs surface; did not stage nested code, push, revert, call `update_goal`, edit root product code, or retry Hanwoo T-251.
+- Reproduced with isolated temp state that direct `pause-stale --stale-days -1` with `CLAUDE_GOAL_DB` pointing at a directory still returned the actionable input error, and slash `invoke pause-stale --stale-days -1` returned that clean error when the DB could open; however, slash `invoke pause-stale --stale-days -1` and `invoke pause-stale --stale-days` with `CLAUDE_GOAL_DB` pointing at an existing directory returned `cannot open goal database` before validating bad `pause-stale` arguments.
+- Root cause: slash `invoke` routed `pause-stale` through `_render_invoke_db_command()`, where `parse_pause_stale_args()` ran only after `sqlite_connect()`.
+- Fixed `goal/scripts/claude_goal.py` by adding a DB-free `pause-stale` argument preflight in `invoke()` before opening SQLite.
+- Added `tests/test_claude_goal.py::test_invoke_pause_stale_rejects_invalid_args_before_db_open`.
+- Direct after-fix QA in `.tmp/claude-goal-t1740-pause-stale-preflight-qa.json` confirms slash `invoke pause-stale --stale-days -1` and `invoke pause-stale --stale-days` with a DB directory return exit `2`, empty stdout, actionable input errors, no DB error, and no traceback; the artifact records A/B `adopt_candidate`.
+- Verification passed focused regression pytest (`1 passed`), pause-stale cluster pytest (`3 passed, 118 deselected`), Ruff check, Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, graph detect risk `0.00`, and full pytest under `PYTHONUTF8=1` (`174 passed`). Initial non-UTF8 full pytest failed only on Korean Windows path mojibake in existing path-output assertions (`5 failed, 169 passed`).
