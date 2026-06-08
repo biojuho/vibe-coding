@@ -80,6 +80,32 @@ def test_rotate_keeps_newest_n(tmp_path):
     assert "Rotation 2026-06-07" in archive
 
 
+def test_rotate_counts_suffixed_task_ids(tmp_path):
+    rows = [
+        _done_row("T-1602", "newest"),
+        _done_row("T-1601", "second"),
+        _done_row("T-1599", "third"),
+        _done_row("T-1584b", "suffixed stale"),
+        _done_row("T-1579b", "older suffixed stale"),
+    ]
+    tasks = _write_tasks(tmp_path, rows)
+    result = rotator.rotate(tmp_path, keep_count=3, today=date(2026, 6, 7))
+
+    assert result["status"] == "rotated"
+    assert result["kept"] == 3
+    assert result["archived"] == 2
+
+    text = tasks.read_text(encoding="utf-8")
+    assert "newest" in text
+    assert "third" in text
+    assert "suffixed stale" not in text
+    assert "older suffixed stale" not in text
+
+    archive = (tmp_path / ".ai" / "archive" / "TASKS_DONE_archive_2026-06-07.md").read_text(encoding="utf-8")
+    assert "suffixed stale" in archive
+    assert "older suffixed stale" in archive
+
+
 def test_rotate_normalizes_latest_heading(tmp_path):
     rows = [_done_row(f"T-{100 + i}") for i in range(8)]
     tasks = _write_tasks(tmp_path, rows, done_label=5)

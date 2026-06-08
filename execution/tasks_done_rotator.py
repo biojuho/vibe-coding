@@ -33,7 +33,8 @@ DONE_HEADING_RE = re.compile(r"^##\s+DONE\b.*$")
 DONE_HEADING_COUNT_RE = re.compile(r"^(##\s+DONE\s*\(Latest\s+)(\d+)(\s*\).*)$")
 SECTION_RE = re.compile(r"^##\s+")
 # A DONE entry is one Kanban table row keyed by a task id, e.g. `| T-1546 | ... |`.
-ENTRY_RE = re.compile(r"^\|\s*T-\d+\s*\|")
+# Suffixes like `T-1579b` are valid collision-avoidance ids in this workspace.
+ENTRY_RE = re.compile(r"^\|\s*T-\d+[A-Za-z]*\s*\|")
 
 
 @dataclass(frozen=True)
