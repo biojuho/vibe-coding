@@ -2628,3 +2628,36 @@
 - Added `tests/test_claude_goal.py::test_set_usage_errors_return_usage_exit_without_mutating`.
 - Direct after-fix QA in `.tmp/claude-goal-t1743-set-usage-exit-code-qa.json` confirms legacy set token-budget and quote parsing usage errors now return exit `2`, leave stdout empty, do not mutate active goals, and print no traceback; empty objective still returns exit `1`.
 - Verification passed focused/adjacent pytest (`3 passed`), full isolated pytest with `PYTHONUTF8=1` (`178 passed`), Ruff check, scoped Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
+
+## 2026-06-09 - Codex
+
+- Completed T-1744 as a `claude-goal` installer malformed Stop entry count fix in `claude-goal/` on branch `improve/goal-system`.
+- Continued the `/goal` reproduce -> isolate -> root-cause -> fix -> verify loop while preserving existing nested WIP and the completed T-1743 legacy set exit-code surface; did not stage nested code, push, revert, call `update_goal`, edit root product code, or retry Hanwoo T-251.
+- Reproduced with isolated installer state that `settings.json` containing `hooks.Stop: [{ "matcher": "", "hooks": null }]` made `python goal/scripts/install_goal.py <settings> goal/scripts/claude_goal.py --no-backup` write the new hook, then exit `1` with `TypeError: 'NoneType' object is not iterable` traceback while counting goal hooks.
+- Root cause: `_remove_existing_goal_stop_hooks()` intentionally preserved malformed unrelated Stop entries, but `_count_goal_stop_hooks()` later iterated `entry.get("hooks", [])` without checking that the value was a list.
+- Fixed `goal/scripts/install_goal.py` by making the counter skip non-object Stop entries and non-list entry hook values.
+- Hardened the install test helper and added `tests/test_install_goal.py::test_install_cli_counts_goal_hooks_with_malformed_stop_entries`.
+- Direct after-fix QA in `.tmp/claude-goal-t1744-installer-malformed-stop-entry-qa.json` confirms malformed Stop entry install returns exit `0`, prints `Goal Stop hooks: 1`, leaves stderr empty, preserves malformed unrelated entries, and prints no traceback.
+- Verification passed focused installer/adjacent pytest (`3 passed`), full isolated pytest with `PYTHONUTF8=1` (`179 passed`), Ruff check, scoped Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
+
+## 2026-06-09 - Codex
+
+- Completed T-1745b as a `claude-goal` installer backup-directory guard fix in `claude-goal/` on branch `improve/goal-system`.
+- Continued the `/goal` reproduce -> isolate -> root-cause -> fix -> verify loop while preserving existing nested WIP and the completed T-1744 installer malformed Stop entry surface; did not stage nested code, push, revert, call `update_goal`, edit root product code, or retry Hanwoo T-251.
+- Reproduced with isolated installer state that an existing `settings.json` plus pre-created `settings.json.bak` directory made `python goal/scripts/install_goal.py <settings> goal/scripts/claude_goal.py` return exit `0`, print `Backup: <settings.json.bak>`, and modify `settings.json` even though no real backup file existed.
+- Root cause: `backup_settings()` checked only `backup_path.exists()`, so any existing non-file path was accepted as an existing backup.
+- Fixed `goal/scripts/install_goal.py` by rejecting an existing backup path unless it is a file, causing the installer to stop before writing settings.
+- Added `tests/test_install_goal.py::test_install_cli_rejects_backup_directory_without_writing`.
+- Direct after-fix QA in `.tmp/claude-goal-t1745b-installer-backup-directory-qa.json` confirms the backup-directory case returns exit `2`, leaves stdout empty, reports `goal installer error: backup path exists but is not a file`, keeps `settings.json` unchanged, leaves the backup directory intact, and prints no traceback.
+- Verification passed focused installer/adjacent pytest (`3 passed`), full isolated pytest with `PYTHONUTF8=1` (`181 passed`), Ruff check, scoped Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
+
+## 2026-06-09 - Codex
+
+- Completed T-1746 as a `claude-goal` doctor install output sink preflight fix in `claude-goal/` on branch `improve/goal-system`.
+- Used `execution/next_task_id.py --json` after shared `.ai` context already contained T-1744 and T-1745/T-1745b installer surfaces; preserved those records and did not stage nested code, push, revert, call `update_goal`, edit root product code, or retry Hanwoo T-251.
+- Reproduced with isolated temp state that `doctor --install --json-output <existing-dir>` and direct/slash `doctor --install --github-step-summary` / `doctor --install --ci` with `GITHUB_STEP_SUMMARY` set to an existing directory returned clean exit `2` but exposed raw Windows `Permission denied` write errors instead of the actionable `output path is a directory` preflight used by `contract`.
+- Root cause: doctor validation checked conflicts and missing summary env, but never preflighted markdown/json output sink paths after applying the CI summary preset.
+- Fixed `goal/scripts/claude_goal.py` by adding `_preflight_doctor_output_sinks()` and calling it for parsed main `doctor` and slash `invoke doctor` paths after CI preset resolution.
+- Added `tests/test_claude_goal.py::test_doctor_install_output_directory_errors_before_db_open`.
+- Direct after-fix QA in `.tmp/claude-goal-t1746-doctor-output-preflight-qa.json` confirms direct/slash json-output, explicit summary, and CI summary directory cases return exit `2`, empty stdout, actionable directory preflight errors, no DB/sqlite error despite `CLAUDE_GOAL_DB` being a directory, and no traceback.
+- Verification passed focused regression pytest (`2 passed, 124 deselected`), doctor/install-health cluster (`55 passed, 81 deselected`), full isolated pytest with `PYTHONUTF8=1` (`181 passed`), Ruff check, scoped Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
