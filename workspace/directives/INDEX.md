@@ -5,6 +5,8 @@
 
 > Active execution priority comes from `.ai/TASKS.md` and `.ai/HANDOFF.md`; roadmap-style directives are reference context unless they are tied to a live task.
 
+> **LLM 지식 위키**: 이 프로젝트의 LLM 사용 전체 구조 + 검증된 외부 프로바이더 레퍼런스 + 플레이북은 [`docs/wiki/llm/`](../../docs/wiki/llm/README.md)에 통합돼 있다. 아래 LLM 관련 directive(`llm_fallback`/`anthropic_prompt_caching`/`llm_observability_langfuse`/`llm_eval_promptfoo`/`deepseek_ko_bridge`/`local_inference`/`api_monitoring`)는 운영 SOP이고, 위키는 그 위의 아키텍처/레퍼런스/작업 가이드다.
+
 ---
 
 ## SOP → Execution 매핑
