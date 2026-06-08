@@ -2875,3 +2875,16 @@
 - Verification passed focused parser pytest (`3 passed, 140 deselected`), manual subprocess probes (`7/7`), adjacent repair focused pytest (`4 passed, 140 deselected`), full isolated pytest with exported `PYTHONUTF8=1` (`203 passed`), py_compile, Ruff check, scoped Ruff format check (`9 files already formatted`), `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
 - One intermediate full pytest run failed on the adjacent prevalidation TypeError before the repair; the focused repair and full rerun passed.
 - No nested code staging, push, revert, `update_goal`, root product edit, or Hanwoo T-251 retry was performed.
+
+## 2026-06-09 - Codex
+
+- Completed T-1766 as a `claude-goal` invoke boolean following-value feedback fix in `claude-goal/` on branch `improve/goal-system`, preserving existing nested WIP plus T-1765 set inline value-option, T-1764 direct boolean following-value, and related parser parity surfaces.
+- Direct isolated CLI reproduction showed slash/custom parser boolean options followed by non-option value tokens, including `invoke complete --schema false`, split-argv `invoke complete --schema false`, `invoke contract --markdown false`, `invoke doctor --install false`, `invoke doctor --json false`, `invoke pause-stale --yes false`, and `invoke pause-stale --json false`, returned exit `2` before mutation but reported `goal error: unknown <command> option: false` instead of identifying the boolean option that rejected the value.
+- Official argparse/Click option docs were checked; the chosen policy remains app-level validation for exact user feedback.
+- Root cause: `_parse_flag_value_command_args()` and `_parse_stale_command_args()` set boolean flags and let the following token fall through to the unknown-option branch; they did not perform the direct-parser-style immediate value check.
+- Fixed `goal/scripts/claude_goal.py` by adding `_reject_following_boolean_value()` and applying it to custom slash boolean paths, while preserving valid following option tokens such as `doctor --install --json-output path`.
+- Added `tests/test_claude_goal.py::test_invoke_boolean_options_reject_following_values_before_side_effects`.
+- After-fix QA in `.tmp/claude-goal-t1766-invoke-boolean-following-value-qa.json` records decision `adopt_candidate` and confirms all seven slash boolean following-value probes return exit `2`, leave stdout empty, report `goal error: <option> does not accept a value`, avoid `unknown ... option`, avoid DB-open masking with `CLAUDE_GOAL_DB` pointing at a directory, and print no traceback.
+- Verification passed focused parser pytest after formatting (`3 passed, 142 deselected`), manual subprocess probes (`7/7`), full isolated pytest with exported `PYTHONUTF8=1` (`205 passed`), py_compile, Ruff check, scoped Ruff format check (`9 files already formatted`), `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
+- The first format check reported `goal/scripts/claude_goal.py` needed formatting; after `ruff format`, focused and full reruns passed.
+- No nested code staging, push, revert, `update_goal`, root product edit, or Hanwoo T-251 retry was performed.
