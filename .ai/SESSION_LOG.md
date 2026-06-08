@@ -2583,3 +2583,14 @@
 - Added `tests/test_claude_goal.py::test_invoke_pause_stale_rejects_invalid_args_before_db_open`.
 - Direct after-fix QA in `.tmp/claude-goal-t1740-pause-stale-preflight-qa.json` confirms slash `invoke pause-stale --stale-days -1` and `invoke pause-stale --stale-days` with a DB directory return exit `2`, empty stdout, actionable input errors, no DB error, and no traceback; the artifact records A/B `adopt_candidate`.
 - Verification passed focused regression pytest (`1 passed`), pause-stale cluster pytest (`3 passed, 118 deselected`), Ruff check, Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, graph detect risk `0.00`, and full pytest under `PYTHONUTF8=1` (`174 passed`). Initial non-UTF8 full pytest failed only on Korean Windows path mojibake in existing path-output assertions (`5 failed, 169 passed`).
+
+## 2026-06-09 - Codex
+
+- Completed T-1741 as a `claude-goal` invoke set fallback argument preflight fix in `claude-goal/` on branch `improve/goal-system`.
+- Continued the `/goal` reproduce -> isolate -> root-cause -> fix -> verify loop while preserving existing nested WIP and the completed T-1740 pause-stale preflight surface; did not stage nested code, push, revert, call `update_goal`, edit root product code, or retry Hanwoo T-251.
+- Reproduced with isolated temp state that direct `set objective --token-budget nope` with `CLAUDE_GOAL_DB` pointing at a directory returned the actionable input error, and slash `invoke objective --token-budget nope` returned that clean error when the DB could open; however, slash `invoke objective --token-budget nope` and `invoke objective --token-budget` with `CLAUDE_GOAL_DB` pointing at an existing directory returned `cannot open goal database` before validating bad set fallback arguments.
+- Root cause: slash `invoke` parsed objective-setting fallback arguments only inside `_render_invoke_db_command()` after `sqlite_connect()`.
+- Fixed `goal/scripts/claude_goal.py` by adding a DB-free set fallback preflight in `invoke()` before opening SQLite.
+- Added `tests/test_claude_goal.py::test_invoke_set_rejects_invalid_token_args_before_db_open`.
+- Direct after-fix QA in `.tmp/claude-goal-t1741-invoke-set-preflight-qa.json` confirms slash `invoke objective --token-budget nope` and `invoke objective --token-budget` with a DB directory return exit `2`, empty stdout, actionable input errors, no DB error, and no traceback; the artifact records A/B `adopt_candidate`.
+- Verification passed focused regression pytest (`1 passed`), invoke/set cluster pytest (`5 passed, 117 deselected`), full isolated pytest with `PYTHONUTF8=1` (`175 passed`), Ruff check, Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
