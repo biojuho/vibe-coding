@@ -54,6 +54,12 @@ describe("pickAiWord", () => {
 		expect(koreanWords["가"]).toContain(w);
 	});
 
+	it("continues after the common opening word 사과", () => {
+		const w = pickAiWord("과", ["사과"], () => 0);
+		expect(w).toBe("과자");
+		expect(koreanWords["과"]).toContain(w);
+	});
+
 	it("returns null for a char the dictionary cannot continue", () => {
 		expect(pickAiWord("뷁", [], () => 0)).toBeNull();
 	});

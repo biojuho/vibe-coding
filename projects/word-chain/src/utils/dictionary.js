@@ -145,6 +145,7 @@ export const koreanWords = {
 	학: ["학교", "학생", "학원", "학과", "학점"],
 
 	// Specific connections for game flow
+	과: ["과자", "과일", "과학", "과목", "과제", "과거", "과정", "과속"],
 	기: [
 		"기차",
 		"기린",
