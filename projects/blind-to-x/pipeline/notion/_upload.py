@@ -14,6 +14,7 @@ from config import (
     ERROR_NOTION_UPLOAD_FAILED,
 )
 from pipeline.draft_contract import iter_publishable_drafts
+from pipeline.publish_decision import decision_card_lines
 from pipeline.regulation_checker import x_weighted_character_count
 
 logger = logging.getLogger(__name__)
@@ -227,7 +228,7 @@ class NotionUploadMixin:
         return lines
 
     def _build_x_publish_ops_lines(self, post_data: dict[str, Any]) -> list[str]:
-        lines = ["운영 상태: Ready to Post"]
+        lines = decision_card_lines(post_data.get("publish_decision"))
         scheduled_at = str(post_data.get("x_scheduled_at") or post_data.get("publish_scheduled_at") or "").strip()
         if scheduled_at:
             lines.append(f"예약 후보: {scheduled_at}")
@@ -865,10 +866,14 @@ class NotionUploadMixin:
         return "\n".join(memo_parts)
 
     def _append_x_publish_properties(self, properties: dict[str, Any], post_data: dict[str, Any]) -> None:
+        decision = post_data.get("publish_decision")
+        decision_status = "Needs Edit"
+        if isinstance(decision, dict) and decision.get("action") == "PUBLISH":
+            decision_status = "Ready to Post"
         self._append_property_if_present(
             properties,
             "x_publish_status",
-            post_data.get("x_publish_status") or "Ready to Post",
+            post_data.get("x_publish_status") or decision_status,
         )
         self._append_property_if_present(
             properties,

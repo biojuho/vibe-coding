@@ -208,6 +208,14 @@ class TestDraftQualityGateEdgeCases:
         result = gate.validate("twitter", text)
         assert any(i.rule == "최대 글자 수" and not i.passed for i in result.items)
 
+    @patch("pipeline.draft_quality_gate._load_cliche_watchlist", return_value=[])
+    def test_twitter_uses_x_weighted_length_for_korean(self, mock_cliche):
+        """한글 141자는 X 가중 길이 282자로 계산되어 최대 글자 수를 넘는다."""
+        gate = DraftQualityGate()
+        text = "가" * 141
+        result = gate.validate("twitter", text)
+        assert any(i.rule == "최대 글자 수" and "282자" in i.detail and not i.passed for i in result.items)
+
     # ── 한글 비율 경계 ───────────────────────────────────────────────
 
     @patch("pipeline.draft_quality_gate._load_cliche_watchlist", return_value=[])

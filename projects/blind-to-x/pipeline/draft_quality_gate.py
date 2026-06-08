@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from pipeline.draft_contract import iter_publishable_drafts
+from pipeline.regulation_checker import x_weighted_character_count
 from pipeline.rules_loader import get_rule_section
 
 logger = logging.getLogger(__name__)
@@ -39,6 +40,7 @@ PLATFORM_RULES: dict[str, dict[str, Any]] = {
     "twitter": {
         "min_len": 60,
         "max_len": 280,
+        "length_counter": "x_weighted",
         "require_cta": False,
         "cta_patterns": [
             r"[?？]",  # 질문으로 끝나는지
@@ -502,7 +504,7 @@ class DraftQualityGate:
 
     def _add_length_check(self, result: QualityResult, rules: dict[str, Any], text: str) -> None:
         # ── 1. 글자 수 검증 ──────────────────────────────────────────
-        text_len = len(text)
+        text_len = x_weighted_character_count(text) if rules.get("length_counter") == "x_weighted" else len(text)
         min_len = rules.get("min_len", 0)
         max_len = rules.get("max_len", 99999)
 

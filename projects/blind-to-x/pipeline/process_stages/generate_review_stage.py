@@ -6,6 +6,7 @@ import asyncio
 
 from config import ERROR_DRAFT_GENERATION_FAILED
 from pipeline.draft_contract import iter_publishable_drafts
+from pipeline.research_context import ensure_research_context
 
 from .context import ProcessRunContext, mark_stage
 from .runtime import logger
@@ -343,6 +344,9 @@ async def run_generate_review_stage(
         return _fail_missing_draft_generator(ctx)
 
     _start_screenshot_upload(ctx, image_uploader)
+    research_context = ensure_research_context(ctx.post_data)
+    if research_context.get("value_reduction_failed"):
+        logger.info("[%s] research_context value reduction failed before generation", ctx.trace_id)
 
     drafts_output = await draft_generator.generate_drafts(
         ctx.post_data,

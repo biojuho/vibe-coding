@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import os
+from datetime import datetime
 
 from config import ERROR_NOTION_UPLOAD_FAILED
 from pipeline.draft_analytics import record_draft_event, refresh_ml_scorer_if_needed
+from pipeline.publish_decision import PUBLISH, decide_publish
 
 from .context import ProcessRunContext, mark_stage
 from .runtime import extract_preferred_tweet_text, logger, notebooklm_enricher, post_to_twitter, regulation_checker
@@ -21,6 +23,22 @@ def _config_bool(config, key: str, default: bool) -> bool:
     if isinstance(value, str):
         return value.strip().lower() in {"1", "true", "yes", "on"}
     return bool(value)
+
+
+def _config_float(config, key: str, default: float) -> float:
+    if config is None or not hasattr(config, "get"):
+        return default
+    try:
+        return float(config.get(key, default))
+    except (TypeError, ValueError):
+        return default
+
+
+def _auto_publish_enabled(config) -> bool:
+    raw = os.environ.get("AUTO_PUBLISH")
+    if raw is not None:
+        return raw.strip().lower() in {"1", "true", "yes", "on"}
+    return _config_bool(config, "auto_publish.enabled", False)
 
 
 def _fail_missing_notion_uploader(ctx: ProcessRunContext) -> bool:
@@ -217,6 +235,9 @@ async def run_persist_stage(
     profile = ctx.profile
     drafts = ctx.drafts
     image_prompt = ctx.image_prompt
+    chosen_draft_type = profile.get("recommended_draft_type")
+    tweet_text = extract_preferred_tweet_text(drafts, preferred_style=chosen_draft_type)
+    validation_reports = {}
 
     nlm_task = _start_notebooklm_task(ctx, image_uploader)
 
@@ -225,6 +246,9 @@ async def run_persist_stage(
             validation_reports = regulation_checker.validate_all_drafts(drafts)
             regulation_report_text = regulation_checker.format_validation_summary(validation_reports)
             post_data["regulation_report"] = regulation_report_text
+            post_data["regulation_reports"] = {
+                platform: report.to_dict() for platform, report in validation_reports.items()
+            }
 
             llm_check = drafts.get("_regulation_check", "")
             if llm_check:
@@ -240,6 +264,19 @@ async def run_persist_stage(
                     )
         except Exception as exc:
             logger.debug("Regulation check skipped: %s", exc)
+
+    publish_decision = decide_publish(
+        post_data.get("quality_gate_scores"),
+        validation_reports or post_data.get("regulation_report"),
+        post_data.get("research_context"),
+        tweet_text,
+        quality_threshold=_config_float(config, "publish.quality_threshold", 85.0),
+    )
+    post_data["publish_decision"] = publish_decision.to_dict()
+    post_data["x_publish_status"] = publish_decision.x_publish_status
+    if publish_decision.action != PUBLISH:
+        post_data["x_publish_error"] = publish_decision.reason
+    ctx.result["publish_decision"] = publish_decision.to_dict()
 
     ai_image_task = None
     original_image_url = None
@@ -293,11 +330,14 @@ async def run_persist_stage(
         return False
 
     require_human_approval = True if config is None else config.get("content_strategy.require_human_approval", True)
-    should_publish = not review_only and not require_human_approval
+    should_publish = (
+        publish_decision.action == PUBLISH
+        and not review_only
+        and not require_human_approval
+        and _auto_publish_enabled(config)
+    )
 
-    chosen_draft_type = profile.get("recommended_draft_type")
     if should_publish:
-        tweet_text = extract_preferred_tweet_text(drafts, preferred_style=chosen_draft_type)
         ctx.twitter_url = await post_to_twitter(
             twitter_poster,
             tweet_text=tweet_text,
@@ -306,15 +346,31 @@ async def run_persist_stage(
         )
         if ctx.twitter_url:
             ctx.result["twitter_url"] = ctx.twitter_url
+            post_data["x_post_url"] = ctx.twitter_url
+            post_data["x_published_at"] = datetime.now().astimezone().isoformat()
+            post_data["x_publish_status"] = "Published"
             if ctx.notion_page_id:
                 await notion_uploader.update_page_properties(
                     ctx.notion_page_id,
                     {
+                        "x_publish_status": "Published",
+                        "x_post_url": post_data["x_post_url"],
+                        "x_published_at": post_data["x_published_at"],
                         "status": "발행완료",
                     },
                 )
         elif twitter_poster and twitter_poster.enabled:
             errors.append("Twitter post failed")
+            post_data["x_publish_status"] = "Blocked"
+            post_data["x_publish_error"] = "Twitter post failed"
+            if ctx.notion_page_id:
+                await notion_uploader.update_page_properties(
+                    ctx.notion_page_id,
+                    {
+                        "x_publish_status": "Blocked",
+                        "x_publish_error": "Twitter post failed",
+                    },
+                )
     elif ctx.notion_page_id:
         await notion_uploader.update_page_properties(
             ctx.notion_page_id,

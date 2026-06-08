@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 from pipeline.draft_prompts import DraftPromptsMixin
 
 
@@ -59,6 +61,57 @@ class TestExtractContentEssence:
         post = {"content": quotes}
         result = DraftPromptsMixin._extract_content_essence(post)
         assert len(result["quotes"]) <= 5
+
+
+class TestBuildPromptResearchContext:
+    def _make_instance(self):
+        obj = object.__new__(DraftPromptsMixin)
+        obj.tone = "담담한 직장인 톤"
+        obj.max_length = 280
+        obj.threads_tone = "친근한 톤"
+        obj.threads_max_length = 500
+        obj.threads_hashtags_count = 2
+        obj.blog_tone = "전문 에디터 톤"
+        obj.blog_min_length = 450
+        obj.blog_max_length = 900
+        obj.blog_seo_tags_count = 3
+
+        class _RegulationChecker:
+            def build_regulation_context(self, platforms):
+                return ""
+
+        obj.regulation_checker = _RegulationChecker()
+        return obj
+
+    @patch(
+        "pipeline.draft_prompts._load_draft_rules",
+        return_value={"prompt_templates": {}, "tone_mapping": {}, "emotion_rules": []},
+    )
+    def test_research_context_is_injected_into_user_prompt(self, mock_rules):
+        obj = self._make_instance()
+        prompt = obj._build_prompt(
+            {
+                "source": "blind",
+                "title": "상사가 야근을 당연하게 여긴다는 글",
+                "content": "팀장이 매일 퇴근 직전에 일을 줍니다.",
+                "research_context": {
+                    "source_frame": "개인이 편하게 일하고 싶다는 문제",
+                    "real_issue": "일의 책임과 개인 시간의 경계를 어디에 둘 것인가",
+                    "universal_value": "경계 존중",
+                    "killer_sentence": "이건 편하게 일하자는 게 아니라 일과 삶의 경계를 지키자는 말입니다",
+                    "closure": "open",
+                    "conflict_risk": 0.91,
+                    "anchor": "팀장이 매일 퇴근 직전에 일을 줍니다.",
+                },
+            },
+            top_examples=[],
+            output_formats=["twitter"],
+        )
+
+        assert "[오토리서치 컨텍스트 - 반드시 반영]" in prompt.anthropic_user_prompt
+        assert "보편 가치: 경계 존중" in prompt.anthropic_user_prompt
+        assert "갈등 위험 높음" in prompt.anthropic_user_prompt
+        assert "위 킬러 문장을 그대로 1회 포함" in prompt.anthropic_user_prompt
 
 
 # ── _select_examples_deterministically ───────────────────────────────────────

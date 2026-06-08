@@ -15,6 +15,24 @@ if str(ROOT) not in sys.path:
 from pipeline.process_stages.context import ProcessRunContext, build_process_result
 from pipeline.process_stages.persist_stage import run_persist_stage
 
+PUBLISH_RESEARCH_CONTEXT = {
+    "source_frame": "상사와 직원의 감정 싸움",
+    "real_issue": "권한을 가진 사람이 책임 있게 말하고 행동해야 한다는 문제",
+    "universal_value": "책임 있는 권한",
+    "killer_sentence": "이건 윗사람을 공격하자는 게 아니라 권한에는 책임이 따른다는 말입니다",
+    "closure": "open",
+    "conflict_risk": 0.2,
+    "value_reduction_failed": False,
+}
+
+PUBLISH_READY_DRAFT = (
+    '"먼저 가도 된다" 해놓고 평가에서 태도를 봤대요.\n'
+    "참 이상한 기준이에요. "
+    "이건 윗사람을 공격하자는 게 아니라 권한에는 책임이 따른다는 말입니다. "
+    "개인 감정으로 끝낼 일이 아니라, 같은 기준을 설명하는 책임의 문제거든요. "
+    "정답은 회사마다 달라질 수 있어도 기준은 남습니다."
+)
+
 
 def _make_ctx(url="https://example.com/post/1") -> ProcessRunContext:
     return ProcessRunContext(
@@ -80,6 +98,93 @@ class TestRunPersistStage:
         assert ctx.result["success"] is True
         assert ctx.notion_url == "https://notion.so/page1"
         assert ctx.notion_page_id == "page-id-1"
+
+    @pytest.mark.asyncio
+    async def test_auto_publish_env_still_blocks_missing_research_context(self, monkeypatch):
+        """AUTO_PUBLISH alone cannot bypass the single publish decision gate."""
+        monkeypatch.setenv("AUTO_PUBLISH", "1")
+        ctx = _make_ctx()
+        ctx.screenshot_task = None
+        ctx.drafts = {"twitter": PUBLISH_READY_DRAFT, "_provider_used": "gemini"}
+
+        mock_notion = AsyncMock()
+        mock_notion.upload = AsyncMock(return_value=("https://notion.so/drop", "page-drop"))
+        mock_notion.update_page_properties = AsyncMock()
+        mock_notion.last_error_code = None
+
+        mock_config = MagicMock()
+        mock_config.get.side_effect = lambda key, default=None: {
+            "content_strategy.require_human_approval": False,
+            "auto_publish.enabled": True,
+            "publish.quality_threshold": 85,
+        }.get(key, default)
+
+        with (
+            patch("pipeline.process_stages.persist_stage.regulation_checker", None),
+            patch("pipeline.process_stages.persist_stage.notebooklm_enricher", None),
+            patch("pipeline.process_stages.persist_stage.record_draft_event"),
+            patch("pipeline.process_stages.persist_stage.refresh_ml_scorer_if_needed"),
+            patch("pipeline.process_stages.persist_stage.post_to_twitter", new=AsyncMock()) as post_mock,
+        ):
+            result = await run_persist_stage(
+                ctx=ctx,
+                image_uploader=MagicMock(),
+                image_generator=None,
+                notion_uploader=mock_notion,
+                twitter_poster=MagicMock(enabled=True),
+                config=mock_config,
+                review_only=False,
+            )
+
+        assert result is True
+        post_mock.assert_not_awaited()
+        assert ctx.result["publish_decision"]["action"] == "DROP"
+        assert ctx.post_data["x_publish_status"] == "Blocked"
+        assert ctx.post_data["x_publish_error"] == "research_context value reduction failed"
+
+    @pytest.mark.asyncio
+    async def test_publish_ready_decision_waits_for_explicit_auto_publish_flag(self, monkeypatch):
+        """A ready X draft is marked Ready to Post, but is not posted without AUTO_PUBLISH."""
+        monkeypatch.delenv("AUTO_PUBLISH", raising=False)
+        ctx = _make_ctx()
+        ctx.screenshot_task = None
+        ctx.post_data["research_context"] = PUBLISH_RESEARCH_CONTEXT
+        ctx.post_data["quality_gate_scores"] = {"twitter": 95}
+        ctx.drafts = {"twitter": PUBLISH_READY_DRAFT, "_provider_used": "gemini"}
+
+        mock_notion = AsyncMock()
+        mock_notion.upload = AsyncMock(return_value=("https://notion.so/ready", "page-ready"))
+        mock_notion.update_page_properties = AsyncMock()
+        mock_notion.last_error_code = None
+
+        mock_config = MagicMock()
+        mock_config.get.side_effect = lambda key, default=None: {
+            "content_strategy.require_human_approval": False,
+            "auto_publish.enabled": False,
+            "publish.quality_threshold": 85,
+        }.get(key, default)
+
+        with (
+            patch("pipeline.process_stages.persist_stage.regulation_checker", None),
+            patch("pipeline.process_stages.persist_stage.notebooklm_enricher", None),
+            patch("pipeline.process_stages.persist_stage.record_draft_event"),
+            patch("pipeline.process_stages.persist_stage.refresh_ml_scorer_if_needed"),
+            patch("pipeline.process_stages.persist_stage.post_to_twitter", new=AsyncMock()) as post_mock,
+        ):
+            result = await run_persist_stage(
+                ctx=ctx,
+                image_uploader=MagicMock(),
+                image_generator=None,
+                notion_uploader=mock_notion,
+                twitter_poster=MagicMock(enabled=True),
+                config=mock_config,
+                review_only=False,
+            )
+
+        assert result is True
+        post_mock.assert_not_awaited()
+        assert ctx.result["publish_decision"]["action"] == "PUBLISH"
+        assert ctx.post_data["x_publish_status"] == "Ready to Post"
 
     @pytest.mark.asyncio
     async def test_records_comment_trigger_avg_from_drafts_stash(self):

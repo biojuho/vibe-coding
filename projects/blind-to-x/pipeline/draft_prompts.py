@@ -568,6 +568,33 @@ class DraftPromptsMixin:
                 parts.append(f"원문 결론부: {essence['closing']}")
             essence_block = "\n[원문 핵심 추출 — 초안에 반드시 활용]\n" + "\n".join(parts)
 
+        research_context = (
+            post_data.get("research_context") if isinstance(post_data.get("research_context"), dict) else {}
+        )
+        research_block = ""
+        if research_context:
+            try:
+                conflict_risk = float(research_context.get("conflict_risk") or 0.0)
+            except (TypeError, ValueError):
+                conflict_risk = 0.0
+            risk_note = ""
+            if conflict_risk > 0.8:
+                risk_note = "\n- 갈등 위험 높음: 성별/진영 대립으로 쓰지 말고 보편 가치로만 환원하세요."
+            research_block = f"""
+[오토리서치 컨텍스트 - 반드시 반영]
+- 원문 프레임: {research_context.get("source_frame") or "N/A"}
+- 진짜 쟁점: {research_context.get("real_issue") or "N/A"}
+- 보편 가치: {research_context.get("universal_value") or "N/A"}
+- 반드시 포함할 킬러 문장: {research_context.get("killer_sentence") or "N/A"}
+- 결말 방식: {research_context.get("closure") or "open"}
+- 근거 앵커: {research_context.get("anchor") or "N/A"}{risk_note}
+작성 조건:
+1. X 본문에는 위 킬러 문장을 그대로 1회 포함하세요.
+2. 본문 중간에 "이건 ~가 아니라 ~입니다" 가치 선언을 반드시 넣으세요.
+3. 개인 사례를 보편 원칙으로 환원하세요.
+4. 결말 방식이 closed이면 단정형으로 닫고, open이면 정답이 하나가 아니라는 여지를 남기세요.
+"""
+
         # ── P0-2: Chain-of-Thought 사고 과정 블록 ────────────────────────
         thinking_tmpl = templates.get("thinking_framework", "")
         thinking_block = ""
@@ -671,6 +698,7 @@ class DraftPromptsMixin:
 성과 예측 점수: {profile.get("performance_score", 0)}
 {selection_brief_block}
 {comment_trigger_block}
+{research_block}
 {topic_strategy_block}
 {regulation_context}
 {thinking_block}

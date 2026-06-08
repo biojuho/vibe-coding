@@ -802,6 +802,32 @@ class TestGenerateReviewStage:
         assert result is True
         assert ctx.image_prompt is None  # tuple이 아니면 image_prompt=None
 
+    def test_research_context_is_built_before_draft_generation(self):
+        from pipeline.process_stages.generate_review_stage import run_generate_review_stage
+
+        ctx = self._ctx_ready()
+        ctx.post_data = {
+            "title": "팀장이 먼저 퇴근하라고 해놓고 평가에서 태도를 봤다",
+            "content": "야근하지 않았다는 이유로 낮은 평가를 받았다는 사연입니다.",
+            "url": ctx.url,
+            "content_profile": {},
+        }
+
+        mock_gen = MagicMock()
+        mock_gen.generate_drafts = AsyncMock(return_value=({"twitter": "초안", "_provider_used": "gemini"}, "p"))
+        mock_qg_instance = MagicMock()
+        mock_qg_instance.validate_all.return_value = {}
+        mock_qg_instance.format_summary.return_value = "OK"
+
+        with patch("pipeline.draft_quality_gate.DraftQualityGate", return_value=mock_qg_instance):
+            result = asyncio.run(run_generate_review_stage(ctx, mock_gen, MagicMock(), None, ["twitter"], None))
+
+        assert result is True
+        passed_post_data = mock_gen.generate_drafts.await_args.args[0]
+        assert passed_post_data is ctx.post_data
+        assert ctx.post_data["research_context"]["universal_value"] == "경계 존중"
+        assert ctx.post_data["research_context"]["value_reduction_failed"] is False
+
     def test_twitter_reply_fallback_keeps_readable_korean_source_copy(self):
         from pipeline.process_stages.generate_review_stage import _ensure_twitter_reply_text
 

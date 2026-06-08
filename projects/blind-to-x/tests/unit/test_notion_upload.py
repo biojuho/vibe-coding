@@ -406,6 +406,7 @@ def test_build_upload_properties_preserves_review_and_x_fields(mock_config):
         "source": "blind",
         "publish_scheduled_at": "2026-05-20T09:00:00+09:00",
         "editorial_avg_score": 8.62,
+        "publish_decision": {"action": "PUBLISH", "reason": "all gates passed", "quality_score": 95},
     }
     drafts = {
         "twitter": "X 본문",
@@ -443,6 +444,17 @@ def test_build_upload_properties_preserves_review_and_x_fields(mock_config):
     assert properties["Reply Text"]["rich_text"][0]["text"]["content"] == "첫 답글"
     assert properties["Topic Cluster"]["select"]["name"] == "직장문화"
     assert properties["Final Rank Score"]["number"] == 87.0
+
+
+def test_x_publish_status_defaults_to_needs_edit_without_decision(mock_config):
+    uploader = NotionUploader(mock_config)
+    uploader.props = {"x_publish_status": "X Publish Status"}
+    uploader._db_properties = {"X Publish Status": {"type": "select"}}
+
+    properties = {}
+    uploader._append_x_publish_properties(properties, {})
+
+    assert properties["X Publish Status"]["select"]["name"] == "Needs Edit"
 
 
 def test_build_review_brief_summarizes_best_of_n_selection_quality(mock_config):
@@ -660,6 +672,7 @@ async def test_upload_populates_review_brief_properties(mock_ensure_schema, mock
         "draft_generation_error": "openai: invalid_draft_output:missing_tags:naver_blog",
         "quality_gate_report": "passed — 구체 장면 있음 / CTA 포함",
         "x_scheduled_at": "2026-05-20T09:00:00+09:00",
+        "publish_decision": {"action": "PUBLISH", "reason": "all gates passed", "quality_score": 95},
     }
     drafts = {
         "twitter": "숏폼 초안입니다.",
@@ -836,6 +849,12 @@ async def test_upload_groups_diagnostics_and_raw_content_into_toggles(mock_ensur
         "readability_scores": {"twitter": 7.8},
         "fact_check_warnings": {"twitter": ["'절반이 이직해'는 과한 추론일 수 있음"]},
         "regulation_report": "전체 플랫폼 규제 검증 통과",
+        "publish_decision": {
+            "action": "PUBLISH",
+            "reason": "all gates passed",
+            "quality_score": 95,
+            "metrics": {"weighted_length": 39},
+        },
     }
     drafts = {
         "twitter": "신입이 먼저 퇴근했다가 팀장한테 혼났다.",
@@ -885,7 +904,7 @@ async def test_upload_groups_diagnostics_and_raw_content_into_toggles(mock_ensur
     assert "권장 채널: X" in top_level_bullets
     assert "X 가중 글자 수: 39/280자 (OK)" in top_level_bullets
     assert any("업로드 순서: X 본문 복사" in text for text in top_level_bullets)
-    assert "운영 상태: Ready to Post" in top_level_bullets
+    assert "결정: PUBLISH - all gates passed" in top_level_bullets
     assert any("X Post URL" in text for text in top_level_bullets)
     assert "에디토리얼 평균 점수: 8.62" in top_level_bullets
     assert "품질 재시도: 1회" in top_level_bullets
