@@ -10,7 +10,7 @@
 | 파일 | `workspace/execution/llm_client.py` | `projects/shorts-maker-v2/.../providers/llm_router.py` | `projects/blind-to-x/pipeline/draft_generator.py` (+`draft_providers.py`) |
 | 동기/비동기 | **동기** (`time.sleep`) | 동기 | **비동기** (`async/await`) |
 | fallback | 순차 | 순차 | 순차 (race 아님) |
-| 프로바이더 | 9 (ollama 포함, mimo 없음) | 9 (**mimo 추가**, ollama 없음) | 설정상 deepseek/gemini/openai |
+| 프로바이더 | 9 (ollama 포함, mimo 없음) | 9 (**mimo 추가**, ollama 없음) | tracked config상 7개, 코드 helper상 5개 |
 | 비용 추적 | ✅ api_calls(workspace.db) | ❌ 없음 | ✅ btx_costs.db (별도) |
 | 프롬프트 캐시 | ✅ cache_strategy | ❌ 없음 | ✅ (anthropic) |
 | 응답 캐시 | ✅ llm_cache.db 72h | ❌ | ❌ |
@@ -55,9 +55,10 @@
 ## 3) blind-to-x async draft 생성
 
 > 📌 **정정**: 과거 메모/브리프는 blind-to-x가 `asyncio.FIRST_COMPLETED` **멀티-프로바이더 레이스(~15s)**를 쓴다고 했으나, **현재 코드엔 그런 레이스가 없다.** 실제는 **비동기 순차 fallback + 서킷브레이커 + Best-of-N**이다. `FIRST_COMPLETED`/`as_completed`/15s 창은 코드 어디에도 없음(grep 무매치).
+> Batch API, streaming, local async fallback, provider race의 운영 차이는 [24-batch-async-latency](24-batch-async-latency.md)에 따로 분리했다.
 
 - **구조** (draft_generator.py): 바깥 `for provider in providers` → 안쪽 `for attempt in range(1, max_retries_per_provider+1)` 순차 루프, 첫 성공에 반환(L129–171, `_call_llm_with_fallback` L533–569). 유일한 async 동시성 프리미티브는 **단일** provider 코루틴을 감싸는 `asyncio.wait_for(coro, timeout=...)` (draft_providers.py:327).
-- **설정** (config.yaml L19–51): `strategy: "fallback"`, `providers: [deepseek, gemini, openai]`, `max_retries_per_provider: 2`, `request_timeout_seconds: 45`.
+- **설정** (`config.example.yaml`/`config.ci.yaml`): `strategy: "fallback"`, `providers = gemini → deepseek → xai → moonshot → zhipuai → openai → anthropic`, `max_retries_per_provider: 2`, `request_timeout_seconds: 45`. `config.example.yaml`은 `openai.enabled=false`, `config.ci.yaml`은 `openai.enabled=true`. 로컬 `projects/blind-to-x/config.yaml`은 비밀값을 담을 수 있어 wiki 기준 manifest에서 제외한다.
 - **per-provider 타임아웃**(레이스 컷이 아니라 개별 데드라인): ollama 90s / anthropic·openai 45s / 기타 min(30,45)=30s (draft_providers.py:153–159).
 - **서킷 브레이커**: 최근 비복구 실패 provider를 fallback 전에 스킵(`_available_providers_after_recent_failures` L94–108). 백오프 1/4/12/24/72h(cost_db.py:494–500).
 - **Best-of-N**: fallback 위에 후보 N개 생성하되 **순차**(병렬/레이스 아님). 기본 1(draft_generator.py:114, 357–366).
@@ -67,7 +68,7 @@
 
 ### 지뢰밭 (중요)
 
-- ⚠️ **config는 `deepseek`를 1순위로 두지만**, `DraftProvidersMixin._enabled_providers`/PROVIDER_ALIASES는 anthropic/gemini/xai/openai/ollama만 배선한다(draft_providers.py:139–147) — **deepseek/moonshot/zhipuai async 클라이언트나 `_generate_with_deepseek`가 없다.** 즉 deepseek 드래프트 생성이 실제로 도는지(아니면 enabled 집합에서 조용히 빠지는지) **검증 필요**. config 가격표엔 deepseek가 있어 더 헷갈린다.
+- ⚠️ **tracked config는 `deepseek`/`moonshot`/`zhipuai`를 fallback 목록에 두지만**, `DraftProvidersMixin._enabled_providers`/PROVIDER_ALIASES는 anthropic/gemini/xai/openai/ollama만 배선한다(draft_providers.py:139–147) — **deepseek/moonshot/zhipuai async 클라이언트나 `_generate_with_deepseek`가 없다.** 즉 config provider 목록과 실제 생성 helper 목록이 다르다. T-1580부터 이 mismatch는 `config-facts.json`의 `blind_to_x_config_*_runtime_helpers` warning으로도 고정된다.
 - 비동기라 동기 워크스페이스 클라이언트와 디버깅 방식이 다르다(stack trace가 코루틴 경유).
 
 ---
@@ -75,3 +76,10 @@
 ## 수렴/포크 방침
 
 세 라우터가 의도적 포크인지 수렴 대상인지 **확정 ADR이 없다**. 중복된 alias/모델/base 표가 drift를 키우므로, 변경 시 [07-playbooks](07-playbooks.md)의 "프로바이더/모델 추가" 절차로 3곳을 함께 다룬다.
+
+## 출처
+
+- 코드/config 근거: `workspace/execution/llm_client.py`, `projects/shorts-maker-v2/src/shorts_maker_v2/providers/llm_router.py`, `projects/shorts-maker-v2/config.yaml`, `projects/blind-to-x/config.example.yaml`, `projects/blind-to-x/config.ci.yaml`, `projects/blind-to-x/pipeline/draft_generator.py`, `projects/blind-to-x/pipeline/draft_providers.py`, `projects/blind-to-x/pipeline/cost_db.py`, `docs/wiki/llm/code-facts.json`, `docs/wiki/llm/config-facts.json` (2026-06-08 현재 HEAD).
+- `https://api.xiaomimimo.com/v1`은 Shorts 라우터 코드에 박힌 base URL이다. 이 페이지는 MiMo 가격/한도/공식 모델 지원을 주장하지 않는다. 해당 provider를 실제 운영 1순위로 올리려면 [02-providers](02-providers.md)의 재검증 절차로 공식 문서와 live API를 별도 확인한다.
+
+*외부 자료 검증일: 2026-06-08 · 코드 검증: 현재 HEAD*

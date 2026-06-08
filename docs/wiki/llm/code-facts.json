@@ -1,0 +1,498 @@
+{
+  "checks": [
+    {
+      "extra_helpers": [],
+      "id": "blind_to_x_default_provider_helpers",
+      "message": "blind-to-x default provider order is covered by generation helpers.",
+      "missing_helpers": [],
+      "status": "pass"
+    }
+  ],
+  "facts": [
+    {
+      "classes": {
+        "LLMClient": [
+          "__init__",
+          "_bridged_attempt_provider",
+          "_bridged_generate",
+          "_bridged_repair_loop",
+          "_clean_json",
+          "_enabled_from_order",
+          "_generate_once",
+          "_get_client",
+          "_is_bridged_accepted",
+          "_is_non_retryable",
+          "_log_bridged_usage",
+          "_log_usage",
+          "_no_providers_error_message",
+          "_normalize_providers",
+          "_parse_json_response",
+          "_run_simple_loop",
+          "_validate_bridged_content",
+          "_validate_json_candidate",
+          "all_provider_status",
+          "enabled_providers",
+          "generate_json",
+          "generate_json_bridged",
+          "generate_text",
+          "generate_text_bridged",
+          "test_all_providers",
+          "test_provider"
+        ]
+      },
+      "constant_lines": {
+        "API_KEY_ENV_VARS": 125,
+        "DEFAULT_MODELS": 102,
+        "DEFAULT_PROVIDER_ORDER": 90,
+        "OPENAI_COMPATIBLE_BASE_URLS": 115,
+        "PRICING": 149,
+        "PROVIDER_ALIASES": 66
+      },
+      "constants": {
+        "API_KEY_ENV_VARS": {
+          "anthropic": [
+            "ANTHROPIC_API_KEY"
+          ],
+          "deepseek": [
+            "DEEPSEEK_API_KEY"
+          ],
+          "google": [
+            "GEMINI_API_KEY",
+            "GOOGLE_API_KEY"
+          ],
+          "groq": [
+            "GROQ_API_KEY"
+          ],
+          "moonshot": [
+            "MOONSHOT_API_KEY"
+          ],
+          "ollama": [
+            "OLLAMA_BASE_URL"
+          ],
+          "openai": [
+            "OPENAI_API_KEY"
+          ],
+          "xai": [
+            "XAI_API_KEY",
+            "GROK_API_KEY"
+          ],
+          "zhipuai": [
+            "ZHIPUAI_API_KEY"
+          ]
+        },
+        "DEFAULT_MODELS": {
+          "anthropic": "claude-sonnet-4-6",
+          "deepseek": "deepseek-chat",
+          "google": "gemini-2.5-flash",
+          "groq": "llama-3.3-70b-versatile",
+          "moonshot": "moonshot-v1-8k",
+          "ollama": "qwen3-coder:30b-a3b-q4_K_M",
+          "openai": "gpt-4o-mini",
+          "xai": "grok-3-mini-fast",
+          "zhipuai": "glm-4-flash"
+        },
+        "DEFAULT_PROVIDER_ORDER": [
+          "ollama",
+          "google",
+          "groq",
+          "deepseek",
+          "moonshot",
+          "zhipuai",
+          "openai",
+          "xai",
+          "anthropic"
+        ],
+        "OPENAI_COMPATIBLE_BASE_URLS": {
+          "deepseek": "https://api.deepseek.com",
+          "groq": "https://api.groq.com/openai/v1",
+          "moonshot": "https://api.moonshot.cn/v1",
+          "xai": "https://api.x.ai/v1",
+          "zhipuai": "https://open.bigmodel.cn/api/paas/v4"
+        },
+        "PRICING": {
+          "claude-sonnet-4-20250514": {
+            "input": 0.003,
+            "output": 0.015
+          },
+          "claude-sonnet-4-6": {
+            "input": 0.003,
+            "output": 0.015
+          },
+          "deepseek-chat": {
+            "input": 0.00014,
+            "output": 0.00028
+          },
+          "gemini-2.5-flash": {
+            "input": 0.0,
+            "output": 0.0
+          },
+          "glm-4-flash": {
+            "input": 0.0,
+            "output": 0.0
+          },
+          "gpt-4o": {
+            "input": 0.0025,
+            "output": 0.01
+          },
+          "gpt-4o-mini": {
+            "input": 0.00015,
+            "output": 0.0006
+          },
+          "grok-3-mini-fast": {
+            "input": 0.0003,
+            "output": 0.0005
+          },
+          "llama-3.3-70b-versatile": {
+            "input": 0.0,
+            "output": 0.0
+          },
+          "moonshot-v1-8k": {
+            "input": 0.00085,
+            "output": 0.00085
+          },
+          "qwen3-coder:30b-a3b-q4_K_M": {
+            "input": 0.0,
+            "output": 0.0
+          },
+          "qwen3-coder:8b": {
+            "input": 0.0,
+            "output": 0.0
+          }
+        },
+        "PROVIDER_ALIASES": {
+          "anthropic": "anthropic",
+          "chatgpt": "openai",
+          "claude": "anthropic",
+          "deepseek": "deepseek",
+          "gemini": "google",
+          "glm": "zhipuai",
+          "google": "google",
+          "gpt": "openai",
+          "grok": "xai",
+          "groq": "groq",
+          "kimi": "moonshot",
+          "llama": "groq",
+          "local": "ollama",
+          "moonshot": "moonshot",
+          "ollama": "ollama",
+          "openai": "openai",
+          "qwen": "ollama",
+          "xai": "xai",
+          "zhipu": "zhipuai",
+          "zhipuai": "zhipuai"
+        }
+      },
+      "derived": {
+        "alias_canonical_providers": [
+          "anthropic",
+          "deepseek",
+          "google",
+          "groq",
+          "moonshot",
+          "ollama",
+          "openai",
+          "xai",
+          "zhipuai"
+        ],
+        "alias_count": 20,
+        "api_key_providers": [
+          "anthropic",
+          "deepseek",
+          "google",
+          "groq",
+          "moonshot",
+          "ollama",
+          "openai",
+          "xai",
+          "zhipuai"
+        ],
+        "constructor_models_expression": "{**DEFAULT_MODELS, **(models or {})}",
+        "default_model_count": 9,
+        "default_model_providers": [
+          "anthropic",
+          "deepseek",
+          "google",
+          "groq",
+          "moonshot",
+          "ollama",
+          "openai",
+          "xai",
+          "zhipuai"
+        ],
+        "default_provider_count": 9,
+        "default_provider_order": [
+          "ollama",
+          "google",
+          "groq",
+          "deepseek",
+          "moonshot",
+          "zhipuai",
+          "openai",
+          "xai",
+          "anthropic"
+        ],
+        "openai_compatible_providers": [
+          "deepseek",
+          "groq",
+          "moonshot",
+          "xai",
+          "zhipuai"
+        ],
+        "pricing_models": [
+          "claude-sonnet-4-20250514",
+          "claude-sonnet-4-6",
+          "deepseek-chat",
+          "gemini-2.5-flash",
+          "glm-4-flash",
+          "gpt-4o",
+          "gpt-4o-mini",
+          "grok-3-mini-fast",
+          "llama-3.3-70b-versatile",
+          "moonshot-v1-8k",
+          "qwen3-coder:30b-a3b-q4_K_M",
+          "qwen3-coder:8b"
+        ]
+      },
+      "functions": [
+        "_cache_creation_multiplier",
+        "_cache_get",
+        "_cache_key",
+        "_cache_set",
+        "_emit_langfuse_trace",
+        "_resolve_client",
+        "cache_cleanup",
+        "generate_json",
+        "generate_json_bridged",
+        "generate_text",
+        "generate_text_bridged",
+        "get_default_client",
+        "main"
+      ],
+      "id": "workspace_llm_client",
+      "missing_constants": [],
+      "path": "workspace/execution/llm_client.py",
+      "requested_constants": [
+        "PROVIDER_ALIASES",
+        "DEFAULT_PROVIDER_ORDER",
+        "DEFAULT_MODELS",
+        "OPENAI_COMPATIBLE_BASE_URLS",
+        "API_KEY_ENV_VARS",
+        "PRICING"
+      ],
+      "status": "ok"
+    },
+    {
+      "classes": {
+        "LLMRouter": [
+          "__init__",
+          "_clean_json",
+          "_enabled_from_order",
+          "_generate_once",
+          "_get_client",
+          "_is_non_retryable",
+          "_normalize_providers",
+          "_parse_json_response",
+          "_repair_json_bridge_payload",
+          "_repair_text_bridge_content",
+          "_select_bridge_providers",
+          "_shadow_bridge_result",
+          "_try_json_bridge_provider",
+          "_try_text_bridge_provider",
+          "_validated_json_bridge_payload",
+          "enabled_providers",
+          "generate_json",
+          "generate_json_bridged",
+          "generate_text",
+          "generate_text_bridged"
+        ]
+      },
+      "constant_lines": {
+        "DEFAULT_MODELS": 87,
+        "OPENAI_COMPATIBLE_BASE_URLS": 103,
+        "PROVIDER_ALIASES": 65
+      },
+      "constants": {
+        "DEFAULT_MODELS": {
+          "anthropic": "claude-sonnet-4-6",
+          "deepseek": "deepseek-chat",
+          "google": "gemini-3.1-flash-lite-preview",
+          "groq": "llama-3.3-70b-versatile",
+          "mimo": "mimo-v2-flash",
+          "moonshot": "moonshot-v1-8k",
+          "openai": "gpt-4o-mini",
+          "xai": "grok-3-mini-fast",
+          "zhipuai": "glm-4-flash"
+        },
+        "OPENAI_COMPATIBLE_BASE_URLS": {
+          "deepseek": "https://api.deepseek.com",
+          "groq": "https://api.groq.com/openai/v1",
+          "mimo": "https://api.xiaomimimo.com/v1",
+          "moonshot": "https://api.moonshot.cn/v1",
+          "xai": "https://api.x.ai/v1",
+          "zhipuai": "https://open.bigmodel.cn/api/paas/v4"
+        },
+        "PROVIDER_ALIASES": {
+          "anthropic": "anthropic",
+          "chatgpt": "openai",
+          "claude": "anthropic",
+          "deepseek": "deepseek",
+          "gemini": "google",
+          "glm": "zhipuai",
+          "google": "google",
+          "gpt": "openai",
+          "grok": "xai",
+          "groq": "groq",
+          "kimi": "moonshot",
+          "llama": "groq",
+          "mimo": "mimo",
+          "moonshot": "moonshot",
+          "openai": "openai",
+          "xai": "xai",
+          "xiaomi": "mimo",
+          "zhipu": "zhipuai",
+          "zhipuai": "zhipuai"
+        }
+      },
+      "derived": {
+        "alias_canonical_providers": [
+          "anthropic",
+          "deepseek",
+          "google",
+          "groq",
+          "mimo",
+          "moonshot",
+          "openai",
+          "xai",
+          "zhipuai"
+        ],
+        "alias_count": 19,
+        "constructor_models_expression": "{**DEFAULT_MODELS, **(models or {})}",
+        "default_model_count": 9,
+        "default_model_providers": [
+          "anthropic",
+          "deepseek",
+          "google",
+          "groq",
+          "mimo",
+          "moonshot",
+          "openai",
+          "xai",
+          "zhipuai"
+        ],
+        "openai_compatible_providers": [
+          "deepseek",
+          "groq",
+          "mimo",
+          "moonshot",
+          "xai",
+          "zhipuai"
+        ]
+      },
+      "functions": [
+        "_bridge_reason_codes",
+        "_bridge_validation_error",
+        "_get_bridge",
+        "_import_language_bridge",
+        "_safe_console_print"
+      ],
+      "id": "shorts_llm_router",
+      "missing_constants": [],
+      "path": "projects/shorts-maker-v2/src/shorts_maker_v2/providers/llm_router.py",
+      "requested_constants": [
+        "PROVIDER_ALIASES",
+        "DEFAULT_MODELS",
+        "OPENAI_COMPATIBLE_BASE_URLS"
+      ],
+      "status": "ok"
+    },
+    {
+      "classes": {
+        "DraftProvidersMixin": [
+          "_anthropic_cache_strategy",
+          "_cache_creation_multiplier_for",
+          "_check_ollama_enabled",
+          "_enabled_providers",
+          "_generate_once",
+          "_generate_with_anthropic",
+          "_generate_with_gemini",
+          "_generate_with_ollama",
+          "_generate_with_openai",
+          "_generate_with_xai",
+          "_model_for_provider",
+          "_provider_enabled",
+          "_resolve_provider_order",
+          "_timeout_for"
+        ]
+      },
+      "constant_lines": {
+        "DEFAULT_PROVIDER_ORDER": 31,
+        "PROVIDER_ALIASES": 20
+      },
+      "constants": {
+        "DEFAULT_PROVIDER_ORDER": [
+          "anthropic",
+          "gemini",
+          "xai",
+          "openai",
+          "ollama"
+        ],
+        "PROVIDER_ALIASES": {
+          "anthropic": "anthropic",
+          "chatgpt": "openai",
+          "claude": "anthropic",
+          "gemini": "gemini",
+          "grok": "xai",
+          "ollama": "ollama",
+          "openai": "openai",
+          "xai": "xai"
+        }
+      },
+      "derived": {
+        "alias_canonical_providers": [
+          "anthropic",
+          "gemini",
+          "ollama",
+          "openai",
+          "xai"
+        ],
+        "alias_count": 8,
+        "default_provider_count": 5,
+        "default_provider_order": [
+          "anthropic",
+          "gemini",
+          "xai",
+          "openai",
+          "ollama"
+        ],
+        "default_providers_without_generation_helper": [],
+        "generation_helper_providers": [
+          "anthropic",
+          "gemini",
+          "ollama",
+          "openai",
+          "xai"
+        ],
+        "generation_helpers_outside_default_order": []
+      },
+      "functions": [
+        "_emit_workspace_langfuse_trace",
+        "init_provider_clients"
+      ],
+      "id": "blind_to_x_draft_providers",
+      "missing_constants": [],
+      "path": "projects/blind-to-x/pipeline/draft_providers.py",
+      "requested_constants": [
+        "PROVIDER_ALIASES",
+        "DEFAULT_PROVIDER_ORDER"
+      ],
+      "status": "ok"
+    }
+  ],
+  "generated_at": "2026-06-08",
+  "policy": {
+    "method": "Python AST parse plus ast.literal_eval for module-level literal constants.",
+    "non_goal": "This manifest does not prove that prose claims are semantically correct; it makes code drift visible before review.",
+    "scope": "Provider aliases, fallback order, default models, pricing keys, API-key mappings, class methods, and generation helper names."
+  },
+  "schema_version": 1
+}

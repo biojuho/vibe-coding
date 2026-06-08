@@ -22,6 +22,33 @@
 | 05 | [품질 평가 (promptfoo)](05-eval.md) | 골든/부정셋 회귀 평가, 주간 실행, judge 모델 |
 | 06 | [프로젝트별 라우터](06-per-project.md) | workspace `LLMClient` vs shorts-maker-v2 `LLMRouter` vs blind-to-x async |
 | 07 | [플레이북](07-playbooks.md) | "LLM 기능 추가/디버깅/비용 절감" 등 자주 하는 작업 단계 |
+| 08 | [보안](08-security.md) | OWASP LLM Top 10(2025) 매핑, 프롬프트 인젝션 표면, 시크릿/PII, 출력 처리, A/B 완화 비교 |
+| 09 | [에이전트 하네스](09-agent-harness.md) | `harness_*` 6모듈(도구권한·샌드박스·예산/루프·컨텍스트압축·생성-평가), ADR-025, 구현됐으나 미배선 |
+| 10 | [구조화 출력](10-structured-outputs.md) | JSON 강제 3단계, provider별 실태(tier 0~1), 스키마 강제 업그레이드 A/B, 실패 모드 |
+| 11 | [추론/사고](11-reasoning-models.md) | 프로바이더 네이티브 thinking(adaptive/effort/level) vs repo 오케스트레이션 추론(분해·검증·반증) |
+| 12 | [기능 인벤토리](12-llm-features.md) | `LLMClient` 소비처 전수(생성·추론·하네스), caller_script 라벨, "AI"인데 LLM 미배선인 것 |
+| 13 | [모델 선택·폐기 캘린더](13-model-selection.md) | 작업→모델 결정표, 확정 폐기 일정과 노후화 리스크 분리, repo 핀한 노후 ID |
+| 14 | [유지보수·검증 게이트](14-maintenance-verification.md) | README 색인, 로컬 링크, 외부 출처, 검증일 freshness를 감사하는 deterministic gate |
+| 15 | [외부 출처 인벤토리](15-source-inventory.md) | wiki 외부 URL, 사용 페이지, volatility, 재검증 기한을 한 manifest로 추적 |
+| 16 | [코드 사실 manifest](16-code-facts.md) | `LLMClient`, provider 순서, default model, 함수/클래스 이름 drift를 AST 기반 manifest로 추적 |
+| 17 | [Config 사실 manifest](17-config-facts.md) | tracked YAML config의 provider 순서, default model, pricing coverage drift를 추적 |
+| 18 | [Runtime wiring checks](18-runtime-wiring-checks.md) | config provider 목록과 runtime helper/model coverage의 cross-manifest gap을 추적 |
+| 19 | [Objective loop audit](19-objective-loop-audit.md) | 사용자의 자율 보강 루프 프롬프트를 completion-audit manifest로 매핑 |
+| 20 | [Rate limit · retry · reliability](20-rate-limit-reliability.md) | 429/Retry-After, provider bucket, retry/backoff/fallback, circuit-breaker gap의 운영 기준 |
+| 21 | [Token budget · context window](21-token-budget-context.md) | pre-call token budget, context/output cap, post-call usage와 preflight gap의 운영 기준 |
+| 22 | [Embeddings · semantic dedup · RAG boundary](22-embeddings-rag-dedup.md) | Gemini/Ollama/OpenAI/Voyage embedding 기준, Blind-to-X semantic dedup, RAG 미도입 경계 |
+| 23 | [Tool calling · function calling · harness boundary](23-tool-calling-harness-boundary.md) | provider-native tool/function calling, Gemini Search Grounding, MCP, local ToolRegistry/HITL 경계 |
+| 24 | [Batch · async · latency · concurrency boundary](24-batch-async-latency.md) | Provider Batch API, repo-local async fallback, streaming, timeout/race/concurrency 경계 |
+| 25 | [Multimodal · vision · audio · media boundary](25-multimodal-audio-media-boundary.md) | Vision input, image generation, TTS/STT, video generation, local rendering 경계 |
+| 26 | [Prompt provenance · versioning · cache/eval contract](26-prompt-provenance-versioning.md) | Prompt template identity, rendered prompt hashes, cache invalidation, eval evidence 경계 |
+| 27 | [Data retention · privacy · logging boundary](27-data-retention-privacy-logging.md) | Provider retention controls, local caches/logs, Langfuse, product artifact privacy 경계 |
+| 28 | [Grounding · citation · source attribution boundary](28-grounding-citation-source-attribution.md) | Provider Search/File/URL citations, app-owned source attribution, fact-check evidence 경계 |
+| 29 | [Error taxonomy · refusal · fallback boundary](29-error-taxonomy-refusal-fallback-boundary.md) | Provider/API errors, model refusals, structured-output failures, product gates, retry/fallback routing 경계 |
+| 30 | [Fine-tuning · custom model · local scorer boundary](30-fine-tuning-custom-model-boundary.md) | Provider fine-tuning, managed agents, prompt/RAG/eval, Blind-to-X local ML scorer 경계 |
+| 31 | [Generation parameters · reproducibility · replay boundary](31-generation-parameters-reproducibility.md) | Temperature/top-p/top-k/output caps/seed, retries, fallback, cache, and eval replay evidence 경계 |
+| 32 | [Safety · moderation · publish gate boundary](32-safety-moderation-publish-gates.md) | Provider safety, LLM moderation, product quality, platform policy, and human approval 경계 |
+| 33 | [Computer use · browser QA boundary](33-computer-use-browser-qa-boundary.md) | Provider computer-use agents, deterministic Playwright QA, source probes, and retained screenshot evidence 경계 |
+| 34 | [Language bridge - locale - i18n boundary](34-language-bridge-locale-i18n-boundary.md) | Korean bridge validation, BCP-47 locale tags, Shorts locale packs, TTS locale, and language evidence boundary |
 
 ## 빠른 시작
 
@@ -46,7 +73,35 @@ py -3.13 workspace/execution/llm_client.py status        # API 호출 없이 키
 py -3.13 workspace/execution/llm_usage_summary.py
 # 비용/폴백/dead-provider 이상 알림 (cron/n8n용, 알림 있으면 exit 1)
 py -3.13 workspace/execution/api_usage_tracker.py alerts
+# rate limit/retry/fallback 장애 대응 기준
+py -3.13 workspace/execution/api_usage_tracker.py alerts --expected-providers google,deepseek,openai,anthropic
+py -3.13 workspace/execution/llm_usage_summary.py --by provider
+# 위키 구조/출처 freshness 감사 (외부 HTTP 호출 없음)
+py -3.13 execution/llm_wiki_audit.py --json
+# 사용자 프롬프트 요구사항 ↔ repo evidence 매핑 manifest 생성
+py -3.13 execution/llm_wiki_objective_audit.py --output .tmp/llm-wiki-objective-audit-current.json --json
+py -3.13 .agents/skills/auto-research/scripts/completion_audit.py .tmp/llm-wiki-objective-audit-current.json --json --allow-incomplete
+# CI/strict: accepted_known은 허용하되 unexpected manifest warning은 실패
+py -3.13 execution/llm_wiki_audit.py --strict-manifest-warnings --json
+# Release/current-head evidence artifact for the same strict gate
+py -3.13 execution/llm_wiki_audit.py --write-strict-release-evidence --json
+# Reviewer-visible release summary/checklist from the release packet
+py -3.13 .agents/skills/auto-research/scripts/llm_wiki_release_summary.py --root . --packet .tmp/release-authorization-packet.json --output .tmp/llm-wiki-release-summary.md --artifact-dir release-evidence/llm-wiki --json
+# markdown URL에서 source-inventory.json 재생성 후 감사
+py -3.13 execution/llm_wiki_audit.py --write-source-inventory --json
+# Python 코드 사실에서 code-facts.json 재생성 후 감사
+py -3.13 execution/llm_wiki_audit.py --write-code-facts --json
+# tracked YAML config 사실과 runtime wiring check에서 config-facts.json 재생성 후 감사
+py -3.13 execution/llm_wiki_audit.py --write-config-facts --json
 ```
+
+감사 결과의 `summary.status`가 `pass`여도 manifest warning을 함께 확인한다. 텍스트 출력은 `audit warnings`와 `manifest warnings`를 분리해서 보여주고, JSON 출력은 `summary.manifest_check_warning_count`, `summary.manifest_check_warning_classification_counts`, `summary.manifest_check_unexpected_warning_count`, `summary.manifest_check_warnings`를 제공한다. `accepted_known` manifest warning은 기록된 config/runtime wiring debt이고, `unexpected` warning은 새 drift로 검토해야 한다. 기본 로컬 감사에서는 둘 다 non-failing이지만, CI나 릴리스 전 검증에서는 `--strict-manifest-warnings`로 unexpected warning을 exit 1로 승격한다.
+
+`--write-strict-release-evidence`는 같은 strict gate를 실행하면서 `.tmp/llm-wiki-strict-audit-current.json`을 쓴다. GitHub Actions에서는 이 파일을 workflow artifact로 업로드해 current-head release evidence로 남긴다. GitHub 공식 문서는 artifacts를 workflow run이 만든 파일을 job 완료 후에도 보존·공유하는 용도로 설명하고, `actions/upload-artifact`는 `name`, `path`, `retention-days`, digest output을 제공한다.
+
+이 artifact는 auto-research release surface에도 연결된다. `.agents/skills/auto-research/scripts/release_authorization_packet.py`는 `llm_wiki_strict_evidence` 섹션에 artifact status, current HEAD 일치 여부, unexpected warning count, source inventory count를 요약하고, missing/fail/head mismatch를 release blocker로 남긴다. `.agents/skills/auto-research/scripts/launch_objective_audit.py`는 같은 packet 필드를 completion manifest evidence로 노출한다. GitHub Actions에서 사람이 바로 볼 요약이 필요하면 GitHub 공식 `GITHUB_STEP_SUMMARY` job summary에 packet의 `llm_wiki_strict_evidence` 요약을 추가하고, JSON 원본은 workflow artifact로 보존한다.
+
+T-1593 adds a deterministic reviewer summary helper for that last step: `.agents/skills/auto-research/scripts/llm_wiki_release_summary.py` reads `.tmp/release-authorization-packet.json`, writes a Markdown checklist, appends it to `GITHUB_STEP_SUMMARY` when available, and can copy the raw strict JSON plus Markdown summary into `release-evidence/llm-wiki`. Prefer uploading that visible directory with `actions/upload-artifact@v7` instead of uploading `.tmp/...` directly, because the current upload-artifact defaults ignore hidden files and files inside dot-prefixed folders unless explicitly overridden.
 
 ## 관련 운영 SOP (workspace/directives/)
 
@@ -80,6 +135,10 @@ py -3.13 workspace/execution/api_usage_tracker.py alerts
 
 - 코드가 바뀌면(프로바이더 추가, default 모델 변경, 비용 가중치 조정) 해당 페이지의 **file\:line 인용과 표를 갱신**한다.
 - 외부 프로바이더 데이터는 분기마다 또는 과금 영향이 큰 작업 전에 [02-providers](02-providers.md)의 "재검증" 절차로 갱신한다.
+- 외부 URL을 추가·삭제하면 `source-inventory.json`도 `--write-source-inventory`로 재생성하고 audit drift가 없는지 확인한다.
+- provider 순서, default model, `LLMClient`/`LLMRouter`/`draft_providers.py` 사실을 바꾸면 `code-facts.json`도 `--write-code-facts`로 재생성하고 관련 문장을 재검토한다.
+- tracked YAML config의 provider 순서, default model, pricing coverage, runtime wiring coverage를 바꾸면 `config-facts.json`도 `--write-config-facts`로 재생성하고 관련 문장을 재검토한다.
 - 큰 사실 변경은 `.ai/SESSION_LOG.md`에 기록하고, 메모리 인덱스(`MEMORY.md`)와 충돌하면 메모리를 갱신한다.
 
 *최종 작성: 2026-06-08 · 코드 검증 기준 커밋: `f94a25e9` 계열 현재 HEAD*
+*확장(자율 보강 루프, 2026-06-08): 08-보안 · 09-에이전트 하네스 · 10-구조화 출력 · 11-추론/사고 · 12-기능 인벤토리 · 13-모델 선택·폐기 캘린더 · 14-유지보수·검증 게이트 · 15-외부 출처 인벤토리 · 20-rate-limit/retry/reliability · 21-token-budget/context · 22-embedding/semantic-dedup/RAG-boundary · 23-tool/function-calling/harness-boundary · 24-batch/async/latency/concurrency-boundary · 25-multimodal/vision/audio/media-boundary · 26-prompt-provenance/versioning/cache-eval-contract · 27-data-retention/privacy/logging-boundary · 28-grounding/citation/source-attribution-boundary · 29-error/refusal/fallback-taxonomy · 30-fine-tuning/custom-model/local-scorer-boundary 추가. 외부 1차 출처(OWASP LLM Top 10 2025, Anthropic agent/context/prompt 엔지니어링, OpenAI/Gemini/Anthropic 구조화·추론/tool/batch/streaming/multimodal/media/prompt/data-retention/search/file/document citation/API, fine-tuning/model-optimization API, Groq Batch API, MCP spec, 모델 폐기/노후화 일정, OpenAI/Anthropic/Gemini rate limit/token count/model limits, RFC 429/Retry-After, OpenAI/Gemini/Ollama/Claude embedding docs, Promptfoo eval/prompt config docs, Langfuse retention/masking docs) + 코드 재검증 기반.*

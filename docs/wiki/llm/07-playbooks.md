@@ -59,6 +59,8 @@ drift를 막으려면 관련 위치를 **모두** 본다([llm_fallback.md](../..
 4. DeepSeek가 자주 범인이면 `LLM_BRIDGE_FALLBACKS`로 우선순위 조정([deepseek_ko_bridge.md](../../../workspace/directives/deepseek_ko_bridge.md)).
 5. 브랜드/고유명사가 한글 비율을 깎으면 `LLM_BRIDGE_ALLOWED_TERMS`로 마스킹.
 
+See [34-language-bridge-locale-i18n-boundary](34-language-bridge-locale-i18n-boundary.md) when debugging whether the failure is provider instruction drift, BCP-47 locale metadata, product i18n bundle selection, bridge validation, or TTS voice locale.
+
 ## F. fallback이 자꾸 돈다 / 특정 provider가 죽었다
 
 1. 키/순서 점검(호출 없이): `py -3.13 workspace/execution/llm_client.py status`.

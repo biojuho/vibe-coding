@@ -1,0 +1,392 @@
+{
+  "checks": [
+    {
+      "id": "shorts_maker_v2_config_coverage",
+      "message": "Tracked LLM config provider defaults have model/pricing coverage.",
+      "models_without_provider": [],
+      "pricing_without_provider": [],
+      "providers_without_model": [],
+      "providers_without_pricing": [],
+      "status": "pass"
+    },
+    {
+      "id": "blind_to_x_config_example_coverage",
+      "message": "Tracked LLM config provider defaults have model/pricing coverage.",
+      "models_without_provider": [],
+      "pricing_without_provider": [],
+      "providers_without_model": [],
+      "providers_without_pricing": [],
+      "status": "pass"
+    },
+    {
+      "id": "blind_to_x_config_ci_coverage",
+      "message": "Tracked LLM config provider defaults have model/pricing coverage.",
+      "models_without_provider": [],
+      "pricing_without_provider": [],
+      "providers_without_model": [],
+      "providers_without_pricing": [],
+      "status": "pass"
+    },
+    {
+      "code_fact_id": "shorts_llm_router",
+      "config_fact_id": "shorts_maker_v2_config",
+      "config_providers": [
+        "google",
+        "groq",
+        "mimo",
+        "deepseek",
+        "moonshot",
+        "zhipuai",
+        "openai",
+        "xai",
+        "anthropic"
+      ],
+      "id": "shorts_maker_v2_config_runtime_models",
+      "message": "Tracked config providers match LLMRouter default models.",
+      "missing_runtime_providers": [],
+      "runtime_providers": [
+        "anthropic",
+        "deepseek",
+        "google",
+        "groq",
+        "mimo",
+        "moonshot",
+        "openai",
+        "xai",
+        "zhipuai"
+      ],
+      "runtime_providers_outside_config": [],
+      "status": "pass"
+    },
+    {
+      "accepted_reason": "Accepted current blind-to-x config/runtime wiring debt; see docs/wiki/llm/18-runtime-wiring-checks.md.",
+      "code_fact_id": "blind_to_x_draft_providers",
+      "config_fact_id": "blind_to_x_config_example",
+      "config_providers": [
+        "gemini",
+        "deepseek",
+        "xai",
+        "moonshot",
+        "zhipuai",
+        "openai",
+        "anthropic"
+      ],
+      "id": "blind_to_x_config_example_runtime_helpers",
+      "message": "Tracked config providers and DraftProvidersMixin _generate_with_* helpers differ.",
+      "missing_runtime_providers": [
+        "deepseek",
+        "moonshot",
+        "zhipuai"
+      ],
+      "runtime_providers": [
+        "anthropic",
+        "gemini",
+        "ollama",
+        "openai",
+        "xai"
+      ],
+      "runtime_providers_outside_config": [
+        "ollama"
+      ],
+      "status": "warning",
+      "warning_classification": "accepted_known"
+    },
+    {
+      "accepted_reason": "Accepted current blind-to-x config/runtime wiring debt; see docs/wiki/llm/18-runtime-wiring-checks.md.",
+      "code_fact_id": "blind_to_x_draft_providers",
+      "config_fact_id": "blind_to_x_config_ci",
+      "config_providers": [
+        "gemini",
+        "deepseek",
+        "xai",
+        "moonshot",
+        "zhipuai",
+        "openai",
+        "anthropic"
+      ],
+      "id": "blind_to_x_config_ci_runtime_helpers",
+      "message": "Tracked config providers and DraftProvidersMixin _generate_with_* helpers differ.",
+      "missing_runtime_providers": [
+        "deepseek",
+        "moonshot",
+        "zhipuai"
+      ],
+      "runtime_providers": [
+        "anthropic",
+        "gemini",
+        "ollama",
+        "openai",
+        "xai"
+      ],
+      "runtime_providers_outside_config": [
+        "ollama"
+      ],
+      "status": "warning",
+      "warning_classification": "accepted_known"
+    }
+  ],
+  "facts": [
+    {
+      "derived": {
+        "model_provider_count": 9,
+        "models_without_provider": [],
+        "provider_count": 9,
+        "providers_without_model": []
+      },
+      "facts": {
+        "providers.llm": "openai",
+        "providers.llm_model": "gpt-4o-mini",
+        "providers.llm_models": {
+          "anthropic": "claude-sonnet-4-6",
+          "deepseek": "deepseek-chat",
+          "google": "gemini-3.1-flash-lite-preview",
+          "groq": "llama-3.3-70b-versatile",
+          "mimo": "mimo-v2-flash",
+          "moonshot": "moonshot-v1-8k",
+          "openai": "gpt-4o-mini",
+          "xai": "grok-3-mini-fast",
+          "zhipuai": "glm-4-flash"
+        },
+        "providers.llm_providers": [
+          "google",
+          "groq",
+          "mimo",
+          "deepseek",
+          "moonshot",
+          "zhipuai",
+          "openai",
+          "xai",
+          "anthropic"
+        ]
+      },
+      "id": "shorts_maker_v2_config",
+      "kind": "shorts_maker_v2",
+      "path": "projects/shorts-maker-v2/config.yaml",
+      "project": "shorts-maker-v2",
+      "status": "ok",
+      "tracked_only": true
+    },
+    {
+      "derived": {
+        "disabled_providers": [
+          "openai"
+        ],
+        "enabled_providers": [
+          "anthropic",
+          "deepseek",
+          "gemini",
+          "moonshot",
+          "xai",
+          "zhipuai"
+        ],
+        "model_by_provider": {
+          "anthropic": "claude-haiku-4-5-20251001",
+          "deepseek": "deepseek-chat",
+          "gemini": "gemini-2.5-flash",
+          "moonshot": "moonshot-v1-8k",
+          "openai": "gpt-4o-mini",
+          "xai": "grok-4-1-fast-reasoning",
+          "zhipuai": "glm-4-flash"
+        },
+        "pricing_without_provider": [],
+        "provider_count": 7,
+        "providers_without_model": [],
+        "providers_without_pricing": []
+      },
+      "facts": {
+        "llm.max_retries_per_provider": 2,
+        "llm.pricing_providers": [
+          "anthropic",
+          "deepseek",
+          "gemini",
+          "moonshot",
+          "openai",
+          "xai",
+          "zhipuai"
+        ],
+        "llm.providers": [
+          "gemini",
+          "deepseek",
+          "xai",
+          "moonshot",
+          "zhipuai",
+          "openai",
+          "anthropic"
+        ],
+        "llm.request_timeout_seconds": 45,
+        "llm.strategy": "fallback",
+        "provider_sections": {
+          "anthropic": {
+            "chat_enabled": null,
+            "chat_model": null,
+            "enabled": true,
+            "image_model": null,
+            "model": "claude-haiku-4-5-20251001"
+          },
+          "deepseek": {
+            "chat_enabled": null,
+            "chat_model": null,
+            "enabled": true,
+            "image_model": null,
+            "model": "deepseek-chat"
+          },
+          "gemini": {
+            "chat_enabled": null,
+            "chat_model": null,
+            "enabled": true,
+            "image_model": null,
+            "model": "gemini-2.5-flash"
+          },
+          "moonshot": {
+            "chat_enabled": null,
+            "chat_model": null,
+            "enabled": true,
+            "image_model": null,
+            "model": "moonshot-v1-8k"
+          },
+          "openai": {
+            "chat_enabled": true,
+            "chat_model": "gpt-4o-mini",
+            "enabled": false,
+            "image_model": "dall-e-3",
+            "model": null
+          },
+          "xai": {
+            "chat_enabled": null,
+            "chat_model": null,
+            "enabled": true,
+            "image_model": null,
+            "model": "grok-4-1-fast-reasoning"
+          },
+          "zhipuai": {
+            "chat_enabled": null,
+            "chat_model": null,
+            "enabled": true,
+            "image_model": null,
+            "model": "glm-4-flash"
+          }
+        }
+      },
+      "id": "blind_to_x_config_example",
+      "kind": "blind_to_x",
+      "path": "projects/blind-to-x/config.example.yaml",
+      "project": "blind-to-x",
+      "status": "ok",
+      "tracked_only": true
+    },
+    {
+      "derived": {
+        "disabled_providers": [],
+        "enabled_providers": [
+          "anthropic",
+          "deepseek",
+          "gemini",
+          "moonshot",
+          "openai",
+          "xai",
+          "zhipuai"
+        ],
+        "model_by_provider": {
+          "anthropic": "claude-haiku-4-5-20251001",
+          "deepseek": "deepseek-chat",
+          "gemini": "gemini-2.5-flash",
+          "moonshot": "moonshot-v1-8k",
+          "openai": "gpt-4o-mini",
+          "xai": "grok-4-1-fast-reasoning",
+          "zhipuai": "glm-4-flash"
+        },
+        "pricing_without_provider": [],
+        "provider_count": 7,
+        "providers_without_model": [],
+        "providers_without_pricing": []
+      },
+      "facts": {
+        "llm.max_retries_per_provider": 2,
+        "llm.pricing_providers": [
+          "anthropic",
+          "deepseek",
+          "gemini",
+          "moonshot",
+          "openai",
+          "xai",
+          "zhipuai"
+        ],
+        "llm.providers": [
+          "gemini",
+          "deepseek",
+          "xai",
+          "moonshot",
+          "zhipuai",
+          "openai",
+          "anthropic"
+        ],
+        "llm.request_timeout_seconds": 45,
+        "llm.strategy": "fallback",
+        "provider_sections": {
+          "anthropic": {
+            "chat_enabled": null,
+            "chat_model": null,
+            "enabled": true,
+            "image_model": null,
+            "model": "claude-haiku-4-5-20251001"
+          },
+          "deepseek": {
+            "chat_enabled": null,
+            "chat_model": null,
+            "enabled": true,
+            "image_model": null,
+            "model": "deepseek-chat"
+          },
+          "gemini": {
+            "chat_enabled": null,
+            "chat_model": null,
+            "enabled": true,
+            "image_model": null,
+            "model": "gemini-2.5-flash"
+          },
+          "moonshot": {
+            "chat_enabled": null,
+            "chat_model": null,
+            "enabled": true,
+            "image_model": null,
+            "model": "moonshot-v1-8k"
+          },
+          "openai": {
+            "chat_enabled": true,
+            "chat_model": "gpt-4o-mini",
+            "enabled": true,
+            "image_model": "dall-e-3",
+            "model": null
+          },
+          "xai": {
+            "chat_enabled": null,
+            "chat_model": null,
+            "enabled": true,
+            "image_model": null,
+            "model": "grok-4-1-fast-reasoning"
+          },
+          "zhipuai": {
+            "chat_enabled": null,
+            "chat_model": null,
+            "enabled": true,
+            "image_model": null,
+            "model": "glm-4-flash"
+          }
+        }
+      },
+      "id": "blind_to_x_config_ci",
+      "kind": "blind_to_x",
+      "path": "projects/blind-to-x/config.ci.yaml",
+      "project": "blind-to-x",
+      "status": "ok",
+      "tracked_only": true
+    }
+  ],
+  "generated_at": "2026-06-08",
+  "policy": {
+    "method": "PyYAML yaml.safe_load on tracked YAML config files, then explicit extraction of LLM provider/model defaults.",
+    "non_goal": "This manifest records runtime wiring gaps as checks, but it does not prove live provider credentials or API responses work.",
+    "scope": "Tracked config files only. Secret-bearing local projects/blind-to-x/config.yaml is intentionally excluded."
+  },
+  "schema_version": 1
+}

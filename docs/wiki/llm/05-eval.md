@@ -30,6 +30,14 @@
   - `llm-rubric` (threshold 0.7): 원문 의도 유지 + 자연스러운 한국어 + 200자 이하 + **CTA(구매·클릭 유도) 미포함**.
 - 길이/CTA 금지 규칙은 이 프로젝트의 콘텐츠 철학과 직접 연결된다(조용한 해설자, CTA 금지).
 
+프롬프트 파일을 바꾸거나 `projects/blind-to-x/rules/prompts.yaml` 런타임 프롬프트를 바꾸면 [26-prompt-provenance-versioning](26-prompt-provenance-versioning.md)의 기준대로 prompt file hash, runtime template hash, dataset hash, provider/model, schema/parser version을 함께 남긴다. 현재 promptfoo 설정은 `prompts/draft_v_current.txt`를 직접 평가하므로, runtime YAML 변경은 별도 fixture 동기화 없이는 자동 검증되지 않는다.
+
+Fine-tuning이나 custom model을 검토할 때도 이 페이지의 eval이 선행 조건이다. [30-fine-tuning-custom-model-boundary](30-fine-tuning-custom-model-boundary.md)는 provider fine-tuning을 기본 개선 루프로 보지 않고, holdout eval과 데이터/retention manifest가 있을 때만 예외적으로 허용하는 기준을 둔다.
+
+Eval 결과를 runtime evidence로 연결할 때는 prompt/model만 보지 않는다. [31-generation-parameters-reproducibility](31-generation-parameters-reproducibility.md)의 기준대로 temperature, output cap, provider defaults, retry/fallback, cache hit/miss, best-of-N 선택 정보를 함께 남겨야 promptfoo pass가 실제 publish/runtime 설정과 같은 조건인지 판단할 수 있다.
+
+출처·인용·grounding이 필요한 평가 케이스는 텍스트 점수만 보지 않는다. [28-grounding-citation-source-attribution](28-grounding-citation-source-attribution.md)의 기준대로 source URL/title, retrieved status, citation/grounding supports, deterministic fact-check warning을 sidecar artifact로 남겼는지 확인해야 "근거 있는 출력" 회귀를 잡을 수 있다.
+
 ## 실행
 
 ```bash
@@ -61,6 +69,7 @@ npx promptfoo eval -c tests/eval/blind-to-x/promptfooconfig.yaml
 - golden/rejected 셋은 .gitignore라 **clone 직후엔 없다** → `--dry-run`이 "데이터셋 누락"을 보고하면 먼저 extract를 돌린다.
 - `npx`(Node.js)가 PATH에 있어야 한다.
 - 비용 폭주 방지: provider별 `PROMPTFOO_DAILY_BUDGET_USD` 강제.
+- citation/grounding이 평가 대상이면 strict JSON 출력과 provider-native citation interleaving의 호환성을 먼저 확인한다. 필요하면 citation metadata는 별도 artifact로 분리한다.
 
 ## 관련: 배치 실행
 

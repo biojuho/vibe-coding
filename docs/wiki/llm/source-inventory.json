@@ -1,0 +1,2245 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-06-08",
+  "wiki_dir": "docs/wiki/llm",
+  "policy": {
+    "high_volatility_days": 45,
+    "medium_volatility_days": 90,
+    "low_volatility_days": 180,
+    "source_priority": "official docs and standards first; papers or blogs only when they are the primary source for the claim."
+  },
+  "sources": [
+    {
+      "url": "https://ai.google.dev/api",
+      "host": "ai.google.dev",
+      "pages": [
+        "24-batch-async-latency.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://ai.google.dev/api/embeddings",
+      "host": "ai.google.dev",
+      "pages": [
+        "22-embeddings-rag-dedup.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://ai.google.dev/api/generate-content#v1beta.GenerationConfig",
+      "host": "ai.google.dev",
+      "pages": [
+        "31-generation-parameters-reproducibility.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://ai.google.dev/api/models",
+      "host": "ai.google.dev",
+      "pages": [
+        "21-token-budget-context.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://ai.google.dev/api/models#v1beta.Model",
+      "host": "ai.google.dev",
+      "pages": [
+        "31-generation-parameters-reproducibility.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://ai.google.dev/api/tuning",
+      "host": "ai.google.dev",
+      "pages": [
+        "30-fine-tuning-custom-model-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://ai.google.dev/gemini-api/docs/audio",
+      "host": "ai.google.dev",
+      "pages": [
+        "25-multimodal-audio-media-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://ai.google.dev/gemini-api/docs/batch-api",
+      "host": "ai.google.dev",
+      "pages": [
+        "24-batch-async-latency.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://ai.google.dev/gemini-api/docs/embeddings",
+      "host": "ai.google.dev",
+      "pages": [
+        "22-embeddings-rag-dedup.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://ai.google.dev/gemini-api/docs/function-calling",
+      "host": "ai.google.dev",
+      "pages": [
+        "23-tool-calling-harness-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://ai.google.dev/gemini-api/docs/google-search",
+      "host": "ai.google.dev",
+      "pages": [
+        "23-tool-calling-harness-boundary.md",
+        "28-grounding-citation-source-attribution.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://ai.google.dev/gemini-api/docs/image-generation",
+      "host": "ai.google.dev",
+      "pages": [
+        "25-multimodal-audio-media-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://ai.google.dev/gemini-api/docs/image-understanding",
+      "host": "ai.google.dev",
+      "pages": [
+        "25-multimodal-audio-media-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://ai.google.dev/gemini-api/docs/logs-policy",
+      "host": "ai.google.dev",
+      "pages": [
+        "27-data-retention-privacy-logging.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://ai.google.dev/gemini-api/docs/model-tuning",
+      "host": "ai.google.dev",
+      "pages": [
+        "30-fine-tuning-custom-model-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://ai.google.dev/gemini-api/docs/models",
+      "host": "ai.google.dev",
+      "pages": [
+        "02-providers.md",
+        "15-source-inventory.md"
+      ],
+      "topic": "provider-models-pricing-limits",
+      "source_type": "official-docs",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://ai.google.dev/gemini-api/docs/pricing",
+      "host": "ai.google.dev",
+      "pages": [
+        "02-providers.md"
+      ],
+      "topic": "provider-models-pricing-limits",
+      "source_type": "official-pricing",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://ai.google.dev/gemini-api/docs/prompting-strategies",
+      "host": "ai.google.dev",
+      "pages": [
+        "26-prompt-provenance-versioning.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://ai.google.dev/gemini-api/docs/rate-limits",
+      "host": "ai.google.dev",
+      "pages": [
+        "02-providers.md",
+        "20-rate-limit-reliability.md"
+      ],
+      "topic": "provider-models-pricing-limits",
+      "source_type": "official-rate-limit",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://ai.google.dev/gemini-api/docs/safety-settings",
+      "host": "ai.google.dev",
+      "pages": [
+        "29-error-taxonomy-refusal-fallback-boundary.md",
+        "32-safety-moderation-publish-gates.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://ai.google.dev/gemini-api/docs/speech-generation",
+      "host": "ai.google.dev",
+      "pages": [
+        "25-multimodal-audio-media-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://ai.google.dev/gemini-api/docs/structured-output",
+      "host": "ai.google.dev",
+      "pages": [
+        "14-maintenance-verification.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://ai.google.dev/gemini-api/docs/text-generation",
+      "host": "ai.google.dev",
+      "pages": [
+        "34-language-bridge-locale-i18n-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://ai.google.dev/gemini-api/docs/thinking",
+      "host": "ai.google.dev",
+      "pages": [
+        "11-reasoning-models.md"
+      ],
+      "topic": "reasoning",
+      "source_type": "official-docs",
+      "volatility": "medium",
+      "cadence_days": 90,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-09-06",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://ai.google.dev/gemini-api/docs/tokens",
+      "host": "ai.google.dev",
+      "pages": [
+        "21-token-budget-context.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://ai.google.dev/gemini-api/docs/troubleshooting",
+      "host": "ai.google.dev",
+      "pages": [
+        "20-rate-limit-reliability.md",
+        "29-error-taxonomy-refusal-fallback-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://ai.google.dev/gemini-api/docs/url-context",
+      "host": "ai.google.dev",
+      "pages": [
+        "28-grounding-citation-source-attribution.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://ai.google.dev/gemini-api/docs/video",
+      "host": "ai.google.dev",
+      "pages": [
+        "25-multimodal-audio-media-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://aistudio.google.com/rate-limit",
+      "host": "aistudio.google.com",
+      "pages": [
+        "02-providers.md"
+      ],
+      "topic": "provider-models-pricing-limits",
+      "source_type": "provider-console",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://anthropic.mintlify.app/en/docs/build-with-claude/prompt-engineering/overview",
+      "host": "anthropic.mintlify.app",
+      "pages": [
+        "26-prompt-provenance-versioning.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://api-docs.deepseek.com/",
+      "host": "api-docs.deepseek.com",
+      "pages": [
+        "02-providers.md",
+        "11-reasoning-models.md"
+      ],
+      "topic": "provider-models-pricing-limits",
+      "source_type": "official-docs",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://api-docs.deepseek.com/news/news260424",
+      "host": "api-docs.deepseek.com",
+      "pages": [
+        "11-reasoning-models.md",
+        "15-source-inventory.md"
+      ],
+      "topic": "reasoning",
+      "source_type": "official-blog",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://api-docs.deepseek.com/quick_start/pricing",
+      "host": "api-docs.deepseek.com",
+      "pages": [
+        "02-providers.md",
+        "15-source-inventory.md"
+      ],
+      "topic": "provider-models-pricing-limits",
+      "source_type": "official-pricing",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://api-docs.deepseek.com/quick_start/rate_limit",
+      "host": "api-docs.deepseek.com",
+      "pages": [
+        "02-providers.md"
+      ],
+      "topic": "provider-models-pricing-limits",
+      "source_type": "official-docs",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://api.anthropic.com",
+      "host": "api.anthropic.com",
+      "pages": [
+        "02-providers.md"
+      ],
+      "topic": "provider-models-pricing-limits",
+      "source_type": "official-docs",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://api.deepseek.com",
+      "host": "api.deepseek.com",
+      "pages": [
+        "02-providers.md"
+      ],
+      "topic": "provider-models-pricing-limits",
+      "source_type": "official-docs",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://api.groq.com/openai/v1",
+      "host": "api.groq.com",
+      "pages": [
+        "02-providers.md"
+      ],
+      "topic": "provider-models-pricing-limits",
+      "source_type": "official-docs",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://api.moonshot.cn/v1",
+      "host": "api.moonshot.cn",
+      "pages": [
+        "02-providers.md"
+      ],
+      "topic": "provider-models-pricing-limits",
+      "source_type": "official-docs",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://api.openai.com/v1",
+      "host": "api.openai.com",
+      "pages": [
+        "02-providers.md"
+      ],
+      "topic": "provider-models-pricing-limits",
+      "source_type": "official-docs",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://api.x.ai/v1",
+      "host": "api.x.ai",
+      "pages": [
+        "02-providers.md"
+      ],
+      "topic": "provider-models-pricing-limits",
+      "source_type": "official-docs",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://api.xiaomimimo.com/v1",
+      "host": "api.xiaomimimo.com",
+      "pages": [
+        "06-per-project.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "code-config",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://api.xiaomimimo.com/v1`은",
+      "host": "api.xiaomimimo.com",
+      "pages": [
+        "06-per-project.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "code-config",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://ceur-ws.org/Vol-3920/paper03.pdf",
+      "host": "ceur-ws.org",
+      "pages": [
+        "08-security.md"
+      ],
+      "topic": "security",
+      "source_type": "paper",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://console.groq.com/docs/batch",
+      "host": "console.groq.com",
+      "pages": [
+        "24-batch-async-latency.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://console.groq.com/docs/models",
+      "host": "console.groq.com",
+      "pages": [
+        "02-providers.md"
+      ],
+      "topic": "provider-models-pricing-limits",
+      "source_type": "official-docs",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://console.groq.com/docs/rate-limits",
+      "host": "console.groq.com",
+      "pages": [
+        "02-providers.md"
+      ],
+      "topic": "provider-models-pricing-limits",
+      "source_type": "official-rate-limit",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/api-reference/embeddings/create",
+      "host": "developers.openai.com",
+      "pages": [
+        "22-embeddings-rag-dedup.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/deprecations",
+      "host": "developers.openai.com",
+      "pages": [
+        "13-model-selection.md",
+        "15-source-inventory.md"
+      ],
+      "topic": "model-lifecycle",
+      "source_type": "official-docs",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/guides/audio",
+      "host": "developers.openai.com",
+      "pages": [
+        "25-multimodal-audio-media-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/guides/batch",
+      "host": "developers.openai.com",
+      "pages": [
+        "24-batch-async-latency.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/guides/embeddings",
+      "host": "developers.openai.com",
+      "pages": [
+        "22-embeddings-rag-dedup.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/guides/error-codes",
+      "host": "developers.openai.com",
+      "pages": [
+        "29-error-taxonomy-refusal-fallback-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/guides/function-calling",
+      "host": "developers.openai.com",
+      "pages": [
+        "23-tool-calling-harness-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/guides/graders",
+      "host": "developers.openai.com",
+      "pages": [
+        "30-fine-tuning-custom-model-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/guides/image-generation",
+      "host": "developers.openai.com",
+      "pages": [
+        "25-multimodal-audio-media-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/guides/images-vision",
+      "host": "developers.openai.com",
+      "pages": [
+        "25-multimodal-audio-media-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/guides/model-optimization",
+      "host": "developers.openai.com",
+      "pages": [
+        "30-fine-tuning-custom-model-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/guides/prompt-caching",
+      "host": "developers.openai.com",
+      "pages": [
+        "26-prompt-provenance-versioning.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/guides/prompt-engineering",
+      "host": "developers.openai.com",
+      "pages": [
+        "26-prompt-provenance-versioning.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/guides/rate-limits",
+      "host": "developers.openai.com",
+      "pages": [
+        "02-providers.md",
+        "20-rate-limit-reliability.md"
+      ],
+      "topic": "provider-models-pricing-limits",
+      "source_type": "official-rate-limit",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/guides/reasoning",
+      "host": "developers.openai.com",
+      "pages": [
+        "11-reasoning-models.md"
+      ],
+      "topic": "reasoning",
+      "source_type": "official-docs",
+      "volatility": "medium",
+      "cadence_days": 90,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-09-06",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/guides/reinforcement-fine-tuning",
+      "host": "developers.openai.com",
+      "pages": [
+        "30-fine-tuning-custom-model-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/guides/speech-to-text",
+      "host": "developers.openai.com",
+      "pages": [
+        "25-multimodal-audio-media-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/guides/streaming-responses",
+      "host": "developers.openai.com",
+      "pages": [
+        "24-batch-async-latency.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/guides/structured-outputs",
+      "host": "developers.openai.com",
+      "pages": [
+        "10-structured-outputs.md",
+        "14-maintenance-verification.md",
+        "23-tool-calling-harness-boundary.md",
+        "29-error-taxonomy-refusal-fallback-boundary.md",
+        "34-language-bridge-locale-i18n-boundary.md"
+      ],
+      "topic": "structured-outputs",
+      "source_type": "official-docs",
+      "volatility": "medium",
+      "cadence_days": 90,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-09-06",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/guides/supervised-fine-tuning",
+      "host": "developers.openai.com",
+      "pages": [
+        "30-fine-tuning-custom-model-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/guides/tools",
+      "host": "developers.openai.com",
+      "pages": [
+        "23-tool-calling-harness-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/guides/tools-file-search",
+      "host": "developers.openai.com",
+      "pages": [
+        "28-grounding-citation-source-attribution.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/guides/tools-web-search",
+      "host": "developers.openai.com",
+      "pages": [
+        "28-grounding-citation-source-attribution.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/guides/your-data",
+      "host": "developers.openai.com",
+      "pages": [
+        "27-data-retention-privacy-logging.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/models",
+      "host": "developers.openai.com",
+      "pages": [
+        "02-providers.md",
+        "15-source-inventory.md"
+      ],
+      "topic": "provider-models-pricing-limits",
+      "source_type": "official-docs",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/models/compare",
+      "host": "developers.openai.com",
+      "pages": [
+        "21-token-budget-context.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/pricing",
+      "host": "developers.openai.com",
+      "pages": [
+        "02-providers.md",
+        "15-source-inventory.md"
+      ],
+      "topic": "provider-models-pricing-limits",
+      "source_type": "official-pricing",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.openai.com/cookbook/examples/how_to_count_tokens_with_tiktoken",
+      "host": "developers.openai.com",
+      "pages": [
+        "21-token-budget-context.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://docs.bigmodel.cn/cn/api/rate-limit",
+      "host": "docs.bigmodel.cn",
+      "pages": [
+        "02-providers.md"
+      ],
+      "topic": "provider-models-pricing-limits",
+      "source_type": "official-rate-limit",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://docs.bigmodel.cn/cn/guide/start/model-overview",
+      "host": "docs.bigmodel.cn",
+      "pages": [
+        "02-providers.md"
+      ],
+      "topic": "provider-models-pricing-limits",
+      "source_type": "official-docs",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://docs.github.com/en/actions/concepts/workflows-and-actions/workflow-artifacts",
+      "host": "docs.github.com",
+      "pages": [
+        "14-maintenance-verification.md",
+        "18-runtime-wiring-checks.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands",
+      "host": "docs.github.com",
+      "pages": [
+        "14-maintenance-verification.md",
+        "18-runtime-wiring-checks.md",
+        "19-objective-loop-audit.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://docs.github.com/en/enterprise-server@3.17/code-security/how-tos/manage-security-alerts/manage-code-scanning-alerts/resolving-code-scanning-alerts",
+      "host": "docs.github.com",
+      "pages": [
+        "18-runtime-wiring-checks.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/sarif-v2.1.0-errata01-complete.pdf",
+      "host": "docs.oasis-open.org",
+      "pages": [
+        "18-runtime-wiring-checks.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "paper",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://docs.ollama.com/api/embed",
+      "host": "docs.ollama.com",
+      "pages": [
+        "22-embeddings-rag-dedup.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://docs.ollama.com/api/openai-compatibility",
+      "host": "docs.ollama.com",
+      "pages": [
+        "02-providers.md"
+      ],
+      "topic": "provider-models-pricing-limits",
+      "source_type": "official-docs",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://docs.ollama.com/capabilities/embeddings",
+      "host": "docs.ollama.com",
+      "pages": [
+        "22-embeddings-rag-dedup.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://docs.python.org/3/library/argparse.html",
+      "host": "docs.python.org",
+      "pages": [
+        "14-maintenance-verification.md",
+        "18-runtime-wiring-checks.md",
+        "19-objective-loop-audit.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://docs.python.org/3/library/ast.html",
+      "host": "docs.python.org",
+      "pages": [
+        "16-code-facts.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://docs.python.org/3/library/json.html",
+      "host": "docs.python.org",
+      "pages": [
+        "14-maintenance-verification.md",
+        "16-code-facts.md",
+        "18-runtime-wiring-checks.md",
+        "19-objective-loop-audit.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://docs.python.org/3/library/pathlib.html",
+      "host": "docs.python.org",
+      "pages": [
+        "18-runtime-wiring-checks.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://docs.python.org/3/library/sys.html",
+      "host": "docs.python.org",
+      "pages": [
+        "14-maintenance-verification.md",
+        "18-runtime-wiring-checks.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://docs.python.org/3/library/warnings.html",
+      "host": "docs.python.org",
+      "pages": [
+        "14-maintenance-verification.md",
+        "18-runtime-wiring-checks.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://docs.x.ai/developers/model-capabilities/text/structured-outputs",
+      "host": "docs.x.ai",
+      "pages": [
+        "10-structured-outputs.md"
+      ],
+      "topic": "structured-outputs",
+      "source_type": "official-docs",
+      "volatility": "medium",
+      "cadence_days": 90,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-09-06",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://docs.x.ai/developers/models",
+      "host": "docs.x.ai",
+      "pages": [
+        "02-providers.md"
+      ],
+      "topic": "provider-models-pricing-limits",
+      "source_type": "official-docs",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://firebase.google.com/docs/ai-logic/generate-structured-output",
+      "host": "firebase.google.com",
+      "pages": [
+        "10-structured-outputs.md"
+      ],
+      "topic": "structured-outputs",
+      "source_type": "official-docs",
+      "volatility": "medium",
+      "cadence_days": 90,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-09-06",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://genai.owasp.org/llm-top-10/",
+      "host": "genai.owasp.org",
+      "pages": [
+        "08-security.md",
+        "14-maintenance-verification.md",
+        "15-source-inventory.md"
+      ],
+      "topic": "security",
+      "source_type": "standard",
+      "volatility": "medium",
+      "cadence_days": 90,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-09-06",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://generativelanguage.googleapis.com",
+      "host": "generativelanguage.googleapis.com",
+      "pages": [
+        "02-providers.md"
+      ],
+      "topic": "provider-models-pricing-limits",
+      "source_type": "official-docs",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://github.com/actions/upload-artifact",
+      "host": "github.com",
+      "pages": [
+        "14-maintenance-verification.md",
+        "18-runtime-wiring-checks.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://groq.com/pricing",
+      "host": "groq.com",
+      "pages": [
+        "02-providers.md"
+      ],
+      "topic": "provider-models-pricing-limits",
+      "source_type": "official-pricing",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://help.x.com/en/rules-and-policies/x-automation",
+      "host": "help.x.com",
+      "pages": [
+        "32-safety-moderation-publish-gates.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://langfuse.com/docs/administration/data-retention",
+      "host": "langfuse.com",
+      "pages": [
+        "27-data-retention-privacy-logging.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://langfuse.com/self-hosting/security/data-masking",
+      "host": "langfuse.com",
+      "pages": [
+        "27-data-retention-privacy-logging.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/azure/ai-services/speech-service/language-support",
+      "host": "learn.microsoft.com",
+      "pages": [
+        "34-language-bridge-locale-i18n-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization",
+      "host": "modelcontextprotocol.io",
+      "pages": [
+        "23-tool-calling-harness-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://modelcontextprotocol.io/specification/2025-06-18/server/tools",
+      "host": "modelcontextprotocol.io",
+      "pages": [
+        "23-tool-calling-harness-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://ollama.com/library",
+      "host": "ollama.com",
+      "pages": [
+        "02-providers.md"
+      ],
+      "topic": "provider-models-pricing-limits",
+      "source_type": "official-docs",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://open.bigmodel.cn/api/paas/v4",
+      "host": "open.bigmodel.cn",
+      "pages": [
+        "02-providers.md"
+      ],
+      "topic": "provider-models-pricing-limits",
+      "source_type": "official-docs",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://openai.com/index/introducing-structured-outputs-in-the-api/",
+      "host": "openai.com",
+      "pages": [
+        "10-structured-outputs.md"
+      ],
+      "topic": "structured-outputs",
+      "source_type": "official-blog",
+      "volatility": "medium",
+      "cadence_days": 90,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-09-06",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://openai.com/index/retiring-gpt-4o-and-older-models/",
+      "host": "openai.com",
+      "pages": [
+        "13-model-selection.md"
+      ],
+      "topic": "model-lifecycle",
+      "source_type": "official-blog",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://owasp.org/www-project-top-10-for-large-language-model-applications/assets/PDF/OWASP-Top-10-for-LLMs-v2025.pdf",
+      "host": "owasp.org",
+      "pages": [
+        "08-security.md"
+      ],
+      "topic": "security",
+      "source_type": "paper",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.claude.com/cookbook/tool-use-context-engineering-context-engineering-tools",
+      "host": "platform.claude.com",
+      "pages": [
+        "09-agent-harness.md"
+      ],
+      "topic": "agent-harness",
+      "source_type": "official-docs",
+      "volatility": "medium",
+      "cadence_days": 90,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-09-06",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/about-claude/models/overview",
+      "host": "platform.claude.com",
+      "pages": [
+        "02-providers.md",
+        "15-source-inventory.md"
+      ],
+      "topic": "provider-models-pricing-limits",
+      "source_type": "official-docs",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "host": "platform.claude.com",
+      "pages": [
+        "02-providers.md"
+      ],
+      "topic": "provider-models-pricing-limits",
+      "source_type": "official-pricing",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/about-claude/use-case-guides/content-moderation",
+      "host": "platform.claude.com",
+      "pages": [
+        "32-safety-moderation-publish-gates.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools",
+      "host": "platform.claude.com",
+      "pages": [
+        "23-tool-calling-harness-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls",
+      "host": "platform.claude.com",
+      "pages": [
+        "23-tool-calling-harness-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool",
+      "host": "platform.claude.com",
+      "pages": [
+        "28-grounding-citation-source-attribution.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/api/errors",
+      "host": "platform.claude.com",
+      "pages": [
+        "29-error-taxonomy-refusal-fallback-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/api/messages/count_tokens",
+      "host": "platform.claude.com",
+      "pages": [
+        "21-token-budget-context.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/api/overview",
+      "host": "platform.claude.com",
+      "pages": [
+        "21-token-budget-context.md",
+        "30-fine-tuning-custom-model-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/api/rate-limits",
+      "host": "platform.claude.com",
+      "pages": [
+        "02-providers.md",
+        "20-rate-limit-reliability.md"
+      ],
+      "topic": "provider-models-pricing-limits",
+      "source_type": "official-rate-limit",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/build-with-claude/batch-processing",
+      "host": "platform.claude.com",
+      "pages": [
+        "24-batch-async-latency.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/build-with-claude/citations",
+      "host": "platform.claude.com",
+      "pages": [
+        "28-grounding-citation-source-attribution.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/build-with-claude/computer-use",
+      "host": "platform.claude.com",
+      "pages": [
+        "33-computer-use-browser-qa-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/build-with-claude/embeddings",
+      "host": "platform.claude.com",
+      "pages": [
+        "22-embeddings-rag-dedup.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/build-with-claude/extended-thinking",
+      "host": "platform.claude.com",
+      "pages": [
+        "11-reasoning-models.md"
+      ],
+      "topic": "reasoning",
+      "source_type": "official-docs",
+      "volatility": "medium",
+      "cadence_days": 90,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-09-06",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/build-with-claude/handling-stop-reasons",
+      "host": "platform.claude.com",
+      "pages": [
+        "29-error-taxonomy-refusal-fallback-boundary.md",
+        "31-generation-parameters-reproducibility.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices",
+      "host": "platform.claude.com",
+      "pages": [
+        "34-language-bridge-locale-i18n-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/build-with-claude/streaming",
+      "host": "platform.claude.com",
+      "pages": [
+        "24-batch-async-latency.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/build-with-claude/structured-outputs",
+      "host": "platform.claude.com",
+      "pages": [
+        "10-structured-outputs.md",
+        "14-maintenance-verification.md"
+      ],
+      "topic": "structured-outputs",
+      "source_type": "official-docs",
+      "volatility": "medium",
+      "cadence_days": 90,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-09-06",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/build-with-claude/tool-use",
+      "host": "platform.claude.com",
+      "pages": [
+        "10-structured-outputs.md"
+      ],
+      "topic": "structured-outputs",
+      "source_type": "official-docs",
+      "volatility": "medium",
+      "cadence_days": 90,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-09-06",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/build-with-claude/vision",
+      "host": "platform.claude.com",
+      "pages": [
+        "25-multimodal-audio-media-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/build-with-claude/working-with-messages",
+      "host": "platform.claude.com",
+      "pages": [
+        "31-generation-parameters-reproducibility.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/manage-claude/api-and-data-retention",
+      "host": "platform.claude.com",
+      "pages": [
+        "27-data-retention-privacy-logging.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.kimi.com/docs/pricing/chat-v1",
+      "host": "platform.kimi.com",
+      "pages": [
+        "02-providers.md"
+      ],
+      "topic": "provider-models-pricing-limits",
+      "source_type": "official-pricing",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.kimi.com/docs/pricing/limits",
+      "host": "platform.kimi.com",
+      "pages": [
+        "02-providers.md"
+      ],
+      "topic": "provider-models-pricing-limits",
+      "source_type": "official-pricing",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.openai.com/docs/api-reference/moderations",
+      "host": "platform.openai.com",
+      "pages": [
+        "32-safety-moderation-publish-gates.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.openai.com/docs/api-reference/responses/object",
+      "host": "platform.openai.com",
+      "pages": [
+        "31-generation-parameters-reproducibility.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.openai.com/docs/guides/moderation",
+      "host": "platform.openai.com",
+      "pages": [
+        "32-safety-moderation-publish-gates.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.openai.com/docs/guides/tools-computer-use",
+      "host": "platform.openai.com",
+      "pages": [
+        "33-computer-use-browser-qa-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://platform.openai.com/docs/models/computer-use-preview",
+      "host": "platform.openai.com",
+      "pages": [
+        "33-computer-use-browser-qa-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "high",
+      "cadence_days": 45,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://playwright.dev/docs/best-practices",
+      "host": "playwright.dev",
+      "pages": [
+        "33-computer-use-browser-qa-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://playwright.dev/docs/browser-contexts",
+      "host": "playwright.dev",
+      "pages": [
+        "33-computer-use-browser-qa-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://playwright.dev/docs/screenshots",
+      "host": "playwright.dev",
+      "pages": [
+        "33-computer-use-browser-qa-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://privacy.claude.com/en/articles/7996866-how-long-do-you-store-my-organization-s-data",
+      "host": "privacy.claude.com",
+      "pages": [
+        "27-data-retention-privacy-logging.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://pyyaml.org/wiki/PyYAMLDocumentation",
+      "host": "pyyaml.org",
+      "pages": [
+        "17-config-facts.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://support.google.com/youtube/answer/14328491?hl=en",
+      "host": "support.google.com",
+      "pages": [
+        "32-safety-moderation-publish-gates.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://support.google.com/youtube/answer/9288567?hl=en",
+      "host": "support.google.com",
+      "pages": [
+        "32-safety-moderation-publish-gates.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://www.anthropic.com/engineering/building-effective-agents",
+      "host": "www.anthropic.com",
+      "pages": [
+        "09-agent-harness.md"
+      ],
+      "topic": "agent-harness",
+      "source_type": "official-blog",
+      "volatility": "medium",
+      "cadence_days": 90,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-09-06",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents",
+      "host": "www.anthropic.com",
+      "pages": [
+        "09-agent-harness.md"
+      ],
+      "topic": "agent-harness",
+      "source_type": "official-blog",
+      "volatility": "medium",
+      "cadence_days": 90,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-09-06",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://www.promptfoo.dev/docs/configuration/expected-outputs/",
+      "host": "www.promptfoo.dev",
+      "pages": [
+        "26-prompt-provenance-versioning.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://www.promptfoo.dev/docs/configuration/prompts/",
+      "host": "www.promptfoo.dev",
+      "pages": [
+        "26-prompt-provenance-versioning.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://www.promptfoo.dev/docs/intro/",
+      "host": "www.promptfoo.dev",
+      "pages": [
+        "26-prompt-provenance-versioning.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://www.promptfoo.dev/docs/providers/",
+      "host": "www.promptfoo.dev",
+      "pages": [
+        "31-generation-parameters-reproducibility.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://www.promptfoo.dev/docs/usage/command-line/",
+      "host": "www.promptfoo.dev",
+      "pages": [
+        "26-prompt-provenance-versioning.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://www.rfc-editor.org/rfc/rfc5646",
+      "host": "www.rfc-editor.org",
+      "pages": [
+        "34-language-bridge-locale-i18n-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://www.rfc-editor.org/rfc/rfc6585#section-4",
+      "host": "www.rfc-editor.org",
+      "pages": [
+        "20-rate-limit-reliability.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://www.rfc-editor.org/rfc/rfc9110#section-10.2.3",
+      "host": "www.rfc-editor.org",
+      "pages": [
+        "20-rate-limit-reliability.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://www.unicode.org/reports/tr15/",
+      "host": "www.unicode.org",
+      "pages": [
+        "34-language-bridge-locale-i18n-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://yaml.org/spec/1.2.2/",
+      "host": "yaml.org",
+      "pages": [
+        "17-config-facts.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    }
+  ]
+}

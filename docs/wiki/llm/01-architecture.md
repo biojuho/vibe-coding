@@ -97,6 +97,7 @@ ollama → google → groq → deepseek → moonshot → zhipuai → openai → 
 - **shadow vs enforce**: `shadow`(기본)는 파싱만 되면 통과시키고 경고만 로깅, `enforce`는 정책 통과해야만 수락(L872–898). 운영 기본은 shadow.
 - env 오버라이드: `LLM_BRIDGE_MODE`, `LLM_BRIDGE_MIN_HANGUL_RATIO`, `LLM_BRIDGE_FALLBACKS` 등 (L49–76).
 - 자세한 배경: [deepseek_ko_bridge.md](../../../workspace/directives/deepseek_ko_bridge.md).
+- Operating boundary: [34-language-bridge-locale-i18n-boundary](34-language-bridge-locale-i18n-boundary.md) separates provider multilingual capability, BCP-47 locale tags, app i18n bundles, TTS locale, and bridge evidence.
 
 ## 2종 캐시 (혼동 주의)
 

@@ -14,7 +14,7 @@
 - TTL: `cache_ttl_sec` 기본 **259200초(72h)**, `0`이면 비활성 (L292).
 - 조회/저장: `_run_simple_loop` 시작에서 hit이면 즉시 반환(L618–624), 성공 후 저장(L660–661).
 - 정리: `cache_cleanup(ttl_sec=259200)` 만료 항목 삭제 (L260–271).
-- 주의: 비결정 작업(매번 다른 출력을 원함)에는 `cache_ttl_sec=0` 권장.
+- 주의: 비결정 작업(매번 다른 출력을 원함)에는 `cache_ttl_sec=0` 권장. 응답 `content` 자체가 `.tmp/llm_cache.db`에 남으므로, private/source-sensitive 입력은 [27-data-retention-privacy-logging](27-data-retention-privacy-logging.md)의 로컬 retention 기준을 먼저 적용한다.
 
 ### (B) Anthropic 프롬프트 캐시 — `cache_strategy`
 
@@ -110,5 +110,6 @@ py -3.13 workspace/execution/llm_usage_summary.py --by provider --json
 1. **무료/저가 우선**: 기본 fallback 순서가 이미 비용효율 순. 굳이 비싼 프로바이더를 1순위로 강제하지 말 것.
 2. **Anthropic 캐싱**: 큰 재사용 system 프롬프트는 `cache_strategy="5m"`. → 위 후보 기준.
 3. **로컬 응답 캐시**: 동일 입력 반복 작업은 `cache_ttl_sec` 활용(비결정 작업은 0).
-4. **Batch API**: Anthropic/Gemini/Groq 모두 ~50% 할인(비실시간 대량). 캐싱과 스택.
-5. **모니터링**: `alerts`를 cron으로 돌려 cost spike/dead provider 조기 감지.
+4. **프롬프트 변경 무효화**: 입력만으로 만든 캐시 키는 프롬프트 템플릿 변경을 숨길 수 있다. 사용자-facing workflow는 [26-prompt-provenance-versioning](26-prompt-provenance-versioning.md)의 `prompt_hash`/`prompt_version` 규칙을 캐시 artifact에 포함하거나 prompt 변경 시 cache clear를 기록한다.
+5. **Batch API**: OpenAI/Anthropic/Gemini/Groq 모두 공식 문서상 비실시간 대량 처리에 약 50% 할인 경로가 있다. 단, streaming/async fallback과 다르며 캐시 할인과의 stack 여부도 provider별로 다르다([24-batch-async-latency](24-batch-async-latency.md)).
+6. **모니터링**: `alerts`를 cron으로 돌려 cost spike/dead provider 조기 감지.
