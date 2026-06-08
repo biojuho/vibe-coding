@@ -2617,3 +2617,14 @@
 - Added `tests/test_claude_goal.py::test_goal_contract_output_directory_errors_before_db_open`.
 - Direct after-fix QA in `.tmp/claude-goal-t1742b-contract-output-preflight-qa.json` confirms direct and slash `contract --markdown-output <existing-dir>` / `contract --json-output <existing-dir>` with a DB directory return exit `2`, empty stdout, actionable output path errors, no DB error, and no traceback; the artifact records A/B `adopt_candidate`.
 - Verification passed focused regression pytest (`1 passed`), contract cluster under `PYTHONUTF8=1` (`5 passed, 119 deselected`) after a non-UTF8 run hit known Korean path mojibake in existing full-path assertions, full isolated pytest with `PYTHONUTF8=1` (`177 passed`), Ruff check, Ruff format check after scoped formatting (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
+
+## 2026-06-09 - Codex
+
+- Completed T-1743 as a `claude-goal` legacy set usage-error exit-code fix in `claude-goal/` on branch `improve/goal-system`.
+- Continued the `/goal` reproduce -> isolate -> root-cause -> fix -> verify loop while preserving existing nested WIP, the completed T-1742 legacy schema migration surface, and the concurrently recorded T-1742b contract output preflight surface; did not stage nested code, push, revert, call `update_goal`, edit root product code, or retry Hanwoo T-251.
+- Reproduced with isolated temp state that legacy direct `set objective --token-budget nope`, `set objective --token-budget`, and unmatched-quote `set` usage errors returned exit `1`, while equivalent slash `invoke` set fallback and other argparse-style usage errors return exit `2`.
+- Root cause: the legacy set dispatcher caught all `ValueError` instances as runtime set failures and mapped them to exit `1`, even when the error came from command-line parsing.
+- Fixed `goal/scripts/claude_goal.py` by introducing `GoalUsageError` for set argument parsing failures and mapping that class to legacy exit `2`, while preserving exit `1` for empty objective and duplicate active-goal state errors.
+- Added `tests/test_claude_goal.py::test_set_usage_errors_return_usage_exit_without_mutating`.
+- Direct after-fix QA in `.tmp/claude-goal-t1743-set-usage-exit-code-qa.json` confirms legacy set token-budget and quote parsing usage errors now return exit `2`, leave stdout empty, do not mutate active goals, and print no traceback; empty objective still returns exit `1`.
+- Verification passed focused/adjacent pytest (`3 passed`), full isolated pytest with `PYTHONUTF8=1` (`178 passed`), Ruff check, scoped Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
