@@ -20,3 +20,8 @@
 ## Rotation 2026-06-08 (archived DONE rows beyond the newest 5)
 
 | T-1554 | `[auto-research]` Added direct output-quality objective coverage to the launch manifest. The audit now checks project good-output criteria, external benchmark signals, Good vs Bad output distinction, and iterative baseline/candidate/A-B evidence, with tests for complete and blocked evidence. Completion audit now includes this item and reports `11/15` complete with the same 4 publish/T-251 blockers. No push and no T-251 retry. | Codex | 2026-06-08 |
+
+## Rotation 2026-06-08 (archived DONE rows beyond the newest 5)
+
+| T-1556 | `[auto-research]` Persisted selector inventory helper outputs. `next_experiment_selector.py` now writes GitHub/browser/dependency helper outputs to expected `.tmp` cache artifacts and uses longer bounded helper timeouts, so fallback evidence is available after live helper runs. Tests assert `--output` paths for all three inventories. No push and no T-251 retry. | Codex | 2026-06-08 |
+| T-1555 | `[workspace/shorts-manager]` Hardened Streamlit select dropdown options for mobile touch targets. BaseWeb virtual dropdown options now have `min-height: 44px`, `display: flex`, and centered content; source and rendered CSS tests lock the contract. Browser QA at `390x844` measured 6 options with min height `44`, no horizontal overflow, console errors `0`, and failed requests `0`. No push and no T-251 retry. | Codex | 2026-06-08 |

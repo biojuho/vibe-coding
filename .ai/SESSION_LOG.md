@@ -1696,3 +1696,22 @@
 - Verification: Daily Report focused pytest passed (`8 passed`); related Daily Report/Hub pytest passed (`65 passed`); launch-audit focused pytest passed (`46 passed`); Ruff check passed; Ruff format check passed; `py_compile` passed; diff-check passed; graph update was current at `10e8d5a5`; Shorts Maker V2 project QC passed (`1640 passed`, `12 skipped`, `29 warnings`, lint pass); code-review gate returned advisory WARN (`risk_score=0.30`) covered by direct source-contract tests and browser QA.
 - Live audits: clean worktree, readiness score `96`, local blockers `0`, agent tasks `0`, publish blockers `1`, external blockers `1`, release packet `ready_for_authorization`, selector `blocked_publish_only`, launch manifest local coverage complete, completion audit `11/15` complete with `4` blocked items.
 - Boundary: no push was performed and T-251 was not retried. Remaining work is explicit push/user push for current-head GitHub Actions plus user-owned Hanwoo T-251 Supabase credential reset/live Prisma CRUD E2E.
+
+## 2026-06-08 - Codex
+
+- Completed T-1574 as a Blind-to-X publish-decision hard-gate cycle for the auto-research objective "Blind post input -> X shortform -> fully automatic publishing."
+- Added `projects/blind-to-x/pipeline/research_context.py`: deterministic source frame, real issue, universal value, killer sentence, closure, conflict risk, and anchor extraction before draft generation.
+- Added `projects/blind-to-x/pipeline/publish_decision.py`: `PUBLISH`/`HOLD`/`DROP` decision model with hard gates for regulation failure, missing value reduction, X weighted-length overflow, forbidden AI-tone patterns, URLs, hashtag overflow, and low quality.
+- Updated `draft_prompts.py`, `draft_quality_gate.py`, `generate_review_stage.py`, `persist_stage.py`, and `notion/_upload.py` so research context enters the user prompt, Twitter length uses X weighted counting, Notion shows decision-card lines, missing decisions default to `Needs Edit`, and live posting requires explicit auto-publish enablement.
+- Added/updated tests in `test_research_context.py`, `test_publish_decision.py`, `test_draft_generator_multi_provider.py`, `test_draft_quality_gate_deep.py`, `test_notion_upload.py`, and `test_process_stages.py`.
+- Verification passed: focused/expanded pytest (`138 passed`, `228 passed`), full blind-to-x project QC test/lint (`1861 passed`, `9 skipped`, lint pass), targeted Ruff, `git diff --check` with CRLF warnings only, A/B helper `adopt_candidate` for `.tmp/ab-manifest-t1574-blind-x-publish-decision.json` (`score_delta=12.35`), and advisory code-review gate WARN (`risk_score=0.40`) covered by direct tests plus full project QC.
+- Boundary: no push was performed and T-251 was not retried. Worktree also contains separate docs/wiki/llm WIP (`08-security.md` through `12-llm-features.md`, README entries); keep it separate from blind-to-x claims.
+
+## 2026-06-08 - Codex
+
+- Completed T-1575 as a claude-goal self-improvement loop in nested repo `claude-goal` on branch `improve/goal-system`.
+- Created safety checkpoint commit `86e2bed` before edits, then committed five improvement cycles: `20b1600` Stop hook installer hardening, `378e5f7` read-only `/goal doctor`, `d40ae3f` dry-run-first `/goal pause-stale`, `6751420` read-only `/goal doctor --install`, and `f73d452` clear-alias alignment.
+- Changed `claude-goal/goal/scripts/install_goal.py`, `install.sh`, `goal/scripts/claude_goal.py`, `goal/SKILL.md`, `README.md`, `tests/test_claude_goal.py`, and `tests/test_install_goal.py`.
+- Live `~/.claude/settings.json` was updated to a structured `command` + `args` Stop hook with `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP=500` and `CLAUDE_GOAL_MAX_STOP_CONTINUES=500`; the original settings file was backed up as `~/.claude/settings.json.bak`.
+- Verification passed `python -m py_compile goal/scripts/claude_goal.py goal/scripts/install_goal.py`, `python -m pytest tests -q -o addopts="" --basetemp tmp-pytest` (`19 passed`), `git diff --check`, live settings JSON parse, direct live hook block smoke, live `/goal doctor --install --json` (`ok`), live `/goal doctor --json`, and live `/goal pause-stale --json` dry-run.
+- Boundary: no live stale pause was applied; dry-run detected 2 stale active goals. No push was performed and T-251 was not retried. Preserve unrelated root blind-to-x/wiki WIP.
