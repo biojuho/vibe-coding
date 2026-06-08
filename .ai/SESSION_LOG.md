@@ -2418,3 +2418,16 @@
 - QA evidence is `.tmp/claude-goal-t1728-output-sink-errors-qa.json`.
 - Verification passed focused pytest (`5 passed, 102 deselected`), full isolated pytest (`155 passed`), Ruff check, Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
 - Removed T-1728 repro/pytest temp dirs after preserving the root `.tmp` QA evidence.
+
+## 2026-06-08 - Codex
+
+- Completed T-1729 as a `claude-goal` installer settings_path filesystem-error traceback fix in `claude-goal/` on branch `improve/goal-system`.
+- Continued the `/goal` reproduce -> isolate -> root-cause -> fix -> verify loop after T-1728, preserving existing WIP; did not stage, commit, push, revert, call `update_goal`, edit root product code, or retry Hanwoo T-251.
+- Reproduced with isolated temp paths that `python goal/scripts/install_goal.py <settings-directory> --restore-backup --yes` and `python goal/scripts/install_goal.py <settings-directory> <script-path> --no-backup` returned exit `1` and printed Python tracebacks from filesystem `OSError`/`PermissionError` paths.
+- Root cause: installer `main()` converted `FileNotFoundError` and `ValueError` to clean CLI errors, but did not catch expected `OSError` failures from reading or replacing a directory `settings_path`.
+- Fixed `goal/scripts/install_goal.py` by handling `OSError` alongside `ValueError` in the installer CLI entrypoint.
+- Added `tests/test_install_goal.py::test_restore_backup_cli_reports_directory_settings_path_without_traceback` and `tests/test_install_goal.py::test_install_cli_reports_directory_settings_path_without_traceback`.
+- Direct after-fix repro now returns exit `2` for both original commands, leaves stdout empty, includes `goal installer error` on stderr, and prints no traceback.
+- QA evidence is `.tmp/claude-goal-t1729-installer-settings-path-errors-qa.json`.
+- Verification passed focused installer pytest (`8 passed, 10 deselected`), full isolated pytest (`157 passed`), Ruff check, Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
+- Removed T-1729 pytest temp dirs after preserving the root `.tmp` QA evidence.
