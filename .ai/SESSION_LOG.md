@@ -2431,3 +2431,30 @@
 - QA evidence is `.tmp/claude-goal-t1729-installer-settings-path-errors-qa.json`.
 - Verification passed focused installer pytest (`8 passed, 10 deselected`), full isolated pytest (`157 passed`), Ruff check, Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
 - Removed T-1729 pytest temp dirs after preserving the root `.tmp` QA evidence.
+
+## 2026-06-08 - Codex
+
+- Completed T-1730 as a `claude-goal` direct `pause-stale` negative stale-days fix in `claude-goal/` on branch `improve/goal-system`.
+- Continued the `/goal` reproduce -> isolate -> root-cause -> fix -> verify loop after T-1729, preserving existing WIP; did not stage, commit, push, revert, call `update_goal`, edit root product code, or retry Hanwoo T-251.
+- Reproduced with isolated temp state that direct `pause-stale --stale-days -1` and `pause-stale --stale-days -1 --json` returned exit `0` and could treat current active goals as stale, while slash `invoke pause-stale --stale-days -1` correctly returned exit `2`.
+- Root cause: slash `parse_pause_stale_args()` validated negative stale-day thresholds through `_parse_stale_command_args()`, but direct `_pause_stale_args_from_main_namespace()` copied argparse's integer without the same non-negative check.
+- Fixed `goal/scripts/claude_goal.py` by validating direct `pause-stale` stale_days and returning clean `goal error` exit `2`.
+- Added `tests/test_claude_goal.py::test_pause_stale_rejects_negative_stale_days_without_mutating`.
+- Direct after-fix repro now returns exit `2` for direct/slash and JSON variants, leaves stdout empty, emits `goal error: --stale-days must be zero or greater`, and prints no traceback.
+- QA evidence is `.tmp/claude-goal-t1730-pause-stale-negative-days-qa.json`.
+- Verification passed focused pytest (`3 passed, 105 deselected`), full isolated pytest (`158 passed`), Ruff check, Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
+- Removed T-1730 pytest temp dirs after preserving the root `.tmp` QA evidence.
+
+## 2026-06-08 - Codex
+
+- Completed T-1730b as a `claude-goal` contract/doctor artifact-help copy UX fix in `claude-goal/` on branch `improve/goal-system`.
+- Used suffix fallback because T-1730 was already present as the direct `pause-stale` negative stale-days fix.
+- Continued the `/goal` direct CLI UX loop while preserving existing nested WIP; did not stage, commit, push, revert, call `update_goal`, edit root product code, or retry Hanwoo T-251.
+- Direct CLI use showed `python goal/scripts/claude_goal.py contract --help` and `python goal/scripts/claude_goal.py doctor --install --help` rendered reviewer/artifact flags with little or no option-purpose copy for `--schema`, `--markdown-output`, `--json-output`, `--verify-json`, `--verify-schema`, and `--github-step-summary`.
+- Classification: copy/accessibility UX gap on reviewer evidence commands, directly observed from the help surface.
+- External references checked: Python argparse help descriptions, GitHub CLI subcommand help, and Vercel CLI detailed command help.
+- A/B comparison: baseline flags-only help preserved behavior but forced users to infer artifact semantics; candidate descriptive option copy preserved behavior while making reviewer and CI evidence commands self-explanatory. Adopted the candidate.
+- Fixed `goal/scripts/claude_goal.py` by adding command descriptions and practical option help for `contract` and `doctor`.
+- Added `tests/test_claude_goal.py::test_review_command_help_describes_artifact_options` and extended operation-help coverage so direct/slash help remains descriptive and non-mutating.
+- Direct after-fix QA evidence is workspace `.tmp/claude-goal-t1730b-review-help-copy-qa.json`: `contract --help`, `invoke contract --help`, `doctor --install --help`, and `invoke doctor --help` all exited `0`, emitted no stderr/traceback, direct/slash help matched, artifact option descriptions were present, and status remained unset.
+- Verification passed focused help pytest (`4 passed, 106 deselected`), full isolated pytest (`160 passed`), Ruff check, Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
