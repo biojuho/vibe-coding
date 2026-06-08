@@ -2290,3 +2290,131 @@
 - Verification passed `py -3.13 execution\llm_wiki_audit.py --write-source-inventory --json`, no-write audit, strict manifest audit, strict release evidence, focused LLM Wiki/objective pytest (`31 passed`), path-limited `git diff --check`, graph detect risk `0.00`, scoped docs guard low risk, and commit hook code-review gate pass.
 - Committed the docs group as `e78fbea7` (`docs(llm-wiki): add side-effect replay boundary`). No push, product code edit, `update_goal`, or Hanwoo T-251 retry was performed.
 - Remaining boundaries after this cycle: existing dirty `.ai` handoff group, explicit push/user push for current-head `root-quality-gate` and `active-project-matrix`, and user-owned Hanwoo T-251 Supabase credential reset before live retry.
+
+## 2026-06-08 - Codex
+
+- Completed T-1720b as a `claude-goal` operation command help UX fix in `claude-goal/` on branch `improve/goal-system`.
+- Used the task-id collision fallback because `next_task_id.py --json` suggested `T-1720`, which was already present as the LLM Wiki side-effect/idempotency replay boundary record.
+- Direct CLI use reproduced that `set --help`, `json --help`, `pause-stale --help`, and `stop-hook --help` were thin or inconsistent: direct help lacked practical command descriptions/argument copy for several commands, and slash help did not route `set/json/stop-hook` through the matching direct argparse help.
+- Fixed `goal/scripts/claude_goal.py` by adding `set`, `json`, and `stop-hook` to slash subcommand help routing, adding useful descriptions/argument help for `set`, `json`, and `pause-stale`, and documenting `stop-hook` in the simple command description map.
+- Added `tests/test_claude_goal.py::test_operation_command_help_describes_inputs_without_mutating` to verify direct and slash help match, avoid `Action: set`, and leave no active goal.
+- Verification passed direct isolated CLI QA in `.tmp/claude-goal-t1720b-operation-help-qa.json`, focused help pytest (`5 passed, 95 deselected`), final full pytest (`141 passed`), Ruff check, Ruff format check, py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
+- Note: an earlier full-suite run showed a transient child `SyntaxError` while `py_compile` stayed clean; the final isolated full-suite rerun passed.
+- Removed this loop's temp SQLite and pytest basetemp directories after preserving the JSON QA evidence. No staging, commit, push, revert, `update_goal`, root product edit, or Hanwoo T-251 retry was performed.
+
+## 2026-06-08 - Codex
+
+- Completed T-1721 as a `claude-goal` direct pause/resume no-goal traceback fix in `claude-goal/` on branch `improve/goal-system`.
+- Preserved the live T-1720/T-1720b relay records and existing `claude-goal` WIP; did not stage, commit, push, revert, call `update_goal`, edit root product code, or retry Hanwoo T-251.
+- Reproduced with isolated temp state that direct `python goal/scripts/claude_goal.py pause` and `python goal/scripts/claude_goal.py resume` returned exit `1` and printed a traceback when no goal existed.
+- Isolation check: slash `invoke pause` and `invoke resume` already handled the same no-goal condition as a clean user-facing `goal error` with exit `2`; direct `complete` also returned a clean no-goal error.
+- Root cause: `_handle_main_status_update()` let `update_status()` `ValueError` bubble to the generic top-level exception handler, which prints tracebacks intended for unexpected exceptions.
+- Fixed `goal/scripts/claude_goal.py` by catching `ValueError` in the direct status-update handler and returning exit `2` without traceback.
+- Added `tests/test_claude_goal.py::test_direct_pause_resume_without_goal_do_not_traceback` to lock direct `pause`/`resume` no-goal behavior.
+- Direct isolated CLI QA evidence is workspace `.tmp/claude-goal-t1721-pause-no-goal-qa.json`: direct `pause`/`resume`, slash `invoke pause`/`invoke resume`, and direct `complete` all return clean exit `2` no-goal errors with no traceback.
+- Verification passed focused pytest (`2 passed, 99 deselected`), final isolated full pytest (`142 passed`), Ruff check, Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
+- One earlier full-suite run showed the known transient child `SyntaxError` signature despite py_compile passing; it was treated as untrusted and the final isolated rerun passed.
+- Removed this loop's temp repro and pytest basetemp directories after path-safety verification.
+
+## 2026-06-08 - Codex
+
+- Completed T-1722 as a `claude-goal` Stop-hook malformed continuation cap fix in `claude-goal/` on branch `improve/goal-system`.
+- Preserved the live T-1721/T-1720b relay records and existing `claude-goal` WIP; did not stage, commit, push, revert, call `update_goal`, edit root product code, or retry Hanwoo T-251.
+- Reproduced with isolated active-goal temp state that `CLAUDE_GOAL_MAX_STOP_CONTINUES=not-an-int` made `python goal/scripts/claude_goal.py stop-hook` exit `1`, print no block JSON, and emit a Python traceback from bare `int(...)` parsing.
+- Root cause: `_stop_hook_max_continues()` trusted the optional hook env var and let `ValueError` bubble into the generic top-level traceback handler, interrupting the active-goal Stop-hook block path.
+- Fixed `goal/scripts/claude_goal.py` by adding `STOP_HOOK_MAX_CONTINUES_ENV` and `DEFAULT_STOP_HOOK_MAX_CONTINUES`, falling back to `500` on malformed env values, and printing a clear stderr warning.
+- Added `tests/test_claude_goal.py::test_stop_hook_invalid_max_continues_falls_back_without_traceback` to lock that malformed config still exits `0`, emits active-goal block JSON on stdout, warns on stderr, and prints no traceback.
+- Direct isolated Stop-hook QA evidence is workspace `.tmp/claude-goal-t1722-stop-hook-bad-cap-qa.json`: all checks passed for exit code, JSON block, preserved objective, warning text, and no traceback.
+- Verification passed focused pytest (`2 passed, 100 deselected`), full isolated pytest (`143 passed`), Ruff check, Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
+- Removed this loop's temp DB and pytest basetemp directories after preserving the JSON QA evidence.
+
+## 2026-06-08 - Codex
+
+- Completed T-1723 as a `claude-goal` install doctor Stop-hook cap env verifier fix in `claude-goal/` on branch `improve/goal-system`.
+- Refreshed the 0-stage bug inventory from current state: completed T-1703 through T-1722 were excluded, and the highest-priority new candidate was Stop-hook cap config validation because it affects automatic continuation.
+- Reproduced with isolated temp settings and goal DB that `doctor --install --json` returned overall `ok` and `goal_stop_hook_env: ok` for a structured hook whose env contained `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP=0` and `CLAUDE_GOAL_MAX_STOP_CONTINUES=not-an-int`.
+- Root cause: `_goal_stop_hook_env_health()` checked only env var presence/truthiness, not whether both cap env vars were valid positive integers.
+- Fixed `goal/scripts/claude_goal.py` by adding `STOP_HOOK_BLOCK_CAP_ENV`, validating both Stop-hook cap env vars as positive integers, and returning a `warn` check with hook-refresh guidance for invalid values.
+- Added `tests/test_claude_goal.py::test_doctor_install_warns_on_invalid_stop_hook_cap_env` to lock that invalid cap env produces overall `warn`, names both invalid env vars, and includes `refresh_stop_hook` plus `rerun_install_doctor` next actions.
+- Direct isolated doctor QA evidence is workspace `.tmp/claude-goal-t1723-doctor-cap-env-qa.json`: all checks passed for status, warning detail, next actions, and no stderr.
+- Verification passed focused/cluster pytest (`5 passed, 98 deselected`), full isolated pytest (`144 passed`), Ruff check, Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
+- Removed this loop's temp repro, QA-state, and pytest basetemp directories after preserving the JSON QA evidence. No staging, commit, push, revert, `update_goal`, root product edit, or Hanwoo T-251 retry was performed.
+
+## 2026-06-08 - Codex
+
+- Completed T-1724 as a `claude-goal` runtime Stop-hook non-positive continuation cap fix in `claude-goal/` on branch `improve/goal-system`.
+- Refreshed the 0-stage bug inventory from current state: completed T-1703 through T-1723 were excluded, and the highest-priority new candidate was runtime Stop-hook non-positive cap handling because it directly affects automatic continuation.
+- Reproduced with isolated active-goal temp DBs that `CLAUDE_GOAL_MAX_STOP_CONTINUES=0` and `CLAUDE_GOAL_MAX_STOP_CONTINUES=-1` made `python goal/scripts/claude_goal.py stop-hook` return a limit payload instead of the active-goal block; the `-1` case produced `auto-continuation stopped after -1 Stop-hook continuations`.
+- Root cause: `_stop_hook_max_continues()` parsed the env var as an integer but did not validate that it was positive.
+- Fixed `goal/scripts/claude_goal.py` so non-positive values use the same `goal warning: invalid ...; using 500` fallback path as malformed values.
+- Added `tests/test_claude_goal.py::test_stop_hook_nonpositive_max_continues_falls_back_without_traceback` to lock caps `0` and `-1` returning active-goal block JSON instead of a limit payload.
+- Direct isolated Stop-hook QA evidence is workspace `.tmp/claude-goal-t1724-stop-hook-nonpositive-cap-qa.json`: all checks passed for exit code, JSON block, preserved objective, warning text, no limit payload, and no traceback.
+- Verification passed focused Stop-hook pytest (`7 passed, 97 deselected`), full isolated pytest (`145 passed`), Ruff check, Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
+- Removed this loop's temp repro, QA-state, and pytest basetemp directories after preserving the JSON QA evidence. No staging, commit, push, revert, `update_goal`, root product edit, or Hanwoo T-251 retry was performed.
+
+## 2026-06-08 - Codex
+
+- Completed T-1725 as a `claude-goal` installer invalid Stop-hook cap argument fix in `claude-goal/` on branch `improve/goal-system`.
+- Continued the `/goal` reproduce -> isolate -> root-cause -> fix -> verify loop after T-1724, preserving existing WIP; did not stage, commit, push, revert, call `update_goal`, edit root product code, or retry Hanwoo T-251.
+- Reproduced with a real installer CLI command: `python goal/scripts/install_goal.py <settings> <script> --stop-block-cap 0 --max-stop-continues not-an-int --no-backup` exited `0`, created `settings.json`, and wrote `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP=0` plus `CLAUDE_GOAL_MAX_STOP_CONTINUES=not-an-int`.
+- Isolation check: current `doctor --install --json` against that settings file reports overall `warn` and `goal_stop_hook_env: warn`, proving the installer could write a known-unhealthy hook config.
+- Root cause: `parse_args()` accepted the cap options as plain strings and `build_stop_hook()` copied them directly into hook env without positive-integer validation.
+- Fixed `goal/scripts/install_goal.py` by adding positive-integer normalization, using it for `--stop-block-cap` and `--max-stop-continues`, and validating again before hook construction for direct API callers.
+- Added `tests/test_install_goal.py` coverage for direct `install_settings()` invalid cap rejection and subprocess CLI invalid cap rejection, both asserting no settings file is written.
+- Direct after-fix repro now exits `2`, reports `argument --stop-block-cap: --stop-block-cap must be a positive integer`, and leaves settings absent.
+- QA evidence is `.tmp/claude-goal-t1725-installer-invalid-cap-args-qa.json`.
+- Verification passed focused installer pytest (`13 passed`), install doctor cluster pytest (`43 passed, 61 deselected`), full isolated pytest (`149 passed`), Ruff check, Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
+- Removed nested temp repro dirs after preserving the root `.tmp` QA evidence.
+
+## 2026-06-08 - Codex
+
+- Completed T-1726b as a `claude-goal` installer help-copy UX fix in `claude-goal/` on branch `improve/goal-system`.
+- Used suffix fallback because `T-1726` was already present as the installer restore-backup CLI traceback fix.
+- Direct CLI use showed `python goal/scripts/install_goal.py --help` listed `settings_path`, `script_path`, `--python-executable`, cap options, and backup options without explaining what each input controls.
+- Classification: copy/feedback UX gap on the installer command surface.
+- Root cause: `parse_args()` supplied no `help` text for the positional arguments and most installer options.
+- Fixed `goal/scripts/install_goal.py` by adding practical help text for the settings path, script path, Python executable, Stop-hook cap options, `--no-backup`, and `--restore-backup`.
+- Added `tests/test_install_goal.py::test_install_cli_help_describes_inputs_without_writing` to lock that `--help` documents the inputs and writes no settings file.
+- Direct after-fix CLI QA evidence is workspace `.tmp/claude-goal-t1726b-install-help-copy-qa.json`: all checks passed for exit code, no stderr, no settings write, and help descriptions for every touched input.
+- Verification passed focused installer pytest with repo-local basetemp (`16 passed` after the first run hit the known Windows temp permission issue), full isolated pytest (`152 passed`), Ruff check, Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
+- No staging, commit, push, revert, `update_goal`, root product edit, or Hanwoo T-251 retry was performed.
+
+## 2026-06-08 - Codex
+
+- Completed T-1726 as a `claude-goal` installer restore-backup CLI traceback fix in `claude-goal/` on branch `improve/goal-system`.
+- Continued the `/goal` reproduce -> isolate -> root-cause -> fix -> verify loop after T-1725, preserving existing WIP; did not stage, commit, push, revert, call `update_goal`, edit root product code, or retry Hanwoo T-251.
+- Reproduced with a real installer CLI command that `python goal/scripts/install_goal.py <settings> --restore-backup` prints a full Python `FileNotFoundError` traceback when `settings.json.bak` is absent.
+- Reproduced the same failure class with malformed `settings.json.bak`: `--restore-backup --yes` printed a full `json.decoder.JSONDecodeError` traceback instead of a user-facing restore error.
+- Root cause: installer `main()` called `restore_settings_backup()` without translating expected `FileNotFoundError`/`ValueError` backup/settings validation failures into CLI errors.
+- Fixed `goal/scripts/install_goal.py` so expected backup/settings validation failures print `goal installer error: ...` to stderr and return exit `2`.
+- Added `tests/test_install_goal.py` subprocess regressions for missing backup and invalid backup restore failures, both asserting no traceback and no unwanted settings write.
+- Direct after-fix repro now prints `goal installer error: backup does not exist: ...` or `goal installer error: Expecting value...` with no traceback; subprocess returncode is `2`.
+- QA evidence is `.tmp/claude-goal-t1726-restore-backup-cli-errors-qa.json`.
+- Verification passed focused installer pytest (`15 passed`), full isolated pytest (`151 passed`), Ruff check, Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
+- Removed nested temp repro/full-test dirs after a transient SQLite lock cleared, and removed root pytest basetemps after preserving the QA evidence.
+
+## 2026-06-08 - Codex
+
+- Completed T-1727 as a `claude-goal` cp949 output UnicodeEncodeError fix in `claude-goal/` on branch `improve/goal-system`.
+- Continued the `/goal` reproduce -> isolate -> root-cause -> fix -> verify loop after T-1726/T-1726b, preserving existing WIP; did not stage, commit, push, revert, call `update_goal`, edit root product code, or retry Hanwoo T-251.
+- Reproduced with isolated temp goal state and objective `alpha \u2014 beta`: under cp949 output, `set` exited `1` after mutating state and `status` exited `1` with `UnicodeEncodeError`/`Traceback` from `print(render_invoke_result(...))`.
+- Root cause: CLI rendering produced Unicode text successfully, but stdout/stderr used strict cp949 error handling, so unencodable goal text raised while printing output.
+- Fixed `goal/scripts/claude_goal.py` by reconfiguring stdout/stderr to keep the active encoding and use `backslashreplace` for unencodable characters.
+- Added `tests/test_claude_goal.py::test_cp949_output_escapes_unsupported_goal_text_without_traceback` to lock that cp949 output escapes unsupported objective text and does not traceback.
+- Direct after-fix repro with `PYTHONIOENCODING=cp949` now exits `0` for both `set` and `status`, renders `alpha \\u2014 beta`, and emits empty stderr.
+- QA evidence is `.tmp/claude-goal-t1727-cp949-output-qa.json`.
+- Verification passed focused pytest (`3 passed, 102 deselected`), full isolated pytest (`153 passed`), Ruff check, Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
+- Removed nested T-1727 repro dirs and root pytest basetemps after preserving the root `.tmp` QA evidence.
+
+## 2026-06-08 - Codex
+
+- Completed T-1728 as a `claude-goal` output sink write-error traceback fix in `claude-goal/` on branch `improve/goal-system`.
+- Continued the `/goal` reproduce -> isolate -> root-cause -> fix -> verify loop after T-1727, preserving existing WIP; did not stage, commit, push, revert, call `update_goal`, edit root product code, or retry Hanwoo T-251.
+- Reproduced with isolated temp goal state that `contract --markdown-output <existing-directory>`, `contract --json-output <existing-directory>`, `doctor --install --markdown-output <existing-directory>`, and `doctor --install --json-output <existing-directory>` each returned exit `1` and printed a Python traceback from `PermissionError`.
+- Root cause: `write_markdown_file()` and `write_json_file()` let `OSError` escape directly, and direct `doctor` handling did not translate expected writer failures into user-facing CLI errors.
+- Fixed `goal/scripts/claude_goal.py` so markdown/json output writers raise `ValueError` with `cannot write ...`, and direct `doctor` returns exit `2` with `goal error` for expected writer failures.
+- Added `tests/test_claude_goal.py::test_goal_contract_output_directory_errors_without_traceback` and `tests/test_claude_goal.py::test_doctor_install_output_directory_errors_without_traceback`.
+- Direct after-fix repro now returns exit `2` for all four original commands, leaves stdout empty, includes `goal error: cannot write ...` on stderr, and prints no traceback.
+- QA evidence is `.tmp/claude-goal-t1728-output-sink-errors-qa.json`.
+- Verification passed focused pytest (`5 passed, 102 deselected`), full isolated pytest (`155 passed`), Ruff check, Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
+- Removed T-1728 repro/pytest temp dirs after preserving the root `.tmp` QA evidence.
