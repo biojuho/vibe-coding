@@ -691,6 +691,20 @@
       "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
     },
     {
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html",
+      "host": "cheatsheetseries.owasp.org",
+      "pages": [
+        "39-credentials-secrets-api-key-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "standard",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
       "url": "https://code.claude.com/docs/en/memory",
       "host": "code.claude.com",
       "pages": [
@@ -772,6 +786,34 @@
       "cadence_days": 45,
       "last_verified": "2026-06-08",
       "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.notion.com/guides/get-started/authorization",
+      "host": "developers.notion.com",
+      "pages": [
+        "39-credentials-secrets-api-key-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.notion.com/guides/get-started/personal-access-tokens",
+      "host": "developers.notion.com",
+      "pages": [
+        "39-credentials-secrets-api-key-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
       "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
     },
     {
@@ -1190,6 +1232,20 @@
       "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
     },
     {
+      "url": "https://developers.openai.com/api/reference/overview#authentication",
+      "host": "developers.openai.com",
+      "pages": [
+        "39-credentials-secrets-api-key-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
       "url": "https://developers.openai.com/cookbook/examples/how_to_count_tokens_with_tiktoken",
       "host": "developers.openai.com",
       "pages": [
@@ -1232,6 +1288,20 @@
       "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
     },
     {
+      "url": "https://docs.cloud.google.com/docs/authentication/api-keys-best-practices",
+      "host": "docs.cloud.google.com",
+      "pages": [
+        "39-credentials-secrets-api-key-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
       "url": "https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/eval-python-sdk/run-evaluation",
       "host": "docs.cloud.google.com",
       "pages": [
@@ -1250,6 +1320,20 @@
       "host": "docs.cloud.google.com",
       "pages": [
         "36-evaluation-dataset-llm-judge-rubric-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://docs.github.com/en/actions/concepts/security/secrets",
+      "host": "docs.github.com",
+      "pages": [
+        "39-credentials-secrets-api-key-boundary.md"
       ],
       "topic": "wiki-maintenance",
       "source_type": "official-docs",
@@ -1664,6 +1748,34 @@
       "cadence_days": 45,
       "last_verified": "2026-06-08",
       "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://help.openai.com/en/articles/5112595-best-practices-for-api-key-safety",
+      "host": "help.openai.com",
+      "pages": [
+        "39-credentials-secrets-api-key-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://help.openai.com/en/articles/9186755-managing-projects-in-the-api-platform",
+      "host": "help.openai.com",
+      "pages": [
+        "39-credentials-secrets-api-key-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
       "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
     },
     {
@@ -2485,6 +2597,34 @@
       "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
     },
     {
+      "url": "https://supabase.com/docs/guides/functions/secrets",
+      "host": "supabase.com",
+      "pages": [
+        "39-credentials-secrets-api-key-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://support.claude.com/en/articles/9767949-api-key-best-practices-keeping-your-keys-safe-and-secure",
+      "host": "support.claude.com",
+      "pages": [
+        "39-credentials-secrets-api-key-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
       "url": "https://support.google.com/youtube/answer/14328491?hl=en",
       "host": "support.google.com",
       "pages": [
@@ -2503,6 +2643,20 @@
       "host": "support.google.com",
       "pages": [
         "32-safety-moderation-publish-gates.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://www.12factor.net/config",
+      "host": "www.12factor.net",
+      "pages": [
+        "39-credentials-secrets-api-key-boundary.md"
       ],
       "topic": "wiki-maintenance",
       "source_type": "official-docs",

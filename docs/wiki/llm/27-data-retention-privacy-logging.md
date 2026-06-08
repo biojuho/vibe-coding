@@ -20,6 +20,8 @@ Treating all four as "logs" hides the real risk. Token counts are low-risk metad
 
 Conversation state adds a fifth risk surface. Provider conversation objects, SDK sessions, graph checkpoints, MCP resource snapshots, `.ai` handoff excerpts, and product resume checkpoints can all retain or reintroduce prior context. Use [38-conversation-state-memory-handoff-boundary](38-conversation-state-memory-handoff-boundary.md) to name the state owner before storing or replaying it.
 
+Credentials add a separate capability surface. API keys, OAuth tokens, database URLs, CI secrets, and browser-public client keys should be handled with [39-credentials-secrets-api-key-boundary](39-credentials-secrets-api-key-boundary.md); retention controls do not make a leaked key safe, and key presence does not authorize storing or publishing data.
+
 ## Current Code Facts
 
 ### 1) Workspace `LLMClient` Stores Response Content In A Local Cache

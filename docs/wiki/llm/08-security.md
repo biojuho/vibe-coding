@@ -2,7 +2,7 @@
 
 > 이 프로젝트는 **신뢰할 수 없는 외부 텍스트(커뮤니티 스크랩·Blind 게시물·트렌딩 키워드)를 LLM 프롬프트로 넣는다.** 그래서 LLM 보안은 선택이 아니다.
 > 외부 기준은 **OWASP Top 10 for LLM Applications 2025**(1차 출처)에 맞췄고, 코드 사실(file\:line)은 2026-06-08 현재 HEAD에서 검증했다.
-> 관련: [01-architecture](01-architecture.md)(언어 브릿지·로깅), [04-observability](04-observability.md)(PII 제외), [06-per-project](06-per-project.md)(라우터), [27-data-retention-privacy-logging](27-data-retention-privacy-logging.md)(provider/local retention).
+> 관련: [01-architecture](01-architecture.md)(언어 브릿지·로깅), [04-observability](04-observability.md)(PII 제외), [06-per-project](06-per-project.md)(라우터), [27-data-retention-privacy-logging](27-data-retention-privacy-logging.md)(provider/local retention), [39-credentials-secrets-api-key-boundary](39-credentials-secrets-api-key-boundary.md)(keys, OAuth tokens, CI secrets, live side-effect authorization).
 
 ## 왜 이 페이지가 필요한가 (이 프로젝트의 위협 모델)
 
@@ -127,6 +127,7 @@ Provider safety filters and local security controls still do not equal publish a
 ## 시크릿 · PII (LLM02 / LLM07)
 
 - **키는 로컬만**(ADR-002 Local-First): `.env`/`credentials.json`/`token.json`은 `.gitignore`. `harness_security_checklist.run_preflight`가 이 위생을 검사(단 위 와이어링 버그로 자동 실행은 사실상 미작동 → 수동 호출 권장).
+- Credential ownership, rotation, CI secret scope, browser-public versus server-only keys, and redacted readiness evidence are separated in [39-credentials-secrets-api-key-boundary](39-credentials-secrets-api-key-boundary.md); this page treats leaked credentials as one security risk, not the whole credential operating model.
 - **로그/관측 PII 제외**: Langfuse trace는 기본적으로 프롬프트 원문을 메타데이터에 넣지 않는다([04-observability](04-observability.md)). `api_calls`/JSONL 메트릭도 토큰 수·비용 중심이고 프롬프트 본문 컬럼은 없다([03-cost-caching](03-cost-caching.md)). 단 로컬 응답 캐시·draft cache·media output은 실제 생성물을 저장하므로 [27-data-retention-privacy-logging](27-data-retention-privacy-logging.md)의 retention 경계를 따른다.
 - **system 프롬프트 누출(LLM07)**: system 프롬프트에 비밀·키를 넣지 말 것(누출돼도 피해 없도록). 현재 system 프롬프트는 콘텐츠 규칙만 담아 안전.
 - **출력 시크릿 스캔**: 코드 생성·로그 저장 전 `scan_for_secrets(content)`로 사고성 키 노출을 점검할 수 있다(수동).

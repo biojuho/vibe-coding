@@ -23,6 +23,8 @@ For this repo, "state" can mean several incompatible things:
 
 The rule: every cached, evaluated, published, or release-gated LLM output needs to name the state surface it depended on. A successful follow-up answer is not enough evidence unless the continuation mechanism is recorded.
 
+Credential state is intentionally separate. `.ai` handoff and `.tmp` evidence can record that a redacted key check passed, but they must not store API keys, OAuth tokens, database URLs, or CI secret values. Use [39-credentials-secrets-api-key-boundary](39-credentials-secrets-api-key-boundary.md) for credential ownership, storage, rotation, and live side-effect authorization.
+
 ## Current Code Facts
 
 ### 1. Common `LLMClient` Is Stateless Across Provider Turns

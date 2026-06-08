@@ -53,6 +53,7 @@
 | 36 | [Evaluation dataset - LLM judge - rubric boundary](36-evaluation-dataset-llm-judge-rubric-boundary.md) | Promptfoo datasets, deterministic assertions, LLM-as-judge rubrics, baselines, runtime evaluators, and human review boundary |
 | 37 | [API surface - SDK compatibility - OpenAI-compatible boundary](37-api-surface-sdk-compatibility-boundary.md) | Chat Completions, Responses, Anthropic Messages, Gemini GenerateContent, OpenAI-compatible adapters, parser shape, and SDK compatibility boundary |
 | 38 | [Conversation state - memory - handoff boundary](38-conversation-state-memory-handoff-boundary.md) | Provider conversation state, SDK sessions, LangGraph checkpoints, MCP context, `.ai` handoff, `.tmp` evidence, and product state boundary |
+| 39 | [Credentials - secrets - API key boundary](39-credentials-secrets-api-key-boundary.md) | Provider keys, CI secrets, OAuth tokens, Supabase/Postgres URLs, browser-public keys, redacted readiness artifacts, and live side-effect authorization boundary |
 
 ## 빠른 시작
 
