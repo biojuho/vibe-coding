@@ -6,7 +6,7 @@
 
 | 프로젝트 | 상태 | 경로 | 스택 | 현재 초점 |
 |---|---|---|---|---|
-| blind-to-x | Active | `projects/blind-to-x` | Python, Notion, Cloudinary | Notion/X reviewer output 품질, weighted length, edit plan |
+| blind-to-x | Active | `projects/blind-to-x` | Python, Notion, Cloudinary | X publish decision gate, research context, weighted length, no false Ready status |
 | shorts-maker-v2 | Active | `projects/shorts-maker-v2`, `workspace/execution/pages/` | Python, MoviePy, Edge TTS, Streamlit | Shorts Manager/Analytics 운영 UI와 최종 업로드 메타데이터 품질 |
 | hanwoo-dashboard | Active | `projects/hanwoo-dashboard` | Next.js 16, React 19, Prisma 7, Supabase | 모바일 현장 UX, 접근성, degraded DB 상태에서도 쓸 수 있는 대시보드 |
 | knowledge-dashboard | Maintenance | `projects/knowledge-dashboard` | Next.js, TypeScript, Tailwind | 인증된 내부 지식 대시보드 유지보수 |
@@ -26,8 +26,8 @@
 ### blind-to-x
 
 - 목적: Blind/Ppomppu/JobPlanet 등에서 후보 글을 수집해 X/Notion 검토용 초안을 만든다.
-- 좋은 output 기준: X weighted length, 출처/선정 이유, reviewer edit plan, copy-ready 여부가 바로 보여야 한다.
-- 최근 품질 축: Notion review row에 selection quality, readiness verdict, edit plan을 노출했다.
+- 좋은 output 기준: X weighted length, 출처/선정 이유, reviewer edit plan, copy-ready 여부, publish decision이 바로 보여야 한다.
+- 최근 품질 축: Notion review row에 selection quality, readiness verdict, edit plan, publish decision card를 노출하고, 실패 게이트는 `Ready to Post`가 아니라 `Needs Edit`/`Blocked`로 분리한다.
 - 검증 기준: `projects/blind-to-x` unit tests, Ruff, Notion upload focused tests, 필요 시 source browser preflight.
 
 ### shorts-maker-v2
