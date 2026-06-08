@@ -1,6 +1,12 @@
 from __future__ import annotations
 
+import importlib
+import sys
+import types
+from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 import execution.notion_client as nc
 
@@ -610,3 +616,198 @@ def test_extract_status_unknown_type_returns_empty():
     schema = {"status_name": "Stage", "status_type": "rich_text"}
     props = {"Stage": {"type": "rich_text", "rich_text": [{"plain_text": "some text"}]}}
     assert nc._extract_status(props, schema) == ""
+
+
+# ---------------------------------------------------------------------------
+# Streamlit Notion Tasks page
+# ---------------------------------------------------------------------------
+
+
+class _DummyStreamlitBlock:
+    def __init__(self, streamlit_module: "_FakeStreamlit") -> None:
+        self._streamlit = streamlit_module
+
+    def __enter__(self) -> "_DummyStreamlitBlock":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> bool:
+        return False
+
+    def __getattr__(self, name: str):
+        return getattr(self._streamlit, name)
+
+
+class _FakeStreamlit(types.ModuleType):
+    def __init__(self) -> None:
+        super().__init__("streamlit")
+        self.events: list[tuple[str, object, dict]] = []
+
+    def _record(self, name: str, payload: object = None, **kwargs) -> None:
+        self.events.append((name, payload, kwargs))
+
+    def set_page_config(self, **kwargs) -> None:
+        self._record("set_page_config", kwargs)
+
+    def markdown(self, body, **kwargs) -> None:
+        self._record("markdown", body, **kwargs)
+
+    def code(self, body, **kwargs) -> None:
+        self._record("code", body, **kwargs)
+
+    def columns(self, spec):
+        count = spec if isinstance(spec, int) else len(spec)
+        return [_DummyStreamlitBlock(self) for _ in range(count)]
+
+    def expander(self, label, **kwargs):
+        self._record("expander", label, **kwargs)
+        return _DummyStreamlitBlock(self)
+
+    def form(self, key, **kwargs):
+        self._record("form", key, **kwargs)
+        return _DummyStreamlitBlock(self)
+
+    def container(self, **kwargs):
+        self._record("container", None, **kwargs)
+        return _DummyStreamlitBlock(self)
+
+    def text_input(self, label, **kwargs) -> str:
+        self._record("text_input", label, **kwargs)
+        return ""
+
+    def selectbox(self, label, options, **kwargs):
+        self._record("selectbox", {"label": label, "options": options}, **kwargs)
+        return options[0]
+
+    def date_input(self, label, **kwargs):
+        self._record("date_input", label, **kwargs)
+        return None
+
+    def form_submit_button(self, label, **kwargs) -> bool:
+        self._record("form_submit_button", label, **kwargs)
+        return False
+
+    def button(self, label, **kwargs) -> bool:
+        self._record("button", label, **kwargs)
+        return False
+
+    def stop(self) -> None:
+        raise RuntimeError("streamlit stop called")
+
+    def rerun(self) -> None:
+        self._record("rerun")
+
+    def __getattr__(self, name: str):
+        def _method(*args, **kwargs):
+            self._record(name, args[0] if args else None, **kwargs)
+            return ""
+
+        return _method
+
+
+def _install_fake_notion_page_client(
+    monkeypatch: pytest.MonkeyPatch, *, configured: bool, tasks: list[dict] | None = None
+) -> None:
+    notion_client = types.ModuleType("execution.notion_client")
+    notion_client.create_task = lambda *args, **kwargs: "new-page"
+    notion_client.is_configured = lambda: configured
+    notion_client.list_tasks = lambda: list(tasks or [])
+    notion_client.update_task_status = lambda *args, **kwargs: True
+    monkeypatch.setitem(sys.modules, "execution.notion_client", notion_client)
+
+
+def _import_notion_tasks_page(monkeypatch: pytest.MonkeyPatch, *, configured: bool, tasks: list[dict] | None = None):
+    module_name = "execution.pages.notion_tasks"
+    sys.modules.pop(module_name, None)
+    fake_streamlit = _FakeStreamlit()
+    monkeypatch.setitem(sys.modules, "streamlit", fake_streamlit)
+    _install_fake_notion_page_client(monkeypatch, configured=configured, tasks=tasks)
+
+    try:
+        module = importlib.import_module(module_name)
+    except RuntimeError as exc:
+        if str(exc) != "streamlit stop called":
+            raise
+        module = sys.modules.get(module_name)
+    return module, fake_streamlit
+
+
+def test_notion_tasks_page_source_contracts() -> None:
+    source = (Path(__file__).resolve().parents[1] / "execution" / "pages" / "notion_tasks.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "WORKSPACE_ROOT = Path(__file__).resolve().parents[2]" in source
+    assert "sys.path.insert(0, str(WORKSPACE_ROOT))" in source
+    assert "Path(__file__).resolve().parent.parent" not in source
+    assert 'st.title("Notion 작업 보드", anchor=False)' in source
+    assert 'st.subheader(f"{_status_icon(status)} {_display_status(status)}", anchor=False)' in source
+    assert "min-height: 44px !important" in source
+    assert 'div[data-testid="stHeader"] button' in source
+    assert 'div[data-testid="stHeaderActionElements"] button' in source
+    assert "wrap_lines=True" in source
+
+
+def test_notion_tasks_page_unconfigured_first_screen_is_korean_and_actionable(monkeypatch: pytest.MonkeyPatch):
+    _module, fake_streamlit = _import_notion_tasks_page(monkeypatch, configured=False)
+    rendered_text = "\n".join(str(payload) for _name, payload, _kwargs in fake_streamlit.events)
+
+    assert ("title", "Notion 작업 보드", {"anchor": False}) in fake_streamlit.events
+    assert "Notion 작업 데이터베이스 연결이 아직 설정되지 않았습니다." in rendered_text
+    assert "Notion 개발자 포털" in rendered_text
+    assert "데이터베이스 페이지에서 해당 연결을 추가" in rendered_text
+    assert (
+        "code",
+        "NOTION_API_KEY=ntn_your_key_here\nNOTION_TASK_DATABASE_ID=your_database_or_data_source_id",
+        {"language": "text", "wrap_lines": True},
+    ) in fake_streamlit.events
+    assert "Notion API not configured" not in rendered_text
+    assert "Add `NOTION_API_KEY`" not in rendered_text
+    assert "Notion Tasks" not in rendered_text
+
+
+def test_notion_tasks_page_configured_empty_state_uses_korean_form_copy(monkeypatch: pytest.MonkeyPatch):
+    _module, fake_streamlit = _import_notion_tasks_page(monkeypatch, configured=True, tasks=[])
+    rendered_text = "\n".join(str(payload) for _name, payload, _kwargs in fake_streamlit.events)
+
+    assert ("expander", "새 작업 추가", {"expanded": False}) in fake_streamlit.events
+    assert ("text_input", "작업 제목", {}) in fake_streamlit.events
+    assert ("date_input", "마감일(선택)", {"value": None}) in fake_streamlit.events
+    assert ("form_submit_button", "작업 생성", {"type": "primary"}) in fake_streamlit.events
+    assert "작업이 없습니다. 위에서 새 작업을 만들거나 Notion 데이터베이스 공유 설정을 확인하세요." in rendered_text
+    assert "Task Title" not in rendered_text
+    assert "Create Task" not in rendered_text
+    assert "No tasks found" not in rendered_text
+
+
+def test_notion_tasks_page_status_helpers_render_korean_labels(monkeypatch: pytest.MonkeyPatch):
+    module, fake_streamlit = _import_notion_tasks_page(
+        monkeypatch,
+        configured=True,
+        tasks=[
+            {
+                "id": "task-1",
+                "title": "검수",
+                "status": "To Do",
+                "url": "https://notion.so/x",
+                "due_date": "2026-06-09",
+            },
+            {"id": "task-2", "title": "배포", "status": "Done", "url": "", "due_date": None},
+        ],
+    )
+    rendered_text = "\n".join(str(payload) for _name, payload, _kwargs in fake_streamlit.events)
+
+    assert module._display_status("To Do") == "할 일"
+    assert module._display_status("In Progress") == "진행 중"
+    assert module._display_status("Done") == "완료"
+    assert module._display_status("") == "상태 없음"
+    assert module._status_icon("Done") == "✅"
+    assert module._status_icon("In Progress") == "⏳"
+    assert module._status_icon("To Do") == "📋"
+    assert ("subheader", "📋 할 일", {"anchor": False}) in fake_streamlit.events
+    assert ("subheader", "✅ 완료", {"anchor": False}) in fake_streamlit.events
+    assert "1개 작업" in rendered_text
+    assert "마감: 2026-06-09" in rendered_text
+    assert "[Notion에서 열기](https://notion.so/x)" in rendered_text
+    assert "task(s)" not in rendered_text
+    assert "Due:" not in rendered_text
+    assert "Open in Notion" not in rendered_text

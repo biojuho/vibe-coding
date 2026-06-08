@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import re
 import sys
 import types
 from pathlib import Path
@@ -38,14 +39,17 @@ class _FakeStreamlit(types.ModuleType):
     def set_page_config(self, **kwargs) -> None:
         self._record("set_page_config", kwargs)
 
-    def title(self, label: object) -> None:
-        self._record("title", label)
+    def title(self, label: object, **kwargs) -> None:
+        self._record("title", label, **kwargs)
 
-    def caption(self, label: object) -> None:
-        self._record("caption", label)
+    def caption(self, label: object, **kwargs) -> None:
+        self._record("caption", label, **kwargs)
 
-    def subheader(self, label: object) -> None:
-        self._record("subheader", label)
+    def header(self, label: object, **kwargs) -> None:
+        self._record("header", label, **kwargs)
+
+    def subheader(self, label: object, **kwargs) -> None:
+        self._record("subheader", label, **kwargs)
 
     def info(self, message: object) -> None:
         self._record("info", message)
@@ -59,6 +63,10 @@ class _FakeStreamlit(types.ModuleType):
     def number_input(self, label, **kwargs):
         self._record("number_input", label, **kwargs)
         return kwargs.get("value", 0)
+
+    def text_input(self, label, **kwargs):
+        self._record("text_input", label, **kwargs)
+        return kwargs.get("value", "")
 
     def button(self, label, **kwargs) -> bool:
         self._record("button", label, **kwargs)
@@ -252,17 +260,25 @@ def test_roi_dashboard_injects_mobile_touch_target_css(monkeypatch: pytest.Monke
     assert "div[data-testid='stNumberInput']" in css
     assert "min-height: 44px" in css
     assert "min-width: 44px" in css
+    assert css.count("div[data-testid='stNumberInput'] input") >= 2
+    assert "button[data-testid='stBaseButton-headerNoPadding']" in css
+    assert "button[data-testid='stBaseButton-header']" in css
+    assert "button[data-testid='stExpandSidebarButton']" in css
+    assert "button[data-testid='stMainMenuButton']" in css
+    assert "!important" in css
 
 
 def test_roi_dashboard_uses_compact_korean_operator_copy() -> None:
     source = Path("workspace/execution/pages/roi_dashboard.py").read_text(encoding="utf-8")
 
-    assert 'st.title("쇼츠 ROI")' in source
+    assert 'st.title("쇼츠 ROI", anchor=False)' in source
     assert "업로드 성과와 제작비를 연결해 채널별 수익성을 점검합니다." in source
+    assert "콘텐츠 결과 관리에서 먼저 등록하세요." in source
     assert '"Shorts RPM 추정값 ($)"' in source
     assert "1,000 engaged views당 크리에이터 수익 지표" in source
     assert "Content ROI Dashboard" not in source
     assert "YouTube Shorts RPM ($)" not in source
+    assert "Result Tracker" not in source
     assert 'f"{bep_views:,} views"' not in source
 
 
@@ -314,8 +330,41 @@ def test_result_dashboard_injects_mobile_touch_target_css(monkeypatch: pytest.Mo
     assert "min-width: 44px" in css
     assert "div[data-baseweb='select']" in css
     assert "div[data-baseweb='input'] input" in css
+    assert "div[data-testid='stTextInput'] input" in css
     assert "div[data-testid='stTextArea'] textarea" in css
-    assert "div[data-testid='stDateInput'] input" in css
+    assert "button[data-testid='stBaseButton-headerNoPadding']" in css
+    assert "button[data-testid='stExpandSidebarButton']" in css
+    assert "button[data-testid='stMainMenuButton']" in css
+    assert "div[data-testid='stDateInput'] input" not in css
+
+
+def test_result_dashboard_hides_heading_anchor_links() -> None:
+    source = Path("workspace/execution/pages/result_dashboard.py").read_text(encoding="utf-8")
+
+    heading_calls = [
+        line.strip() for line in source.splitlines() if re.match(r"st\.(header|subheader)\(", line.strip())
+    ]
+
+    assert heading_calls
+    assert all("anchor=False" in line for line in heading_calls)
+
+
+def test_result_dashboard_uses_localized_date_text_input(monkeypatch: pytest.MonkeyPatch) -> None:
+    module, _fake_streamlit = _import_page(
+        monkeypatch,
+        "execution.pages.result_dashboard",
+        with_data=False,
+    )
+    source = Path("workspace/execution/pages/result_dashboard.py").read_text(encoding="utf-8")
+
+    assert "st.date_input(" not in source
+    assert 'st.text_input(\n                "게시일",' in source
+    assert "DEFAULT_PUBLISHED_AT" in source
+    assert "Press the down arrow key" not in source
+    assert module._parse_published_date("2026-06-08") == ("2026-06-08", None)
+    parsed, error = module._parse_published_date("2026/06/08")
+    assert parsed is None
+    assert error == "게시일은 YYYY-MM-DD 형식이어야 합니다."
 
 
 def test_result_dashboard_source_calls_mobile_touch_target_css() -> None:

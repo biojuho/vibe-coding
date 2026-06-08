@@ -135,13 +135,24 @@ def test_debug_history_source_avoids_deprecated_plotly_width_api() -> None:
     assert '"displayModeBar": False' in source
 
 
+def test_debug_history_disables_streamlit_heading_anchor_links() -> None:
+    source = (WORKSPACE_ROOT / "execution" / "pages" / "debug_history.py").read_text(encoding="utf-8")
+
+    assert source.count("anchor=False") == 5
+    assert 'st.title("디버그 이력", anchor=False)' in source
+    assert 'st.subheader("최근 디버그 이력", anchor=False)' in source
+    assert 'st.subheader("키워드 검색", anchor=False)' in source
+    assert 'st.subheader("등록된 오류 패턴", anchor=False)' in source
+    assert 'st.subheader("오류 메시지 패턴 검색", anchor=False)' in source
+
+
 def test_debug_history_uses_korean_operator_copy(monkeypatch: pytest.MonkeyPatch) -> None:
     _, fake_streamlit = _import_debug_history(monkeypatch)
 
     assert ("set_page_config", {"page_title": "디버그 이력 - Joolife", "page_icon": "🔎", "layout": "wide"}, {}) in (
         fake_streamlit.events
     )
-    assert ("title", "디버그 이력", {}) in fake_streamlit.events
+    assert ("title", "디버그 이력", {"anchor": False}) in fake_streamlit.events
     assert ("caption", "반복 오류와 해결 패턴을 확인하고 다음 조치를 정합니다.", {}) in fake_streamlit.events
 
     metric_labels = [

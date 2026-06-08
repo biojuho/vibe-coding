@@ -154,13 +154,38 @@ def test_channel_growth_injects_mobile_touch_target_css(monkeypatch: pytest.Monk
     assert "@media (max-width: 640px)" in css
     assert "min-height: 44px" in css
     assert "div[data-testid='stFormSubmitButton'] button" in css
+    assert "button[data-testid='stBaseButton-headerNoPadding']" in css
+    assert "button[data-testid='stMainMenuButton']" in css
+    assert "width: 44px !important" in css
     assert "div[data-baseweb='input'] input" in css
+
+
+def test_channel_growth_disables_heading_anchors() -> None:
+    source = (WORKSPACE_ROOT / "execution" / "pages" / "channel_growth.py").read_text(encoding="utf-8")
+    heading_calls = [
+        'st.title("📈 채널 성장 추적", anchor=False)',
+        'st.subheader("채널 비교 (최신)", anchor=False)',
+        'st.subheader("구독자 성장 추이", anchor=False)',
+        'st.subheader("7일 성장률 비교", anchor=False)',
+        'st.subheader("채널 관리", anchor=False)',
+    ]
+
+    for call in heading_calls:
+        assert call in source
 
 
 def test_channel_growth_uses_compact_korean_title(monkeypatch: pytest.MonkeyPatch) -> None:
     _module, fake_streamlit = _import_channel_growth(monkeypatch)
 
+    page_configs = [payload for name, payload, _kwargs in fake_streamlit.events if name == "set_page_config"]
     titles = [payload for name, payload, _kwargs in fake_streamlit.events if name == "title"]
     captions = [payload for name, payload, _kwargs in fake_streamlit.events if name == "caption"]
+    text_inputs = [payload for name, payload, _kwargs in fake_streamlit.events if name == "text_input"]
+    source = (WORKSPACE_ROOT / "execution" / "pages" / "channel_growth.py").read_text(encoding="utf-8")
+
+    assert page_configs and page_configs[0]["page_title"] == "채널 성장 - Joolife"
     assert "📈 채널 성장 추적" in titles
     assert any("YouTube 5채널 독립 성과 추적" in str(payload) for payload in captions)
+    assert "YouTube 채널 ID" in text_inputs
+    assert "YouTube Channel ID" not in source
+    assert "Channel Growth 모듈" not in source

@@ -29,7 +29,7 @@ if not _MODULE_OK:
 
 init_result_db()
 
-st.title("쇼츠 ROI")
+st.title("쇼츠 ROI", anchor=False)
 st.caption("업로드 성과와 제작비를 연결해 채널별 수익성을 점검합니다.")
 
 _PLOTLY_CHART_CONFIG = {"displayModeBar": False}
@@ -42,12 +42,25 @@ def _inject_roi_dashboard_mobile_css() -> None:
 @media (max-width: 640px) {
   div[data-testid='stNumberInput'] div[data-baseweb='input'],
   div[data-testid='stNumberInput'] input,
-  div[data-testid='stNumberInput'] button {
-    min-height: 44px;
+  div[data-testid='stNumberInput'] button,
+  button[data-testid='stBaseButton-headerNoPadding'],
+  button[data-testid='stBaseButton-header'],
+  button[data-testid='stExpandSidebarButton'],
+  button[data-testid='stMainMenuButton'] {
+    min-height: 44px !important;
   }
 
-  div[data-testid='stNumberInput'] button {
-    min-width: 44px;
+  div[data-testid='stNumberInput'],
+  div[data-testid='stNumberInputContainer'],
+  div[data-testid='stNumberInput'] div[data-baseweb='input'],
+  div[data-testid='stNumberInput'] div[data-baseweb='base-input'],
+  div[data-testid='stNumberInput'] input,
+  div[data-testid='stNumberInput'] button,
+  button[data-testid='stBaseButton-headerNoPadding'],
+  button[data-testid='stBaseButton-header'],
+  button[data-testid='stExpandSidebarButton'],
+  button[data-testid='stMainMenuButton'] {
+    min-width: 44px !important;
   }
 }
 </style>
@@ -167,4 +180,4 @@ if channel_data:
         st.info(s)
 
 else:
-    st.info("콘텐츠 데이터가 없습니다. Result Tracker에 콘텐츠를 먼저 등록하세요.")
+    st.info("콘텐츠 데이터가 없습니다. 콘텐츠 결과 관리에서 먼저 등록하세요.")

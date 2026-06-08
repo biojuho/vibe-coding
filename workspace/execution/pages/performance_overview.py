@@ -69,6 +69,39 @@ except ImportError:
     debug_get_stats = None
     debug_init_db = None
 
+PROJECT_ROOT = WORKSPACE_ROOT
+TMP_DIR = PROJECT_ROOT / ".tmp"
+NO_RECORD_LABEL = "기록 없음"
+MODULE_MISSING_LABEL = "모듈 없음"
+MOBILE_TOUCH_TARGET_CSS = """
+<style>
+@media (max-width: 640px) {
+    button[data-testid="stBaseButton-headerNoPadding"],
+    button[data-testid="stExpandSidebarButton"],
+    button[data-testid="stMainMenuButton"],
+    button[data-testid="stBaseButton-elementToolbar"] {
+        width: 44px !important;
+        height: 44px !important;
+        min-width: 44px !important;
+        min-height: 44px !important;
+    }
+
+    button[data-testid="stBaseButton-header"] {
+        min-width: 44px !important;
+        min-height: 44px !important;
+        height: 44px !important;
+        padding-inline: 12px !important;
+    }
+
+    button[data-testid="stBaseButton-elementToolbar"] svg,
+    [data-testid="stElementToolbarButtonIcon"] {
+        width: 24px !important;
+        height: 24px !important;
+    }
+}
+</style>
+"""
+
 # ── Page config ───────────────────────────────────────────────
 st.set_page_config(
     page_title="운영 성과 - Joolife",
@@ -76,13 +109,10 @@ st.set_page_config(
     layout="wide",
 )
 
-st.title("📈 운영 성과")
-st.caption("콘텐츠 · 비용 · 플랫폼 · 시스템 상태를 한 화면에서 확인합니다.")
+st.markdown(MOBILE_TOUCH_TARGET_CSS, unsafe_allow_html=True)
 
-PROJECT_ROOT = WORKSPACE_ROOT
-TMP_DIR = PROJECT_ROOT / ".tmp"
-NO_RECORD_LABEL = "기록 없음"
-MODULE_MISSING_LABEL = "모듈 없음"
+st.title("📈 운영 성과", anchor=False)
+st.caption("콘텐츠 · 비용 · 플랫폼 · 시스템 상태를 한 화면에서 확인합니다.")
 
 
 # ── Helper: load JSON safely ─────────────────────────────────
@@ -141,7 +171,7 @@ def _watchdog_stats() -> dict:
 # SIDEBAR: 시스템 상태
 # ══════════════════════════════════════════════════════════════
 with st.sidebar:
-    st.header("🩺 시스템 상태")
+    st.header("🩺 시스템 상태", anchor=False)
 
     # Last backup
     backup_data = _load_json(TMP_DIR / "backup_status.json")
@@ -180,7 +210,7 @@ with st.sidebar:
 # SECTION 1: KPI 카드
 # ══════════════════════════════════════════════════════════════
 st.divider()
-st.subheader("KPI 요약")
+st.subheader("KPI 요약", anchor=False)
 
 # Gather KPI values
 total_content = 0
@@ -215,7 +245,7 @@ with k4:
 # SECTION 2: 게시 추이(최근 30일)
 # ══════════════════════════════════════════════════════════════
 st.divider()
-st.subheader("📊 게시 추이(최근 30일)")
+st.subheader("📊 게시 추이(최근 30일)", anchor=False)
 
 if _RT_OK:
     trend = rt_daily_trend(days=30)
@@ -239,7 +269,7 @@ else:
 # SECTION 3: API 비용 분석(최근 30일)
 # ══════════════════════════════════════════════════════════════
 st.divider()
-st.subheader("💰 API 비용 분석(최근 30일)")
+st.subheader("💰 API 비용 분석(최근 30일)", anchor=False)
 
 if _API_OK:
     col_daily, col_provider = st.columns(2)
@@ -286,7 +316,7 @@ else:
 # SECTION 4: 플랫폼 성과
 # ══════════════════════════════════════════════════════════════
 st.divider()
-st.subheader("📱 플랫폼 성과")
+st.subheader("📱 플랫폼 성과", anchor=False)
 
 if _RT_OK:
     platform_data = rt_platform_summary()

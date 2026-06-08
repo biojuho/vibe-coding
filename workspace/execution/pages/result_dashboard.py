@@ -11,6 +11,7 @@
 """
 
 import sys
+from datetime import date, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
@@ -71,6 +72,8 @@ COLORS = {
     "channels": ["#f472b6", "#38bdf8", "#facc15", "#4ade80", "#fb923c"],
 }
 
+DEFAULT_PUBLISHED_AT = date.today().isoformat()
+
 
 def _stretch_button_kwargs() -> dict[str, str]:
     return {"width": "stretch"}
@@ -82,6 +85,19 @@ def _render_plotly_chart(fig) -> None:
 
 def _render_dataframe(data) -> None:
     st.dataframe(data, width="stretch", hide_index=True)
+
+
+def _parse_published_date(value: str) -> tuple[str | None, str | None]:
+    normalized = value.strip()
+    if not normalized:
+        return None, "게시일을 YYYY-MM-DD 형식으로 입력하세요."
+
+    try:
+        parsed = datetime.strptime(normalized, "%Y-%m-%d").date()
+    except ValueError:
+        return None, "게시일은 YYYY-MM-DD 형식이어야 합니다."
+
+    return parsed.isoformat(), None
 
 
 def _inject_result_dashboard_mobile_css() -> None:
@@ -96,19 +112,41 @@ def _inject_result_dashboard_mobile_css() -> None:
   }
 
   div[role='tablist'] button[role='tab'],
+  button[data-testid='stBaseButton-headerNoPadding'],
+  button[data-testid='stBaseButton-header'],
+  button[data-testid='stBaseButton-primary'],
+  button[data-testid='stBaseButton-secondary'],
+  button[data-testid='stBaseButton-elementToolbar'],
+  button[data-testid='stExpandSidebarButton'],
+  button[data-testid='stMainMenuButton'],
   div[data-testid='stButton'] button,
   div[data-testid='stFormSubmitButton'] button,
   div[data-baseweb='select'],
   div[data-baseweb='input'],
   div[data-baseweb='input'] input,
+  div[data-testid='stTextInput'] input,
   div[data-testid='stTextArea'] textarea,
-  div[data-testid='stDateInput'] input {
-    min-height: 44px;
+  div[data-testid='stSlider'] {
+    min-height: 44px !important;
   }
 
   div[role='tablist'] button[role='tab'] {
-    min-width: 44px;
+    min-width: 44px !important;
     flex: 0 0 auto;
+  }
+
+  button[data-testid='stBaseButton-headerNoPadding'],
+  button[data-testid='stBaseButton-header'],
+  button[data-testid='stBaseButton-elementToolbar'],
+  button[data-testid='stExpandSidebarButton'],
+  button[data-testid='stMainMenuButton'] {
+    width: 44px !important;
+    height: 44px !important;
+  }
+
+  div[data-testid='stButton'] button,
+  div[data-testid='stFormSubmitButton'] button {
+    min-width: 44px !important;
   }
 }
 </style>
@@ -124,7 +162,7 @@ _inject_result_dashboard_mobile_css()
 # 사이드바: 통계 수집 + 요약
 # ===========================================================================
 with st.sidebar:
-    st.header("⚙️ 도구")
+    st.header("⚙️ 도구", anchor=False)
 
     if st.button("🔄 YouTube 통계 수집", type="primary", **_stretch_button_kwargs()):
         with st.spinner("YouTube API에서 통계 수집 중..."):
@@ -163,7 +201,7 @@ tab_register, tab_overview, tab_detail, tab_trend = st.tabs(
 # TAB 1: 콘텐츠 등록
 # ===========================================================================
 with tab_register:
-    st.header("➕ 콘텐츠 등록")
+    st.header("➕ 콘텐츠 등록", anchor=False)
     st.caption("YouTube/X에 업로드한 콘텐츠의 URL을 등록하세요")
 
     with st.form("add_content_form", clear_on_submit=True):
@@ -188,14 +226,21 @@ with tab_register:
             channel_options = ["AI/기술", "심리학", "역사/고고학", "우주/천문학", "의학/건강", "기타"]
             channel = st.selectbox("채널", options=[""] + channel_options)
             tags = st.text_input("태그 (쉼표 구분)", placeholder="AI, GPT, 기술")
-            published_at = st.date_input("게시일")
+            published_at_input = st.text_input(
+                "게시일",
+                value=DEFAULT_PUBLISHED_AT,
+                placeholder="YYYY-MM-DD",
+            )
             memo = st.text_area("메모", placeholder="선택 사항", height=68)
 
         submitted = st.form_submit_button("📝 등록", type="primary", **_stretch_button_kwargs())
 
         if submitted:
+            published_at, published_at_error = _parse_published_date(published_at_input)
             if not url or not title:
                 st.error("URL과 제목은 필수입니다.")
+            elif published_at_error:
+                st.error(published_at_error)
             else:
                 row_id = add_content(
                     platform=platform,
@@ -204,14 +249,14 @@ with tab_register:
                     channel=channel,
                     tags=tags,
                     memo=memo,
-                    published_at=str(published_at),
+                    published_at=published_at,
                 )
                 st.success(f"✅ 등록 완료! (ID: {row_id})")
                 st.rerun()
 
     # 최근 등록 목록
     st.divider()
-    st.subheader("최근 등록 콘텐츠")
+    st.subheader("최근 등록 콘텐츠", anchor=False)
     recent = get_all()[:10]
     if recent:
         for item in recent:
@@ -236,7 +281,7 @@ with tab_register:
 # TAB 2: 성과 개요
 # ===========================================================================
 with tab_overview:
-    st.header("📊 성과 개요")
+    st.header("📊 성과 개요", anchor=False)
 
     all_items = get_all()
 
@@ -265,7 +310,7 @@ with tab_overview:
         # ── 플랫폼별 성과 ────────────────────────────────────
         platform_data = get_platform_summary()
         if platform_data:
-            st.subheader("플랫폼별 성과")
+            st.subheader("플랫폼별 성과", anchor=False)
             col_pie, col_bar = st.columns(2)
 
             with col_pie:
@@ -297,7 +342,7 @@ with tab_overview:
         # ── 채널별 성과 ──────────────────────────────────────
         channel_data = get_channel_summary()
         if channel_data:
-            st.subheader("채널별 성과")
+            st.subheader("채널별 성과", anchor=False)
 
             fig_ch = go.Figure()
             fig_ch.add_trace(
@@ -332,7 +377,7 @@ with tab_overview:
         # ── TOP 10 콘텐츠 ────────────────────────────────────
         top = get_top_content(10)
         if top:
-            st.subheader("🏆 조회수 TOP 10")
+            st.subheader("🏆 조회수 TOP 10", anchor=False)
             for i, item in enumerate(top, 1):
                 emoji = PLATFORMS.get(item["platform"], {}).get("emoji", "📄")
                 views = item.get("views", 0) or 0
@@ -354,7 +399,7 @@ with tab_overview:
 # TAB 3: 상세 관리
 # ===========================================================================
 with tab_detail:
-    st.header("📋 콘텐츠 상세 관리")
+    st.header("📋 콘텐츠 상세 관리", anchor=False)
     st.caption("X/Threads 통계 수동 입력 및 개별 콘텐츠 관리")
 
     all_items = get_all()
@@ -479,7 +524,7 @@ with tab_detail:
 # TAB 4: 추이 분석
 # ===========================================================================
 with tab_trend:
-    st.header("📈 추이 분석")
+    st.header("📈 추이 분석", anchor=False)
 
     days = st.slider("분석 기간 (일)", 7, 90, 30, key="trend_days")
     trend = get_daily_trend(days)
@@ -491,7 +536,7 @@ with tab_trend:
         col_count, col_views = st.columns(2)
 
         with col_count:
-            st.subheader("일별 콘텐츠 등록")
+            st.subheader("일별 콘텐츠 등록", anchor=False)
             fig_cnt = go.Figure()
             fig_cnt.add_trace(
                 go.Bar(
@@ -504,7 +549,7 @@ with tab_trend:
             _render_plotly_chart(fig_cnt)
 
         with col_views:
-            st.subheader("일별 조회수")
+            st.subheader("일별 조회수", anchor=False)
             fig_views = go.Figure()
             fig_views.add_trace(
                 go.Scatter(
@@ -522,7 +567,7 @@ with tab_trend:
         st.divider()
 
         # ── 누적 추이 ────────────────────────────────────────
-        st.subheader("누적 조회수 추이")
+        st.subheader("누적 조회수 추이", anchor=False)
         cumulative = []
         running_total = 0
         for t in trend:

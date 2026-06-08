@@ -23,10 +23,10 @@ except ImportError as e:
     _MODULE_OK = False
     _MODULE_ERR = str(e)
 
-st.set_page_config(page_title="Channel Growth - Joolife", page_icon="📈", layout="wide")
+st.set_page_config(page_title="채널 성장 - Joolife", page_icon="📈", layout="wide")
 
 if not _MODULE_OK:
-    st.error(f"Channel Growth 모듈을 불러올 수 없습니다: {_MODULE_ERR}")
+    st.error(f"채널 성장 모듈을 불러올 수 없습니다: {_MODULE_ERR}")
     st.stop()
 
 _PLOTLY_CHART_CONFIG = {
@@ -49,11 +49,25 @@ def _inject_channel_growth_mobile_css() -> None:
 
   div[data-testid='stButton'] button,
   div[data-testid='stFormSubmitButton'] button,
+  button[data-testid='stBaseButton-headerNoPadding'],
+  button[data-testid='stBaseButton-header'],
+  button[data-testid='stBaseButton-elementToolbar'],
+  button[data-testid='stExpandSidebarButton'],
+  button[data-testid='stMainMenuButton'],
   div[data-baseweb='select'],
   div[data-baseweb='select'] > div,
   div[data-baseweb='input'],
   div[data-baseweb='input'] input {
-    min-height: 44px;
+    min-height: 44px !important;
+  }
+
+  button[data-testid='stBaseButton-headerNoPadding'],
+  button[data-testid='stBaseButton-header'],
+  button[data-testid='stBaseButton-elementToolbar'],
+  button[data-testid='stExpandSidebarButton'],
+  button[data-testid='stMainMenuButton'] {
+    width: 44px !important;
+    height: 44px !important;
   }
 }
 </style>
@@ -69,14 +83,14 @@ def _render_plotly_chart(fig: object) -> None:
 _inject_channel_growth_mobile_css()
 init_db()
 
-st.title("📈 채널 성장 추적")
+st.title("📈 채널 성장 추적", anchor=False)
 st.caption("YouTube 5채널 독립 성과 추적 · 구독자/조회수/영상 수 · 7일/30일/90일 추이")
 
 # ── 채널 비교 요약 ──
 comparison = get_channel_comparison()
 
 if comparison:
-    st.subheader("채널 비교 (최신)")
+    st.subheader("채널 비교 (최신)", anchor=False)
     cols = st.columns(min(len(comparison), 5))
     for i, ch in enumerate(comparison):
         with cols[i % len(cols)]:
@@ -90,7 +104,7 @@ if comparison:
     st.divider()
 
     # ── 성장 추이 차트 ──
-    st.subheader("구독자 성장 추이")
+    st.subheader("구독자 성장 추이", anchor=False)
     period = st.selectbox("기간", [30, 60, 90], index=0, format_func=lambda x: f"{x}일")
 
     chart_col1, chart_col2 = st.columns(2)
@@ -146,7 +160,7 @@ if comparison:
     st.divider()
 
     # ── 성장률 비교 바 차트 ──
-    st.subheader("7일 성장률 비교")
+    st.subheader("7일 성장률 비교", anchor=False)
     fig_bar = go.Figure(
         data=[
             go.Bar(
@@ -177,11 +191,11 @@ else:
 st.divider()
 
 # ── 채널 추가 ──
-st.subheader("채널 관리")
+st.subheader("채널 관리", anchor=False)
 with st.form("add_channel"):
     c1, c2 = st.columns(2)
     with c1:
-        new_channel_id = st.text_input("YouTube Channel ID", placeholder="UCxxxxxxxxxxxxxxxx")
+        new_channel_id = st.text_input("YouTube 채널 ID", placeholder="UCxxxxxxxxxxxxxxxx")
     with c2:
         new_name = st.text_input("채널 별칭", placeholder="AI/기술")
     if st.form_submit_button("채널 추가", type="primary"):

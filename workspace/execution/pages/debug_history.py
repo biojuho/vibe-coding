@@ -96,7 +96,7 @@ if not _MODULE_OK:
 _inject_mobile_touch_target_styles()
 
 # ── 헤더 ─────────────────────────────────────────
-st.title("디버그 이력")
+st.title("디버그 이력", anchor=False)
 st.caption("반복 오류와 해결 패턴을 확인하고 다음 조치를 정합니다.")
 
 # ── 통계 KPI ──────────────────────────────────────
@@ -139,7 +139,7 @@ if stats["total_entries"] > 0:
 
 # ── 엔트리 목록 ──────────────────────────────────
 st.divider()
-st.subheader("최근 디버그 이력")
+st.subheader("최근 디버그 이력", anchor=False)
 
 f1, f2, f3 = st.columns(3)
 with f1:
@@ -170,7 +170,7 @@ else:
 
 # ── 키워드 검색 ──────────────────────────────────
 st.divider()
-st.subheader("키워드 검색")
+st.subheader("키워드 검색", anchor=False)
 search_keyword = st.text_input("키워드 입력", key="search_kw")
 if search_keyword:
     results = search_entries(search_keyword)
@@ -182,7 +182,7 @@ if search_keyword:
 
 # ── 에러 패턴 ────────────────────────────────────
 st.divider()
-st.subheader("등록된 오류 패턴")
+st.subheader("등록된 오류 패턴", anchor=False)
 
 patterns = list_patterns()
 if patterns:
@@ -195,7 +195,7 @@ else:
 
 # ── 패턴 검색 ────────────────────────────────────
 st.divider()
-st.subheader("오류 메시지 패턴 검색")
+st.subheader("오류 메시지 패턴 검색", anchor=False)
 error_msg = st.text_input("오류 메시지 입력", key="pattern_lookup")
 if error_msg:
     matches = lookup_pattern(error_msg)

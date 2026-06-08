@@ -109,7 +109,7 @@ def _local_release_status() -> dict[str, str | int]:
 
 def _render_release_boundary() -> None:
     status = _local_release_status()
-    st.subheader("릴리스 경계")
+    st.subheader("릴리스 경계", anchor=False)
     rel_col1, rel_col2, rel_col3 = st.columns(3)
     with rel_col1:
         st.metric("현재 브랜치", status["branch"])
@@ -136,7 +136,7 @@ if not _MODULE_OK:
     st.error(f"GitHub 모듈을 불러올 수 없습니다: {_MODULE_ERR}")
     st.stop()
 
-st.title("GitHub 운영 현황")
+st.title("GitHub 운영 현황", anchor=False)
 st.caption("현재 릴리스 경계, PR 흐름, 저장소 활동을 한 화면에서 확인합니다.")
 
 _render_release_boundary()

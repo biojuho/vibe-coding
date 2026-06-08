@@ -245,6 +245,185 @@ def test_export_csv_format(monkeypatch, tmp_path):
     assert "식비" in categories
 
 
+# ---------------------------------------------------------------------------
+# finance_tracker page helpers
+# ---------------------------------------------------------------------------
+
+
+def _install_finance_tracker_page_stubs():
+    import importlib
+    import sys
+    import types
+
+    class FakeContext:
+        def __init__(self, streamlit_module):
+            self._streamlit = streamlit_module
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def __getattr__(self, name):
+            return getattr(self._streamlit, name)
+
+    class FakeStreamlit(types.ModuleType):
+        def __init__(self):
+            super().__init__("streamlit")
+            self.events = []
+
+        def _record(self, name, payload=None, **kwargs):
+            self.events.append((name, payload, kwargs))
+
+        def set_page_config(self, **kwargs):
+            self._record("set_page_config", kwargs)
+
+        def markdown(self, payload, **kwargs):
+            self._record("markdown", payload, **kwargs)
+
+        def plotly_chart(self, payload, **kwargs):
+            self._record("plotly_chart", payload, **kwargs)
+
+        def columns(self, spec):
+            count = spec if isinstance(spec, int) else len(spec)
+            return [FakeContext(self) for _ in range(count)]
+
+        def form(self, _key):
+            return FakeContext(self)
+
+        def text_input(self, _label, value="", **_kwargs):
+            return value
+
+        def selectbox(self, _label, options, **_kwargs):
+            return options[0]
+
+        def number_input(self, _label, **kwargs):
+            return int(kwargs.get("value", kwargs.get("min_value", 0)) or 0)
+
+        def form_submit_button(self, *_args, **_kwargs):
+            return False
+
+        def button(self, *_args, **_kwargs):
+            return False
+
+        def checkbox(self, *_args, **_kwargs):
+            return False
+
+        def download_button(self, *args, **kwargs):
+            self._record("download_button", args[0] if args else None, **kwargs)
+
+        def stop(self):
+            raise RuntimeError("streamlit stop called")
+
+        def __getattr__(self, name):
+            def fallback(payload=None, *args, **kwargs):
+                if args:
+                    kwargs["_args"] = args
+                self._record(name, payload, **kwargs)
+
+            return fallback
+
+    class FakeFigure:
+        def add_trace(self, *_args, **_kwargs):
+            return None
+
+        def update_layout(self, **_kwargs):
+            return None
+
+        def update_xaxes(self, **_kwargs):
+            return None
+
+        def update_yaxes(self, **_kwargs):
+            return None
+
+    fake_streamlit = FakeStreamlit()
+    fake_finance_db = types.ModuleType("execution.finance_db")
+    fake_finance_db.CATEGORIES = {"expense": ["food"], "income": ["salary"]}
+    fake_finance_db.init_db = lambda: None
+    fake_finance_db.get_monthly_summary = lambda _month: {"income": 0, "expense": 0, "net": 0}
+    fake_finance_db.check_budget_alerts = lambda _month: []
+    fake_finance_db.get_category_breakdown = lambda _month: []
+    fake_finance_db.get_trend = lambda _months: []
+    fake_finance_db.get_transactions = lambda **_kwargs: []
+    fake_finance_db.get_budgets = lambda: []
+    fake_finance_db.export_csv = lambda _month=None: "type,amount\n"
+    fake_finance_db.add_transaction = lambda *_args, **_kwargs: 1
+    fake_finance_db.delete_transaction = lambda *_args, **_kwargs: True
+    fake_finance_db.set_budget = lambda *_args, **_kwargs: None
+
+    plotly = types.ModuleType("plotly")
+    express = types.ModuleType("plotly.express")
+    graph_objects = types.ModuleType("plotly.graph_objects")
+    express.pie = lambda **_kwargs: FakeFigure()
+    graph_objects.Figure = FakeFigure
+    graph_objects.Scatter = lambda **kwargs: ("scatter", kwargs)
+    plotly.express = express
+    plotly.graph_objects = graph_objects
+
+    originals = {
+        name: sys.modules.get(name)
+        for name in (
+            "streamlit",
+            "execution.finance_db",
+            "plotly",
+            "plotly.express",
+            "plotly.graph_objects",
+        )
+    }
+    sys.modules["streamlit"] = fake_streamlit
+    sys.modules["execution.finance_db"] = fake_finance_db
+    sys.modules["plotly"] = plotly
+    sys.modules["plotly.express"] = express
+    sys.modules["plotly.graph_objects"] = graph_objects
+    sys.modules.pop("execution.pages.finance_tracker", None)
+    module = importlib.import_module("execution.pages.finance_tracker")
+    for name, original in originals.items():
+        if original is None:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = original
+    return module, fake_streamlit
+
+
+_FINANCE_TRACKER_PAGE, _FINANCE_TRACKER_ST = _install_finance_tracker_page_stubs()
+
+from execution.pages.finance_tracker import (  # noqa: E402
+    PLOTLY_CHART_CONFIG,
+    TYPE_LABELS,
+    _format_month_label,
+    _format_transaction_type,
+    _inject_finance_mobile_css,
+    _month_start,
+    _parse_transaction_date,
+    _render_plotly_chart,
+)
+
+
+def test_finance_tracker_page_helpers_are_imported_and_executable():
+    from datetime import date
+
+    _FINANCE_TRACKER_ST.events.clear()
+    assert _format_transaction_type("income") == TYPE_LABELS["income"]
+    assert _format_transaction_type("other") == "other"
+    assert _month_start("2026-06") == date(2026, 6, 1)
+    assert _format_month_label("2026-06") == "2026.06"
+    assert _parse_transaction_date(" 2026-06-08 ") == "2026-06-08"
+    assert _parse_transaction_date("2026/06/08") is None
+
+    _inject_finance_mobile_css()
+    assert _FINANCE_TRACKER_ST.events[-1][0] == "markdown"
+    assert _FINANCE_TRACKER_ST.events[-1][2]["unsafe_allow_html"] is True
+
+    figure = object()
+    _render_plotly_chart(figure)
+    assert _FINANCE_TRACKER_ST.events[-1] == (
+        "plotly_chart",
+        figure,
+        {"width": "stretch", "config": PLOTLY_CHART_CONFIG},
+    )
+
+
 def test_export_csv_no_filter(monkeypatch, tmp_path):
     _patch_db(monkeypatch, tmp_path)
     fdb.add_transaction("income", 100, "부업", dt="2026-01-01")

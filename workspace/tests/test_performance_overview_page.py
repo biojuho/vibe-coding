@@ -205,6 +205,33 @@ def test_performance_overview_source_avoids_deprecated_width_api() -> None:
     assert "if _has_multiple_rows(df_daily):" in source
 
 
+def test_performance_overview_hides_heading_anchors_and_sizes_mobile_controls() -> None:
+    source = (WORKSPACE_ROOT / "execution" / "pages" / "performance_overview.py").read_text(encoding="utf-8")
+
+    for heading_call in [
+        'st.title("📈 운영 성과", anchor=False)',
+        'st.header("🩺 시스템 상태", anchor=False)',
+        'st.subheader("KPI 요약", anchor=False)',
+        'st.subheader("📊 게시 추이(최근 30일)", anchor=False)',
+        'st.subheader("💰 API 비용 분석(최근 30일)", anchor=False)',
+        'st.subheader("📱 플랫폼 성과", anchor=False)',
+    ]:
+        assert heading_call in source
+
+    assert "MOBILE_TOUCH_TARGET_CSS" in source
+    assert "st.markdown(MOBILE_TOUCH_TARGET_CSS, unsafe_allow_html=True)" in source
+    for selector in [
+        'button[data-testid="stBaseButton-headerNoPadding"]',
+        'button[data-testid="stExpandSidebarButton"]',
+        'button[data-testid="stMainMenuButton"]',
+        'button[data-testid="stBaseButton-header"]',
+        'button[data-testid="stBaseButton-elementToolbar"]',
+        '[data-testid="stElementToolbarButtonIcon"]',
+    ]:
+        assert selector in source
+    assert "min-height: 44px !important;" in source
+
+
 def test_performance_overview_source_locks_mobile_operator_labels() -> None:
     source = (WORKSPACE_ROOT / "execution" / "pages" / "performance_overview.py").read_text(encoding="utf-8")
 
