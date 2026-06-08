@@ -2675,6 +2675,18 @@
 
 ## 2026-06-09 - Codex
 
+- Completed T-1749 as a `claude-goal` goal metadata_json object-shape guard fix in `claude-goal/` on branch `improve/goal-system`.
+- Continued the `/goal` reproduce -> isolate -> root-cause -> fix -> verify loop while preserving existing nested WIP and the completed T-1747b/T-1748 surfaces; did not stage nested code, push, revert, call `update_goal`, edit root product code, or retry Hanwoo T-251.
+- 0-step refresh prioritized a structured-output data-integrity bug over lower-impact message-order differences.
+- Reproduced with isolated DB state that `goals.metadata_json = '{broken'` made `json`/`contract` return exit `2` with raw JSON parser text and no `metadata_json` context, while `metadata_json = '[]'` or `"string"` made `json` and `contract` return exit `0` with schema-invalid `metadata` array/string values; `contract --verify-json` accepted those artifacts when the same corrupt DB value was present.
+- Root cause: `row_to_dict()` trusted `metadata_json` and passed any decoded JSON value through, while operating-contract verification only checked that `current_goal` was an object and did not enforce `current_goal.metadata` object shape.
+- Fixed `goal/scripts/claude_goal.py` by adding `goal_metadata()` validation and rejecting non-object `current_goal.metadata`.
+- Added `tests/test_claude_goal.py::test_goal_metadata_json_must_be_object_for_structured_outputs` and `tests/test_claude_goal.py::test_goal_contract_verify_json_rejects_current_goal_metadata_type`.
+- Direct after-fix QA in `.tmp/claude-goal-t1749-metadata-json-shape-qa.json` confirms malformed `metadata_json` now returns contextual metadata errors, `json`/direct `contract`/slash `invoke contract`/`doctor --json` leave stdout empty and print no traceback, and operating-contract verification rejects `current_goal.metadata` array values.
+- Verification passed focused metadata/contract pytest (`4 passed`), post-format focused rerun (`2 passed`), full isolated pytest with `PYTHONUTF8=1` (`189 passed`), Ruff check, scoped Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
+
+## 2026-06-09 - Codex
+
 - Completed T-1747b as a `claude-goal` invoke stale-days non-integer usage error fix in `claude-goal/` on branch `improve/goal-system`.
 - Continued the `/goal` reproduce -> isolate -> root-cause -> fix -> verify loop while preserving existing nested WIP, the completed T-1745b/T-1746 surfaces, and the concurrent installer script-path surface; did not stage nested code, push, revert, call `update_goal`, edit root product code, or retry Hanwoo T-251.
 - Reproduced with isolated slash/invoke state that `invoke doctor --stale-days nope --json`, `invoke doctor --stale-days= --json`, `invoke pause-stale --stale-days nope --json`, and `invoke pause-stale --stale-days= --json` returned exit `2` without traceback but exposed raw Python `invalid literal for int()` conversion text instead of an option-specific usage error.
@@ -2683,3 +2695,15 @@
 - Added `tests/test_claude_goal.py::test_invoke_stale_days_rejects_non_integer_before_db_open`.
 - Direct after-fix QA in `.tmp/claude-goal-t1747b-stale-days-usage-qa.json` confirms all four cases now return exit `2`, leave stdout empty, report `goal error: --stale-days must be an integer`, avoid raw Python `invalid literal` text, avoid `cannot open goal database` even with `CLAUDE_GOAL_DB` as a directory, and print no traceback.
 - Verification passed focused stale-days pytest (`4 passed`), full isolated pytest with `PYTHONUTF8=1` (`186 passed`), Ruff check, scoped Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
+
+## 2026-06-09 - Codex
+
+- Completed T-1750 as a `claude-goal` empty inline completion-audit value guard fix in `claude-goal/` on branch `improve/goal-system`, using the next task ID because T-1749 already records the metadata_json object-shape fix.
+- Continued the `/goal` reproduce -> isolate -> root-cause -> fix -> verify loop while preserving existing nested WIP; did not stage nested code, push, revert, call `update_goal`, edit root product code, or retry Hanwoo T-251.
+- Reproduced with isolated temp state that `complete --audit-json=` and slash `invoke complete --audit-json=` returned exit `0`, printed `Action: complete`, and marked an active goal complete without any completion-audit artifact.
+- Confirmed the missing-value forms without `=` already returned clean usage errors and preserved the active goal.
+- Root cause: empty inline option values were treated as present-but-falsy and then normalized away (`values["--audit-json"] or None`), so completion audit validation never saw an invalid artifact path.
+- Fixed `goal/scripts/claude_goal.py` by adding `_validate_option_value()` for direct and slash value options and validating direct `complete --audit-json`.
+- Added `tests/test_claude_goal.py::test_complete_rejects_empty_audit_json_without_mutating`.
+- Direct after-fix QA in `.tmp/claude-goal-t1750-empty-audit-json-qa.json` confirms direct/slash empty-inline `--audit-json=` now returns exit `2`, leaves stdout empty, reports `goal error: --audit-json requires a value`, prints no traceback, and keeps the goal active.
+- Verification passed focused regression pytest (`7 passed, 123 deselected`), command cluster pytest (`97 passed, 33 deselected`), full isolated pytest with `PYTHONUTF8=1` (`189 passed`), Ruff check, scoped Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
