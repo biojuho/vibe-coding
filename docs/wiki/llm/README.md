@@ -54,6 +54,7 @@
 | 37 | [API surface - SDK compatibility - OpenAI-compatible boundary](37-api-surface-sdk-compatibility-boundary.md) | Chat Completions, Responses, Anthropic Messages, Gemini GenerateContent, OpenAI-compatible adapters, parser shape, and SDK compatibility boundary |
 | 38 | [Conversation state - memory - handoff boundary](38-conversation-state-memory-handoff-boundary.md) | Provider conversation state, SDK sessions, LangGraph checkpoints, MCP context, `.ai` handoff, `.tmp` evidence, and product state boundary |
 | 39 | [Credentials - secrets - API key boundary](39-credentials-secrets-api-key-boundary.md) | Provider keys, CI secrets, OAuth tokens, Supabase/Postgres URLs, browser-public keys, redacted readiness artifacts, and live side-effect authorization boundary |
+| 40 | [Side effect - idempotency - replay boundary](40-side-effect-idempotency-replay-boundary.md) | Notion/X/Cloudinary live writes, operation keys, retry-safe side effects, provider idempotency, and replay recovery boundary |
 
 ## 빠른 시작
 

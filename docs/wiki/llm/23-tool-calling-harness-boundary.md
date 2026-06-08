@@ -141,6 +141,7 @@ MCP tool spec은 서버가 `tools/list`로 도구 schema를 노출하고, client
 
 - **Tool call != tool execution.** 모델은 호출 요청을 만든다. 앱 또는 provider server tool layer가 실행한다.
 - **Schema adherence != authorization.** strict schema는 인자 형태를 잡을 뿐, side effect를 안전하게 만들지 않는다.
+- **Tool execution != replay-safe side effect.** external writes still need operation keys and recovery records ([40-side-effect-idempotency-replay-boundary](40-side-effect-idempotency-replay-boundary.md)).
 - **MCP available != MCP allowed.** 연결 설정과 실행 권한은 별개다.
 - **Search grounding != web scraper.** Gemini Google Search Grounding은 citation metadata를 돌려주는 provider tool이다. raw crawler처럼 저장/재사용하면 출처·약관·freshness 기준이 달라진다.
 - **Prompt injection risk moves into tool results.** 검색 결과, API 응답, MCP tool output은 다시 모델 입력으로 들어가므로 untrusted content 경계를 유지한다.

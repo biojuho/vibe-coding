@@ -7,7 +7,7 @@
 
 [01-architecture](01-architecture.md)는 fallback 루프를 설명하고, [03-cost-caching](03-cost-caching.md)은 비용/알림을 설명하며, [07-playbooks](07-playbooks.md)는 장애 대응 절차를 짧게 다룬다. 하지만 rate limit은 다음 네 가지가 같이 맞아야 운영 사고를 줄일 수 있다.
 
-This page covers retry timing and provider reliability. For the broader taxonomy that separates retryable provider errors from auth/config failures, model refusals, structured-output failures, and product gates, see [29-error-taxonomy-refusal-fallback-boundary](29-error-taxonomy-refusal-fallback-boundary.md).
+This page covers retry timing and provider reliability. For the broader taxonomy that separates retryable provider errors from auth/config failures, model refusals, structured-output failures, and product gates, see [29-error-taxonomy-refusal-fallback-boundary](29-error-taxonomy-refusal-fallback-boundary.md). For retries that can repeat Notion/X/Cloudinary writes, see [40-side-effect-idempotency-replay-boundary](40-side-effect-idempotency-replay-boundary.md).
 
 | 관점 | 필요한 판단 | 현재 위치 |
 |---|---|---|

@@ -705,6 +705,62 @@
       "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
     },
     {
+      "url": "https://cloudinary.com/documentation/image_upload_api_reference",
+      "host": "cloudinary.com",
+      "pages": [
+        "40-side-effect-idempotency-replay-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://cloudinary.com/documentation/ts_how_can_cloudinary_help_me_to_avoid_or_detect_duplicated_uploads_in_my_account",
+      "host": "cloudinary.com",
+      "pages": [
+        "40-side-effect-idempotency-replay-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://cloudinary.com/documentation/upload_images#avoiding_duplicate_uploads",
+      "host": "cloudinary.com",
+      "pages": [
+        "40-side-effect-idempotency-replay-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://cloudinary.com/documentation/upload_parameters",
+      "host": "cloudinary.com",
+      "pages": [
+        "40-side-effect-idempotency-replay-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
       "url": "https://code.claude.com/docs/en/memory",
       "host": "code.claude.com",
       "pages": [
@@ -807,6 +863,34 @@
       "host": "developers.notion.com",
       "pages": [
         "39-credentials-secrets-api-key-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.notion.com/reference/post-page",
+      "host": "developers.notion.com",
+      "pages": [
+        "40-side-effect-idempotency-replay-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://developers.notion.com/reference/status-codes",
+      "host": "developers.notion.com",
+      "pages": [
+        "40-side-effect-idempotency-replay-boundary.md"
       ],
       "topic": "wiki-maintenance",
       "source_type": "official-docs",
@@ -1260,6 +1344,20 @@
       "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
     },
     {
+      "url": "https://docs.aws.amazon.com/powertools/python/3.10.0/utilities/idempotency/",
+      "host": "docs.aws.amazon.com",
+      "pages": [
+        "40-side-effect-idempotency-replay-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
       "url": "https://docs.bigmodel.cn/cn/api/rate-limit",
       "host": "docs.bigmodel.cn",
       "pages": [
@@ -1313,6 +1411,34 @@
       "cadence_days": 45,
       "last_verified": "2026-06-08",
       "review_after": "2026-07-23",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://docs.cloud.google.com/run/docs/tips/function-retries",
+      "host": "docs.cloud.google.com",
+      "pages": [
+        "40-side-effect-idempotency-replay-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://docs.cloud.google.com/storage/docs/retry-strategy",
+      "host": "docs.cloud.google.com",
+      "pages": [
+        "40-side-effect-idempotency-replay-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
       "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
     },
     {
@@ -1622,6 +1748,20 @@
       "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
     },
     {
+      "url": "https://docs.stripe.com/api/idempotent_requests",
+      "host": "docs.stripe.com",
+      "pages": [
+        "40-side-effect-idempotency-replay-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
       "url": "https://docs.x.ai/developers/model-capabilities/legacy/chat-completions",
       "host": "docs.x.ai",
       "pages": [
@@ -1668,6 +1808,20 @@
       "host": "docs.x.ai",
       "pages": [
         "37-api-surface-sdk-compatibility-boundary.md"
+      ],
+      "topic": "wiki-maintenance",
+      "source_type": "official-docs",
+      "volatility": "low",
+      "cadence_days": 180,
+      "last_verified": "2026-06-08",
+      "review_after": "2026-12-05",
+      "notes": "Generated from docs/wiki/llm markdown links; revalidate the source before updating time-sensitive claims."
+    },
+    {
+      "url": "https://docs.x.com/x-api/posts/create-post",
+      "host": "docs.x.com",
+      "pages": [
+        "40-side-effect-idempotency-replay-boundary.md"
       ],
       "topic": "wiki-maintenance",
       "source_type": "official-docs",

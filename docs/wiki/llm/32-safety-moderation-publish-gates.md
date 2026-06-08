@@ -117,7 +117,7 @@ This is metadata. Do not store raw unsafe content, private source content, or fu
 3. Product quality failures route to rewrite, rerank, or reviewer hold; do not label them as provider failures.
 4. Platform-policy failures route to hold/drop until the platform-specific rule is fixed.
 5. Human approval is required when `require_human_approval=true`, even if every automated score passes.
-6. Auto-publish requires a separate release decision that names the surface, consent model, duplicate/spam controls, policy checks, rollback path, and monitoring.
+6. Auto-publish requires a separate release decision that names the surface, consent model, duplicate/spam controls, policy checks, rollback path, monitoring, and the side-effect replay policy from [40-side-effect-idempotency-replay-boundary](40-side-effect-idempotency-replay-boundary.md).
 7. Media outputs require MIME-aware safety and disclosure metadata; text-only moderation is not enough for generated images/video/audio.
 8. Publish-gate artifacts should link prompt/source/generation evidence, but store hashes or redacted summaries when privacy rules require it.
 

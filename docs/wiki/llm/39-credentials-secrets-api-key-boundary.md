@@ -164,7 +164,7 @@ Credential artifacts should be metadata-only. Store token values only in the app
 4. Separate local development keys from CI, staging, production, and publish-target keys.
 5. Separate browser-safe public keys from server-only secrets. A `NEXT_PUBLIC_` key is a public contract, not a naming shortcut.
 6. For OpenAI/Anthropic/Gemini keys, record provider project/environment and budget/permission assumptions before launch-critical use.
-7. For Notion/X/Cloudinary/YouTube publish paths, distinguish draft generation from write/publish authority.
+7. For Notion/X/Cloudinary/YouTube publish paths, distinguish draft generation from write/publish authority and from replay-safe side effects ([40-side-effect-idempotency-replay-boundary](40-side-effect-idempotency-replay-boundary.md)).
 8. For Supabase/Postgres, distinguish `DATABASE_URL` presence from live credential validity; stop on the known external T-251 credential blocker until the owner resets/resyncs the pooler password.
 9. For CI, prove secret consumption through workflow logs/artifacts, not local `.env`.
 10. On suspected exposure, rotate/revoke first, then update local/CI/production stores and rerun redacted validation.
