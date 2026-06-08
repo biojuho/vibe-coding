@@ -22,6 +22,15 @@ if str(ROOT) not in sys.path:
 
 from pipeline.process_stages.context import ProcessRunContext, build_process_result
 from pipeline.daily_queue_floor import DailyQueueFloorState
+from pipeline.process_stages.generate_review_stage import (
+    _append_publish_decision_log,
+    _config_float,
+    _refresh_quality_gate_snapshot,
+    _resolve_publish_repair_attempts,
+    _run_publish_repair_loop,
+    _twitter_draft_text,
+    run_generate_review_stage,
+)
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -760,8 +769,6 @@ class TestGenerateReviewStage:
 
     # ── draft_generator=None (lines 24-29) ───────────────────────────────
     def test_no_draft_generator_returns_false(self):
-        from pipeline.process_stages.generate_review_stage import run_generate_review_stage
-
         ctx = self._ctx_ready()
         result = asyncio.run(run_generate_review_stage(ctx, None, MagicMock(), None, ["twitter"], None))
 
@@ -1123,6 +1130,59 @@ class TestGenerateReviewStage:
         assert result is True
         assert ctx.result.get("components_loaded") is not None
 
+    def test_publish_repair_loop_fixes_quality_hold_and_logs_decisions(self):
+        ctx = self._ctx_ready()
+        ctx.post_data["quality_gate_scores"] = {"twitter": 70}
+        ctx.post_data["research_context"] = {
+            "killer_sentence": (
+                "\ud1f4\uadfc \ud6c4\uc5d0\ub3c4 \uc5c5\ubb34 \uc54c\ub9bc\uc774 "
+                "\uacc4\uc18d \uc624\uba74 \ud68c\ubcf5 \uc2dc\uac04\uc774 \uc0ac\ub77c\uc9c4\ub2e4"
+            ),
+            "universal_value": "\ud1f4\uadfc \ud6c4 \uc5f0\uacb0\ub418\uc9c0 \uc54a\uc744 \uad8c\ub9ac",
+            "closure": "open",
+        }
+        drafts = {"twitter": "\uc774 \uae00\uc740 \uadf8\ub0e5 \ud68c\uc0ac \uc598\uae30\ub2e4."}
+        mock_qg_instance = MagicMock()
+        mock_qg_instance.validate_all.return_value = {"twitter": MagicMock(score=95)}
+        mock_qg_instance.format_summary.return_value = "quality gate ok"
+
+        with patch("pipeline.draft_quality_gate.DraftQualityGate", return_value=mock_qg_instance):
+            repaired_drafts, quality_gate = _run_publish_repair_loop(ctx, drafts, None)
+
+        assert repaired_drafts is drafts
+        assert quality_gate is mock_qg_instance
+        assert "\ud1f4\uadfc \ud6c4 \uc5f0\uacb0\ub418\uc9c0 \uc54a\uc744 \uad8c\ub9ac" in drafts["twitter"]
+        assert ctx.post_data["quality_gate_scores"] == {"twitter": 95}
+        assert ctx.post_data["publish_repair_attempts"][0]["repair"]["applied"] == ["ensure_value_frame"]
+        assert ctx.post_data["publish_repair_final_decision"]["action"] == "PUBLISH"
+        assert [entry["stage"] for entry in ctx.post_data["publish_decision_log"]] == [
+            "generate_review.pre_repair.1",
+            "generate_review.post_repair.1",
+        ]
+
+    def test_publish_repair_helpers_are_graph_visible(self):
+        ctx = self._ctx_ready()
+        assert _config_float(None, "publish.quality_threshold", 85.0) == 85.0
+        assert _twitter_draft_text({"twitter": "  hello  "}) == "hello"
+        assert _twitter_draft_text(None) == ""
+
+        config = MagicMock()
+        config.get.return_value = "3"
+        assert _resolve_publish_repair_attempts(config) == 3
+
+        decision = {"action": "PUBLISH", "reason": "ok"}
+        _append_publish_decision_log(ctx, stage="unit", decision=decision)
+        assert ctx.post_data["publish_decision_log"][-1]["decision"] == decision
+
+        mock_qg_instance = MagicMock()
+        mock_qg_instance.validate_all.return_value = {"twitter": MagicMock(score=91)}
+        mock_qg_instance.format_summary.return_value = "quality gate ok"
+        with patch("pipeline.draft_quality_gate.DraftQualityGate", return_value=mock_qg_instance):
+            quality_gate = _refresh_quality_gate_snapshot(ctx, {"twitter": "hello"})
+
+        assert quality_gate is mock_qg_instance
+        assert ctx.post_data["quality_gate_scores"] == {"twitter": 91}
+
 
 class TestPersistStage:
     """pipeline/process_stages/persist_stage.py"""
@@ -1184,3 +1244,46 @@ class TestPersistStage:
         image_generator.generate_image.assert_not_called()
         notion_uploader.upload.assert_awaited_once()
         assert notion_uploader.upload.await_args.args[1] == "https://source.example/original.jpg"
+
+    def test_repair_exhausted_hold_is_dropped_before_persisting(self):
+        from pipeline.process_stages.persist_stage import run_persist_stage
+
+        ctx = self._ctx_ready()
+        ctx.post_data["quality_gate_scores"] = {"twitter": 70}
+        ctx.post_data["publish_repair_exhausted"] = True
+        ctx.post_data["research_context"] = {
+            "killer_sentence": (
+                "\ud1f4\uadfc \ud6c4\uc5d0\ub3c4 \uc5c5\ubb34 \uc54c\ub9bc\uc774 "
+                "\uacc4\uc18d \uc624\uba74 \ud68c\ubcf5 \uc2dc\uac04\uc774 \uc0ac\ub77c\uc9c4\ub2e4"
+            ),
+            "universal_value": "\ud1f4\uadfc \ud6c4 \uc5f0\uacb0\ub418\uc9c0 \uc54a\uc744 \uad8c\ub9ac",
+            "closure": "open",
+        }
+        ctx.drafts = {"twitter": "\uc774 \uae00\uc740 \uadf8\ub0e5 \ud68c\uc0ac \uc598\uae30\ub2e4."}
+        notion_uploader = MagicMock()
+        notion_uploader.last_error_code = None
+        notion_uploader.upload = AsyncMock(return_value=("https://notion.example/page", "page-1"))
+        notion_uploader.update_page_properties = AsyncMock(return_value=True)
+
+        with (
+            patch("pipeline.process_stages.persist_stage.record_draft_event"),
+            patch("pipeline.process_stages.persist_stage.refresh_ml_scorer_if_needed"),
+        ):
+            result = asyncio.run(
+                run_persist_stage(
+                    ctx,
+                    image_uploader=MagicMock(),
+                    image_generator=None,
+                    notion_uploader=notion_uploader,
+                    twitter_poster=None,
+                    config=None,
+                    review_only=True,
+                )
+            )
+
+        assert result is True
+        assert ctx.post_data["publish_decision"]["action"] == "DROP"
+        assert ctx.post_data["x_publish_status"] == "Blocked"
+        assert ctx.post_data["x_publish_error"].startswith("self_repair_exhausted:")
+        assert ctx.post_data["publish_decision_log"][-1]["stage"] == "persist.final"
+        assert ctx.result["publish_decision"] == ctx.post_data["publish_decision"]

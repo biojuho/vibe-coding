@@ -6,6 +6,8 @@ import asyncio
 
 from config import ERROR_DRAFT_GENERATION_FAILED
 from pipeline.draft_contract import iter_publishable_drafts
+from pipeline.publish_decision import HOLD, decide_publish
+from pipeline.publish_repair import repair_hold_draft
 from pipeline.research_context import ensure_research_context
 
 from .context import ProcessRunContext, mark_stage
@@ -33,10 +35,23 @@ def _config_bool(config, key: str, default: bool) -> bool:
     return bool(value)
 
 
+def _config_float(config, key: str, default: float) -> float:
+    if config is None or not hasattr(config, "get"):
+        return default
+    try:
+        return float(config.get(key, default))
+    except (TypeError, ValueError):
+        return default
+
+
 def _resolve_quality_gate_retries(config, review_only: bool) -> int:
     if review_only:
         return _config_int(config, "quality_gate.review_only_max_retries", 1)
     return _config_int(config, "quality_gate.max_retries", 2)
+
+
+def _resolve_publish_repair_attempts(config) -> int:
+    return _config_int(config, "publish.self_repair.max_attempts", 2)
 
 
 def _twitter_quality_failure(drafts: dict, quality_gate, config) -> str | None:
@@ -154,6 +169,20 @@ def _collect_retry_platforms(qg_results, url: str) -> list[dict]:
     return retry_platforms
 
 
+def _refresh_quality_gate_snapshot(ctx: ProcessRunContext, drafts):
+    try:
+        from pipeline.draft_quality_gate import DraftQualityGate
+
+        quality_gate = DraftQualityGate()
+        qg_results = quality_gate.validate_all(drafts)
+        ctx.post_data["quality_gate_report"] = quality_gate.format_summary(qg_results)
+        ctx.post_data["quality_gate_scores"] = {platform: result.score for platform, result in qg_results.items()}
+        return quality_gate
+    except Exception as exc:
+        logger.warning("[generate_review] DraftQualityGate refresh unavailable: %s", exc)
+        return None
+
+
 async def _run_quality_gate_retries(
     ctx: ProcessRunContext,
     drafts,
@@ -211,6 +240,86 @@ async def _run_quality_gate_retries(
     if qg_retry_count > 0:
         logger.info("[B-5] Quality gate retries used: %d/%d", qg_retry_count, max_qg_retries)
     return drafts, image_prompt, qg_retry_count, quality_gate, components_loaded
+
+
+def _append_publish_decision_log(ctx: ProcessRunContext, *, stage: str, decision) -> None:
+    payload = decision.to_dict() if hasattr(decision, "to_dict") else dict(decision or {})
+    ctx.post_data.setdefault("publish_decision_log", []).append(
+        {
+            "stage": stage,
+            "decision": payload,
+        }
+    )
+
+
+def _twitter_draft_text(drafts) -> str:
+    if not isinstance(drafts, dict):
+        return ""
+    return str(drafts.get("twitter") or "").strip()
+
+
+def _run_publish_repair_loop(ctx: ProcessRunContext, drafts, config):
+    if not isinstance(drafts, dict) or "twitter" not in drafts:
+        return drafts, None
+
+    max_attempts = _resolve_publish_repair_attempts(config)
+    threshold = _config_float(config, "publish.quality_threshold", 85.0)
+    research_context = ctx.post_data.get("research_context")
+    attempts: list[dict] = []
+    quality_gate = None
+
+    for attempt in range(1, max_attempts + 1):
+        decision = decide_publish(
+            ctx.post_data.get("quality_gate_scores"),
+            None,
+            research_context,
+            _twitter_draft_text(drafts),
+            quality_threshold=threshold,
+        )
+        _append_publish_decision_log(ctx, stage=f"generate_review.pre_repair.{attempt}", decision=decision)
+        if decision.action != HOLD or not decision.fixable:
+            ctx.post_data["publish_repair_final_decision"] = decision.to_dict()
+            break
+
+        repair = repair_hold_draft(
+            _twitter_draft_text(drafts),
+            decision,
+            research_context if isinstance(research_context, dict) else None,
+        )
+        attempt_entry = {
+            "attempt": attempt,
+            "before_decision": decision.to_dict(),
+            "repair": repair.to_dict(),
+        }
+        attempts.append(attempt_entry)
+        if not repair.changed:
+            ctx.post_data["publish_repair_final_decision"] = decision.to_dict()
+            ctx.post_data["publish_repair_exhausted"] = True
+            break
+
+        drafts["twitter"] = repair.text
+        quality_gate = _refresh_quality_gate_snapshot(ctx, drafts)
+        next_decision = decide_publish(
+            ctx.post_data.get("quality_gate_scores"),
+            None,
+            research_context,
+            _twitter_draft_text(drafts),
+            quality_threshold=threshold,
+        )
+        attempt_entry["after_decision"] = next_decision.to_dict()
+        _append_publish_decision_log(ctx, stage=f"generate_review.post_repair.{attempt}", decision=next_decision)
+        if next_decision.action != HOLD:
+            ctx.post_data["publish_repair_final_decision"] = next_decision.to_dict()
+            break
+
+        if attempt == max_attempts:
+            ctx.post_data["publish_repair_final_decision"] = next_decision.to_dict()
+            ctx.post_data["publish_repair_exhausted"] = True
+
+    if attempts:
+        ctx.post_data["publish_repair_attempts"] = attempts
+        logger.info("[publish-repair] attempts used: %d/%d", len(attempts), max_attempts)
+    return drafts, quality_gate
 
 
 async def _apply_editorial_review(ctx: ProcessRunContext, drafts, config, components_loaded: list[str]):
@@ -374,6 +483,10 @@ async def run_generate_review_stage(
 
     if isinstance(drafts, dict):
         drafts = await _run_post_generation_components(ctx, drafts, draft_generator, config, components_loaded)
+        repaired_drafts, repair_quality_gate = _run_publish_repair_loop(ctx, drafts, config)
+        drafts = repaired_drafts
+        if repair_quality_gate is not None:
+            quality_gate = repair_quality_gate
         if quality_gate is not None and "twitter" in (output_formats or ["twitter"]):
             failure = _twitter_quality_failure(drafts, quality_gate, config)
             if failure:

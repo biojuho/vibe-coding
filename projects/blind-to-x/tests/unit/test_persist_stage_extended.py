@@ -13,7 +13,12 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from pipeline.process_stages.context import ProcessRunContext, build_process_result
-from pipeline.process_stages.persist_stage import run_persist_stage
+from pipeline.publish_decision import HOLD, PublishDecision
+from pipeline.process_stages.persist_stage import (
+    _append_publish_decision_log,
+    _drop_after_repair_exhausted,
+    run_persist_stage,
+)
 
 PUBLISH_RESEARCH_CONTEXT = {
     "source_frame": "상사와 직원의 감정 싸움",
@@ -47,6 +52,28 @@ def _make_ctx(url="https://example.com/post/1") -> ProcessRunContext:
 
 
 class TestRunPersistStage:
+    def test_repair_exhausted_helpers_convert_hold_to_drop_and_log(self):
+        decision = PublishDecision(
+            action=HOLD,
+            reason="quality below threshold",
+            x_publish_status="Blocked",
+            quality_score=70,
+            quality_ceiling=84,
+            fixable=True,
+            reasons=["quality_below_threshold"],
+            rubric={"position": 0},
+            metrics={"weighted_length": 120},
+        )
+        dropped = _drop_after_repair_exhausted(decision)
+        post_data = {}
+        _append_publish_decision_log(post_data, stage="unit", decision=dropped)
+
+        assert dropped.action == "DROP"
+        assert dropped.reason.startswith("self_repair_exhausted:")
+        assert dropped.hard_gate is True
+        assert dropped.fixable is False
+        assert post_data["publish_decision_log"][0]["decision"]["action"] == "DROP"
+
     @pytest.mark.asyncio
     async def test_no_notion_uploader(self):
         """Missing notion uploader -> immediate failure."""

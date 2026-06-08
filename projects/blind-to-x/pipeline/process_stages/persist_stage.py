@@ -8,7 +8,7 @@ from datetime import datetime
 
 from config import ERROR_NOTION_UPLOAD_FAILED
 from pipeline.draft_analytics import record_draft_event, refresh_ml_scorer_if_needed
-from pipeline.publish_decision import PUBLISH, decide_publish
+from pipeline.publish_decision import DROP, HOLD, PUBLISH, PublishDecision, decide_publish
 
 from .context import ProcessRunContext, mark_stage
 from .runtime import extract_preferred_tweet_text, logger, notebooklm_enricher, post_to_twitter, regulation_checker
@@ -39,6 +39,30 @@ def _auto_publish_enabled(config) -> bool:
     if raw is not None:
         return raw.strip().lower() in {"1", "true", "yes", "on"}
     return _config_bool(config, "auto_publish.enabled", False)
+
+
+def _drop_after_repair_exhausted(decision: PublishDecision) -> PublishDecision:
+    return PublishDecision(
+        action=DROP,
+        reason=f"self_repair_exhausted:{decision.reason}",
+        x_publish_status="Blocked",
+        quality_score=decision.quality_score,
+        quality_ceiling=decision.quality_ceiling,
+        hard_gate=True,
+        fixable=False,
+        reasons=["self_repair_exhausted", *decision.reasons],
+        rubric=decision.rubric,
+        metrics=decision.metrics,
+    )
+
+
+def _append_publish_decision_log(post_data: dict, *, stage: str, decision: PublishDecision) -> None:
+    post_data.setdefault("publish_decision_log", []).append(
+        {
+            "stage": stage,
+            "decision": decision.to_dict(),
+        }
+    )
 
 
 def _fail_missing_notion_uploader(ctx: ProcessRunContext) -> bool:
@@ -272,6 +296,9 @@ async def run_persist_stage(
         tweet_text,
         quality_threshold=_config_float(config, "publish.quality_threshold", 85.0),
     )
+    if publish_decision.action == HOLD and post_data.get("publish_repair_exhausted"):
+        publish_decision = _drop_after_repair_exhausted(publish_decision)
+    _append_publish_decision_log(post_data, stage="persist.final", decision=publish_decision)
     post_data["publish_decision"] = publish_decision.to_dict()
     post_data["x_publish_status"] = publish_decision.x_publish_status
     if publish_decision.action != PUBLISH:
