@@ -185,3 +185,12 @@
 ## Rotation 2026-06-08 (archived DONE rows beyond the newest 5)
 
 | T-1615 | `[workspace/dirty-handoff-current-refresh]` Re-ran the current dirty handoff plan and selector after T-1614/T-1613b. Handoff remains current with dirty count `71`, staged `0`, ahead `833`, signature `1bee1d00f38f46a950e53b0837ea0b696c5ff7381d7dfad31530a430d3c3e4e9`; selector remains blocked on `dirty_worktree_handoff_current` with `adoptable_candidate_count=0`. No product edit, staging, commit, push, revert, `update_goal`, or T-251 retry. | Codex | 2026-06-08 |
+
+## Rotation 2026-06-08 (archived DONE rows beyond the newest 5)
+
+| T-1697 | `[claude-goal/install-health-next-action-items]` Reproduced and fixed a verifier bypass where a healthy install-health artifact could replace generated `next_action_items`/`next_actions` with a schema-valid but wrong `rerun_install_doctor` action. Added summary-derived expected action comparison plus direct/invoke regression coverage. Verification passed focused pytest (`4 passed, 82 deselected`), full pytest (`127 passed`), Ruff check/format, py_compile, diff-check, and graph detect. No stage, commit, push, revert, `update_goal`, root product edit, or T-251 retry. | Codex | 2026-06-08 |
+
+## Rotation 2026-06-08 (archived DONE rows beyond the newest 5)
+
+| T-1703 | `[claude-goal/install-health-action-catalog-verifier]` Reproduced and fixed a verifier bypass where `--verify-json` accepted an install-health artifact with tampered `action_catalog` trigger/hint text while keeping the canonical contract hash. The verifier now compares artifact catalog content to canonical `INSTALL_HEALTH_ACTION_CATALOG`. Verification passed focused pytest (`4 passed, 84 deselected`), full pytest (`129 passed`), Ruff check/format, py_compile, diff-check, and graph detect. No stage, commit, push, revert, `update_goal`, root product edit, or T-251 retry. | Codex | 2026-06-08 |
+| T-1701 | `[claude-goal/install-health-markdown-verifier]` Reproduced and fixed a verifier bypass where `--verify-markdown` accepted garbage Markdown containing only the static install-health `contract_hash`. Markdown verification now compares against canonical JSON-rendered Markdown with deterministic check-count order. Verification passed focused pytest (`3 passed, 84 deselected`), full pytest (`128 passed`), Ruff check/format, py_compile, diff-check, and graph detect. No stage, commit, push, revert, `update_goal`, root product edit, or T-251 retry. | Codex | 2026-06-08 |
