@@ -2732,3 +2732,15 @@
 - A/B QA in `.tmp/claude-goal-t1752-direct-empty-artifact-options-qa.json` records baseline score `0/8`, candidate score `8/8`, decision `adopt_candidate`, and confirms all eight direct empty artifact-option cases return exit `2`, leave stdout empty, report `goal error: <option> requires a value`, print no traceback, and keep the active goal unchanged.
 - Verification passed focused regression/adjacent pytest before and after formatting (`36 passed, 97 deselected`), full isolated pytest with `PYTHONUTF8=1` (`192 passed`), Ruff check, scoped Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
 - No nested code staging, push, revert, `update_goal`, root product edit, or Hanwoo T-251 retry was performed.
+
+## 2026-06-09 - Codex
+
+- Completed T-1753 as a `claude-goal` direct json empty session-id parity fix in `claude-goal/` on branch `improve/goal-system`, preserving existing nested WIP and the completed T-1752 artifact-option parity surface.
+- Direct CLI interaction reproduced that `json --session-id=` returned exit `0` with `null`, silently treating an explicitly empty session id as a different missing goal, while slash `invoke json --session-id=` and `invoke json --session-id` already returned `goal error: --session-id requires a value`.
+- Classified the defect as 기능 오류 + 로딩/피드백 + 카피 because direct JSON state lookup hid a user input error behind a valid-looking `null` result.
+- Official references checked: Python argparse value options and invalid-argument behavior, Click option behavior, and GitHub CLI reference style; the adopted design was to make direct `json --session-id=` fail explicitly instead of silently returning `null`.
+- Fixed `goal/scripts/claude_goal.py` by adding direct JSON namespace validation through `JsonArgs` and `_validate_option_value("--session-id", ...)`.
+- Added `tests/test_claude_goal.py::test_json_rejects_empty_session_id_without_mutating`.
+- A/B QA in `.tmp/claude-goal-t1753-json-empty-session-id-qa.json` records baseline score `2/3`, candidate score `3/3`, decision `adopt_candidate`, and confirms direct plus slash empty `--session-id=` JSON flows return exit `2`, leave stdout empty, report `goal error: --session-id requires a value`, print no traceback, and keep the active goal unchanged.
+- Verification passed focused JSON pytest before and after formatting (`4 passed, 131 deselected` after formatting), full isolated pytest with `PYTHONUTF8=1` (`194 passed`), Ruff check, scoped Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
+- No nested code staging, push, revert, `update_goal`, root product edit, or Hanwoo T-251 retry was performed.
