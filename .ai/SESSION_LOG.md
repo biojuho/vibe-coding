@@ -2549,3 +2549,14 @@
 - Added `tests/test_claude_goal.py::test_complete_with_missing_audit_json_reports_artifact_before_db_open`.
 - Direct after-fix QA in `.tmp/claude-goal-t1737-complete-audit-preflight-qa.json` confirms direct and slash `complete --audit-json <missing>` with a DB directory return exit `2`, empty stdout, the missing artifact error plus recovery hint, no DB error, and no traceback.
 - Verification passed focused regression pytest (`1 passed`), completion-audit cluster pytest (`9 passed, 109 deselected`), focused diagnosis for the first full-suite action-catalog failure (`1 passed`), fresh full isolated pytest rerun (`171 passed`), Ruff check, Ruff format check (`9 files already formatted` after scoped format), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
+
+## 2026-06-09 - Codex
+
+- Completed T-1738 as a `claude-goal` invoke-json argument preflight fix in `claude-goal/` on branch `improve/goal-system`.
+- Continued the `/goal` reproduce -> isolate -> root-cause -> fix -> verify loop while preserving existing nested WIP and the completed T-1737/T-1737b surfaces; did not stage nested code, push, revert, call `update_goal`, edit root product code, or retry Hanwoo T-251.
+- Reproduced with isolated temp state that direct `json --unknown` and `json --session-id` returned immediate argparse input errors, while slash `invoke json --unknown` and `invoke json --session-id` with `CLAUDE_GOAL_DB` pointing at a directory returned `cannot open goal database` before validating the bad JSON command arguments.
+- Root cause: slash `invoke` routed `json` through `_render_invoke_db_command()`, where `parse_json_args()` ran only after `sqlite_connect()`.
+- Fixed `goal/scripts/claude_goal.py` by adding a DB-free `json` argument preflight in `invoke()` before opening SQLite.
+- Added `tests/test_claude_goal.py::test_invoke_json_rejects_invalid_args_before_db_open`.
+- Direct after-fix QA in `.tmp/claude-goal-t1738-invoke-json-preflight-qa.json` confirms slash `invoke json --unknown` and `invoke json --session-id` with a DB directory return exit `2`, empty stdout, actionable input errors, no DB error, and no traceback; the artifact records A/B `adopt_candidate`.
+- Verification passed focused regression pytest (`1 passed`), JSON command cluster pytest (`4 passed, 115 deselected`), full isolated pytest (`172 passed`), Ruff check, Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
