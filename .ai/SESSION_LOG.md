@@ -2594,3 +2594,26 @@
 - Added `tests/test_claude_goal.py::test_invoke_set_rejects_invalid_token_args_before_db_open`.
 - Direct after-fix QA in `.tmp/claude-goal-t1741-invoke-set-preflight-qa.json` confirms slash `invoke objective --token-budget nope` and `invoke objective --token-budget` with a DB directory return exit `2`, empty stdout, actionable input errors, no DB error, and no traceback; the artifact records A/B `adopt_candidate`.
 - Verification passed focused regression pytest (`1 passed`), invoke/set cluster pytest (`5 passed, 117 deselected`), full isolated pytest with `PYTHONUTF8=1` (`175 passed`), Ruff check, Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
+
+## 2026-06-09 - Codex
+
+- Completed T-1742 as a `claude-goal` legacy SQLite schema migration fix in `claude-goal/` on branch `improve/goal-system`.
+- Continued the `/goal` reproduce -> isolate -> root-cause -> fix -> verify loop while preserving existing nested WIP and the completed T-1741 invoke set fallback preflight surface; did not stage nested code, push, revert, call `update_goal`, edit root product code, or retry Hanwoo T-251.
+- Reproduced with isolated legacy SQLite state that a `goals` table missing `active_started_at`/`metadata_json` and an `events` table missing `goal_id`/`detail` made `status`, `json`, `contract`, `pause`, and `doctor` fail with `IndexError: No item with that key` tracebacks.
+- Root cause: `init_db()` only used `CREATE TABLE IF NOT EXISTS`, so existing older SQLite tables were never migrated to the current schema before readers accessed newer columns.
+- Fixed `goal/scripts/claude_goal.py` by adding idempotent `goals`/`events` column migrations during DB initialization.
+- Added `tests/test_claude_goal.py::test_init_db_migrates_legacy_goal_schema_without_traceback`.
+- Direct after-fix QA in `.tmp/claude-goal-t1742-legacy-schema-migration-qa.json` confirms `status`, `json`, `contract`, `doctor --json`, and `pause` return exit `0`, add the missing columns, preserve empty metadata, record the pause event, and print no traceback.
+- Verification passed focused/adjacent pytest (`3 passed`), full isolated pytest with `PYTHONUTF8=1` (`176 passed`), Ruff check, scoped Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
+- Known environment notes: pytest without repo-local `--basetemp` failed before tests on Windows temp `PermissionError`; whole-tree Ruff format check failed only because it scanned old `.tmp` pytest copies, while `goal tests` passed.
+
+## 2026-06-09 - Codex
+
+- Completed T-1742b as a `claude-goal` contract output sink preflight fix in `claude-goal/` on branch `improve/goal-system`, using the suffix fallback because T-1742 already records the legacy SQLite schema migration fix.
+- Continued the `/goal` reproduce -> isolate -> root-cause -> fix -> verify loop while preserving existing nested WIP and the completed T-1741 set fallback preflight surface; did not stage nested code, push, revert, call `update_goal`, edit root product code, or retry Hanwoo T-251.
+- Reproduced with isolated temp state that `contract --json-output <existing-dir>` and slash `invoke contract --json-output <existing-dir>` with `CLAUDE_GOAL_DB` pointing at an existing directory returned `cannot open goal database` before validating the bad output sink.
+- Root cause: default contract rendering needs current goal state, so `_render_goal_contract_args_command()` opened SQLite before any output writer saw already-invalid `--json-output` / `--markdown-output` paths.
+- Fixed `goal/scripts/claude_goal.py` by preflighting known-bad contract markdown/json output sinks before DB open.
+- Added `tests/test_claude_goal.py::test_goal_contract_output_directory_errors_before_db_open`.
+- Direct after-fix QA in `.tmp/claude-goal-t1742b-contract-output-preflight-qa.json` confirms direct and slash `contract --markdown-output <existing-dir>` / `contract --json-output <existing-dir>` with a DB directory return exit `2`, empty stdout, actionable output path errors, no DB error, and no traceback; the artifact records A/B `adopt_candidate`.
+- Verification passed focused regression pytest (`1 passed`), contract cluster under `PYTHONUTF8=1` (`5 passed, 119 deselected`) after a non-UTF8 run hit known Korean path mojibake in existing full-path assertions, full isolated pytest with `PYTHONUTF8=1` (`177 passed`), Ruff check, Ruff format check after scoped formatting (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
