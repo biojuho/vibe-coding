@@ -2661,3 +2661,25 @@
 - Added `tests/test_claude_goal.py::test_doctor_install_output_directory_errors_before_db_open`.
 - Direct after-fix QA in `.tmp/claude-goal-t1746-doctor-output-preflight-qa.json` confirms direct/slash json-output, explicit summary, and CI summary directory cases return exit `2`, empty stdout, actionable directory preflight errors, no DB/sqlite error despite `CLAUDE_GOAL_DB` being a directory, and no traceback.
 - Verification passed focused regression pytest (`2 passed, 124 deselected`), doctor/install-health cluster (`55 passed, 81 deselected`), full isolated pytest with `PYTHONUTF8=1` (`181 passed`), Ruff check, scoped Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
+
+## 2026-06-09 - Codex
+
+- Completed T-1748 as a `claude-goal` installer script path validation fix in `claude-goal/` on branch `improve/goal-system`.
+- Continued the `/goal` reproduce -> isolate -> root-cause -> fix -> verify loop while preserving existing nested WIP and the completed T-1746 doctor output sink surface; did not stage nested code, push, revert, call `update_goal`, edit root product code, or retry Hanwoo T-251.
+- Reproduced with isolated installer state that missing and directory `script_path` values returned exit `0`, wrote `settings.json`, and only surfaced later as doctor install-health `fail`/`warn` because the Stop hook targeted an invalid script.
+- Root cause: `install_settings()` trusted the provided hook script path and wrote settings before proving the target existed and was a file.
+- Fixed `goal/scripts/install_goal.py` by adding `validate_script_path()` before reading, backing up, or writing settings.
+- Updated valid installer tests to create a real script fixture and added missing-script/directory-script regression coverage in `tests/test_install_goal.py`.
+- Direct after-fix QA in `.tmp/claude-goal-t1748-installer-script-path-qa.json` confirms missing and directory script paths now return exit `2`, leave stdout empty, create no new settings or backup files, preserve an existing settings file without creating a backup, and print no traceback.
+- Verification passed installer pytest (`27 passed`), full isolated pytest with `PYTHONUTF8=1` (`186 passed`), Ruff check, scoped Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
+
+## 2026-06-09 - Codex
+
+- Completed T-1747b as a `claude-goal` invoke stale-days non-integer usage error fix in `claude-goal/` on branch `improve/goal-system`.
+- Continued the `/goal` reproduce -> isolate -> root-cause -> fix -> verify loop while preserving existing nested WIP, the completed T-1745b/T-1746 surfaces, and the concurrent installer script-path surface; did not stage nested code, push, revert, call `update_goal`, edit root product code, or retry Hanwoo T-251.
+- Reproduced with isolated slash/invoke state that `invoke doctor --stale-days nope --json`, `invoke doctor --stale-days= --json`, `invoke pause-stale --stale-days nope --json`, and `invoke pause-stale --stale-days= --json` returned exit `2` without traceback but exposed raw Python `invalid literal for int()` conversion text instead of an option-specific usage error.
+- Root cause: `_parse_stale_days_value()` called `int(value)` directly and let conversion failures bubble as raw Python messages.
+- Fixed `goal/scripts/claude_goal.py` by wrapping non-integer stale-day values as `--stale-days must be an integer`, while preserving the existing non-negative validation.
+- Added `tests/test_claude_goal.py::test_invoke_stale_days_rejects_non_integer_before_db_open`.
+- Direct after-fix QA in `.tmp/claude-goal-t1747b-stale-days-usage-qa.json` confirms all four cases now return exit `2`, leave stdout empty, report `goal error: --stale-days must be an integer`, avoid raw Python `invalid literal` text, avoid `cannot open goal database` even with `CLAUDE_GOAL_DB` as a directory, and print no traceback.
+- Verification passed focused stale-days pytest (`4 passed`), full isolated pytest with `PYTHONUTF8=1` (`186 passed`), Ruff check, scoped Ruff format check (`9 files already formatted`), py_compile, `git diff --check` with existing CRLF warnings only, and graph detect risk `0.00`.
