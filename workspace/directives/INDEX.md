@@ -77,6 +77,7 @@
 | selector_validator.py | utility | CSS 셀렉터 검증 |
 | shorts_daily_runner.py | entrypoint | Shorts 일일 실행기 |
 | topic_auto_generator.py | utility | 토픽 자동 생성 |
+| youtube_metadata.py | utility | YouTube Shorts 업로드 메타데이터 생성 |
 | youtube_uploader.py | utility | YouTube 업로드 |
 
 ---
