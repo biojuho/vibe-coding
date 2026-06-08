@@ -55,6 +55,7 @@ TEST_SCAN_EXCLUDES = {
     "venv",
 }
 MAX_TEST_FILE_SAMPLES = 20
+MAX_DIRTY_GROUP_PATH_SAMPLES = 12
 
 
 def _run(args: list[str], cwd: Path, timeout: int = 20) -> dict[str, Any]:
@@ -224,6 +225,73 @@ def _confirmed_dirty_count(
     return len(status_dirty_lines), dirty_paths, "status_unconfirmed"
 
 
+def _dirty_path_group_key(path: str) -> str:
+    normalized = path.replace("\\", "/")
+    if normalized.startswith(".ai/"):
+        return "ai-context"
+    if normalized.startswith(".agents/skills/auto-research/"):
+        return "auto-research"
+    if (
+        normalized.startswith("docs/wiki/llm/")
+        or normalized == "execution/llm_wiki_audit.py"
+        or normalized.startswith("workspace/tests/test_llm_wiki")
+        or normalized.startswith("workspace/tests/test_auto_research_llm_wiki")
+    ):
+        return "llm-wiki"
+    if normalized in {"execution/code_review_gate.py", "workspace/tests/test_code_review_gate.py"}:
+        return "workspace-code-review-gate"
+    if normalized.startswith("workspace/execution/pages/") or normalized.startswith("workspace/tests/test_"):
+        return "workspace-dashboard"
+    if normalized.startswith("projects/"):
+        parts = normalized.split("/")
+        if len(parts) > 1 and parts[1]:
+            return f"project:{parts[1]}"
+        return "projects"
+    if normalized.startswith("workspace/"):
+        return "workspace"
+    if normalized.startswith("execution/"):
+        return "execution"
+    if normalized.startswith("docs/"):
+        return "docs"
+    return "root"
+
+
+def _dirty_group_owner_hint(group_key: str) -> str:
+    if group_key in {
+        "ai-context",
+        "auto-research",
+        "llm-wiki",
+        "workspace-code-review-gate",
+        "workspace-dashboard",
+    }:
+        return "Codex/current-auto-research"
+    if group_key.startswith("project:"):
+        return group_key.removeprefix("project:")
+    return "workspace"
+
+
+def _dirty_path_groups(dirty_paths: list[str]) -> list[dict[str, Any]]:
+    groups: dict[str, dict[str, Any]] = {}
+    for path in dirty_paths:
+        key = _dirty_path_group_key(path)
+        group = groups.setdefault(
+            key,
+            {
+                "key": key,
+                "owner_hint": _dirty_group_owner_hint(key),
+                "path_count": 0,
+                "paths": [],
+                "sample_truncated": False,
+            },
+        )
+        group["path_count"] += 1
+        if len(group["paths"]) < MAX_DIRTY_GROUP_PATH_SAMPLES:
+            group["paths"].append(path)
+        else:
+            group["sample_truncated"] = True
+    return sorted(groups.values(), key=lambda item: (-item["path_count"], item["key"]))
+
+
 def _git_summary(root: Path) -> dict[str, Any]:
     index_refresh = _run(["git", "update-index", "-q", "--refresh"], root)
     branch = _run(["git", "branch", "--show-current"], root)
@@ -241,6 +309,7 @@ def _git_summary(root: Path) -> dict[str, Any]:
         "branch": branch.get("stdout") if branch.get("returncode") == 0 else None,
         "dirty_count": dirty_count,
         "dirty_paths": dirty_paths,
+        "dirty_path_groups": _dirty_path_groups(dirty_paths),
         "status_dirty_count": len(status_dirty_lines),
         "dirty_confirmation": dirty_confirmation,
         "index_refresh": index_refresh,
@@ -286,7 +355,12 @@ def _open_prs(root: Path, include_prs: bool) -> dict[str, Any]:
 def _recommendations(summary: dict[str, Any]) -> list[str]:
     recommendations: list[str] = []
     if summary["git"]["dirty_count"]:
-        recommendations.append("Worktree is dirty; stage and commit only files owned by the current experiment.")
+        groups = summary["git"].get("dirty_path_groups") or []
+        group_summary = ", ".join(f"{group['key']}={group['path_count']}" for group in groups[:5])
+        suffix = f" Dirty groups: {group_summary}." if group_summary else ""
+        recommendations.append(
+            "Worktree is dirty; stage and commit only files owned by the current experiment." + suffix
+        )
     missing_readme = [project["path"] for project in summary["projects"] if not project.get("has_readme")]
     if missing_readme:
         recommendations.append(

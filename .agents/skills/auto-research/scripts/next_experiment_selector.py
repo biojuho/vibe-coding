@@ -17,9 +17,23 @@ INPUT_ERROR_KEY = "_input_error"
 DEFAULT_LIVE_HELPER_TIMEOUT = 60
 DEFAULT_DEPENDENCY_HELPER_TIMEOUT = 60
 DEFAULT_CACHE_MAX_AGE_SECONDS = 6 * 60 * 60
+PRODUCT_READINESS_GATE = "python execution/product_readiness_score.py --json"
+GITHUB_INVENTORY_GATE = (
+    "python .agents/skills/auto-research/scripts/github_project_inventory.py --root . --include-prs --json"
+)
+BROWSER_QA_INVENTORY_GATE = "python .agents/skills/auto-research/scripts/browser_qa_inventory.py --root . --json"
+DEPENDENCY_INVENTORY_GATE = (
+    "python .agents/skills/auto-research/scripts/dependency_freshness_inventory.py --root . --json"
+)
+DIRTY_HANDOFF_PLAN_GATE = (
+    "python .agents/skills/auto-research/scripts/dirty_worktree_handoff_plan.py --root . "
+    "--output-json .tmp/scoped-dirty-worktree-handoff-plan-current.json "
+    "--output-md .tmp/scoped-dirty-worktree-handoff-plan-current.md --json"
+)
 GITHUB_INVENTORY_CACHE = Path(".tmp") / "github-project-inventory.json"
 BROWSER_INVENTORY_CACHE = Path(".tmp") / "browser-qa-inventory.json"
 DEPENDENCY_INVENTORY_CACHE = Path(".tmp") / "dependency-freshness-inventory.json"
+DIRTY_HANDOFF_PLAN_CACHE = Path(".tmp") / "scoped-dirty-worktree-handoff-plan-current.json"
 
 
 def _input_error(label: str, reason: str, **extra: Any) -> dict[str, Any]:
@@ -145,6 +159,15 @@ def _count(value: Any) -> int:
         return 0
 
 
+def _github_recommendations(github_inventory: dict[str, Any]) -> list[str]:
+    return [str(item) for item in _as_list(github_inventory.get("recommendations"))]
+
+
+def _actionable_github_recommendations(github_inventory: dict[str, Any]) -> list[str]:
+    recommendations = _github_recommendations(github_inventory)
+    return [item for item in recommendations if not item.lower().startswith("worktree is dirty")]
+
+
 def _project_action(readiness: dict[str, Any], fallback: str) -> tuple[str, str]:
     for action in _as_list(readiness.get("next_actions")):
         if not isinstance(action, dict):
@@ -229,10 +252,10 @@ def _input_evidence_candidate(
         reason="The selector must not route to completion audit when required inventory evidence is missing or unreadable.",
         evidence=evidence,
         required_gates=[
-            "product_readiness_score.py --json",
-            "github_project_inventory.py --include-prs --json",
-            "browser_qa_inventory.py --json",
-            "dependency_freshness_inventory.py --json",
+            PRODUCT_READINESS_GATE,
+            GITHUB_INVENTORY_GATE,
+            BROWSER_QA_INVENTORY_GATE,
+            DEPENDENCY_INVENTORY_GATE,
         ],
         guardrails=[
             "Run artifact-producing helpers before selector evaluation.",
@@ -346,16 +369,147 @@ def _local_readiness_candidate(readiness: dict[str, Any], github_inventory: dict
     )
 
 
-def _github_candidate(github_inventory: dict[str, Any]) -> dict[str, Any] | None:
+def _normalized_path_list(value: Any) -> list[str]:
+    return sorted({str(path).replace("\\", "/").strip() for path in _as_list(value) if str(path).strip()})
+
+
+def _dirty_inventory_paths(github_inventory: dict[str, Any]) -> list[str]:
+    git = _as_dict(github_inventory.get("git"))
+    paths = _normalized_path_list(git.get("dirty_paths"))
+    if paths:
+        return paths
+    sampled: list[str] = []
+    for group in _as_list(git.get("dirty_path_groups")):
+        sampled.extend(_normalized_path_list(_as_dict(group).get("paths")))
+    return sorted(set(sampled))
+
+
+def _dirty_handoff_plan_matches_inventory(
+    dirty_handoff_plan: dict[str, Any],
+    github_inventory: dict[str, Any],
+) -> tuple[bool, list[str]]:
+    if not dirty_handoff_plan:
+        return False, []
+    freshness = _as_dict(dirty_handoff_plan.get("freshness"))
+    signature = _as_dict(dirty_handoff_plan.get("dirty_signature"))
+    signature_input = _as_dict(signature.get("input"))
+    git = _as_dict(github_inventory.get("git"))
+    evidence = [
+        f"handoff plan status={dirty_handoff_plan.get('status')}",
+        f"handoff plan freshness={freshness.get('status')}",
+    ]
+    if signature.get("value"):
+        evidence.append(f"handoff plan signature={signature.get('value')}")
+    if dirty_handoff_plan.get("status") != "handoff_required":
+        return False, evidence
+    if _count(signature_input.get("dirty_count")) != _count(git.get("dirty_count")):
+        evidence.append(
+            "handoff plan dirty_count mismatch: "
+            f"plan={_count(signature_input.get('dirty_count'))}, inventory={_count(git.get('dirty_count'))}"
+        )
+        return False, evidence
+    plan_paths = _normalized_path_list(signature_input.get("dirty_paths"))
+    inventory_paths = _dirty_inventory_paths(github_inventory)
+    if not plan_paths or not inventory_paths:
+        evidence.append("handoff plan dirty_paths unavailable")
+        return False, evidence
+    if plan_paths != inventory_paths:
+        evidence.append("handoff plan dirty_paths mismatch")
+        return False, evidence
+    evidence.append("handoff plan signature matches current dirty inventory")
+    group_order = [
+        str(_as_dict(group).get("key"))
+        for group in _as_list(dirty_handoff_plan.get("group_order"))
+        if _as_dict(group).get("key")
+    ]
+    if group_order:
+        evidence.append("handoff plan groups: " + ", ".join(group_order[:8]))
+    return True, evidence
+
+
+def _dirty_worktree_candidate(
+    github_inventory: dict[str, Any],
+    dirty_handoff_plan: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
     git = _as_dict(github_inventory.get("git"))
     open_prs = _as_dict(github_inventory.get("open_prs"))
-    recommendations = [str(item) for item in _as_list(github_inventory.get("recommendations"))]
     dirty_count = _count(git.get("dirty_count"))
     open_pr_count = _count(open_prs.get("count"))
-    if dirty_count == 0 and open_pr_count == 0 and not recommendations:
+    recommendations = _actionable_github_recommendations(github_inventory)
+    if dirty_count == 0 or open_pr_count or recommendations:
         return None
+
+    dirty_groups = _as_list(git.get("dirty_path_groups"))
     evidence = [
         f"github dirty_count={dirty_count}",
+        f"open_prs.available={open_prs.get('available') is True}, open_prs.count={open_pr_count}",
+    ]
+    if dirty_groups:
+        group_summary = ", ".join(
+            f"{_as_dict(group).get('key')}={_count(_as_dict(group).get('path_count'))}" for group in dirty_groups[:5]
+        )
+        evidence.append(f"dirty groups: {group_summary}")
+
+    plan_matches, plan_evidence = _dirty_handoff_plan_matches_inventory(dirty_handoff_plan or {}, github_inventory)
+    if plan_matches:
+        return _candidate(
+            kind="dirty_worktree_handoff_current",
+            priority=15,
+            project="workspace",
+            action="Wait for explicit scoped staging/commit authorization or keep the current dirty handoff plan.",
+            reason=(
+                "A machine-readable dirty handoff plan already matches the current dirty inventory, so the selector "
+                "should stop treating handoff generation as an adoptable experiment."
+            ),
+            evidence=[*evidence, *plan_evidence],
+            required_gates=[
+                DIRTY_HANDOFF_PLAN_GATE,
+                GITHUB_INVENTORY_GATE,
+                "python execution/session_orient.py --json",
+                PRODUCT_READINESS_GATE,
+            ],
+            blocked=True,
+            blockers=[
+                "Current dirty handoff plan is fresh; explicit scoped staging/commit authorization is required before product changes."
+            ],
+            guardrails=[
+                "Do not stage, commit, push, or revert without explicit user authorization.",
+                "Do not start unrelated product changes while the dirty handoff boundary remains current.",
+                "Do not retry T-251 until Supabase credentials are reset.",
+            ],
+        )
+
+    return _candidate(
+        kind="dirty_worktree_handoff",
+        priority=15,
+        project="workspace",
+        action="Commit or hand off scoped worktree changes before selecting product changes.",
+        reason=(
+            "The GitHub inventory has no open PRs or actionable GitHub recommendations, so dirty worktree state "
+            "should be handled as a local handoff boundary instead of reselecting the inventory loop."
+        ),
+        evidence=evidence,
+        required_gates=[
+            GITHUB_INVENTORY_GATE,
+            DIRTY_HANDOFF_PLAN_GATE,
+            "python execution/session_orient.py --json",
+            PRODUCT_READINESS_GATE,
+        ],
+        guardrails=[
+            "Commit only scoped work or record a handoff for unrelated dirty paths.",
+            "Do not stage unrelated dirty work.",
+            "Do not push without explicit user authorization.",
+        ],
+    )
+
+
+def _github_candidate(github_inventory: dict[str, Any]) -> dict[str, Any] | None:
+    open_prs = _as_dict(github_inventory.get("open_prs"))
+    recommendations = _actionable_github_recommendations(github_inventory)
+    open_pr_count = _count(open_prs.get("count"))
+    if open_pr_count == 0 and not recommendations:
+        return None
+    evidence = [
         f"open_prs.available={open_prs.get('available') is True}, open_prs.count={open_pr_count}",
     ]
     evidence.extend(recommendations[:3])
@@ -366,7 +520,7 @@ def _github_candidate(github_inventory: dict[str, Any]) -> dict[str, Any] | None
         action="Resolve GitHub inventory follow-up before selecting product changes.",
         reason="Dirty work, open PRs, or inventory recommendations can invalidate A/B comparisons.",
         evidence=evidence,
-        required_gates=["github_project_inventory.py --include-prs --json", "session_orient.py --json"],
+        required_gates=[GITHUB_INVENTORY_GATE, "python execution/session_orient.py --json"],
         guardrails=["Commit only scoped work.", "Do not merge or close unrelated PRs."],
     )
 
@@ -401,7 +555,7 @@ def _browser_candidate(browser_inventory: dict[str, Any]) -> dict[str, Any] | No
         action="Run direct browser-click QA and refresh retained screenshot evidence.",
         reason="Browser launch evidence is missing, stale, invalid, or blank.",
         evidence=evidence,
-        required_gates=["browser_qa_inventory.py --json", "direct app-click QA", "console/network inspection"],
+        required_gates=[BROWSER_QA_INVENTORY_GATE, "direct app-click QA", "console/network inspection"],
         guardrails=["Start local dev servers only as needed.", "Capture screenshots for visual regressions."],
     )
 
@@ -426,7 +580,13 @@ def _dependency_candidate(dependency_inventory: dict[str, Any]) -> dict[str, Any
             f"candidate_dependency_count={candidate_count}",
             f"candidate_project_count={summary.get('candidate_project_count')}",
         ],
-        required_gates=["official release notes or npm metadata", "focused tests", "lint/build", "A/B decision"],
+        required_gates=[
+            DEPENDENCY_INVENTORY_GATE,
+            "official release notes or npm metadata",
+            "focused tests",
+            "lint/build",
+            "A/B decision",
+        ],
         guardrails=["Do not force peer-blocked major migrations.", "Keep package and lockfile changes scoped."],
     )
 
@@ -446,7 +606,7 @@ def _project_qc_candidate(readiness: dict[str, Any]) -> dict[str, Any] | None:
             action=refresh[0],
             reason="Stale or missing QC evidence weakens launch readiness even when the code is otherwise ready.",
             evidence=refresh,
-            required_gates=["execution/project_qc_runner.py --json", "product_readiness_score.py --json"],
+            required_gates=["python execution/project_qc_runner.py --json", PRODUCT_READINESS_GATE],
             guardrails=["Use repo-local basetemp on Windows for focused pytest runs."],
         )
     return None
@@ -498,10 +658,12 @@ def select_next_experiment(
     github_inventory: dict[str, Any],
     browser_inventory: dict[str, Any],
     dependency_inventory: dict[str, Any],
+    dirty_handoff_plan: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     candidates = [
         _input_evidence_candidate(readiness, github_inventory, browser_inventory, dependency_inventory),
         _local_readiness_candidate(readiness, github_inventory),
+        _dirty_worktree_candidate(github_inventory, dirty_handoff_plan),
         _github_candidate(github_inventory),
         _browser_candidate(browser_inventory),
         _dependency_candidate(dependency_inventory),
@@ -613,11 +775,23 @@ def _collect_inputs(args: argparse.Namespace) -> dict[str, dict[str, Any]]:
             fallback_path=root / DEPENDENCY_INVENTORY_CACHE,
             max_age_seconds=args.cache_max_age_seconds,
         )
+    if args.dirty_handoff_plan:
+        dirty_handoff_plan = _load_json(args.dirty_handoff_plan, label="dirty_handoff_plan")
+    else:
+        dirty_handoff_plan = (
+            _load_recent_json(
+                root / DIRTY_HANDOFF_PLAN_CACHE,
+                label="dirty_handoff_plan",
+                max_age_seconds=args.cache_max_age_seconds,
+            )
+            or {}
+        )
     return {
         "readiness": readiness,
         "github_inventory": github_inventory,
         "browser_inventory": browser_inventory,
         "dependency_inventory": dependency_inventory,
+        "dirty_handoff_plan": dirty_handoff_plan,
     }
 
 
@@ -644,6 +818,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--github", type=Path, help="Existing github_project_inventory JSON artifact")
     parser.add_argument("--browser", type=Path, help="Existing browser_qa_inventory JSON artifact")
     parser.add_argument("--dependency", type=Path, help="Existing dependency_freshness_inventory JSON artifact")
+    parser.add_argument("--dirty-handoff-plan", type=Path, help="Existing dirty handoff plan JSON artifact")
     parser.add_argument(
         "--timeout",
         type=int,

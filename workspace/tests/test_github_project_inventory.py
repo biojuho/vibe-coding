@@ -287,3 +287,68 @@ def test_git_summary_keeps_untracked_status_even_when_tracked_diff_is_clean(tmp_
     assert summary["dirty_count"] == 1
     assert summary["dirty_paths"] == [".tmp/new-evidence.json"]
     assert summary["dirty_confirmation"] == "untracked"
+
+
+def test_dirty_path_groups_bucket_common_handoff_surfaces() -> None:
+    groups = inventory._dirty_path_groups(
+        [
+            ".ai/HANDOFF.md",
+            ".agents/skills/auto-research/scripts/next_experiment_selector.py",
+            "docs/wiki/llm/README.md",
+            "execution/llm_wiki_audit.py",
+            "execution/code_review_gate.py",
+            "workspace/tests/test_code_review_gate.py",
+            "workspace/execution/pages/finance_tracker.py",
+            "projects/blind-to-x/pipeline/publish_repair.py",
+            "projects/hanwoo-dashboard/package.json",
+        ]
+    )
+    by_key = {group["key"]: group for group in groups}
+
+    assert by_key["ai-context"]["path_count"] == 1
+    assert by_key["auto-research"]["owner_hint"] == "Codex/current-auto-research"
+    assert by_key["llm-wiki"]["path_count"] == 2
+    assert by_key["workspace-code-review-gate"]["paths"] == [
+        "execution/code_review_gate.py",
+        "workspace/tests/test_code_review_gate.py",
+    ]
+    assert by_key["workspace-dashboard"]["paths"] == ["workspace/execution/pages/finance_tracker.py"]
+    assert by_key["project:blind-to-x"]["owner_hint"] == "blind-to-x"
+    assert by_key["project:hanwoo-dashboard"]["owner_hint"] == "hanwoo-dashboard"
+
+
+def test_git_summary_includes_dirty_path_groups(tmp_path: Path, monkeypatch) -> None:
+    def fake_run(args: list[str], cwd: Path, timeout: int = 20) -> dict[str, object]:
+        command = tuple(args)
+        if command == ("git", "branch", "--show-current"):
+            return {"available": True, "returncode": 0, "stdout": "main", "stderr": ""}
+        if command == ("git", "status", "--porcelain=v1", "-b"):
+            return {
+                "available": True,
+                "returncode": 0,
+                "stdout": (
+                    "## main...origin/main\n"
+                    " M execution/code_review_gate.py\n"
+                    "?? docs/wiki/llm/README.md\n"
+                    "?? projects/blind-to-x/pipeline/publish_repair.py"
+                ),
+                "stderr": "",
+            }
+        if command in {
+            ("git", "update-index", "-q", "--refresh"),
+            ("git", "diff", "--quiet"),
+            ("git", "diff", "--cached", "--quiet"),
+            ("git", "remote", "-v"),
+        }:
+            return {"available": True, "returncode": 0, "stdout": "", "stderr": ""}
+        raise AssertionError(f"unexpected command: {args}")
+
+    monkeypatch.setattr(inventory, "_run", fake_run)
+
+    summary = inventory._git_summary(tmp_path)
+    by_key = {group["key"]: group for group in summary["dirty_path_groups"]}
+
+    assert summary["dirty_confirmation"] == "untracked"
+    assert by_key["workspace-code-review-gate"]["paths"] == ["execution/code_review_gate.py"]
+    assert by_key["llm-wiki"]["paths"] == ["docs/wiki/llm/README.md"]
+    assert by_key["project:blind-to-x"]["paths"] == ["projects/blind-to-x/pipeline/publish_repair.py"]

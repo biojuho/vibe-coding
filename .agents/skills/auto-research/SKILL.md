@@ -41,6 +41,22 @@ python .agents/skills/auto-research/scripts/next_experiment_selector.py --root .
 
 If it reports `blocked_external_only`, do not retry the blocked live check. If it reports `blocked_publish_only`, the current clean local HEAD needs explicit push authorization or a user push before current-head Actions can prove the launch evidence. Record the blocker and continue only with a distinct local maintenance experiment that has its own hypothesis and gates. Write a compact hypothesis:
 
+If it reports `dirty_worktree_handoff`, generate or refresh the machine-readable handoff plan before starting any unrelated product change:
+
+```bash
+python .agents/skills/auto-research/scripts/dirty_worktree_handoff_plan.py --root . --output-json .tmp/scoped-dirty-worktree-handoff-plan-current.json --output-md .tmp/scoped-dirty-worktree-handoff-plan-current.md --json
+```
+
+Treat the plan as handoff evidence only. It does not authorize staging, committing, pushing, reverting, or retrying user-owned external blockers.
+
+When a user-confirmed direction hypothesis is driving the loop, generate a direction-alignment scorecard before editing:
+
+```bash
+python .agents/skills/auto-research/scripts/direction_alignment_audit.py --root . --output .tmp/direction-alignment-audit-current.json --json
+```
+
+Use the scorecard as baseline evidence for whether the current workspace matches the declared direction and external references. It does not authorize dirty worktree adoption by itself.
+
 ```text
 If we change <surface>, then <metric or user workflow> improves because <reason>.
 ```
@@ -104,6 +120,12 @@ python .agents/skills/auto-research/scripts/completion_audit.py .tmp/launch-obje
 ```
 
 The launch manifest must include direct target project readiness evidence, including `shorts-maker-v2` when it is the launch target, not just workspace-level proxy signals.
+
+For the `/goal` reproduce -> isolate -> root-cause -> fix -> verify debugging loop, keep the 0-step bug/anomaly inventory generated from live evidence instead of editing stale counts by hand:
+
+```bash
+python .agents/skills/auto-research/scripts/debug_loop_inventory.py --root . --output-md .tmp/debug-loop-known-bugs-current.md --output-json .tmp/debug-loop-known-bugs-current.json --json
+```
 
 ### 6. Adopt, Commit, Push
 
@@ -169,6 +191,15 @@ python .agents/skills/auto-research/scripts/release_authorization_packet.py --ro
 ```
 
 The packet lists the exact current HEAD, ahead commit subjects, dirty count, required workflows, post-push gates, and guardrails. It must never push by itself.
+It also consumes `.tmp/llm-wiki-strict-audit-current.json` when present and summarizes `llm_wiki_strict_evidence`. A missing artifact, failing strict audit status, or evidence HEAD mismatch is a release packet blocker, so run `py -3.13 execution/llm_wiki_audit.py --write-strict-release-evidence --json` before using the packet as current-head release evidence. `launch_objective_audit.py` reads the packet and surfaces the same LLM Wiki evidence in the completion manifest.
+
+For a GitHub Actions reviewer surface, render the packet evidence into a job-summary checklist and a non-hidden artifact directory:
+
+```bash
+py -3.13 .agents/skills/auto-research/scripts/llm_wiki_release_summary.py --root . --packet .tmp/release-authorization-packet.json --output .tmp/llm-wiki-release-summary.md --artifact-dir release-evidence/llm-wiki --json
+```
+
+The helper appends to `GITHUB_STEP_SUMMARY` when that environment file exists, or to `--github-step-summary` when supplied. Use the copied `release-evidence/llm-wiki` directory for `actions/upload-artifact@v7`; current upload-artifact defaults ignore hidden files and files inside dot-prefixed folders, so uploading `.tmp/...` directly is weaker than copying reviewed JSON/Markdown into a visible artifact directory.
 
 ## A/B Decision Helper
 

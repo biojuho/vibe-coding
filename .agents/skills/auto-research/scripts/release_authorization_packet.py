@@ -15,6 +15,7 @@ from typing import Any
 
 DEFAULT_REQUIRED_WORKFLOWS = ("root-quality-gate", "active-project-matrix")
 DEFAULT_COMMIT_PREVIEW_LIMIT = 25
+DEFAULT_LLM_WIKI_STRICT_EVIDENCE_PATH = Path(".tmp/llm-wiki-strict-audit-current.json")
 
 
 def _run(root: Path, args: list[str], timeout: int) -> dict[str, Any]:
@@ -46,6 +47,13 @@ def _load_json(path: Path) -> dict[str, Any]:
     except (FileNotFoundError, OSError, json.JSONDecodeError):
         return {}
     return parsed if isinstance(parsed, dict) else {}
+
+
+def _rel(root: Path, path: Path) -> str:
+    try:
+        return path.relative_to(root).as_posix()
+    except ValueError:
+        return path.as_posix()
 
 
 def _run_readiness(root: Path, timeout: int) -> dict[str, Any]:
@@ -188,6 +196,45 @@ def _external_task_ids(readiness: dict[str, Any]) -> list[str]:
     return sorted(set(ids))
 
 
+def _llm_wiki_strict_evidence(root: Path, current_head_sha: str) -> dict[str, Any]:
+    path = root / DEFAULT_LLM_WIKI_STRICT_EVIDENCE_PATH
+    data = _load_json(path)
+    rel_path = _rel(root, path)
+    if not data:
+        return {
+            "available": False,
+            "path": rel_path,
+            "status": "missing",
+            "head_matches_current": None,
+        }
+
+    release_gate = _as_dict(data.get("release_gate"))
+    git = _as_dict(data.get("git"))
+    report = _as_dict(data.get("report"))
+    report_summary = _as_dict(report.get("summary"))
+    evidence_head_sha = str(git.get("head_sha") or "").strip()
+    current_head_sha = str(current_head_sha or "").strip()
+    head_matches_current = evidence_head_sha == current_head_sha if evidence_head_sha and current_head_sha else None
+
+    return {
+        "available": True,
+        "path": rel_path,
+        "schema_version": data.get("schema_version"),
+        "evidence_type": data.get("evidence_type"),
+        "generated_at": data.get("generated_at"),
+        "artifact_path": data.get("artifact_path") or rel_path,
+        "command": data.get("command"),
+        "status": str(release_gate.get("status") or "unknown"),
+        "audit_status": str(report_summary.get("status") or "unknown"),
+        "head_sha": evidence_head_sha or None,
+        "head_matches_current": head_matches_current,
+        "accepted_manifest_warning_count": _int(release_gate.get("accepted_manifest_warning_count")),
+        "unexpected_manifest_warning_count": _int(release_gate.get("unexpected_manifest_warning_count")),
+        "strict_manifest_warning_failure": bool(release_gate.get("strict_manifest_warning_failure")),
+        "source_inventory_count": _int(report_summary.get("source_inventory_count")),
+    }
+
+
 def build_packet(
     root: Path,
     *,
@@ -209,6 +256,7 @@ def build_packet(
         ]
     unproven = _unproven_workflows(workflows)
     external_task_ids = _external_task_ids(readiness)
+    llm_wiki_evidence = _llm_wiki_strict_evidence(root, str(git_info.get("head_sha") or ""))
 
     if not git_info.get("available", True):
         status = "git_unavailable"
@@ -231,6 +279,12 @@ def build_packet(
         blockers.append("current-head Actions unavailable until push authorization/user push")
     if external_task_ids:
         blockers.append("external/user-owned blocker(s): " + ", ".join(external_task_ids))
+    if not llm_wiki_evidence.get("available"):
+        blockers.append(f"LLM Wiki strict release evidence artifact missing: {llm_wiki_evidence.get('path')}")
+    elif llm_wiki_evidence.get("status") != "pass":
+        blockers.append(f"LLM Wiki strict release evidence status={llm_wiki_evidence.get('status')}")
+    elif llm_wiki_evidence.get("head_matches_current") is False:
+        blockers.append("LLM Wiki strict release evidence head does not match current HEAD")
 
     commits = _as_list(git_info.get("commits"))
     commit_count = max(len(commits), ahead_count if ahead_count > 0 else 0)
@@ -253,6 +307,10 @@ def build_packet(
             "commit_preview_count": len(commits_preview),
             "commit_omitted_count": commits_omitted,
             "authorization_required": ahead_count > 0 and not dirty_paths,
+            "llm_wiki_strict_evidence_status": llm_wiki_evidence.get("status"),
+            "llm_wiki_strict_evidence_head_matches_current": llm_wiki_evidence.get("head_matches_current"),
+            "llm_wiki_strict_evidence_unexpected_count": llm_wiki_evidence.get("unexpected_manifest_warning_count"),
+            "llm_wiki_strict_evidence_path": llm_wiki_evidence.get("path"),
         },
         "git": {
             "branch": git_info.get("branch"),
@@ -271,6 +329,7 @@ def build_packet(
         },
         "required_workflows": workflows,
         "unproven_workflows": unproven,
+        "llm_wiki_strict_evidence": llm_wiki_evidence,
         "authorization": {
             "push_required": ahead_count > 0,
             "allowed_without_explicit_user_authorization": False,

@@ -25,9 +25,12 @@ SKILL_ARTIFACTS = (
     ".agents/skills/auto-research/scripts/ab_decision.py",
     ".agents/skills/auto-research/scripts/browser_qa_inventory.py",
     ".agents/skills/auto-research/scripts/completion_audit.py",
+    ".agents/skills/auto-research/scripts/debug_loop_inventory.py",
     ".agents/skills/auto-research/scripts/dependency_freshness_inventory.py",
+    ".agents/skills/auto-research/scripts/direction_alignment_audit.py",
     ".agents/skills/auto-research/scripts/github_project_inventory.py",
     ".agents/skills/auto-research/scripts/launch_objective_audit.py",
+    ".agents/skills/auto-research/scripts/llm_wiki_release_summary.py",
     ".agents/skills/auto-research/scripts/next_experiment_selector.py",
     ".agents/skills/auto-research/scripts/release_authorization_packet.py",
 )
@@ -100,6 +103,7 @@ DEFAULT_INVENTORY_CACHE_MAX_AGE_SECONDS = 6 * 60 * 60
 RECENT_INVENTORY_FALLBACKS = {
     "browser_inventory": ".tmp/browser-qa-inventory.json",
 }
+DIRTY_HANDOFF_PLAN_CACHE = Path(".tmp") / "scoped-dirty-worktree-handoff-plan-current.json"
 GOAL_OBJECTIVE_TERMS = (
     "auto-research",
     "output quality",
@@ -186,6 +190,10 @@ def _with_recent_inventory_fallback(root: Path, label: str, result: dict[str, An
         return result
     fallback = _recent_json_result(root, label=label, rel_path=rel_path, failed_result=result)
     return fallback or result
+
+
+def _dirty_handoff_plan_from_cache(root: Path) -> dict[str, Any] | None:
+    return _load_json_object(root / DIRTY_HANDOFF_PLAN_CACHE)
 
 
 def _ab_manifest_sort_key(path: Path) -> tuple[int, str] | None:
@@ -298,7 +306,7 @@ def _graph_relevant_files_between(root: Path, base_sha: str, head_sha: str) -> l
     return [path for path in output.splitlines() if path.strip() and _is_graph_relevant_path(path)]
 
 
-def _select_next_experiment_from_inputs(inputs: dict[str, dict[str, Any]]) -> dict[str, Any]:
+def _select_next_experiment_from_inputs(root: Path, inputs: dict[str, dict[str, Any]]) -> dict[str, Any]:
     selector_path = Path(__file__).with_name("next_experiment_selector.py")
     spec = importlib.util.spec_from_file_location("auto_research_next_experiment_selector", selector_path)
     if spec is None or spec.loader is None:
@@ -318,6 +326,7 @@ def _select_next_experiment_from_inputs(inputs: dict[str, dict[str, Any]]) -> di
             github_inventory=inputs["github_inventory"]["data"],
             browser_inventory=inputs["browser_inventory"]["data"],
             dependency_inventory=inputs["dependency_inventory"]["data"],
+            dirty_handoff_plan=_dirty_handoff_plan_from_cache(root),
         )
     except Exception as exc:  # pragma: no cover - defensive CLI error path
         return {
@@ -520,6 +529,7 @@ def _skill_item(root: Path) -> dict[str, Any]:
         "browser_qa_inventory.py",
         "completion_audit.py",
         "dependency_freshness_inventory.py",
+        "direction_alignment_audit.py",
         "github_project_inventory.py",
         "launch_objective_audit.py",
         "next_experiment_selector.py",
@@ -530,7 +540,8 @@ def _skill_item(root: Path) -> dict[str, Any]:
     evidence = [
         f"{len(SKILL_ARTIFACTS) - len(missing)}/{len(SKILL_ARTIFACTS)} required auto-research artifacts exist.",
         "SKILL.md documents A/B, completion audit, next experiment selector, launch objective audit, "
-        "GitHub inventory, browser QA inventory, dependency freshness, and release authorization packet commands."
+        "direction alignment audit, GitHub inventory, browser QA inventory, dependency freshness, "
+        "and release authorization packet commands."
         if not missing_terms
         else "SKILL.md is missing documented command reference(s): " + ", ".join(missing_terms),
     ]
@@ -1281,6 +1292,9 @@ def _release_authorization_packet_item(packet: dict[str, Any]) -> dict[str, Any]
     git = packet.get("git") if isinstance(packet.get("git"), dict) else {}
     authorization = packet.get("authorization") if isinstance(packet.get("authorization"), dict) else {}
     workflows = packet.get("required_workflows") if isinstance(packet.get("required_workflows"), list) else []
+    llm_wiki_evidence = (
+        packet.get("llm_wiki_strict_evidence") if isinstance(packet.get("llm_wiki_strict_evidence"), dict) else {}
+    )
     packet_blockers = [str(blocker) for blocker in packet.get("blockers") or [] if str(blocker).strip()]
     unproven = [str(workflow) for workflow in packet.get("unproven_workflows") or [] if str(workflow).strip()]
     post_push_gates = [str(gate) for gate in authorization.get("post_push_gates") or [] if str(gate).strip()]
@@ -1306,6 +1320,15 @@ def _release_authorization_packet_item(packet: dict[str, Any]) -> dict[str, Any]
         blockers.append("release authorization packet did not enforce explicit user authorization.")
     if status == "ready_for_authorization" and ahead_count > 0 and not authorization.get("suggested_command"):
         blockers.append("release authorization packet omitted the suggested push command for a clean ahead head.")
+    if llm_wiki_evidence:
+        if not llm_wiki_evidence.get("available"):
+            blockers.append("release authorization packet is missing LLM Wiki strict release evidence.")
+        elif llm_wiki_evidence.get("status") != "pass":
+            blockers.append(
+                f"LLM Wiki strict release evidence status={llm_wiki_evidence.get('status')}; expected pass."
+            )
+        elif llm_wiki_evidence.get("head_matches_current") is False:
+            blockers.append("LLM Wiki strict release evidence is not for the current HEAD.")
 
     workflow_evidence = ", ".join(
         f"{workflow.get('name')}={workflow.get('status') or workflow.get('conclusion')}"
@@ -1322,6 +1345,16 @@ def _release_authorization_packet_item(packet: dict[str, Any]) -> dict[str, Any]
         f"{bool(authorization.get('suggested_command'))}; "
         f"allowed_without_explicit_user_authorization={allowed_without_authorization}.",
     ]
+    if llm_wiki_evidence:
+        evidence.append(
+            "LLM Wiki strict evidence: "
+            f"status={llm_wiki_evidence.get('status')}, "
+            f"path={llm_wiki_evidence.get('path')}, "
+            f"head_matches_current={llm_wiki_evidence.get('head_matches_current')}, "
+            f"unexpected={llm_wiki_evidence.get('unexpected_manifest_warning_count')}, "
+            f"generated_at={llm_wiki_evidence.get('generated_at')}, "
+            f"command={llm_wiki_evidence.get('command') or 'unknown'}."
+        )
     if guardrails:
         evidence.append(f"Release authorization guardrails: {' '.join(guardrails)}")
     if packet_blockers:
@@ -1671,7 +1704,7 @@ def collect_current_inputs(root: Path, timeout: int) -> dict[str, dict[str, Any]
         root,
         readiness_data if isinstance(readiness_data, dict) else {},
     )
-    collected["next_experiment_selection"] = _select_next_experiment_from_inputs(collected)
+    collected["next_experiment_selection"] = _select_next_experiment_from_inputs(root, collected)
     return collected
 
 

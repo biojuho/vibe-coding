@@ -24,6 +24,12 @@ def _load_module():
 
 
 next_experiment_selector = _load_module()
+_input_evidence_candidate = next_experiment_selector._input_evidence_candidate
+_dirty_worktree_candidate = next_experiment_selector._dirty_worktree_candidate
+_github_candidate = next_experiment_selector._github_candidate
+_browser_candidate = next_experiment_selector._browser_candidate
+_dependency_candidate = next_experiment_selector._dependency_candidate
+_project_qc_candidate = next_experiment_selector._project_qc_candidate
 
 
 def _readiness(
@@ -84,12 +90,24 @@ def _readiness(
     }
 
 
-def _github(*, dirty: int = 0, prs: int = 0, ahead: int = 0) -> dict[str, object]:
+def _github(
+    *,
+    dirty: int = 0,
+    prs: int = 0,
+    ahead: int = 0,
+    dirty_groups: list[dict[str, object]] | None = None,
+    dirty_paths: list[str] | None = None,
+) -> dict[str, object]:
     status = "## main...origin/main"
     if ahead:
         status += f" [ahead {ahead}]"
     return {
-        "git": {"dirty_count": dirty, "status": {"stdout": status}},
+        "git": {
+            "dirty_count": dirty,
+            "dirty_paths": dirty_paths or [],
+            "dirty_path_groups": dirty_groups or [],
+            "status": {"stdout": status},
+        },
         "open_prs": {"available": True, "count": prs},
         "recommendations": [],
     }
@@ -122,6 +140,28 @@ def _dependency(*, candidates: int = 0) -> dict[str, object]:
     }
 
 
+def _dirty_plan(
+    *,
+    dirty_count: int = 2,
+    dirty_paths: list[str] | None = None,
+    current: bool = True,
+) -> dict[str, object]:
+    paths = dirty_paths or [".ai/HANDOFF.md", ".agents/skills/auto-research/scripts/next_experiment_selector.py"]
+    return {
+        "status": "handoff_required",
+        "freshness": {"status": "current" if current else "stale", "current": current},
+        "dirty_signature": {
+            "algorithm": "sha256",
+            "value": "test-signature",
+            "input": {"dirty_count": dirty_count, "dirty_paths": paths},
+        },
+        "group_order": [
+            {"key": "auto-research"},
+            {"key": "ai-context"},
+        ],
+    }
+
+
 def _select(**overrides):
     data = {
         "readiness": _readiness(),
@@ -139,7 +179,8 @@ def test_dependency_candidate_is_selected_when_direct_updates_exist() -> None:
     assert result["status"] == "candidate"
     assert result["selected"]["kind"] == "dependency_candidate"
     assert result["selected"]["project"] == "projects/word-chain"
-    assert "official release notes" in result["selected"]["required_gates"][0]
+    assert next_experiment_selector.DEPENDENCY_INVENTORY_GATE in result["selected"]["required_gates"]
+    assert any("official release notes" in gate for gate in result["selected"]["required_gates"])
 
 
 def test_browser_refresh_outranks_dependency_candidate() -> None:
@@ -184,15 +225,83 @@ def test_ahead_current_head_actions_are_push_authorization_boundary() -> None:
     assert any("root-quality-gate" in item for item in result["selected"]["evidence"])
 
 
-def test_dirty_ahead_branch_routes_to_github_followup_before_publish_authorization() -> None:
+def test_dirty_ahead_branch_routes_to_worktree_handoff_before_publish_authorization() -> None:
     result = _select(
         readiness=_readiness(workspace=1, local=1, external=1, missing_actions=True),
-        github_inventory=_github(dirty=2, ahead=1),
+        github_inventory=_github(
+            dirty=2,
+            ahead=1,
+            dirty_groups=[{"key": "ai-context", "path_count": 1}, {"key": "auto-research", "path_count": 1}],
+        ),
     )
 
     assert result["status"] == "candidate"
-    assert result["selected"]["kind"] == "github_inventory_followup"
+    assert result["selected"]["kind"] == "dirty_worktree_handoff"
+    assert result["selected"]["required_gates"][0] == next_experiment_selector.GITHUB_INVENTORY_GATE
+    assert next_experiment_selector.DIRTY_HANDOFF_PLAN_GATE in result["selected"]["required_gates"]
+    assert "python execution/session_orient.py --json" in result["selected"]["required_gates"]
+    assert next_experiment_selector.PRODUCT_READINESS_GATE in result["selected"]["required_gates"]
+    assert "dirty groups: ai-context=1, auto-research=1" in result["selected"]["evidence"]
     assert all(candidate["kind"] != "current_head_release_checks_unproven" for candidate in result["ranked_candidates"])
+
+
+def test_current_dirty_handoff_plan_blocks_repeated_handoff_generation() -> None:
+    dirty_paths = [".ai/HANDOFF.md", ".agents/skills/auto-research/scripts/next_experiment_selector.py"]
+    result = _select(
+        readiness=_readiness(workspace=1, local=1, external=1, missing_actions=True),
+        github_inventory=_github(
+            dirty=2,
+            ahead=1,
+            dirty_paths=dirty_paths,
+            dirty_groups=[{"key": "ai-context", "path_count": 1}, {"key": "auto-research", "path_count": 1}],
+        ),
+        dirty_handoff_plan=_dirty_plan(dirty_paths=dirty_paths),
+    )
+
+    assert result["status"] == "blocked"
+    assert result["summary"]["adoptable_candidate_count"] == 0
+    assert result["selected"]["kind"] == "dirty_worktree_handoff_current"
+    assert result["selected"]["blocked"] is True
+    assert next_experiment_selector.DIRTY_HANDOFF_PLAN_GATE in result["selected"]["required_gates"]
+    assert any("handoff plan freshness=current" in item for item in result["selected"]["evidence"])
+    assert any("handoff plan signature=test-signature" in item for item in result["selected"]["evidence"])
+    assert any("explicit scoped staging/commit authorization" in item for item in result["selected"]["blockers"])
+
+
+def test_matching_dirty_handoff_signature_blocks_even_when_previous_plan_was_stale() -> None:
+    dirty_paths = [".ai/HANDOFF.md", "docs/wiki/llm/27-data-retention-privacy-logging.md"]
+    result = _select(
+        readiness=_readiness(workspace=1, local=1, external=1, missing_actions=True),
+        github_inventory=_github(dirty=2, dirty_paths=dirty_paths),
+        dirty_handoff_plan=_dirty_plan(dirty_paths=dirty_paths, current=False),
+    )
+
+    assert result["status"] == "blocked"
+    assert result["selected"]["kind"] == "dirty_worktree_handoff_current"
+    assert any("handoff plan freshness=stale" in item for item in result["selected"]["evidence"])
+    assert any("signature matches current dirty inventory" in item for item in result["selected"]["evidence"])
+
+
+def test_stale_or_mismatched_dirty_handoff_plan_still_requests_refresh() -> None:
+    result = _select(
+        github_inventory=_github(
+            dirty=2,
+            dirty_paths=[".ai/HANDOFF.md", ".agents/skills/auto-research/scripts/next_experiment_selector.py"],
+        ),
+        dirty_handoff_plan=_dirty_plan(dirty_paths=["different.py"]),
+    )
+
+    assert result["status"] == "candidate"
+    assert result["selected"]["kind"] == "dirty_worktree_handoff"
+    assert result["selected"]["blocked"] is False
+
+
+def test_open_pr_routes_to_github_inventory_followup() -> None:
+    result = _select(github_inventory=_github(prs=1))
+
+    assert result["status"] == "candidate"
+    assert result["selected"]["kind"] == "github_inventory_followup"
+    assert any("open_prs.count=1" in item for item in result["selected"]["evidence"])
 
 
 def test_ready_workspace_routes_to_completion_audit() -> None:
@@ -208,8 +317,47 @@ def test_missing_readiness_schema_routes_to_input_evidence_refresh() -> None:
 
     assert result["status"] == "candidate"
     assert result["selected"]["kind"] == "input_evidence_unavailable"
-    assert "product_readiness_score.py --json" in result["selected"]["required_gates"]
+    assert next_experiment_selector.PRODUCT_READINESS_GATE in result["selected"]["required_gates"]
+    assert next_experiment_selector.GITHUB_INVENTORY_GATE in result["selected"]["required_gates"]
     assert any("readiness: missing required key" in item for item in result["selected"]["evidence"])
+
+
+def test_candidate_helpers_emit_executable_required_gates() -> None:
+    input_candidate = _input_evidence_candidate({}, _github(), _browser(), _dependency())
+    dirty_candidate = _dirty_worktree_candidate(_github(dirty=1))
+    github_candidate = _github_candidate(_github(prs=1))
+    browser_candidate = _browser_candidate(_browser(missing=1))
+    dependency_candidate = _dependency_candidate(_dependency(candidates=1))
+    project_qc_candidate = _project_qc_candidate(_readiness(stale_qc=True))
+
+    assert input_candidate is not None
+    assert input_candidate["required_gates"] == [
+        next_experiment_selector.PRODUCT_READINESS_GATE,
+        next_experiment_selector.GITHUB_INVENTORY_GATE,
+        next_experiment_selector.BROWSER_QA_INVENTORY_GATE,
+        next_experiment_selector.DEPENDENCY_INVENTORY_GATE,
+    ]
+    assert dirty_candidate is not None
+    assert dirty_candidate["required_gates"] == [
+        next_experiment_selector.GITHUB_INVENTORY_GATE,
+        next_experiment_selector.DIRTY_HANDOFF_PLAN_GATE,
+        "python execution/session_orient.py --json",
+        next_experiment_selector.PRODUCT_READINESS_GATE,
+    ]
+    assert github_candidate is not None
+    assert github_candidate["required_gates"] == [
+        next_experiment_selector.GITHUB_INVENTORY_GATE,
+        "python execution/session_orient.py --json",
+    ]
+    assert browser_candidate is not None
+    assert browser_candidate["required_gates"][0] == next_experiment_selector.BROWSER_QA_INVENTORY_GATE
+    assert dependency_candidate is not None
+    assert dependency_candidate["required_gates"][0] == next_experiment_selector.DEPENDENCY_INVENTORY_GATE
+    assert project_qc_candidate is not None
+    assert project_qc_candidate["required_gates"] == [
+        "python execution/project_qc_runner.py --json",
+        next_experiment_selector.PRODUCT_READINESS_GATE,
+    ]
 
 
 def test_cli_writes_ascii_json_artifact(tmp_path: Path, capsys) -> None:
@@ -245,6 +393,41 @@ def test_cli_writes_ascii_json_artifact(tmp_path: Path, capsys) -> None:
     assert json.loads(stdout)["status"] == "blocked_external_only"
     assert persisted["selected"]["kind"] == "external_user_blocker"
     assert output.read_text(encoding="utf-8").isascii()
+
+
+def test_cli_reads_dirty_handoff_plan_artifact(tmp_path: Path, capsys) -> None:
+    dirty_paths = [".ai/HANDOFF.md", ".agents/skills/auto-research/scripts/next_experiment_selector.py"]
+    readiness = tmp_path / "readiness.json"
+    github = tmp_path / "github.json"
+    browser = tmp_path / "browser.json"
+    dependency = tmp_path / "dependency.json"
+    dirty_plan = tmp_path / "dirty-plan.json"
+    readiness.write_text(json.dumps(_readiness(workspace=1, local=1, external=1)), encoding="utf-8")
+    github.write_text(json.dumps(_github(dirty=2, dirty_paths=dirty_paths)), encoding="utf-8")
+    browser.write_text(json.dumps(_browser()), encoding="utf-8")
+    dependency.write_text(json.dumps(_dependency()), encoding="utf-8")
+    dirty_plan.write_text(json.dumps(_dirty_plan(dirty_paths=dirty_paths)), encoding="utf-8")
+
+    code = next_experiment_selector.main(
+        [
+            "--readiness",
+            str(readiness),
+            "--github",
+            str(github),
+            "--browser",
+            str(browser),
+            "--dependency",
+            str(dependency),
+            "--dirty-handoff-plan",
+            str(dirty_plan),
+            "--json",
+        ]
+    )
+    stdout = json.loads(capsys.readouterr().out)
+
+    assert code == 0
+    assert stdout["status"] == "blocked"
+    assert stdout["selected"]["kind"] == "dirty_worktree_handoff_current"
 
 
 def test_cli_live_helper_defaults_are_bounded(tmp_path: Path, capsys, monkeypatch) -> None:

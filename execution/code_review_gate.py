@@ -24,6 +24,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import subprocess
 import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -70,6 +72,7 @@ class GateReport:
     affected_flows: list[str]
     test_gaps: list[str]
     review_priorities: list[str]
+    untracked_files: list[str] = field(default_factory=list)
     reasons: list[str] = field(default_factory=list)
     impact_radius: dict[str, Any] | None = None
     architecture_overview: dict[str, Any] | None = None
@@ -128,6 +131,127 @@ def _summarize_test_gaps(gaps: list[Any]) -> list[str]:
     return out
 
 
+def _looks_like_test_path(path: str) -> bool:
+    """Return True for paths that should not be treated as production gaps."""
+    normalized = path.replace("\\", "/").lower()
+    name = normalized.rsplit("/", 1)[-1]
+    return "/tests/" in normalized or name.startswith("test_") or name.endswith("_test.py")
+
+
+def _looks_like_test_node(name: str, path: str) -> bool:
+    """Return True for graph nodes that represent tests even when `is_test` is missing."""
+    return _looks_like_test_path(path) or name.startswith("Test") or name.startswith("test_")
+
+
+def _load_tested_sources(repo_root: Path) -> set[str]:
+    """Load production nodes that have TESTED_BY edges in the graph.
+
+    code_review_graph currently stores TESTED_BY as:
+      source_qualified = production node
+      target_qualified = test node
+
+    Its upstream change analyzer checks the inverse direction, so this gate
+    performs a narrow post-processing correction instead of hiding all gaps.
+    """
+    graph_db = repo_root / ".code-review-graph" / "graph.db"
+    if not graph_db.exists():
+        return set()
+
+    import sqlite3
+
+    try:
+        with sqlite3.connect(graph_db) as conn:
+            rows = conn.execute("SELECT DISTINCT source_qualified FROM edges WHERE kind = 'TESTED_BY'").fetchall()
+    except (OSError, sqlite3.Error):
+        return set()
+    return {str(row[0]) for row in rows if row and row[0]}
+
+
+def _allows_unqualified_test_source(path: str) -> bool:
+    """Allow name-only coverage only for dynamic script/page trees with weak import paths."""
+    normalized = path.replace("\\", "/")
+    parts = normalized.split("/")[:-1]
+    return ".agents" in parts or "/workspace/execution/pages/" in normalized
+
+
+def _tested_source_keys(name: str, path: str, qname: str) -> set[str]:
+    """Return source keys that can represent a covered function in graph edges."""
+    keys = {qname} if qname else set()
+    if not name or not path:
+        return keys
+
+    normalized_path = path.replace("\\", "/")
+    stem = Path(normalized_path).stem
+    filename = Path(normalized_path).name
+    keys.update(
+        {
+            f"{normalized_path}::{name}",
+            f"{filename}::{name}",
+            f"{stem}::{name}",
+            f"{stem}.{name}",
+        }
+    )
+    if _allows_unqualified_test_source(path):
+        keys.add(name)
+    return keys
+
+
+def _has_tested_source(name: str, path: str, qname: str, tested_sources: set[str]) -> bool:
+    """Return True when a gap has a matching outgoing TESTED_BY source."""
+    return bool(_tested_source_keys(name, path, qname) & tested_sources)
+
+
+def _filter_test_gaps(raw_gaps: list[Any], *, tested_sources: set[str]) -> list[Any]:
+    """Drop false-positive gaps caused by graph test-node and edge-direction drift."""
+    filtered: list[Any] = []
+    for entry in raw_gaps or []:
+        if not isinstance(entry, dict):
+            filtered.append(entry)
+            continue
+
+        name = str(entry.get("name") or entry.get("symbol") or "")
+        path = str(entry.get("file") or entry.get("path") or "")
+        qname = str(entry.get("qualified_name") or "")
+        if _looks_like_test_node(name, path):
+            continue
+        if _has_tested_source(name, path, qname, tested_sources):
+            continue
+        filtered.append(entry)
+    return filtered
+
+
+def _correct_risk_score(
+    change_result: dict[str, Any],
+    *,
+    raw_gap_qnames: set[str],
+    tested_sources: set[str],
+) -> float:
+    """Correct coverage-related risk inflation from the TESTED_BY direction bug."""
+    changed_functions = change_result.get("changed_functions") or []
+    if not changed_functions:
+        return float(change_result.get("risk_score", 0.0) or 0.0)
+
+    risks: list[float] = []
+    for item in changed_functions:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or "")
+        path = str(item.get("file_path") or item.get("file") or item.get("path") or "")
+        if _looks_like_test_node(name, path):
+            continue
+
+        qname = str(item.get("qualified_name") or "")
+        risk = float(item.get("risk_score", 0.0) or 0.0)
+        if qname in raw_gap_qnames and _has_tested_source(name, path, qname, tested_sources):
+            # Upstream charged 0.30 for "untested"; intended tested charge is 0.05.
+            risk = max(0.0, risk - 0.25)
+        risks.append(risk)
+
+    if not risks:
+        return 0.0
+    return round(max(risks), 4)
+
+
 def get_staged_files(repo_root: Path) -> list[str]:
     """Return staged file paths (Added/Copied/Modified/Renamed) for pre-commit use."""
     import subprocess
@@ -135,6 +259,27 @@ def get_staged_files(repo_root: Path) -> list[str]:
     try:
         result = subprocess.run(
             ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            cwd=str(repo_root),
+            check=False,
+        )
+    except (OSError, FileNotFoundError):
+        return []
+    if result.returncode != 0:
+        return []
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def get_untracked_files(repo_root: Path) -> list[str]:
+    """Return untracked, non-ignored file paths relative to the repo root."""
+    import subprocess
+
+    try:
+        result = subprocess.run(
+            ["git", "ls-files", "--others", "--exclude-standard"],
             capture_output=True,
             text=True,
             encoding="utf-8",
@@ -172,6 +317,7 @@ def evaluate(
     include_architecture: bool,
     detail_level: str = "standard",
     changed_files: list[str] | None = None,
+    untracked_files: list[str] | None = None,
     tools: tuple | None = None,
 ) -> GateReport:
     """Run the underlying graph queries and classify the result.
@@ -226,12 +372,22 @@ def evaluate(
             error=f"detect_changes failed: {exc}",
         )
 
-    risk_score = float(change_result.get("risk_score", 0.0) or 0.0)
+    raw_test_gaps = change_result.get("test_gaps", []) or []
+    raw_gap_qnames = {
+        str(gap.get("qualified_name")) for gap in raw_test_gaps if isinstance(gap, dict) and gap.get("qualified_name")
+    }
+    tested_sources = _load_tested_sources(repo_root)
+    filtered_test_gaps = _filter_test_gaps(raw_test_gaps, tested_sources=tested_sources)
+    risk_score = _correct_risk_score(
+        change_result,
+        raw_gap_qnames=raw_gap_qnames,
+        tested_sources=tested_sources,
+    )
     affected_flows = [
         flow.get("name") if isinstance(flow, dict) else str(flow)
         for flow in change_result.get("affected_flows", []) or []
     ]
-    test_gaps = _summarize_test_gaps(change_result.get("test_gaps", []) or [])
+    test_gaps = _summarize_test_gaps(filtered_test_gaps)
     review_priorities = _summarize_priorities(change_result.get("review_priorities", []) or [])
     changed_files_raw = change_result.get("changed_files", []) or []
     changed_files = [f.get("path") if isinstance(f, dict) else str(f) for f in changed_files_raw]
@@ -250,6 +406,12 @@ def evaluate(
         if status == "pass":
             status = "warn"
         reasons.append(f"{len(test_gaps)} test gap(s) detected")
+
+    untracked_graph_files = filter_graph_relevant_files(untracked_files or [])
+    if untracked_graph_files:
+        if status == "pass":
+            status = "warn"
+        reasons.append(f"{len(untracked_graph_files)} untracked graph-relevant file(s) require direct review coverage")
 
     impact_radius: dict[str, Any] | None = None
     if status in {"warn", "fail"} and changed_files:
@@ -278,6 +440,7 @@ def evaluate(
         affected_flows=[f for f in affected_flows if f],
         test_gaps=test_gaps,
         review_priorities=review_priorities,
+        untracked_files=untracked_graph_files,
         reasons=reasons,
         impact_radius=impact_radius,
         architecture_overview=architecture_overview,
@@ -320,6 +483,41 @@ def _print_report(report: GateReport, *, as_json: bool, text_override: str | Non
         print(text_override or render_text(report))
 
 
+def _should_retry_with_py313(report: GateReport) -> bool:
+    """Return True when this Windows interpreter lacks the graph package."""
+    if sys.platform != "win32":
+        return False
+    if os.environ.get("CODE_REVIEW_GATE_PY313_FALLBACK"):
+        return False
+    return report.status == "error" and "not importable" in str(report.error or "")
+
+
+def _run_py313_fallback(argv: list[str]) -> int:
+    """Re-run this CLI with Windows' Python 3.13 launcher and relay output."""
+    env = os.environ.copy()
+    env["CODE_REVIEW_GATE_PY313_FALLBACK"] = "1"
+    env.setdefault("PYTHONUTF8", "1")
+    try:
+        completed = subprocess.run(
+            ["py", "-3.13", str(Path(__file__).resolve()), *argv],
+            cwd=str(REPO_ROOT_DEFAULT),
+            env=env,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+    except (OSError, FileNotFoundError) as exc:
+        print(f"[code-review-gate] py -3.13 fallback failed: {exc}", file=sys.stderr)
+        return 3
+    if completed.stdout:
+        sys.stdout.write(completed.stdout)
+    if completed.stderr:
+        sys.stderr.write(completed.stderr)
+    return completed.returncode
+
+
 def render_text(report: GateReport) -> str:
     if report.status == "error":
         return f"[code-review-gate] error: {report.error}"
@@ -336,6 +534,12 @@ def render_text(report: GateReport) -> str:
         head = report.changed_files[:5]
         suffix = f" (+ {len(report.changed_files) - len(head)} more)" if len(report.changed_files) > len(head) else ""
         lines.append(f"  changed: {', '.join(head)}{suffix}")
+    if report.untracked_files:
+        head = report.untracked_files[:5]
+        suffix = (
+            f" (+ {len(report.untracked_files) - len(head)} more)" if len(report.untracked_files) > len(head) else ""
+        )
+        lines.append(f"  untracked: {', '.join(head)}{suffix}")
     if report.test_gaps:
         lines.append(f"  test gaps: {len(report.test_gaps)}")
         for gap in report.test_gaps[:5]:
@@ -348,6 +552,7 @@ def render_text(report: GateReport) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
+    raw_argv = list(sys.argv[1:] if argv is None else argv)
     parser = argparse.ArgumentParser(
         description=("Risk-aware code review gate built on the code_review_graph knowledge graph."),
     )
@@ -398,9 +603,10 @@ def main(argv: list[str] | None = None) -> int:
             "Use staged changes (`git diff --cached --name-only`) instead of `--base`. Intended for pre-commit hooks."
         ),
     )
-    args = parser.parse_args(argv)
+    args = parser.parse_args(raw_argv)
 
     changed_files: list[str] | None = None
+    untracked_files: list[str] | None = None
     if args.staged:
         staged_files = get_staged_files(args.repo_root)
         changed_files = filter_graph_relevant_files(staged_files)
@@ -421,6 +627,8 @@ def main(argv: list[str] | None = None) -> int:
             )
             _print_report(trivial, as_json=args.json, text_override="[code-review-gate] PASS (no staged code files)")
             return 0
+    else:
+        untracked_files = filter_graph_relevant_files(get_untracked_files(args.repo_root))
 
     report = evaluate(
         base=args.base,
@@ -430,7 +638,11 @@ def main(argv: list[str] | None = None) -> int:
         include_architecture=args.include_architecture,
         detail_level=args.detail_level,
         changed_files=changed_files,
+        untracked_files=untracked_files,
     )
+
+    if _should_retry_with_py313(report):
+        return _run_py313_fallback(raw_argv)
 
     _print_report(report, as_json=args.json)
 

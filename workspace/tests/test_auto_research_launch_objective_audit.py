@@ -37,9 +37,12 @@ def _write_required_skill(root: Path) -> None:
                 "ab_decision.py",
                 "browser_qa_inventory.py",
                 "completion_audit.py",
+                "debug_loop_inventory.py",
                 "dependency_freshness_inventory.py",
+                "direction_alignment_audit.py",
                 "github_project_inventory.py",
                 "launch_objective_audit.py",
+                "llm_wiki_release_summary.py",
                 "next_experiment_selector.py",
                 "release_authorization_packet.py",
             ]
@@ -50,9 +53,12 @@ def _write_required_skill(root: Path) -> None:
         "ab_decision.py",
         "browser_qa_inventory.py",
         "completion_audit.py",
+        "debug_loop_inventory.py",
         "dependency_freshness_inventory.py",
+        "direction_alignment_audit.py",
         "github_project_inventory.py",
         "launch_objective_audit.py",
+        "llm_wiki_release_summary.py",
         "next_experiment_selector.py",
         "release_authorization_packet.py",
     ):
@@ -559,6 +565,19 @@ def _release_packet(
             {"name": "active-project-matrix", "status": "missing", "conclusion": None},
         ],
         "unproven_workflows": ["root-quality-gate", "active-project-matrix"] if ahead_count else [],
+        "llm_wiki_strict_evidence": {
+            "available": True,
+            "path": ".tmp/llm-wiki-strict-audit-current.json",
+            "generated_at": "2026-06-08",
+            "command": "py -3.13 execution/llm_wiki_audit.py --write-strict-release-evidence --json",
+            "status": "pass",
+            "head_sha": "abcdef123456",
+            "head_matches_current": True,
+            "accepted_manifest_warning_count": 2,
+            "unexpected_manifest_warning_count": 0,
+            "strict_manifest_warning_failure": False,
+            "source_inventory_count": 64,
+        },
         "authorization": {
             "push_required": ahead_count > 0,
             "allowed_without_explicit_user_authorization": allowed_without_authorization,
@@ -754,6 +773,13 @@ def test_release_authorization_packet_publish_boundary_is_direct_audit_item(tmp_
         "Post-push gates: root-quality-gate, active-project-matrix" in evidence for evidence in packet_item["evidence"]
     )
     assert any("allowed_without_explicit_user_authorization=False" in evidence for evidence in packet_item["evidence"])
+    assert any(
+        "LLM Wiki strict evidence: status=pass" in evidence
+        and "path=.tmp/llm-wiki-strict-audit-current.json" in evidence
+        and "unexpected=0" in evidence
+        and "--write-strict-release-evidence --json" in evidence
+        for evidence in packet_item["evidence"]
+    )
     assert any("Packet blockers:" in evidence and "T-251" in evidence for evidence in packet_item["evidence"])
     assert result["status"] == "incomplete"
     assert not any(issue["code"] == "incomplete_coverage" for issue in result["issues"])
@@ -869,6 +895,83 @@ def test_collect_current_inputs_uses_one_snapshot_for_selector(monkeypatch, tmp_
     assert selection["status"] == "blocked_publish_only"
     assert selection["selected"]["kind"] == "current_head_release_checks_unproven"
     assert any("github dirty_count=0" in evidence for evidence in selection["selected"]["evidence"])
+
+
+def test_collect_current_inputs_passes_current_dirty_handoff_plan_to_selector(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    dirty_paths = [
+        ".agents/skills/auto-research/scripts/launch_objective_audit.py",
+        "workspace/tests/test_auto_research_launch_objective_audit.py",
+    ]
+    dirty_plan_path = tmp_path / launch_objective_audit.DIRTY_HANDOFF_PLAN_CACHE
+    dirty_plan_path.parent.mkdir(parents=True)
+    dirty_plan_path.write_text(
+        json.dumps(
+            {
+                "status": "handoff_required",
+                "freshness": {"status": "current", "current": True},
+                "dirty_signature": {
+                    "value": "test-dirty-signature",
+                    "input": {"dirty_count": len(dirty_paths), "dirty_paths": dirty_paths},
+                },
+                "group_order": [{"key": "auto-research", "path_count": len(dirty_paths)}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    github_inventory = _github_inventory()
+    assert isinstance(github_inventory["git"], dict)
+    github_inventory["git"].update(
+        {
+            "dirty_count": len(dirty_paths),
+            "dirty_paths": dirty_paths,
+            "dirty_path_groups": [{"key": "auto-research", "path_count": len(dirty_paths), "paths": dirty_paths}],
+            "status": {"stdout": "## main...origin/main"},
+        }
+    )
+
+    calls: list[list[str]] = []
+
+    def fake_run_json(_root: Path, command: list[str], _timeout: int) -> dict[str, object]:
+        calls.append(command)
+        command_text = " ".join(command)
+        if "product_readiness_score.py" in command_text:
+            data = _clean_readiness(external_blockers=1)
+        elif "github_project_inventory.py" in command_text:
+            data = github_inventory
+        elif "browser_qa_inventory.py" in command_text:
+            data = _browser_inventory()
+        elif "dependency_freshness_inventory.py" in command_text:
+            data = _dependency_inventory()
+        else:
+            data = _code_review_gate()
+        return {"available": True, "returncode": 0, "stdout": json.dumps(data), "stderr": "", "data": data}
+
+    monkeypatch.setattr(launch_objective_audit, "_run_json", fake_run_json)
+    monkeypatch.setattr(
+        launch_objective_audit,
+        "_release_authorization_packet_from_inputs",
+        lambda _root, _readiness: {
+            "available": True,
+            "returncode": 0,
+            "stdout": json.dumps(_release_packet(dirty_count=len(dirty_paths))),
+            "stderr": "",
+            "data": _release_packet(dirty_count=len(dirty_paths)),
+        },
+    )
+
+    collected = launch_objective_audit.collect_current_inputs(tmp_path, timeout=1)
+
+    assert all("next_experiment_selector.py" not in " ".join(command) for command in calls)
+    selection = collected["next_experiment_selection"]["data"]
+    assert selection["status"] == "blocked"
+    assert selection["summary"]["adoptable_candidate_count"] == 0
+    assert selection["selected"]["kind"] == "dirty_worktree_handoff_current"
+    assert any(
+        "handoff plan signature=test-dirty-signature" in evidence for evidence in selection["selected"]["evidence"]
+    )
 
 
 def test_collect_current_inputs_uses_recent_browser_inventory_after_live_timeout(monkeypatch, tmp_path: Path) -> None:
