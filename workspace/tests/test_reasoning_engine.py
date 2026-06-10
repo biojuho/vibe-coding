@@ -19,8 +19,13 @@ from execution.reasoning_engine import (
     FactFragment,
     Hypothesis,
     ReasoningAdapter,
+    _collapse_json_whitespace,
+    _extract_embedded_json_objects,
     _get_connection,
+    _parse_json_items,
+    _replace_newlines_in_json_strings,
     _robust_json_parse,
+    _strip_json_markdown_fence,
     _strength_for_count,
 )
 
@@ -81,6 +86,21 @@ class TestRobustJsonParse:
         """완전한 쓰레기 입력."""
         result = _robust_json_parse("not json at all, just random text!!!")
         assert result == []
+
+    def test_helper_strips_markdown_fence(self):
+        assert _strip_json_markdown_fence('```json\n{"a": 1}\n```') == '{"a": 1}'
+
+    def test_helper_parse_json_items_wraps_dict_and_rejects_invalid(self):
+        assert _parse_json_items('{"a": 1}') == [{"a": 1}]
+        assert _parse_json_items("[1, 2]") == [1, 2]
+        assert _parse_json_items("NOT_JSON") is None
+
+    def test_helper_newline_repair_and_whitespace_collapse(self):
+        assert _replace_newlines_in_json_strings('{"text": "line1\nline2"}') == '{"text": "line1 line2"}'
+        assert _collapse_json_whitespace('[\n{"a":\n"hello"}\n]') == '[ {"a": "hello"} ]'
+
+    def test_helper_extracts_embedded_objects_only(self):
+        assert _extract_embedded_json_objects('x {"a": 1} y [2] z {"b": 2}') == [{"a": 1}, {"b": 2}]
 
 
 # ── _strength_for_count 테스트 ────────────────────────────────

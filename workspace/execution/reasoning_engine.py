@@ -68,6 +68,66 @@ class Hypothesis:
 # ── 견고한 JSON 파서 ─────────────────────────────────────────
 
 
+def _json_items(obj: Any) -> list[dict[str, Any]]:
+    if isinstance(obj, list):
+        return obj
+    if isinstance(obj, dict):
+        return [obj]
+    return []
+
+
+def _parse_json_items(text: str) -> list[dict[str, Any]] | None:
+    try:
+        return _json_items(json.loads(text))
+    except json.JSONDecodeError:
+        return None
+
+
+def _strip_json_markdown_fence(text: str) -> str:
+    cleaned = text.strip()
+    if cleaned.startswith("```json"):
+        cleaned = cleaned[7:]
+    elif cleaned.startswith("```"):
+        cleaned = cleaned[3:]
+    if cleaned.endswith("```"):
+        cleaned = cleaned[:-3]
+    return cleaned.strip()
+
+
+def _replace_newlines_in_json_strings(text: str) -> str:
+    return re.sub(
+        r'("(?:[^"\\]|\\.)*")',
+        lambda m: m.group(0).replace("\n", " ").replace("\r", " "),
+        text,
+    )
+
+
+def _collapse_json_whitespace(text: str) -> str:
+    collapsed = text.replace("\n", " ").replace("\r", " ")
+    return re.sub(r"\s+", " ", collapsed).strip()
+
+
+def _extract_embedded_json_objects(text: str) -> list[dict[str, Any]]:
+    results: list[dict[str, Any]] = []
+    brace_depth = 0
+    start_idx = -1
+    for i, ch in enumerate(text):
+        if ch == "{":
+            if brace_depth == 0:
+                start_idx = i
+            brace_depth += 1
+        elif ch == "}":
+            brace_depth -= 1
+            if brace_depth == 0 and start_idx >= 0:
+                candidate = text[start_idx : i + 1]
+                candidate = candidate.replace("\n", " ").replace("\r", " ")
+                parsed = _parse_json_items(candidate)
+                if parsed:
+                    results.extend(parsed)
+                start_idx = -1
+    return results
+
+
 def _robust_json_parse(text: str) -> list[dict[str, Any]]:
     """5단계 견고 파서 — LLM의 불완전 JSON 대응.
 
@@ -77,71 +137,26 @@ def _robust_json_parse(text: str) -> list[dict[str, Any]]:
     if not text or not text.strip():
         return []
 
-    def _ensure_list(obj: Any) -> list[dict[str, Any]]:
-        if isinstance(obj, list):
-            return obj
-        if isinstance(obj, dict):
-            return [obj]
-        return []
-
     # Stage 1: 마크다운 펜스 제거
-    cleaned = text.strip()
-    if cleaned.startswith("```json"):
-        cleaned = cleaned[7:]
-    elif cleaned.startswith("```"):
-        cleaned = cleaned[3:]
-    if cleaned.endswith("```"):
-        cleaned = cleaned[:-3]
-    cleaned = cleaned.strip()
+    cleaned = _strip_json_markdown_fence(text)
 
     # Stage 2: 직접 파싱 시도
-    try:
-        return _ensure_list(json.loads(cleaned))
-    except json.JSONDecodeError:
-        pass
+    parsed = _parse_json_items(cleaned)
+    if parsed is not None:
+        return parsed
 
     # Stage 3: 값 내부 줄바꿈 치환 (JSON 문자열 값 안의 \n → 공백)
-    stage3 = re.sub(
-        r'("(?:[^"\\]|\\.)*")',
-        lambda m: m.group(0).replace("\n", " ").replace("\r", " "),
-        cleaned,
-    )
-    try:
-        return _ensure_list(json.loads(stage3))
-    except json.JSONDecodeError:
-        pass
+    parsed = _parse_json_items(_replace_newlines_in_json_strings(cleaned))
+    if parsed is not None:
+        return parsed
 
     # Stage 4: 전체 newline collapse 후 재시도
-    stage4 = cleaned.replace("\n", " ").replace("\r", " ")
-    # collapse multiple spaces
-    stage4 = re.sub(r"\s+", " ", stage4).strip()
-    try:
-        return _ensure_list(json.loads(stage4))
-    except json.JSONDecodeError:
-        pass
+    parsed = _parse_json_items(_collapse_json_whitespace(cleaned))
+    if parsed is not None:
+        return parsed
 
     # Stage 5: 최후 수단 — regex로 개별 {...} 객체 추출
-    results: list[dict[str, Any]] = []
-    brace_depth = 0
-    start_idx = -1
-    for i, ch in enumerate(cleaned):
-        if ch == "{":
-            if brace_depth == 0:
-                start_idx = i
-            brace_depth += 1
-        elif ch == "}":
-            brace_depth -= 1
-            if brace_depth == 0 and start_idx >= 0:
-                candidate = cleaned[start_idx : i + 1]
-                # collapse newlines inside candidate
-                candidate = candidate.replace("\n", " ").replace("\r", " ")
-                try:
-                    obj = json.loads(candidate)
-                    if isinstance(obj, dict):
-                        results.append(obj)
-                except json.JSONDecodeError:
-                    pass
-                start_idx = -1
+    results = _extract_embedded_json_objects(cleaned)
 
     if results:
         return results
