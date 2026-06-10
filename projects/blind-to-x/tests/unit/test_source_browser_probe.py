@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 
 import pytest
 
@@ -15,9 +16,13 @@ from scripts.source_browser_probe import (
     exit_code_for_report,
     parse_targets,
     run_source_preflight,
+    _attach_trace_path_to_problem_results,
     _click_first_post,
     _build_recommended_command,
+    _probe_target,
     _resolve_click_through_href,
+    _safe_html_snapshot,
+    _with_failure_evidence,
     _write_report,
     _select_click_through_candidate,
     _select_jobplanet_api_candidate,
@@ -143,6 +148,14 @@ def test_build_parser_accepts_json_compat_flag():
     assert args.json is True
 
 
+def test_build_parser_accepts_optional_trace_dir():
+    parser = build_probe_parser()
+
+    args = parser.parse_args(["--trace-dir", ".tmp/preflight-traces"])
+
+    assert args.trace_dir.name == "preflight-traces"
+
+
 def test_build_report_counts_problem_statuses_and_exit_code():
     results = [
         ProbeResult(
@@ -176,6 +189,7 @@ def test_build_report_counts_problem_statuses_and_exit_code():
         "viewport": "desktop",
         "ready_count": 1,
         "problem_count": 1,
+        "problem_evidence_count": 0,
         "ready_warning_count": 0,
         "ok": False,
         "statuses": {"blocked": 1, "ready": 1},
@@ -189,6 +203,7 @@ def test_build_report_counts_problem_statuses_and_exit_code():
                 "signals": ["http_403"],
             }
         ],
+        "problem_evidence_sources": [],
         "recommended_source": "fmkorea",
         "recommended_command": _build_recommended_command("fmkorea"),
         "problem_actions": [
@@ -201,6 +216,14 @@ def test_build_report_counts_problem_statuses_and_exit_code():
             }
         ],
     }
+    ready_result = report["results"][0]
+    problem_result = report["results"][1]
+    assert ready_result["operator_action_required"] is False
+    assert ready_result["operator_action"] is None
+    assert problem_result["operator_action_required"] is True
+    assert problem_result["operator_action"] == (
+        "Use a ready fallback source for this run, then recheck this source after access controls change."
+    )
     assert exit_code_for_report(report, fail_on_problem=False) == 0
     assert exit_code_for_report(report, fail_on_problem=True) == 1
 
@@ -289,6 +312,187 @@ def test_build_report_counts_click_error_as_problem():
     assert exit_code_for_report(report, fail_on_problem=True) == 1
 
 
+def test_with_failure_evidence_writes_structured_problem_report(tmp_path):
+    html_snapshot_path = tmp_path / "blocked.html"
+    result = ProbeResult(
+        source="ppomppu",
+        url="https://www.ppomppu.co.kr/hot.php",
+        final_url="https://www.ppomppu.co.kr/hot.php",
+        http_status=200,
+        title="Hot",
+        body_chars=200,
+        classification=ProbeClassification("click_error", "first post click-through failed", ["click_failed"]),
+        console_errors=[],
+        page_errors=[],
+        screenshot_path="screenshots/source_preflight/ppomppu.png",
+        error="clicked page did not look like a readable post detail",
+        html_snapshot_path=str(html_snapshot_path),
+    )
+
+    enriched = _with_failure_evidence(result, tmp_path / "failures")
+
+    assert enriched.operator_action_required is True
+    assert enriched.operator_action == (
+        "Inspect the screenshot and click-through error, then update the source detail selector or API verifier."
+    )
+    failure_report_path = tmp_path / "failures" / "ppomppu-click_error.json"
+    assert enriched.failure_report_path == str(failure_report_path)
+    payload = json.loads(failure_report_path.read_text(encoding="utf-8"))
+    assert payload["source"] == "ppomppu"
+    assert payload["classification"]["status"] == "click_error"
+    assert payload["failure_report"]["schema_version"] == 1
+    assert payload["failure_report"]["tool"] == "source_browser_probe"
+    assert datetime.fromisoformat(payload["failure_report"]["captured_at"]).tzinfo is not None
+    assert payload["screenshot_path"] == "screenshots/source_preflight/ppomppu.png"
+    assert payload["html_snapshot_path"] == str(html_snapshot_path)
+    assert payload["failure_report_path"] == str(failure_report_path)
+    assert payload["operator_action_required"] is True
+    assert payload["operator_action"] == enriched.operator_action
+    assert payload["operator"] == {
+        "action_required": True,
+        "action": enriched.operator_action,
+        "evidence": {
+            "failure_report_path": str(failure_report_path),
+            "screenshot_path": "screenshots/source_preflight/ppomppu.png",
+            "html_snapshot_path": str(html_snapshot_path),
+            "error": "clicked page did not look like a readable post detail",
+        },
+    }
+
+    report = build_report([enriched])
+    assert report["summary"]["problem_evidence_count"] == 1
+    assert report["summary"]["problem_evidence_sources"] == ["ppomppu"]
+    assert report["summary"]["problem_actions"] == [
+        {
+            "source": "ppomppu",
+            "status": "click_error",
+            "action": enriched.operator_action,
+            "evidence": {
+                "failure_report_path": str(failure_report_path),
+                "screenshot_path": "screenshots/source_preflight/ppomppu.png",
+                "html_snapshot_path": str(html_snapshot_path),
+                "error": "clicked page did not look like a readable post detail",
+            },
+        }
+    ]
+
+
+def test_trace_path_is_added_to_problem_evidence_and_failure_report(tmp_path):
+    failure_dir = tmp_path / "failures"
+    result = ProbeResult(
+        source="ppomppu",
+        url="https://www.ppomppu.co.kr/hot.php",
+        final_url="https://www.ppomppu.co.kr/hot.php",
+        http_status=200,
+        title="Hot",
+        body_chars=200,
+        classification=ProbeClassification("timeout", "navigation timed out", ["timeout"]),
+        console_errors=[],
+        page_errors=[],
+        trace_path=str(tmp_path / "traces" / "source-preflight-desktop.zip"),
+    )
+
+    enriched = _with_failure_evidence(result, failure_dir)
+    payload = json.loads((failure_dir / "ppomppu-timeout.json").read_text(encoding="utf-8"))
+    report = build_report([enriched])
+
+    assert payload["trace_path"] == result.trace_path
+    assert payload["operator"]["evidence"]["trace_path"] == result.trace_path
+    assert report["summary"]["problem_actions"][0]["evidence"]["trace_path"] == result.trace_path
+
+
+def test_attach_trace_path_rewrites_only_problem_failure_reports(tmp_path):
+    failure_dir = tmp_path / "failures"
+    ready = ProbeResult(
+        source="fmkorea",
+        url="https://www.fmkorea.com/best",
+        final_url="https://www.fmkorea.com/best",
+        http_status=200,
+        title="Best",
+        body_chars=200,
+        classification=ProbeClassification(READY_STATUS, "ok", []),
+        console_errors=[],
+        page_errors=[],
+    )
+    blocked = ProbeResult(
+        source="blind",
+        url="https://www.teamblind.com/kr/topics/trending",
+        final_url="https://www.teamblind.com/kr/topics/trending",
+        http_status=403,
+        title="Forbidden",
+        body_chars=20,
+        classification=ProbeClassification("blocked", "HTTP 403", ["http_403"]),
+        console_errors=[],
+        page_errors=[],
+    )
+
+    enriched = _attach_trace_path_to_problem_results([ready, blocked], "trace.zip", failure_dir)
+
+    assert enriched[0].trace_path is None
+    assert enriched[0].failure_report_path is None
+    assert enriched[1].trace_path == "trace.zip"
+    assert enriched[1].failure_report_path == str(failure_dir / "blind-blocked.json")
+    payload = json.loads((failure_dir / "blind-blocked.json").read_text(encoding="utf-8"))
+    assert payload["operator"]["evidence"]["trace_path"] == "trace.zip"
+
+
+@pytest.mark.asyncio
+async def test_safe_html_snapshot_writes_source_html(tmp_path):
+    class _FakeHtmlPage:
+        async def content(self):
+            return "<html><body>blocked</body></html>"
+
+    target = ProbeTarget(source="Blind Hot", url="https://www.teamblind.com/kr/topics/trending")
+
+    snapshot_path = await _safe_html_snapshot(_FakeHtmlPage(), target, tmp_path / "failures")
+
+    assert snapshot_path == tmp_path / "failures" / "blind-hot.html"
+    assert snapshot_path.read_text(encoding="utf-8") == "<html><body>blocked</body></html>"
+
+
+@pytest.mark.asyncio
+async def test_probe_target_timeout_failure_captures_screenshot_html_and_exception(tmp_path):
+    page = _FakeFailingProbePage(TimeoutError("Timeout 12000ms exceeded"))
+    target = ProbeTarget(source="Blind Hot", url="https://www.teamblind.com/kr/topics/trending")
+
+    result = await _probe_target(
+        _FakeProbeContext(page),
+        target,
+        timeout_ms=12000,
+        screenshot_dir=tmp_path / "screens",
+        failure_dir=tmp_path / "failures",
+        timeout_error_cls=TimeoutError,
+    )
+
+    assert page.closed is True
+    assert result.classification.status == "timeout"
+    assert result.error == "Timeout 12000ms exceeded"
+    assert result.exception_type == "TimeoutError"
+    assert result.screenshot_path == str(tmp_path / "screens" / "blind-hot.png")
+    assert result.html_snapshot_path == str(tmp_path / "failures" / "blind-hot.html")
+    assert result.failure_report_path == str(tmp_path / "failures" / "blind-hot-timeout.json")
+    assert (tmp_path / "screens" / "blind-hot.png").read_text(encoding="utf-8") == "fake screenshot"
+    assert (tmp_path / "failures" / "blind-hot.html").read_text(encoding="utf-8") == "<html>timeout</html>"
+
+    payload = json.loads((tmp_path / "failures" / "blind-hot-timeout.json").read_text(encoding="utf-8"))
+    assert payload["failure_report"]["schema_version"] == 1
+    assert payload["failure_report"]["tool"] == "source_browser_probe"
+    assert datetime.fromisoformat(payload["failure_report"]["captured_at"]).tzinfo is not None
+    assert payload["screenshot_path"] == result.screenshot_path
+    assert payload["html_snapshot_path"] == result.html_snapshot_path
+    assert payload["exception_type"] == "TimeoutError"
+    assert payload["operator"]["evidence"]["exception_type"] == "TimeoutError"
+
+    report = build_report([result])
+    assert report["summary"]["problem_actions"][0]["evidence"] == {
+        "failure_report_path": result.failure_report_path,
+        "screenshot_path": result.screenshot_path,
+        "html_snapshot_path": result.html_snapshot_path,
+        "error": "Timeout 12000ms exceeded",
+        "exception_type": "TimeoutError",
+    }
+
+
 def test_build_report_gives_install_action_for_missing_playwright_package():
     results = [
         ProbeResult(
@@ -316,12 +520,43 @@ def test_build_report_gives_install_action_for_missing_playwright_package():
             "source": "ppomppu",
             "status": "browser_unavailable",
             "action": (
-                "Run this helper with the Blind-to-X virtualenv, or install Playwright into the current "
-                "interpreter with `python -m pip install playwright` and then "
-                "`python -m playwright install chromium`."
+                "Run this helper with the Blind-to-X virtualenv. If Playwright is missing in the active "
+                "interpreter, run `py -3 -m pip install playwright` first. Then install Chromium with "
+                "`py -3 -m playwright install chromium` (or "
+                "`.venv\\Scripts\\python.exe -m playwright install chromium` from the project venv), "
+                "and rerun the preflight."
             ),
+            "evidence": {"error": "No module named 'playwright'"},
         }
     ]
+
+
+def test_build_report_gives_venv_chromium_action_for_missing_browser_binary():
+    results = [
+        ProbeResult(
+            source="ppomppu",
+            url="https://www.ppomppu.co.kr/hot.php",
+            final_url="",
+            http_status=None,
+            title="",
+            body_chars=0,
+            classification=ProbeClassification(
+                "browser_unavailable",
+                "Playwright browser is not installed or cannot launch",
+                ["executable doesn't exist", "playwright install"],
+            ),
+            console_errors=[],
+            page_errors=[],
+            error="BrowserType.launch: Executable doesn't exist. Please run playwright install.",
+        )
+    ]
+
+    report = build_report(results)
+
+    action = report["summary"]["problem_actions"][0]["action"]
+    assert "`py -3 -m playwright install chromium`" in action
+    assert "`.venv\\Scripts\\python.exe -m playwright install chromium`" in action
+    assert "pip install playwright" not in action
 
 
 def test_build_report_recommends_ready_source_with_strongest_detail_evidence():
@@ -377,6 +612,8 @@ def test_build_report_recommends_ready_source_with_strongest_detail_evidence():
     assert "--config" in command
     assert "config.yaml" in command
     assert "--source ppomppu" in command
+    assert "--source-preflight-failure-dir" in command
+    assert ".tmp\\failures\\source_preflight" in command or ".tmp/failures/source_preflight" in command
     assert "--source-preflight-viewport" not in command
 
 
@@ -580,6 +817,8 @@ async def test_run_source_preflight_reuses_probe_and_writes_report(monkeypatch, 
         assert kwargs == {
             "timeout_ms": 1500,
             "screenshot_dir": tmp_path / "screens",
+            "failure_dir": tmp_path / "failures",
+            "trace_dir": tmp_path / "traces",
             "headed": True,
             "viewport": "mobile",
             "click_through": True,
@@ -607,6 +846,8 @@ async def test_run_source_preflight_reuses_probe_and_writes_report(monkeypatch, 
         timeout_ms=1500,
         output_path=output_path,
         screenshot_dir=tmp_path / "screens",
+        failure_dir=tmp_path / "failures",
+        trace_dir=tmp_path / "traces",
         headed=True,
         viewport="mobile",
         click_through=True,
@@ -734,3 +975,35 @@ class _FakeJobplanetApiPage:
 
     async def title(self):
         return self.title_value
+
+
+class _FakeProbeContext:
+    def __init__(self, page):
+        self.page = page
+
+    async def new_page(self):
+        return self.page
+
+
+class _FakeFailingProbePage:
+    def __init__(self, exc):
+        self.exc = exc
+        self.url = "https://www.teamblind.com/kr/topics/trending"
+        self.closed = False
+
+    def on(self, *_args, **_kwargs):
+        return None
+
+    async def goto(self, *_args, **_kwargs):
+        raise self.exc
+
+    async def screenshot(self, *, path, **_kwargs):
+        from pathlib import Path
+
+        Path(path).write_text("fake screenshot", encoding="utf-8")
+
+    async def content(self):
+        return "<html>timeout</html>"
+
+    async def close(self):
+        self.closed = True

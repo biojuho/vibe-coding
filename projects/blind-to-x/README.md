@@ -39,10 +39,19 @@ py -3 main.py --source all --popular --review-only --limit 5
 # Source browser preflight before a multi-source run.
 # Run from projects/blind-to-x; on this Windows workspace, prefer the project venv.
 # For the standalone helper, `--source all` probes every known source; omitting --source has the same effect.
-.\.venv\Scripts\python.exe scripts/source_browser_probe.py --source all --output .tmp/source_browser_probe.json --screenshot-dir screenshots/source_probe
+.\.venv\Scripts\python.exe scripts/source_browser_probe.py --source all --output .tmp/source_browser_probe.json --screenshot-dir screenshots/source_probe --failure-dir .tmp/failures/source_preflight
 
 # Source browser preflight plus first-post click-through verification
-.\.venv\Scripts\python.exe scripts/source_browser_probe.py --source ppomppu --click-through --output .tmp/source_browser_probe.json --screenshot-dir screenshots/source_probe
+.\.venv\Scripts\python.exe scripts/source_browser_probe.py --source ppomppu --click-through --output .tmp/source_browser_probe.json --screenshot-dir screenshots/source_probe --failure-dir .tmp/failures/source_preflight
+
+# Optional heavier trace evidence; retained only when a source has a problem
+.\.venv\Scripts\python.exe scripts/source_browser_probe.py --source ppomppu --click-through --output .tmp/source_browser_probe.json --screenshot-dir screenshots/source_probe --failure-dir .tmp/failures/source_preflight --trace-dir .tmp/traces/source_preflight
+
+# Validate the captured preflight failure evidence without browser/network IO
+.\.venv\Scripts\python.exe scripts/source_preflight_evidence_doctor.py --input .tmp/source_browser_probe.json --base-dir . --fail-on-warning
+
+# Summarize recent local preflight failure evidence without browser/network IO
+.\.venv\Scripts\python.exe scripts/source_preflight_trend_report.py --input-dir .tmp --glob "source_browser_preflight*.json" --base-dir . --output .tmp/source_preflight_trend.json --json
 
 # The preflight JSON summary includes viewport, ready_sources, problem_sources, and recommended_source.
 # recommended_source prefers the ready source with the strongest successful detail evidence.
@@ -50,18 +59,26 @@ py -3 main.py --source all --popular --review-only --limit 5
 # using the active Python interpreter and explicit project/config paths.
 # Non-default viewport preflights preserve that viewport in recommended_command.
 # problem_actions lists per-source operator next steps for blocked, click, browser, and timeout failures.
+# problem_actions[].evidence may include failure_report_path, screenshot_path, html_snapshot_path, and error.
+# failure reports include failure_report.schema_version/captured_at and operator.action/operator.evidence.
+# Optional --trace-dir writes Playwright trace.zip evidence only for problem runs; keep .tmp/traces out of commits.
+# source_preflight_evidence_doctor.py validates those references before selector or timeout changes.
+# source_preflight_trend_report.py summarizes repeated source/status buckets across local reports
+# and surfaces summary.top_source_action plus summary.top_source_remediation.checklist
+# as source-specific operator steps.
+# Keep .tmp/failures, .tmp/traces, and screenshots/source_probe artifacts out of commits.
 # HTML sources click the first post and fall back to the canonical detail URL
 # if the click is obstructed; API-backed JobPlanet verifies the first post detail endpoint.
 
 # Source browser gate, then continue only when the resolved source is ready
-.\.venv\Scripts\python.exe main.py --source ppomppu --popular --review-only --limit 5 --require-source-ready --source-preflight-output .tmp/source_browser_preflight.json --source-preflight-screenshot-dir screenshots/source_preflight
+.\.venv\Scripts\python.exe main.py --source ppomppu --popular --review-only --limit 5 --require-source-ready --source-preflight-output .tmp/source_browser_preflight.json --source-preflight-screenshot-dir screenshots/source_preflight --source-preflight-failure-dir .tmp/failures/source_preflight
 
 # Source browser gate with first-post click-through before a paid/LLM run
-.\.venv\Scripts\python.exe main.py --source ppomppu --popular --review-only --limit 5 --require-source-ready --source-preflight-click-through --source-preflight-output .tmp/source_browser_preflight.json --source-preflight-screenshot-dir screenshots/source_preflight
+.\.venv\Scripts\python.exe main.py --source ppomppu --popular --review-only --limit 5 --require-source-ready --source-preflight-click-through --source-preflight-output .tmp/source_browser_preflight.json --source-preflight-screenshot-dir screenshots/source_preflight --source-preflight-failure-dir .tmp/failures/source_preflight
 
 # Multi-source gate that continues with the strongest ready source when some sources are blocked.
 # In main.py, `--source all` is an explicit alias for all configured input_sources.
-.\.venv\Scripts\python.exe main.py --source all --popular --review-only --limit 5 --require-source-ready --source-preflight-click-through --source-preflight-use-recommended --source-preflight-output .tmp/source_browser_preflight.json --source-preflight-screenshot-dir screenshots/source_preflight
+.\.venv\Scripts\python.exe main.py --source all --popular --review-only --limit 5 --require-source-ready --source-preflight-click-through --source-preflight-use-recommended --source-preflight-output .tmp/source_browser_preflight.json --source-preflight-screenshot-dir screenshots/source_preflight --source-preflight-failure-dir .tmp/failures/source_preflight
 
 # 승인된 항목 재처리용 경로
 py -3 main.py --reprocess-approved --limit 5
@@ -84,7 +101,9 @@ py -3 -m pytest --no-cov -q tests/unit
 ```bash
 # 의존성은 pyproject.toml에 정의되어 있습니다. 프로젝트 루트에서:
 pip install -e .[dev]
-python -m playwright install chromium
+py -3 -m playwright install chromium
+# or, when using the project venv on Windows:
+.\.venv\Scripts\python.exe -m playwright install chromium
 ```
 
 ## 설정
@@ -226,6 +245,8 @@ py -3 main.py --source auto --popular --review-only --limit 5
 ```bash
 py -3 scripts/build_weekly_report.py --days 7
 ```
+
+   For a local A/B and source-preflight trend smoke that does not call Notion or launch a browser, use the `--payload-input` command in [`docs/ops-runbook.md`](docs/ops-runbook.md). Keep sample inputs and outputs under `.tmp/` and do not commit them.
 
    리포트 끝에 `## Best-of-N Comment-Weight Tuning (dry-run)` 섹션이 자동으로 임베드됩니다 (`scripts/tune_best_of_n_weight.py`의 dry-run 분석을 30일 윈도우로 호출). 표본이 부족하거나 tuner가 실패해도 본문은 깨지지 않으며 (fail-open), 권장 `llm.best_of_n_comment_weight` 값이 표시될 때만 설정 검토를 시작하면 됩니다.
 

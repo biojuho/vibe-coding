@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from pipeline.draft_generator import TweetDraftGenerator  # noqa: E402
+from pipeline.draft_generator import TweetDraftGenerator, classify_provider_failure  # noqa: E402
 
 
 class FakeConfig:
@@ -121,6 +121,122 @@ def test_generator_returns_generation_failed_when_no_provider_enabled(monkeypatc
     assert drafts["_generation_failed"] is True
     assert "No enabled LLM providers available" in drafts["_generation_error"]
     assert image_prompt is None
+
+
+def test_classify_provider_failure_maps_operator_categories():
+    rate_limit = classify_provider_failure(
+        "gemini",
+        "gemini-2.5-flash",
+        RuntimeError("429 RESOURCE_EXHAUSTED: rate limit exceeded"),
+        attempt=1,
+        max_attempts=2,
+        latency_ms=123.456,
+    )
+    auth = classify_provider_failure(
+        "openai",
+        "gpt-4.1-mini",
+        RuntimeError("Invalid API key"),
+        attempt=1,
+        max_attempts=1,
+        latency_ms=7,
+    )
+    overloaded = classify_provider_failure(
+        "anthropic",
+        "claude-sonnet-4-6",
+        RuntimeError("529 overloaded_error: API is temporarily overloaded"),
+        attempt=1,
+        max_attempts=2,
+        latency_ms=42,
+    )
+
+    assert rate_limit == {
+        "provider": "gemini",
+        "model": "gemini-2.5-flash",
+        "attempt": 1,
+        "max_attempts": 2,
+        "category": "rate_limit",
+        "retryable": True,
+        "circuit_breaker_candidate": False,
+        "latency_ms": 123.5,
+        "error_preview": "429 RESOURCE_EXHAUSTED: rate limit exceeded",
+        "operator_action_required": True,
+        "operator_action": "Wait for provider rate-limit reset or reduce request volume before retrying.",
+    }
+    assert auth["category"] == "auth"
+    assert auth["retryable"] is False
+    assert auth["circuit_breaker_candidate"] is True
+    assert auth["operator_action_required"] is True
+    assert overloaded["category"] == "overloaded"
+    assert overloaded["retryable"] is True
+    assert overloaded["circuit_breaker_candidate"] is False
+    assert "exponential backoff" in overloaded["operator_action"]
+
+
+def test_generator_returns_structured_provider_failure_summary(monkeypatch):
+    config = _build_config()
+    config.data["llm"]["providers"] = ["gemini", "openai"]
+    config.data["llm"]["max_retries_per_provider"] = 1
+    generator = TweetDraftGenerator(config)
+
+    async def _fake_generate_once(provider, prompt):
+        del prompt
+        if provider == "gemini":
+            raise RuntimeError("429 RESOURCE_EXHAUSTED: rate limit exceeded")
+        raise RuntimeError("Invalid API key")
+
+    monkeypatch.setattr(generator, "_generate_once", _fake_generate_once)
+
+    drafts, image_prompt = asyncio.run(
+        generator.generate_drafts(
+            {"title": "provider failure", "content": "provider failure content", "content_profile": {}},
+            output_formats=["twitter"],
+        )
+    )
+
+    assert image_prompt is None
+    assert drafts["_generation_failed"] is True
+    assert "All providers failed to generate candidate" in drafts["_generation_error"]
+    failures = drafts["_provider_failures"]
+    assert failures[0]["latency_ms"] >= 0.0
+    assert failures[1]["latency_ms"] >= 0.0
+    comparable_failures = [{**failure, "latency_ms": 0.0} for failure in failures]
+    assert comparable_failures == [
+        {
+            "provider": "gemini",
+            "model": "gemini-2.5-flash",
+            "attempt": 1,
+            "max_attempts": 1,
+            "category": "rate_limit",
+            "retryable": True,
+            "circuit_breaker_candidate": False,
+            "latency_ms": 0.0,
+            "error_preview": "429 RESOURCE_EXHAUSTED: rate limit exceeded",
+            "operator_action_required": True,
+            "operator_action": "Wait for provider rate-limit reset or reduce request volume before retrying.",
+        },
+        {
+            "provider": "openai",
+            "model": "gpt-4.1-mini",
+            "attempt": 1,
+            "max_attempts": 1,
+            "category": "auth",
+            "retryable": False,
+            "circuit_breaker_candidate": True,
+            "latency_ms": 0.0,
+            "error_preview": "Invalid API key",
+            "operator_action_required": True,
+            "operator_action": "Check provider API key, env wiring, and enabled flags before rerunning.",
+        },
+    ]
+    assert drafts["_provider_failure_summary"] == {
+        "total_failures": 2,
+        "providers_attempted": ["gemini", "openai"],
+        "categories": {"auth": 1, "rate_limit": 1},
+        "retryable_count": 1,
+        "non_retryable_count": 1,
+        "operator_action_required": True,
+        "primary_operator_action": "Wait for provider rate-limit reset or reduce request volume before retrying.",
+    }
 
 
 def test_generator_rejects_missing_tags_and_uses_next_provider(monkeypatch):

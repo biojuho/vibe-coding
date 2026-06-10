@@ -61,6 +61,15 @@ class ContextEnrichmentEngine:
         self._limits = httpx.Limits(max_connections=20, max_keepalive_connections=10)
         self.max_concurrency = max(1, int(max_concurrency))
 
+    def _no_key_fallback_context(self, topic: str) -> EnrichedContext:
+        logger.warning("EXA_API_KEY and PERPLEXITY_API_KEY are missing; returning fallback context immediately.")
+        return EnrichedContext(
+            original_topic=topic,
+            deep_insights=_FALLBACK_INSIGHT.format(topic=topic),
+            global_references=[],
+            sentiment_angle=_FALLBACK_SENTIMENT,
+        )
+
     async def _fetch_exa_references(self, client: httpx.AsyncClient, topic: str) -> List[Dict]:
         """[내부] Exa API를 호출하여 고품질 레퍼런스 URL 및 스니펫을 검색합니다."""
         if not self.exa_api_key:
@@ -147,6 +156,8 @@ Provide:
         단일 트렌드 토픽을 입력받아 데이터를 보강시킨 후 반환합니다.
         _client가 주어지면 재사용 (batch 모드), 없으면 자체 생성 (단건 모드).
         """
+        if not self.exa_api_key and not self.perplexity_api_key:
+            return self._no_key_fallback_context(viral_topic)
 
         async def _run(client: httpx.AsyncClient) -> Optional[EnrichedContext]:
             try:
@@ -177,6 +188,9 @@ Provide:
 
     async def batch_process(self, viral_topics: List[str]) -> Dict[str, EnrichedContext]:
         """다수의 큐 항목을 병렬로 보강하여 파이프라인 병목(Bottleneck) 현상을 없앱니다."""
+        if not self.exa_api_key and not self.perplexity_api_key:
+            return {topic: self._no_key_fallback_context(topic) for topic in viral_topics}
+
         semaphore = asyncio.Semaphore(self.max_concurrency)
 
         # [FIX-2] 단일 공유 클라이언트 — 커넥션 풀 재사용, TLS 1회

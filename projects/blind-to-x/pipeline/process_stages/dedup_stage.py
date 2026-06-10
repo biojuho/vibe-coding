@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from config import ERROR_DUPLICATE_CONTENT, ERROR_DUPLICATE_URL, ERROR_NOTION_SCHEMA_MISMATCH
 from pipeline.dedup import find_similar_in_notion
+from pipeline.notion_retry_diagnostics import attach_notion_retry_diagnostics
 
 from .context import ProcessRunContext, mark_stage
 from .runtime import logger
@@ -27,6 +28,7 @@ async def run_dedup_stage(
         ctx.result["error_code"] = notion_uploader.last_error_code or ERROR_NOTION_SCHEMA_MISMATCH
         ctx.result["failure_stage"] = "upload"
         ctx.result["failure_reason"] = "duplicate_check_failed_or_schema_invalid"
+        attach_notion_retry_diagnostics(ctx.result, notion_uploader, retry_label="the Notion duplicate check")
         mark_stage(ctx, "dedup", "failed", "duplicate_check_failed_or_schema_invalid")
         return False
     if duplicate:

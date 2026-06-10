@@ -78,6 +78,26 @@ class TestRegressionSlowTest:
         assert len(result.deep_insights) > 0, "Fallback 인사이트가 비어있으면 안 된다"
         assert "직장인 번아웃" in result.deep_insights, "Fallback 메시지에 원본 토픽이 포함되어야 한다"
 
+    @pytest.mark.asyncio
+    async def test_no_key_fallback_does_not_create_http_client(self, monkeypatch):
+        """No-key fallback must not pay httpx client setup/teardown cost."""
+
+        def _raise_if_created(*_args, **_kwargs):
+            raise AssertionError("httpx.AsyncClient should not be created for no-key fallback")
+
+        monkeypatch.setattr("pipeline.enrichment_engine.httpx.AsyncClient", _raise_if_created)
+        engine = ContextEnrichmentEngine(
+            exa_api_key=None,
+            perplexity_api_key=None,
+        )
+
+        single = await engine.process_topic("fallback topic")
+        batch = await engine.batch_process(["A", "B"])
+
+        assert single is not None
+        assert single.original_topic == "fallback topic"
+        assert list(batch) == ["A", "B"]
+
     def test_regression_no_asyncio_sleep_in_source(self):
         """enrichment_engine.py 소스에 asyncio.sleep이 없는지 정적 검증.
 

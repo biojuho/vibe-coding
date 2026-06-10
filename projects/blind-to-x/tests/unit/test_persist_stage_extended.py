@@ -14,6 +14,7 @@ if str(ROOT) not in sys.path:
 
 from pipeline.process_stages.context import ProcessRunContext, build_process_result
 from pipeline.publish_decision import HOLD, PublishDecision
+from pipeline.notion_retry_diagnostics import notion_retry_operator_action
 from pipeline.process_stages.persist_stage import (
     _append_publish_decision_log,
     _drop_after_repair_exhausted,
@@ -73,6 +74,17 @@ class TestRunPersistStage:
         assert dropped.hard_gate is True
         assert dropped.fixable is False
         assert post_data["publish_decision_log"][0]["decision"]["action"] == "DROP"
+
+    def test_notion_retry_operator_action_for_permission_failure(self):
+        action = notion_retry_operator_action(
+            {
+                "last_status": 403,
+                "retryable": False,
+                "attempts": [{"status": 403, "will_retry": False}],
+            }
+        )
+
+        assert action == "Check the Notion token, database ID, and DB/data-source sharing before rerun."
 
     @pytest.mark.asyncio
     async def test_no_notion_uploader(self):
@@ -303,6 +315,47 @@ class TestRunPersistStage:
         mock_notion = AsyncMock()
         mock_notion.upload = AsyncMock(return_value=None)
         mock_notion.last_error_code = "RATE_LIMITED"
+        mock_notion.last_notion_retry_report = {
+            "attempt_count": 3,
+            "retry_count": 2,
+            "max_retries": 3,
+            "final_state": "failed",
+            "final_error": "Service Overload",
+            "last_status": 529,
+            "retryable": True,
+            "attempts": [
+                {
+                    "attempt": 1,
+                    "status": 529,
+                    "retry_after_seconds": 3,
+                    "retryable": True,
+                    "will_retry": True,
+                    "delay_seconds": 3,
+                    "error_type": "HTTPStatusError",
+                    "error": "Service Overload",
+                },
+                {
+                    "attempt": 2,
+                    "status": 529,
+                    "retry_after_seconds": None,
+                    "retryable": True,
+                    "will_retry": True,
+                    "delay_seconds": 2,
+                    "error_type": "HTTPStatusError",
+                    "error": "Service Overload",
+                },
+                {
+                    "attempt": 3,
+                    "status": 529,
+                    "retry_after_seconds": None,
+                    "retryable": True,
+                    "will_retry": False,
+                    "delay_seconds": None,
+                    "error_type": "HTTPStatusError",
+                    "error": "Service Overload",
+                },
+            ],
+        }
 
         with (
             patch("pipeline.process_stages.persist_stage.regulation_checker", None),
@@ -321,6 +374,17 @@ class TestRunPersistStage:
         assert result is False
         assert ctx.result["failure_stage"] == "upload"
         assert ctx.result["failure_reason"] == "notion_upload_failed"
+        assert ctx.result["notion_retry_summary"] == {
+            "final_state": "failed",
+            "attempt_count": 3,
+            "retry_count": 2,
+            "last_status": 529,
+            "retryable": True,
+        }
+        assert ctx.result["notion_retry_report"] == mock_notion.last_notion_retry_report
+        assert ctx.result["notion_operator_action"] == (
+            "Retry the Notion operation later, then reduce request rate if it repeats."
+        )
 
     @pytest.mark.asyncio
     async def test_community_source_uses_original_image(self):

@@ -95,6 +95,65 @@ def test_cost_tracker_uses_persisted_daily_totals():
     assert tracker.can_use_gemini_image() is False
 
 
+def test_cost_tracker_text_and_image_writes_are_fail_open(monkeypatch):
+    class BrokenCostDb:
+        def record_text_cost(self, **_kwargs):
+            raise RuntimeError("database is locked")
+
+        def record_image_cost(self, **_kwargs):
+            raise RuntimeError("database is locked")
+
+    monkeypatch.setattr("pipeline.cost_tracker._try_get_cost_db", lambda: None)
+    tracker = CostTracker(
+        FakeConfig(
+            {
+                "limits": {"daily_api_budget_usd": 10.0},
+                "llm": {"pricing": {"gemini": {"input_per_1m": 1.0, "output_per_1m": 2.0}}},
+            }
+        )
+    )
+    tracker._cost_db = BrokenCostDb()
+
+    tracker.add_text_generation_cost("gemini", input_tokens=1_000, output_tokens=2_000)
+    tracker.add_dalle_cost(1)
+    tracker.add_gemini_image_count(3)
+
+    assert tracker.provider_calls["gemini"] == 1
+    assert tracker.provider_tokens["gemini"] == {"input": 1000, "output": 2000}
+    assert tracker.dalle_calls == 1
+    assert tracker.gemini_image_count == 3
+    assert tracker.current_cost > 0.0
+
+
+def test_cost_tracker_summary_reports_cost_db_fail_open_diagnostics(monkeypatch):
+    class BrokenCostDb:
+        def record_text_cost(self, **_kwargs):
+            raise RuntimeError("database is locked")
+
+        def get_today_summary(self):
+            raise RuntimeError("readonly database")
+
+        def get_gemini_image_count_today(self):
+            raise RuntimeError("readonly database")
+
+        def get_cost_per_post(self, days=30):  # noqa: ARG002
+            raise RuntimeError("readonly database")
+
+    monkeypatch.setattr("pipeline.cost_tracker._try_get_cost_db", lambda: None)
+    tracker = CostTracker(FakeConfig({"limits": {"daily_api_budget_usd": 10.0}}))
+    tracker._cost_db = BrokenCostDb()
+
+    tracker.add_text_generation_cost("openai", input_tokens=10, output_tokens=5)
+
+    assert tracker.is_budget_exceeded() is False
+    assert tracker.can_use_gemini_image() is True
+
+    summary = tracker.get_summary()
+    assert "Cost Persistence: degraded" in summary
+    assert "cost_tracker.record_text_cost" in summary
+    assert "operator_action=Check .tmp/btx_costs.db permissions/locks" in summary
+
+
 def test_record_draft_upserts_publish_state():
     db = CostDatabase()
     db.record_draft(

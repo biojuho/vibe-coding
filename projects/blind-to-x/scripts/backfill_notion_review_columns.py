@@ -10,8 +10,9 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-if hasattr(sys.stdout, "reconfigure") and sys.stdout.encoding != "utf-8":
-    sys.stdout.reconfigure(encoding="utf-8")
+from pipeline.stdout_encoding import configure_stdout_encoding
+
+configure_stdout_encoding()
 
 from config import ConfigManager, load_env  # noqa: E402
 from pipeline.notion_upload import NotionUploader  # noqa: E402

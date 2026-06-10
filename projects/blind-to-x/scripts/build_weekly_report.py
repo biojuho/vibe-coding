@@ -245,6 +245,81 @@ def _render_review_experiment_section(experiment: dict | None) -> str:
     return "\n".join(lines)
 
 
+def _source_preflight_trend_next_action(summary: dict | None, safety: dict, payload: dict) -> str:
+    if safety.get("read_only") is False:
+        return "Restore the read-only source preflight trend contract before using this evidence."
+    if safety.get("browser_launches"):
+        return "Generate source preflight trend reports from existing JSON only; do not launch browsers here."
+    if safety.get("notion_writes") or safety.get("x_posts"):
+        return "Disable writes/posts for source preflight trend reporting."
+    if safety.get("auto_publish_default"):
+        return "Keep auto-publish disabled; require manual publish approval."
+    if safety.get("manual_publish_required") is False:
+        return "Require manual publish approval before rollout."
+    next_step = str(payload.get("next_step") or "").strip()
+    if next_step:
+        return next_step
+    if not isinstance(summary, dict):
+        return ""
+    if int(_as_float(summary.get("error_count")) or 0) > 0:
+        return "Fix invalid or missing source preflight evidence before changing source strategy."
+    if int(_as_float(summary.get("warning_count")) or 0) > 0:
+        return "Review source preflight warning buckets before changing selectors or timeouts."
+    if int(_as_float(summary.get("problem_action_count")) or 0) > 0:
+        return "Use the most frequent source/status buckets to choose the next preflight hardening slice."
+    return "No source preflight failures in the selected local reports."
+
+
+def _render_source_preflight_trend_section(trend: dict | None) -> str:
+    if not isinstance(trend, dict):
+        return ""
+    summary = trend.get("summary") if isinstance(trend.get("summary"), dict) else None
+    if summary is None:
+        return ""
+
+    safety = trend.get("safety") if isinstance(trend.get("safety"), dict) else {}
+    top_source_action = summary.get("top_source_action") if isinstance(summary.get("top_source_action"), dict) else {}
+    top_source_remediation = (
+        summary.get("top_source_remediation") if isinstance(summary.get("top_source_remediation"), dict) else {}
+    )
+    next_action = _source_preflight_trend_next_action(summary, safety, trend)
+    lines = [
+        "",
+        "## Source Preflight Trend (dry-run)",
+        "",
+        f"- Reports: {summary.get('report_count', 0)}; status={trend.get('status', '-')}; "
+        f"problem_actions={summary.get('problem_action_count', 0)}; "
+        f"failure_reports={summary.get('failure_report_count', 0)}",
+        f"- Operator actions: required={summary.get('operator_action_required_count', 0)}",
+        f"- Status buckets: {_format_counts(summary.get('status_counts') or {})}",
+        f"- Source buckets: {_format_counts(summary.get('source_counts') or {})}",
+        f"- Evidence: failure_report_statuses={_format_counts(summary.get('failure_report_status_counts') or {})}; "
+        f"errors={summary.get('error_count', 0)}; warnings={summary.get('warning_count', 0)}; "
+        f"top_issue_codes={_format_counts(summary.get('top_issue_codes') or {})}",
+        f"- Safety: read_only={_format_bool(safety.get('read_only'))}; "
+        f"browser_launches={_format_bool(safety.get('browser_launches'))}; "
+        f"notion_writes={_format_bool(safety.get('notion_writes'))}; "
+        f"x_posts={_format_bool(safety.get('x_posts'))}; "
+        f"manual_publish_required={_format_bool(safety.get('manual_publish_required'))}",
+    ]
+    if top_source_action:
+        lines.append(
+            f"- Top source action: source={top_source_action.get('source', '-')}; "
+            f"status={top_source_action.get('status', '-')}; count={top_source_action.get('count', 0)}; "
+            f"action={top_source_action.get('operator_action', '-')}"
+        )
+    checklist = (
+        top_source_remediation.get("checklist") if isinstance(top_source_remediation.get("checklist"), list) else []
+    )
+    checklist_items = [str(item).strip() for item in checklist if str(item).strip()]
+    if checklist_items:
+        lines.append(f"- Top source checklist: {' | '.join(checklist_items)}")
+    if next_action:
+        lines.append(f"- Next manual action: {next_action}")
+    lines.append("")
+    return "\n".join(lines)
+
+
 def _load_review_experiment_report(input_path: str | None) -> dict:
     if not input_path:
         return {}
@@ -255,6 +330,19 @@ def _load_review_experiment_report(input_path: str | None) -> dict:
         return payload if isinstance(payload, dict) else {}
     except Exception as exc:
         logger.warning("Review experiment section skipped: %s", exc)
+        return {}
+
+
+def _load_source_preflight_trend_report(input_path: str | None) -> dict:
+    if not input_path:
+        return {}
+    try:
+        path = Path(input_path)
+        with path.open(encoding="utf-8-sig") as handle:
+            payload = json.load(handle)
+        return payload if isinstance(payload, dict) else {}
+    except Exception as exc:
+        logger.warning("Source preflight trend section skipped: %s", exc)
         return {}
 
 
@@ -330,6 +418,9 @@ def _render_report(payload: dict, *, best_of_n_days: int = 30) -> str:
     review_experiment_section = _render_review_experiment_section(payload.get("review_experiment"))
     if review_experiment_section:
         body += review_experiment_section
+    source_preflight_section = _render_source_preflight_trend_section(payload.get("source_preflight_trend"))
+    if source_preflight_section:
+        body += source_preflight_section
     tuner_section = _render_best_of_n_section(best_of_n_days)
     if tuner_section:
         body += tuner_section
@@ -341,6 +432,7 @@ async def run(
     config_path: str,
     output_path: str,
     review_experiment_input: str | None = None,
+    source_preflight_trend_input: str | None = None,
     payload_input: str | None = None,
 ) -> int:
     payload = _load_report_payload(payload_input)
@@ -352,6 +444,9 @@ async def run(
     review_experiment = _load_review_experiment_report(review_experiment_input)
     if review_experiment:
         payload["review_experiment"] = review_experiment
+    source_preflight_trend = _load_source_preflight_trend_report(source_preflight_trend_input)
+    if source_preflight_trend:
+        payload["source_preflight_trend"] = source_preflight_trend
     # tuner sweep 은 더 긴 윈도우(30일)로 보는 게 표본 확보에 유리.
     report = _render_report(payload, best_of_n_days=max(days, 30))
 
@@ -377,6 +472,11 @@ def main():
         default="",
         help="Optional review_experiment_dry_run JSON to embed as a read-only A/B summary.",
     )
+    parser.add_argument(
+        "--source-preflight-trend-input",
+        default="",
+        help="Optional source_preflight_trend_report JSON to embed as a read-only operations summary.",
+    )
     args = parser.parse_args()
 
     load_env()
@@ -388,6 +488,7 @@ def main():
                 config_path=args.config,
                 output_path=args.output,
                 review_experiment_input=args.review_experiment_input,
+                source_preflight_trend_input=args.source_preflight_trend_input,
                 payload_input=args.payload_input,
             )
         )

@@ -31,6 +31,10 @@ DEFAULT_TEXT_PRICING = {
 
 DALLE3_COST_PER_IMAGE = 0.040
 GEMINI_IMAGE_DAILY_LIMIT = 500
+_COST_DB_DIAGNOSTIC_LIMIT = 5
+_COST_DB_OPERATOR_ACTION = (
+    "Check .tmp/btx_costs.db permissions/locks; pipeline is using in-memory counters until DB recovers."
+)
 _GEMINI_RPD_WARN_THRESHOLD = 400  # 80% → Telegram 경고
 _GEMINI_RPD_CRIT_THRESHOLD = 500  # 100% → Telegram 위험
 
@@ -118,6 +122,20 @@ def _try_get_cost_db():
             return None
 
 
+def _swallow_cost_db_persist_error(operation: str, exc: Exception) -> None:
+    try:
+        from pipeline._debt_log import swallowed
+
+        swallowed(
+            operation,
+            exc,
+            fallback="in-memory cost counters",
+            action="cost persistence skipped",
+        )
+    except Exception:
+        logger.debug("%s failed; using in-memory cost counters only: %s", operation, exc)
+
+
 class CostTracker:
     def __init__(self, config):
         self.config = config
@@ -127,6 +145,7 @@ class CostTracker:
         self.provider_tokens = {provider: {"input": 0, "output": 0} for provider in DEFAULT_TEXT_PRICING}
         self.dalle_calls = 0
         self.gemini_image_count = 0
+        self._cost_db_degradation_events: list[dict[str, str]] = []
 
         # CostDB 영속화 (실패 시 None → 인메모리만 유지)
         self._cost_db = _try_get_cost_db()
@@ -136,6 +155,19 @@ class CostTracker:
         # Telegram 알림 중복 방지 (세션 내 1회)
         self._gemini_warn_sent = False
         self._gemini_crit_sent = False
+
+    def _record_cost_db_degradation(self, operation: str, exc: Exception) -> None:
+        self._cost_db_degradation_events.append(
+            {
+                "operation": operation,
+                "error_type": type(exc).__name__,
+                "error": str(exc),
+                "fallback": "in-memory cost counters",
+                "operator_action": _COST_DB_OPERATOR_ACTION,
+            }
+        )
+        del self._cost_db_degradation_events[:-_COST_DB_DIAGNOSTIC_LIMIT]
+        _swallow_cost_db_persist_error(operation, exc)
 
     def _load_persisted_totals(self) -> None:
         last_error = None
@@ -164,7 +196,7 @@ class CostTracker:
             last_error = exc
 
         if last_error is not None:
-            logger.debug("Failed to load persisted cost totals: %s", last_error)
+            self._record_cost_db_degradation("cost_tracker.load_persisted_totals", last_error)
 
     def _pricing_for(self, provider: str) -> dict[str, float]:
         configured = self.config.get(f"llm.pricing.{provider}", {}) or {}
@@ -212,14 +244,17 @@ class CostTracker:
         )
         # SQLite 영속화
         if self._cost_db:
-            self._cost_db.record_text_cost(
-                provider=provider,
-                tokens_input=int(input_tokens or 0),
-                tokens_output=int(output_tokens or 0),
-                usd=cost,
-                cache_creation_tokens=int(cache_creation_tokens or 0),
-                cache_read_tokens=int(cache_read_tokens or 0),
-            )
+            try:
+                self._cost_db.record_text_cost(
+                    provider=provider,
+                    tokens_input=int(input_tokens or 0),
+                    tokens_output=int(output_tokens or 0),
+                    usd=cost,
+                    cache_creation_tokens=int(cache_creation_tokens or 0),
+                    cache_read_tokens=int(cache_read_tokens or 0),
+                )
+            except Exception as exc:
+                self._record_cost_db_degradation("cost_tracker.record_text_cost", exc)
         # workspace api_usage_tracker 미러 (BTX_USAGE_FORWARD=1 일 때만)
         _maybe_forward_to_workspace_usage(
             provider=provider,
@@ -239,7 +274,10 @@ class CostTracker:
         self.dalle_calls += num_images
         logger.debug("Added DALL-E cost: $%.5f. Total cost so far: $%.5f", cost, self.current_cost)
         if self._cost_db:
-            self._cost_db.record_image_cost(provider="dalle", image_count=num_images, usd=cost)
+            try:
+                self._cost_db.record_image_cost(provider="dalle", image_count=num_images, usd=cost)
+            except Exception as exc:
+                self._record_cost_db_degradation("cost_tracker.record_dalle_cost", exc)
         _maybe_forward_to_workspace_usage(
             provider="openai",
             input_tokens=0,
@@ -257,7 +295,10 @@ class CostTracker:
             GEMINI_IMAGE_DAILY_LIMIT,
         )
         if self._cost_db:
-            self._cost_db.record_image_cost(provider="gemini", image_count=count, usd=0.0)
+            try:
+                self._cost_db.record_image_cost(provider="gemini", image_count=count, usd=0.0)
+            except Exception as exc:
+                self._record_cost_db_degradation("cost_tracker.record_gemini_image_count", exc)
 
         # ── Telegram 알림 (80% 경고 / 100% 위험) ────────────────────
         if not self._gemini_warn_sent and self.gemini_image_count >= _GEMINI_RPD_WARN_THRESHOLD:
@@ -286,8 +327,8 @@ class CostTracker:
                     self.gemini_image_count,
                     int(self._cost_db.get_gemini_image_count_today() or 0),
                 )
-            except Exception:
-                pass
+            except Exception as exc:
+                self._record_cost_db_degradation("cost_tracker.get_gemini_image_count_today", exc)
         return self.gemini_image_count < GEMINI_IMAGE_DAILY_LIMIT
 
     def is_budget_exceeded(self) -> bool:
@@ -297,8 +338,8 @@ class CostTracker:
                     self.current_cost,
                     float(self._cost_db.get_today_summary().get("total_usd", 0.0) or 0.0),
                 )
-            except Exception:
-                pass
+            except Exception as exc:
+                self._record_cost_db_degradation("cost_tracker.get_today_summary", exc)
         exceeded = self.current_cost >= self.daily_budget
         if exceeded:
             _try_send_telegram(
@@ -327,8 +368,19 @@ class CostTracker:
                 cost_per_post_line = (
                     f"\n- Avg Cost/Post (30d): ${cpp['avg_cost_per_post']:.5f} ({cpp['total_posts']} posts)"
                 )
-            except Exception:
-                pass
+            except Exception as exc:
+                self._record_cost_db_degradation("cost_tracker.get_cost_per_post", exc)
+
+        cost_persistence_line = "\n- Cost Persistence: SQLite enabled"
+        if self._cost_db_degradation_events:
+            operations = ", ".join(event["operation"] for event in self._cost_db_degradation_events)
+            cost_persistence_line = (
+                "\n- Cost Persistence: degraded "
+                f"(fail-open, events={len(self._cost_db_degradation_events)}, operations={operations})"
+                f"\n- Cost Persistence Action: operator_action={_COST_DB_OPERATOR_ACTION}"
+            )
+        elif not self._cost_db:
+            cost_persistence_line = "\n- Cost Persistence: in-memory only (CostDB unavailable)"
 
         return (
             "API Cost Summary:\n"
@@ -337,5 +389,6 @@ class CostTracker:
             + f"\n- Gemini Image Calls: {self.gemini_image_count} / {GEMINI_IMAGE_DAILY_LIMIT} ({gemini_pct:.1f}%)"
             + f"\n- Total Estimated Cost: ${self.current_cost:.3f} / ${self.daily_budget:.3f}"
             + f"\n- Budget Exceeded: {'Yes' if self.current_cost >= self.daily_budget else 'No'}"
+            + cost_persistence_line
             + cost_per_post_line
         )

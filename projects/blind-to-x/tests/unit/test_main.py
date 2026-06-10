@@ -20,6 +20,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from pipeline.cli import (
     _apply_recommended_source_fallback,
     _log_ready_source_warnings,
+    _log_source_preflight_problem_actions,
     _resolve_source_preflight_sources,
     acquire_lock as _acquire_lock,
     _is_process_alive,
@@ -31,6 +32,22 @@ from pipeline.cli import (
 )
 from pipeline.runner import handle_single_commands as _handle_single_commands
 from pipeline.bootstrap import init_scrapers as _init_scrapers, resolve_input_sources as _resolve_input_sources
+from pipeline.stdout_encoding import should_reconfigure_stdout_to_utf8
+
+
+# ---------------------------------------------------------------------------
+# main.py stdout encoding policy
+# ---------------------------------------------------------------------------
+
+
+def test_main_stdout_policy_preserves_windows_console_encoding():
+    assert should_reconfigure_stdout_to_utf8("cp949", "cp949", 0) is False
+    assert should_reconfigure_stdout_to_utf8("utf-8", "cp949", 0) is False
+
+
+def test_main_stdout_policy_keeps_utf8_mode_compatible():
+    assert should_reconfigure_stdout_to_utf8("cp949", "cp949", 1) is True
+    assert should_reconfigure_stdout_to_utf8("cp949", "utf-8", 0) is True
 
 
 # ---------------------------------------------------------------------------
@@ -68,6 +85,32 @@ class TestBuildParser:
         args = parser.parse_args(["--reprocess-approved"])
         assert args.reprocess_approved is True
 
+    def test_review_queue_report(self):
+        parser = _build_parser()
+        args = parser.parse_args(
+            [
+                "--review-queue-report",
+                "--review-queue-lookback-days",
+                "14",
+                "--review-queue-stale-days",
+                "2",
+                "--review-queue-action-limit",
+                "3",
+                "--review-queue-ready-attention-limit",
+                "5",
+                "--review-queue-report-output",
+                ".tmp/custom_review_queue_report.json",
+                "--review-queue-report-fail-on-warning",
+            ]
+        )
+        assert args.review_queue_report is True
+        assert args.review_queue_lookback_days == 14
+        assert args.review_queue_stale_days == 2
+        assert args.review_queue_action_limit == 3
+        assert args.review_queue_ready_attention_limit == 5
+        assert args.review_queue_report_output == Path(".tmp/custom_review_queue_report.json")
+        assert args.review_queue_report_fail_on_warning is True
+
     def test_digest_with_date(self):
         parser = _build_parser()
         args = parser.parse_args(["--digest", "--digest-date", "2026-03-31"])
@@ -88,6 +131,10 @@ class TestBuildParser:
                 ".tmp/preflight.json",
                 "--source-preflight-screenshot-dir",
                 "screenshots/preflight",
+                "--source-preflight-failure-dir",
+                ".tmp/failures/preflight",
+                "--source-preflight-trace-dir",
+                ".tmp/traces/preflight",
                 "--source-preflight-click-through",
                 "--source-preflight-use-recommended",
                 "--source-preflight-viewport",
@@ -101,6 +148,8 @@ class TestBuildParser:
         assert args.source_preflight_timeout_ms == 5000
         assert args.source_preflight_output == Path(".tmp/preflight.json")
         assert args.source_preflight_screenshot_dir == Path("screenshots/preflight")
+        assert args.source_preflight_failure_dir == Path(".tmp/failures/preflight")
+        assert args.source_preflight_trace_dir == Path(".tmp/traces/preflight")
         assert args.source_preflight_click_through is True
         assert args.source_preflight_use_recommended is True
         assert args.source_preflight_viewport == "mobile"
@@ -112,6 +161,7 @@ class TestBuildParser:
         assert args.require_source_ready is True
         assert args.source_preflight is False
         assert args.source == "ppomppu"
+        assert args.source_preflight_failure_dir == Path(".tmp/failures/source_preflight")
 
 
 # ---------------------------------------------------------------------------
@@ -300,6 +350,41 @@ class TestSourcePreflight:
         assert "count=1" in caplog.text
         assert "status of 424" in caplog.text
 
+    def test_source_preflight_problem_actions_log_ordered_evidence(self, caplog):
+        report = {
+            "summary": {
+                "problem_actions": [
+                    {
+                        "source": "ppomppu",
+                        "status": "timeout",
+                        "action": "Retry once with a higher --timeout-ms.",
+                        "evidence": {
+                            "error": "Timeout 12000ms exceeded",
+                            "exception_type": "TimeoutError",
+                            "html_snapshot_path": ".tmp/failures/source_preflight/ppomppu.html",
+                            "screenshot_path": "screenshots/source_preflight/ppomppu.png",
+                            "failure_report_path": ".tmp/failures/source_preflight/ppomppu-timeout.json",
+                        },
+                    }
+                ]
+            }
+        }
+
+        with caplog.at_level("WARNING", logger="pipeline.cli"):
+            logged_count = _log_source_preflight_problem_actions(report)
+
+        assert logged_count == 1
+        assert len(caplog.records) == 1
+        message = caplog.records[0].message
+        assert "Source preflight problem action" in message
+        assert "source=ppomppu" in message
+        assert "status=timeout" in message
+        assert "action=Retry once with a higher --timeout-ms." in message
+        assert message.index("failure_report_path=") < message.index("screenshot_path=")
+        assert message.index("screenshot_path=") < message.index("html_snapshot_path=")
+        assert message.index("html_snapshot_path=") < message.index("exception_type=TimeoutError")
+        assert message.index("exception_type=TimeoutError") < message.index("error=Timeout 12000ms exceeded")
+
     def test_resolve_source_preflight_sources_filters_unsupported(self):
         config = MagicMock()
         config.get.side_effect = lambda key, default=None: {
@@ -337,6 +422,14 @@ class TestSourcePreflight:
             return {
                 "summary": {
                     "ok": False,
+                    "problem_actions": [
+                        {
+                            "source": "blind",
+                            "status": "blocked",
+                            "action": "Use a ready fallback source.",
+                            "evidence": {"failure_report_path": ".tmp/failures/source_preflight/blind-blocked.json"},
+                        }
+                    ],
                     "ready_warnings": [
                         {
                             "source": "ppomppu",
@@ -361,6 +454,8 @@ class TestSourcePreflight:
             source_preflight_timeout_ms=500,
             source_preflight_output=tmp_path / "preflight.json",
             source_preflight_screenshot_dir=tmp_path / "screens",
+            source_preflight_failure_dir=tmp_path / "failures",
+            source_preflight_trace_dir=tmp_path / "traces",
             source_preflight_headed=True,
             source_preflight_click_through=True,
             source_preflight_use_recommended=False,
@@ -377,11 +472,15 @@ class TestSourcePreflight:
             "timeout_ms": 1000,
             "output_path": tmp_path / "preflight.json",
             "screenshot_dir": tmp_path / "screens",
+            "failure_dir": tmp_path / "failures",
+            "trace_dir": tmp_path / "traces",
             "headed": True,
             "viewport": "mobile",
             "click_through": True,
         }
         assert "Source preflight ready warning" in caplog.text
+        assert "Source preflight problem action" in caplog.text
+        assert "failure_report_path=.tmp/failures/source_preflight/blind-blocked.json" in caplog.text
         assert "source=ppomppu" in caplog.text
 
     @pytest.mark.asyncio
@@ -417,6 +516,7 @@ class TestSourcePreflight:
             source_preflight_timeout_ms=500,
             source_preflight_output=tmp_path / "preflight.json",
             source_preflight_screenshot_dir=tmp_path / "screens",
+            source_preflight_failure_dir=tmp_path / "failures",
             source_preflight_headed=False,
             source_preflight_click_through=False,
             source_preflight_use_recommended=False,
@@ -427,6 +527,7 @@ class TestSourcePreflight:
 
         assert result == 1
         assert calls["sources"] == ["ppomppu"]
+        assert calls["failure_dir"] == tmp_path / "failures"
 
     @pytest.mark.asyncio
     async def test_require_source_ready_can_continue_with_recommended_source(self, monkeypatch, tmp_path):
@@ -457,6 +558,7 @@ class TestSourcePreflight:
             source_preflight_timeout_ms=500,
             source_preflight_output=tmp_path / "preflight.json",
             source_preflight_screenshot_dir=tmp_path / "screens",
+            source_preflight_failure_dir=tmp_path / "failures",
             source_preflight_headed=False,
             source_preflight_click_through=True,
             source_preflight_use_recommended=True,
@@ -467,6 +569,7 @@ class TestSourcePreflight:
 
         assert result == 0
         assert calls["sources"] == ["blind", "jobplanet", "ppomppu"]
+        assert calls["failure_dir"] == tmp_path / "failures"
         assert args.source == "ppomppu"
 
 
@@ -632,7 +735,7 @@ class TestInitScrapers:
 class TestHandleSingleCommands:
     @pytest.mark.asyncio
     async def test_reprocess_approved(self, monkeypatch):
-        args = MagicMock(reprocess_approved=True, limit=5)
+        args = MagicMock(reprocess_approved=True, review_queue_report=False, limit=5)
         config = MagicMock()
         config.get.return_value = 10
         notifier = AsyncMock()
@@ -647,7 +750,7 @@ class TestHandleSingleCommands:
 
     @pytest.mark.asyncio
     async def test_digest(self, monkeypatch):
-        args = MagicMock(reprocess_approved=False, digest=True, digest_date=None)
+        args = MagicMock(reprocess_approved=False, review_queue_report=False, digest=True, digest_date=None)
         config = MagicMock()
         notifier = AsyncMock()
         notion = AsyncMock()
@@ -660,7 +763,7 @@ class TestHandleSingleCommands:
 
     @pytest.mark.asyncio
     async def test_sentiment_report(self, monkeypatch):
-        args = MagicMock(reprocess_approved=False, digest=False, sentiment_report=True)
+        args = MagicMock(reprocess_approved=False, review_queue_report=False, digest=False, sentiment_report=True)
         config = MagicMock()
         notifier = AsyncMock()
         notion = AsyncMock()
@@ -673,7 +776,7 @@ class TestHandleSingleCommands:
 
     @pytest.mark.asyncio
     async def test_no_command(self):
-        args = MagicMock(reprocess_approved=False, digest=False, sentiment_report=False)
+        args = MagicMock(reprocess_approved=False, review_queue_report=False, digest=False, sentiment_report=False)
         config = MagicMock()
         notifier = AsyncMock()
         notion = AsyncMock()

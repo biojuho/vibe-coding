@@ -115,13 +115,44 @@ def _ensure_twitter_reply_text(ctx: ProcessRunContext, drafts, output_formats) -
         drafts["reply_text"] = reply_text.replace("(링크)", ctx.url)
 
 
+def _format_provider_failure_summary(drafts: dict) -> str:
+    summary = drafts.get("_provider_failure_summary")
+    if not isinstance(summary, dict):
+        return ""
+
+    categories = summary.get("categories")
+    category_text = ""
+    if isinstance(categories, dict):
+        category_text = ", ".join(f"{key}:{value}" for key, value in sorted(categories.items()) if value)
+
+    providers = summary.get("providers_attempted")
+    provider_text = ", ".join(str(provider) for provider in providers[:5]) if isinstance(providers, list) else ""
+    primary_action = str(summary.get("primary_operator_action") or "").strip()
+
+    parts = []
+    if provider_text:
+        parts.append(f"providers={provider_text}")
+    if category_text:
+        parts.append(f"categories={category_text}")
+    if primary_action:
+        parts.append(f"action={primary_action}")
+    return "provider_failure_summary: " + "; ".join(parts) if parts else ""
+
+
 def _handle_generation_failure(ctx: ProcessRunContext, drafts, image_prompt, review_only: bool) -> bool | None:
     if not isinstance(drafts, dict) or not drafts.get("_generation_failed"):
         return None
 
     generation_error = drafts.get("_generation_error", "Draft generation failed")
+    provider_failure_summary = _format_provider_failure_summary(drafts)
+    if provider_failure_summary:
+        generation_error = f"{generation_error} | {provider_failure_summary}"
     ctx.post_data["draft_generation_failed"] = True
     ctx.post_data["draft_generation_error"] = generation_error
+    if isinstance(drafts.get("_provider_failures"), list):
+        ctx.post_data["draft_provider_failures"] = drafts["_provider_failures"]
+    if isinstance(drafts.get("_provider_failure_summary"), dict):
+        ctx.post_data["draft_provider_failure_summary"] = drafts["_provider_failure_summary"]
     if review_only:
         logger.warning(
             "[%s] Draft generation failed for %s but continuing review-only upload: %s",

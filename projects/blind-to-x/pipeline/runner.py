@@ -7,15 +7,72 @@ import logging
 import sys
 
 from pipeline import calculate_run_metrics, process_single_post, PipelineServices
-from pipeline.commands import run_digest, run_dry_run_single, run_reprocess_approved, run_sentiment_report
+from pipeline.commands import (
+    run_digest,
+    run_dry_run_single,
+    run_reprocess_approved,
+    run_review_queue_report,
+    run_sentiment_report,
+)
 from pipeline.daily_queue_floor import resolve_daily_queue_floor
 from pipeline.feed_collector import collect_feed_items
 
 logger = logging.getLogger(__name__)
 
 
+def _first_operator_action(results: list[dict]) -> str:
+    for item in results:
+        action = item.get("notion_operator_action") or item.get("operator_action")
+        if isinstance(action, str) and action.strip():
+            return action.strip()
+    return ""
+
+
 async def handle_single_commands(args, config_mgr, notifier, notion_uploader, twitter_poster) -> bool:
     """Handle one-shot commands (reprocess, digest, sentiment). Returns True if handled."""
+    if getattr(args, "review_queue_report", False):
+        limit_val = getattr(args, "limit", None)
+        lookback_days = getattr(args, "review_queue_lookback_days", None)
+        stale_days = getattr(args, "review_queue_stale_days", None)
+        action_limit = getattr(args, "review_queue_action_limit", None)
+        ready_attention_limit = getattr(args, "review_queue_ready_attention_limit", None)
+        output_path = getattr(args, "review_queue_report_output", None) or config_mgr.get(
+            "review.queue_report_output",
+            ".tmp/review_queue_report_latest.json",
+        )
+        report = await run_review_queue_report(
+            notion_uploader,
+            lookback_days=(
+                lookback_days if lookback_days is not None else config_mgr.get("review.queue_report_lookback_days", 30)
+            ),
+            limit=limit_val if limit_val is not None else config_mgr.get("review.queue_report_limit", 50),
+            stale_days=stale_days if stale_days is not None else config_mgr.get("review.queue_report_stale_days", 3),
+            action_limit=(
+                action_limit if action_limit is not None else config_mgr.get("review.queue_report_action_limit", 10)
+            ),
+            ready_attention_limit=(
+                ready_attention_limit
+                if ready_attention_limit is not None
+                else config_mgr.get("review.queue_report_ready_attention_limit", 3)
+            ),
+            output_path=output_path,
+        )
+        from pipeline.commands.review_queue_report import (
+            exit_code_for_review_queue_report,
+            format_review_queue_report,
+        )
+
+        print(format_review_queue_report(report))
+        setattr(
+            args,
+            "_single_command_exit_code",
+            exit_code_for_review_queue_report(
+                report,
+                fail_on_warning=getattr(args, "review_queue_report_fail_on_warning", False),
+            ),
+        )
+        return True
+
     if getattr(args, "reprocess_approved", False):
         limit_val = getattr(args, "limit", None)
         results = await run_reprocess_approved(
@@ -26,10 +83,25 @@ async def handle_single_commands(args, config_mgr, notifier, notion_uploader, tw
         )
         success_count = len([item for item in results if item.get("success")])
         fail_count = len(results) - success_count
+        degraded_count = len(
+            [item for item in results if item.get("success") and item.get("notion_update_success") is False]
+        )
         if results:
-            logger.info("Approved reprocess completed. success=%s fail=%s", success_count, fail_count)
-        if fail_count:
-            await notifier.send_message(f"Blind-to-X 승인 재발행 완료\n성공 {success_count}건 / 실패 {fail_count}건")
+            logger.info(
+                "Approved reprocess completed. success=%s fail=%s degraded=%s",
+                success_count,
+                fail_count,
+                degraded_count,
+            )
+        if fail_count or degraded_count:
+            operator_action = _first_operator_action(results)
+            action_line = f"\noperator_action {operator_action}" if operator_action else ""
+            await notifier.send_message(
+                "Blind-to-X approved reprocess completed\n"
+                f"success {success_count} / fail {fail_count} / notion_sync_warning {degraded_count}"
+                f"{action_line}",
+                level="WARNING",
+            )
         return True
 
     if getattr(args, "digest", False):

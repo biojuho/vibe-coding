@@ -4,11 +4,9 @@ This file delegates to the modularized main.py.
 All classes and functions are re-exported for any external code that imports them.
 """
 
-import sys
+from pipeline.stdout_encoding import configure_stdout_encoding
 
-# Set standard output encoding to utf-8 to avoid crashing on Windows with emojis
-if hasattr(sys.stdout, "reconfigure") and sys.stdout.encoding != "utf-8":
-    sys.stdout.reconfigure(encoding="utf-8")
+configure_stdout_encoding()
 
 # Initialise environment and logging before any other import
 from config import setup_logging, load_env  # noqa: E402

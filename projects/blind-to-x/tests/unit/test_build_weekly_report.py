@@ -132,6 +132,65 @@ def _review_experiment_payload():
     }
 
 
+def _source_preflight_trend_payload():
+    return {
+        "status": "WARN",
+        "ok": True,
+        "safety": {
+            "read_only": True,
+            "browser_launches": False,
+            "notion_writes": False,
+            "x_posts": False,
+            "auto_publish_default": False,
+            "manual_publish_required": True,
+        },
+        "summary": {
+            "report_count": 3,
+            "problem_action_count": 4,
+            "failure_report_count": 3,
+            "operator_action_required_count": 4,
+            "error_count": 0,
+            "warning_count": 1,
+            "status_counts": {"timeout": 2, "blocked": 1, "browser_unavailable": 1},
+            "source_counts": {"ppomppu": 2, "blind": 1, "fmkorea": 1},
+            "failure_report_status_counts": {"valid": 3, "missing": 1},
+            "top_issue_codes": {"missing_failure_report_path": 1},
+            "top_source_action": {
+                "source": "ppomppu",
+                "status": "timeout",
+                "count": 2,
+                "operator_action": (
+                    "Inspect ppomppu timeout evidence, then adjust timeout or source fallback only after evidence is valid."
+                ),
+            },
+            "top_source_remediation": {
+                "source": "ppomppu",
+                "status": "timeout",
+                "count": 2,
+                "evidence_fields": [
+                    "failure_report_path",
+                    "screenshot_path",
+                    "html_snapshot_path",
+                    "trace_path",
+                    "error",
+                ],
+                "checklist": [
+                    (
+                        "Open ppomppu evidence fields first: "
+                        "failure_report_path, screenshot_path, html_snapshot_path, trace_path, error."
+                    ),
+                    (
+                        "Use a ready fallback source for this run if available; do not increase ppomppu timeout until "
+                        "evidence shows a reachable slow page."
+                    ),
+                    "Rerun ppomppu preflight with --failure-dir after any timeout or selector change.",
+                ],
+            },
+        },
+        "next_step": "Review warning codes; rerun individual evidence doctor for any unclear report.",
+    }
+
+
 def test_render_report_includes_all_required_summary_sections():
     """기본 markdown 구조가 깨지지 않아야: 헤더 + 요약 + Topics/Hooks/Emotions/Performers."""
     with patch("scripts.build_weekly_report._render_best_of_n_section", return_value=""):
@@ -202,12 +261,54 @@ def test_render_report_embeds_ready_review_experiment_next_action():
     assert "Next manual action: Review the candidate card manually, then keep publish approval manual." in text
 
 
+def test_render_report_embeds_source_preflight_trend_summary():
+    payload = _basic_payload()
+    payload["source_preflight_trend"] = _source_preflight_trend_payload()
+
+    with patch("scripts.build_weekly_report._render_best_of_n_section", return_value=""):
+        text = _render_report(payload)
+
+    assert "## Source Preflight Trend (dry-run)" in text
+    assert "Reports: 3; status=WARN; problem_actions=4; failure_reports=3" in text
+    assert "Operator actions: required=4" in text
+    assert "Status buckets: timeout=2, blocked=1, browser_unavailable=1" in text
+    assert "Source buckets: ppomppu=2, blind=1, fmkorea=1" in text
+    assert "Evidence: failure_report_statuses=valid=3, missing=1; errors=0; warnings=1" in text
+    assert "top_issue_codes=missing_failure_report_path=1" in text
+    assert "Top source action: source=ppomppu; status=timeout; count=2" in text
+    assert (
+        "Inspect ppomppu timeout evidence, then adjust timeout or source fallback only after evidence is valid." in text
+    )
+    assert "Top source checklist: Open ppomppu evidence fields first" in text
+    assert "do not increase ppomppu timeout" in text
+    assert "Rerun ppomppu preflight with --failure-dir" in text
+    assert "Safety: read_only=true; browser_launches=false; notion_writes=false; x_posts=false" in text
+    assert "manual_publish_required=true" in text
+    assert "Next manual action: Review warning codes; rerun individual evidence doctor for any unclear report." in text
+
+
+def test_render_report_blocks_unsafe_source_preflight_trend_summary():
+    payload = _basic_payload()
+    trend = _source_preflight_trend_payload()
+    trend["safety"]["browser_launches"] = True
+    trend["next_step"] = ""
+    payload["source_preflight_trend"] = trend
+
+    with patch("scripts.build_weekly_report._render_best_of_n_section", return_value=""):
+        text = _render_report(payload)
+
+    assert "Safety: read_only=true; browser_launches=true" in text
+    assert "Next manual action: Generate source preflight trend reports from existing JSON only" in text
+
+
 def test_run_renders_payload_input_without_notion_fetch(tmp_path):
     payload_path = tmp_path / "weekly_payload.json"
     experiment_path = tmp_path / "review_experiment.json"
+    trend_path = tmp_path / "source_preflight_trend.json"
     output_path = tmp_path / "weekly_report.md"
     payload_path.write_text(json.dumps(_basic_payload()), encoding="utf-8")
     experiment_path.write_text(json.dumps(_review_experiment_payload()), encoding="utf-8")
+    trend_path.write_text(json.dumps(_source_preflight_trend_payload()), encoding="utf-8")
 
     with (
         patch("scripts.build_weekly_report.ConfigManager") as config_manager,
@@ -220,6 +321,7 @@ def test_run_renders_payload_input_without_notion_fetch(tmp_path):
                 config_path="config.yaml",
                 output_path=str(output_path),
                 review_experiment_input=str(experiment_path),
+                source_preflight_trend_input=str(trend_path),
                 payload_input=str(payload_path),
             )
         )
@@ -229,6 +331,7 @@ def test_run_renders_payload_input_without_notion_fetch(tmp_path):
     notion_uploader.assert_not_called()
     text = output_path.read_text(encoding="utf-8")
     assert "## Review Experiment A/B Summary (dry-run)" in text
+    assert "## Source Preflight Trend (dry-run)" in text
     assert "Next manual action: Fill the top missing metrics before using this experiment as adoption evidence." in text
 
 
@@ -252,8 +355,10 @@ def test_run_rejects_non_object_payload_input(tmp_path):
 
 def test_direct_script_renders_payload_input_without_project_pythonpath(tmp_path):
     payload_path = tmp_path / "weekly_payload.json"
+    trend_path = tmp_path / "source_preflight_trend.json"
     output_path = tmp_path / "weekly_report.md"
     payload_path.write_text(json.dumps(_basic_payload()), encoding="utf-8")
+    trend_path.write_text(json.dumps(_source_preflight_trend_payload()), encoding="utf-8")
 
     result = subprocess.run(
         [
@@ -261,6 +366,8 @@ def test_direct_script_renders_payload_input_without_project_pythonpath(tmp_path
             str(_BTX_ROOT / "scripts" / "build_weekly_report.py"),
             "--payload-input",
             str(payload_path),
+            "--source-preflight-trend-input",
+            str(trend_path),
             "--output",
             str(output_path),
         ],
@@ -273,6 +380,7 @@ def test_direct_script_renders_payload_input_without_project_pythonpath(tmp_path
     assert result.returncode == 0, result.stderr
     assert output_path.exists()
     assert "Smoke item" not in output_path.read_text(encoding="utf-8")
+    assert "## Source Preflight Trend (dry-run)" in output_path.read_text(encoding="utf-8")
     assert "Title A | views=1000 likes=50 retweets=10" in result.stdout
 
 

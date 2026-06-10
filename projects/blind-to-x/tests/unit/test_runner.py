@@ -7,11 +7,19 @@ from pipeline.runner import handle_single_commands, execute_pipeline
 def mock_args():
     args = MagicMock()
     args.reprocess_approved = False
+    args.review_queue_report = False
+    args.review_queue_lookback_days = None
+    args.review_queue_stale_days = None
+    args.review_queue_action_limit = None
+    args.review_queue_ready_attention_limit = None
+    args.review_queue_report_output = None
+    args.review_queue_report_fail_on_warning = False
     args.digest = False
     args.sentiment_report = False
     args.review_only = False
     args.dry_run = False
     args.parallel = 1
+    args.limit = None
     return args
 
 
@@ -54,6 +62,119 @@ async def test_handle_single_commands_reprocess(mock_run, mock_args, mock_config
     assert handled is True
     mock_run.assert_called_once()
     notifier.send_message.assert_not_called()  # all succcess, fail count is 0
+
+
+@pytest.mark.asyncio
+@patch("pipeline.runner.run_review_queue_report", new_callable=AsyncMock)
+async def test_handle_single_commands_review_queue_report_is_read_only(mock_run, mock_args, mock_config, capsys):
+    mock_args.review_queue_report = True
+    mock_args.review_queue_lookback_days = 14
+    mock_args.review_queue_stale_days = 0
+    mock_args.review_queue_action_limit = 4
+    mock_args.review_queue_ready_attention_limit = 6
+    mock_args.review_queue_report_output = ".tmp/custom_review_queue_report.json"
+    mock_args.limit = 20
+    mock_run.return_value = {
+        "success": True,
+        "dry_run": True,
+        "total_records": 1,
+        "status_counts": {
+            "Ready to Post": 1,
+            "Published": 0,
+            "Blocked": 0,
+            "Needs Edit": 0,
+            "Missing": 0,
+            "Other": 0,
+        },
+        "blocked_count": 0,
+        "ready_to_post_count": 1,
+        "published_count": 0,
+        "needs_edit_count": 0,
+        "missing_status_count": 0,
+        "stale_ready_count": 0,
+        "operator_action_count": 0,
+        "operator_actions": [],
+        "severity": "ok",
+        "severity_reasons": [],
+    }
+
+    notifier = AsyncMock()
+    notion = AsyncMock()
+    twitter = AsyncMock()
+    handled = await handle_single_commands(mock_args, mock_config, notifier, notion, twitter)
+
+    assert handled is True
+    mock_run.assert_awaited_once_with(
+        notion,
+        lookback_days=14,
+        limit=20,
+        stale_days=0,
+        action_limit=4,
+        ready_attention_limit=6,
+        output_path=".tmp/custom_review_queue_report.json",
+    )
+    notifier.send_message.assert_not_called()
+    twitter.post_tweet.assert_not_called()
+    assert "read-only" in capsys.readouterr().out
+
+
+@pytest.mark.asyncio
+@patch("pipeline.runner.run_review_queue_report", new_callable=AsyncMock)
+async def test_handle_single_commands_review_queue_report_sets_optional_exit_code(mock_run, mock_args, mock_config):
+    mock_args.review_queue_report = True
+    mock_args.review_queue_report_fail_on_warning = True
+    mock_run.return_value = {
+        "success": True,
+        "dry_run": True,
+        "total_records": 1,
+        "status_counts": {
+            "Ready to Post": 0,
+            "Published": 0,
+            "Blocked": 1,
+            "Needs Edit": 0,
+            "Missing": 0,
+            "Other": 0,
+        },
+        "blocked_count": 1,
+        "ready_to_post_count": 0,
+        "published_count": 0,
+        "needs_edit_count": 0,
+        "missing_status_count": 0,
+        "stale_ready_count": 0,
+        "operator_action_count": 1,
+        "operator_actions": [],
+        "severity": "critical",
+        "severity_reasons": ["blocked_count=1"],
+    }
+
+    handled = await handle_single_commands(mock_args, mock_config, AsyncMock(), AsyncMock(), AsyncMock())
+
+    assert handled is True
+    assert mock_args._single_command_exit_code == 2
+
+
+@pytest.mark.asyncio
+@patch("pipeline.runner.run_reprocess_approved", new_callable=AsyncMock)
+async def test_handle_single_commands_reprocess_warns_on_notion_sync_degraded(mock_run, mock_args, mock_config):
+    mock_args.reprocess_approved = True
+    mock_run.return_value = [
+        {
+            "success": True,
+            "twitter_url": "https://x.com/post/123",
+            "notion_update_success": False,
+            "notion_operator_action": "Retry the Notion X publish-state update after at least 6s.",
+        }
+    ]
+
+    notifier = AsyncMock()
+    handled = await handle_single_commands(mock_args, mock_config, notifier, None, None)
+
+    assert handled is True
+    notifier.send_message.assert_awaited_once()
+    message = notifier.send_message.await_args.args[0]
+    assert "notion_sync_warning 1" in message
+    assert "operator_action Retry the Notion X publish-state update after at least 6s." in message
+    assert notifier.send_message.await_args.kwargs["level"] == "WARNING"
 
 
 @pytest.mark.asyncio

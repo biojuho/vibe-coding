@@ -8,6 +8,7 @@ from datetime import datetime
 
 from config import ERROR_NOTION_UPLOAD_FAILED
 from pipeline.draft_analytics import record_draft_event, refresh_ml_scorer_if_needed
+from pipeline.notion_retry_diagnostics import attach_notion_retry_diagnostics
 from pipeline.publish_decision import DROP, HOLD, PUBLISH, PublishDecision, decide_publish
 
 from .context import ProcessRunContext, mark_stage
@@ -206,6 +207,7 @@ async def _upload_to_notion(
     ctx.result["error_code"] = notion_uploader.last_error_code or ERROR_NOTION_UPLOAD_FAILED
     ctx.result["failure_stage"] = "upload"
     ctx.result["failure_reason"] = "notion_upload_failed"
+    attach_notion_retry_diagnostics(ctx.result, notion_uploader)
     logger.error("[%s] Notion upload failed for %s", ctx.trace_id, ctx.url)
     mark_stage(ctx, "persist", "failed", "notion_upload_failed")
     return False

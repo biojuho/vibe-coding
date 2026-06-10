@@ -171,6 +171,16 @@ Notion 스키마 점검:
 py -3 scripts/notion_doctor.py --config config.yaml
 ```
 
+실패하면 `credential_check`를 먼저 봅니다. `missing_credentials`가 있으면 `NOTION_API_KEY`와 `NOTION_DATABASE_ID`를 프로젝트 `.env`, `BLIND_TO_X_ENV_PATH`가 가리키는 파일, 또는 `config.yaml`에 채운 뒤 다시 실행합니다. `credentials_present: true`인데 실패하면 토큰보다 Notion DB/Data Source ID가 맞는지, 그리고 대상 DB가 integration에 공유되어 있는지부터 확인합니다.
+
+자동화에서 읽어야 하면 JSON 모드를 사용합니다.
+
+```powershell
+py -3 scripts/notion_doctor.py --config config.yaml --json
+```
+
+`status`, `ok`, `credential_check`, `error_code`, `error_message`, `accessible_objects`, `actions`를 보고 실패 원인을 분기합니다. 출력에는 원본 토큰 대신 `token_masked`만 포함됩니다.
+
 검토용 컬럼/옵션 동기화:
 
 ```powershell
@@ -183,11 +193,59 @@ py -3 scripts/sync_notion_review_schema.py --config config.yaml --apply
 py -3 scripts/backfill_notion_review_columns.py --config config.yaml --apply
 ```
 
+소스 preflight 실패 증거 확인:
+
+```powershell
+py -3 scripts/source_browser_probe.py --source all --click-through --output .tmp/source_browser_probe.json --screenshot-dir screenshots/source_probe --failure-dir .tmp/failures/source_preflight
+```
+
+Pipeline gate runs should pass the same evidence directory explicitly with `--source-preflight-failure-dir .tmp/failures/source_preflight` when using `main.py --require-source-ready`.
+
+더 무거운 Playwright trace 증거가 필요할 때만 `--trace-dir .tmp/traces/source_preflight` 또는 `main.py --source-preflight-trace-dir .tmp/traces/source_preflight`를 명시합니다. trace zip은 문제 source가 있을 때만 보존되며, `.tmp/traces/`는 커밋하지 않습니다.
+
+캡처된 증거가 완전한지 먼저 검증합니다. 이 명령은 브라우저, Notion, X/Threads/블로그를 호출하지 않고 JSON과 참조된 로컬 증거 파일만 읽습니다.
+
+```powershell
+py -3 scripts/source_preflight_evidence_doctor.py --input .tmp/source_browser_probe.json --base-dir . --fail-on-warning
+```
+
+여러 로컬 preflight 리포트에서 반복되는 실패 유형을 보려면 trend report를 생성합니다. 출력은 `.tmp/`에 두고 커밋하지 않습니다.
+
+```powershell
+py -3 scripts/source_preflight_trend_report.py --input-dir .tmp --glob "source_browser_preflight*.json" --base-dir . --output .tmp/source_preflight_trend.json --json
+```
+
+`summary.problem_actions[].evidence`를 먼저 확인합니다. `failure_report_path`, `screenshot_path`, `html_snapshot_path`, `error`, `click_screenshot_path`, `click_error`가 있으면 그 증거를 보고 원인과 다음 조치를 판단합니다. 증거 확인 전에는 timeout을 늘리거나 selector를 바꾸지 말고, `recommended_source`나 `recommended_command`가 있으면 준비된 fallback source로 이번 실행을 진행합니다.
+
+`failure_report_path`가 가리키는 JSON에는 `failure_report.schema_version`, `failure_report.tool`, `failure_report.captured_at`, `operator.action_required`, `operator.action`, `operator.evidence`가 포함됩니다. `classification.status`가 `browser_unavailable`이고 `operator.action`에 Playwright Chromium 설치가 나오면 같은 Python 환경에서 `py -3 -m playwright install chromium`을 실행하거나, 프로젝트 venv를 쓰는 운영자는 `.venv\Scripts\python.exe -m playwright install chromium`으로 설치한 뒤 preflight를 다시 실행합니다. `.tmp/failures/`와 screenshot/html snapshot 출력은 증거 확인용이며 커밋하지 않습니다.
+
 전체 테스트:
 
 ```powershell
 py -3 -m pytest --no-cov -q tests/unit
 ```
+
+검토 카드 A/B dry-run:
+
+```powershell
+py -3 scripts/review_experiment_dry_run.py --input-mode review-records --input .tmp/review_queue_report_sample.json --min-items 1 --max-missing-rate 0.8 --summary-only
+```
+
+이 명령은 Notion, X, Threads, 블로그에 쓰지 않고 콘솔에 rollout gate만 출력합니다. 빠른 운영 판단에는 `--summary-only`를 쓰고, 자동화가 구조화 결과를 읽어야 하면 `--summary-only --json`을 같이 사용합니다.
+
+```powershell
+py -3 scripts/review_experiment_dry_run.py --input-mode review-records --input .tmp/review_queue_report_sample.json --min-items 1 --max-missing-rate 0.8 --summary-only --json
+```
+
+JSON stdout에서 `output.write_suppressed = true`이면 리포트 파일 쓰기가 억제된 실행입니다. `output.suppression_flags`는 `summary_only` 또는 `no_write`처럼 어떤 플래그가 쓰기를 막았는지 기록합니다.
+
+주간 리포트 A/B 섹션만 로컬에서 확인하려면 Notion을 호출하지 않는 payload smoke를 사용합니다. 입력 JSON은 `.tmp/`에 두고 커밋하지 않습니다.
+
+```powershell
+py -3 scripts/build_weekly_report.py --payload-input .tmp/weekly_report_payload_smoke.json --review-experiment-input .tmp/weekly_report_experiment_smoke.json --source-preflight-trend-input .tmp/source_preflight_trend.json --output .tmp/weekly_report_smoke.md
+```
+
+이 명령은 `--payload-input`에 있는 주간 리포트 payload를 그대로 렌더링하고, `--review-experiment-input`의 dry-run 결과를 `Review Experiment A/B Summary (dry-run)` 섹션에, `--source-preflight-trend-input`의 로컬 증거 집계를 `Source Preflight Trend (dry-run)` 섹션에 붙입니다. Notion 조회, Notion 쓰기, X/Threads/블로그 발행, 브라우저 실행은 하지 않습니다. 출력에서 `Safety: read_only=true`, `notion_writes=false`, `x_posts=false`, `manual_publish_required=true`, `Top source action`, `Top source checklist`, `Next manual action`을 먼저 확인합니다.
 
 > 경로는 `tests/unit/` 입니다. 워크스페이스 표준 검증은 루트에서:
 >

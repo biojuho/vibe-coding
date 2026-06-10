@@ -3,8 +3,9 @@
 import asyncio
 import sys
 
-if hasattr(sys.stdout, "reconfigure") and sys.stdout.encoding != "utf-8":
-    sys.stdout.reconfigure(encoding="utf-8")
+from pipeline.stdout_encoding import configure_stdout_encoding
+
+configure_stdout_encoding()
 
 from config import load_env, setup_logging
 from pipeline.cli import run_main

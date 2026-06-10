@@ -234,11 +234,53 @@ class TestDedupStage:
         uploader.is_duplicate = AsyncMock(return_value=None)
         uploader.last_error_message = "schema mismatch"
         uploader.last_error_code = "NOTION_SCHEMA_MISMATCH"
+        uploader.last_notion_retry_report = {
+            "attempt_count": 2,
+            "retry_count": 1,
+            "max_retries": 2,
+            "final_state": "failed",
+            "final_error": "Service Overload",
+            "last_status": 529,
+            "retryable": True,
+            "attempts": [
+                {
+                    "attempt": 1,
+                    "status": 529,
+                    "retry_after_seconds": 4,
+                    "retryable": True,
+                    "will_retry": True,
+                    "delay_seconds": 4,
+                    "error_type": "HTTPStatusError",
+                    "error": "Service Overload",
+                },
+                {
+                    "attempt": 2,
+                    "status": 529,
+                    "retry_after_seconds": None,
+                    "retryable": True,
+                    "will_retry": False,
+                    "delay_seconds": None,
+                    "error_type": "HTTPStatusError",
+                    "error": "Service Overload",
+                },
+            ],
+        }
 
         result = self._run(run_dedup_stage(ctx, uploader, None, None))
 
         assert result is False
         assert "schema" in ctx.result["error"].lower()
+        assert ctx.result["notion_retry_summary"] == {
+            "final_state": "failed",
+            "attempt_count": 2,
+            "retry_count": 1,
+            "last_status": 529,
+            "retryable": True,
+        }
+        assert ctx.result["notion_retry_report"] == uploader.last_notion_retry_report
+        assert ctx.result["notion_operator_action"] == (
+            "Retry the Notion duplicate check later, then reduce request rate if it repeats."
+        )
 
     # ── is_duplicate=True → 중복 스킵 (lines 32-39) ──────────────────────
     def test_is_duplicate_true_returns_false_with_success(self):
@@ -885,6 +927,59 @@ class TestGenerateReviewStage:
         assert ctx.drafts["_generation_failed"] is True
 
     # ── quality gate: passed=False, no retry (line 99) ───────────────────
+    def test_generation_failure_provider_summary_is_preserved_for_review_only(self):
+        from pipeline.process_stages.generate_review_stage import run_generate_review_stage
+
+        ctx = self._ctx_ready()
+        failure_summary = {
+            "total_failures": 2,
+            "providers_attempted": ["gemini", "openai"],
+            "categories": {"auth": 1, "rate_limit": 1},
+            "retryable_count": 1,
+            "non_retryable_count": 1,
+            "operator_action_required": True,
+            "primary_operator_action": "Check provider API key, env wiring, and enabled flags before rerunning.",
+        }
+        failures = [
+            {
+                "provider": "gemini",
+                "category": "rate_limit",
+                "retryable": True,
+                "operator_action_required": True,
+            },
+            {
+                "provider": "openai",
+                "category": "auth",
+                "retryable": False,
+                "operator_action_required": True,
+            },
+        ]
+
+        mock_gen = MagicMock()
+        mock_gen.generate_drafts = AsyncMock(
+            return_value=(
+                {
+                    "_generation_failed": True,
+                    "_generation_error": "All providers failed",
+                    "_provider_failure_summary": failure_summary,
+                    "_provider_failures": failures,
+                },
+                None,
+            )
+        )
+
+        result = asyncio.run(
+            run_generate_review_stage(ctx, mock_gen, MagicMock(), None, ["twitter"], None, review_only=True)
+        )
+
+        assert result is True
+        assert ctx.post_data["draft_provider_failure_summary"] == failure_summary
+        assert ctx.post_data["draft_provider_failures"] == failures
+        assert "All providers failed | provider_failure_summary:" in ctx.post_data["draft_generation_error"]
+        assert "providers=gemini, openai" in ctx.post_data["draft_generation_error"]
+        assert "categories=auth:1, rate_limit:1" in ctx.post_data["draft_generation_error"]
+        assert "action=Check provider API key" in ctx.post_data["draft_generation_error"]
+
     def test_quality_gate_fail_no_retry_logs_warning(self):
         from pipeline.process_stages.generate_review_stage import run_generate_review_stage
 

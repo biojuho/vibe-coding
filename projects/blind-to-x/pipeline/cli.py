@@ -11,7 +11,12 @@ from config import ConfigManager
 from pipeline import NotificationManager, NotionUploader, TwitterPoster
 from pipeline.bootstrap import check_budget, init_components, init_scrapers, resolve_input_sources
 from pipeline.runner import execute_pipeline, handle_single_commands
-from scripts.source_browser_probe import DEFAULT_SOURCES, exit_code_for_report, run_source_preflight
+from scripts.source_browser_probe import (
+    DEFAULT_FAILURE_REPORT_DIR,
+    DEFAULT_SOURCES,
+    exit_code_for_report,
+    run_source_preflight,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +77,18 @@ def build_parser():
         help="Directory for source preflight full-page screenshots.",
     )
     parser.add_argument(
+        "--source-preflight-failure-dir",
+        type=Path,
+        default=DEFAULT_FAILURE_REPORT_DIR,
+        help="Directory for source preflight problem JSON failure reports and HTML snapshots.",
+    )
+    parser.add_argument(
+        "--source-preflight-trace-dir",
+        type=Path,
+        default=None,
+        help="Optional directory for source preflight Playwright trace.zip evidence; retained only on problems.",
+    )
+    parser.add_argument(
         "--source-preflight-headed",
         action="store_true",
         help="Run source preflight with a visible browser window.",
@@ -100,6 +117,46 @@ def build_parser():
     )
     parser.add_argument("--review-only", action="store_true", help="Queue items for review without publishing")
     parser.add_argument("--reprocess-approved", action="store_true", help="Publish approved Notion items only")
+    parser.add_argument(
+        "--review-queue-report",
+        action="store_true",
+        help="Print a read-only Notion review queue report for X publish operations",
+    )
+    parser.add_argument(
+        "--review-queue-lookback-days",
+        type=int,
+        default=None,
+        help="Lookback window for --review-queue-report (default: config or 30)",
+    )
+    parser.add_argument(
+        "--review-queue-stale-days",
+        type=int,
+        default=None,
+        help="Ready-to-post age threshold for --review-queue-report (default: config or 3)",
+    )
+    parser.add_argument(
+        "--review-queue-action-limit",
+        type=int,
+        default=None,
+        help="Maximum operator actions to include in --review-queue-report (default: config or 10)",
+    )
+    parser.add_argument(
+        "--review-queue-ready-attention-limit",
+        type=int,
+        default=None,
+        help="Maximum Ready to Post attention items to include in --review-queue-report (default: config or 3)",
+    )
+    parser.add_argument(
+        "--review-queue-report-output",
+        type=Path,
+        default=None,
+        help="JSON artifact path for --review-queue-report (default: config or .tmp/review_queue_report_latest.json)",
+    )
+    parser.add_argument(
+        "--review-queue-report-fail-on-warning",
+        action="store_true",
+        help="Exit non-zero when --review-queue-report severity is warning or critical",
+    )
     parser.add_argument(
         "--newsletter-build", action="store_true", help="Build newsletter edition from approved Notion items"
     )
@@ -221,6 +278,52 @@ def _log_ready_source_warnings(report: dict) -> int:
     return logged_count
 
 
+def _format_source_preflight_evidence(evidence: dict) -> list[str]:
+    evidence_order = (
+        "failure_report_path",
+        "screenshot_path",
+        "html_snapshot_path",
+        "trace_path",
+        "click_screenshot_path",
+        "exception_type",
+        "error",
+        "click_error",
+    )
+    parts: list[str] = []
+    for key in evidence_order:
+        value = evidence.get(key)
+        if value:
+            parts.append(f"{key}={_compact_log_value(value)}")
+    for key, value in sorted(evidence.items()):
+        if key not in evidence_order and value:
+            parts.append(f"{_compact_log_value(key)}={_compact_log_value(value)}")
+    return parts
+
+
+def _log_source_preflight_problem_actions(report: dict) -> int:
+    summary = report.get("summary", {})
+    problem_actions = summary.get("problem_actions") if isinstance(summary, dict) else None
+    if not isinstance(problem_actions, list):
+        return 0
+
+    logged_count = 0
+    for action_item in problem_actions:
+        if not isinstance(action_item, dict):
+            continue
+        source = _compact_log_value(action_item.get("source") or "unknown")
+        status = _compact_log_value(action_item.get("status") or "problem")
+        action = _compact_log_value(action_item.get("action"))
+        parts = [f"source={source}", f"status={status}"]
+        if action:
+            parts.append(f"action={action}")
+        evidence = action_item.get("evidence")
+        if isinstance(evidence, dict):
+            parts.extend(_format_source_preflight_evidence(evidence))
+        logger.warning("Source preflight problem action: %s", "; ".join(parts))
+        logged_count += 1
+    return logged_count
+
+
 async def run_source_preflight_command(config_mgr, args) -> int | None:
     if not _source_preflight_requested(args):
         return None
@@ -236,11 +339,14 @@ async def run_source_preflight_command(config_mgr, args) -> int | None:
         timeout_ms=max(1000, getattr(args, "source_preflight_timeout_ms", 12000)),
         output_path=getattr(args, "source_preflight_output", None),
         screenshot_dir=getattr(args, "source_preflight_screenshot_dir", None),
+        failure_dir=getattr(args, "source_preflight_failure_dir", DEFAULT_FAILURE_REPORT_DIR),
+        trace_dir=getattr(args, "source_preflight_trace_dir", None),
         headed=getattr(args, "source_preflight_headed", False),
         viewport=getattr(args, "source_preflight_viewport", "desktop"),
         click_through=getattr(args, "source_preflight_click_through", False),
     )
     _log_ready_source_warnings(report)
+    _log_source_preflight_problem_actions(report)
     if _apply_recommended_source_fallback(args, report):
         return 0
 
@@ -300,6 +406,9 @@ async def run_main():
 
     if await handle_single_commands(args, config_mgr, notifier, notion_uploader, twitter_poster):
         _LOCK_FILE.unlink(missing_ok=True)
+        single_command_exit_code = int(getattr(args, "_single_command_exit_code", 0) or 0)
+        if single_command_exit_code:
+            sys.exit(single_command_exit_code)
         return
 
     scrapers = init_scrapers(config_mgr, args)

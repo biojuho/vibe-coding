@@ -25,13 +25,14 @@ import time
 from pathlib import Path
 
 # UTF-8 강제
-if hasattr(sys.stdout, "reconfigure") and sys.stdout.encoding != "utf-8":
-    sys.stdout.reconfigure(encoding="utf-8")
-
 # 프로젝트 루트를 sys.path에 추가 (blind-to-x root)
 _PROJECT_ROOT = Path(__file__).resolve().parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
+
+from pipeline.stdout_encoding import configure_stdout_encoding
+
+configure_stdout_encoding()
 
 # Workspace 경로를 sys.path에 추가 (execution.telegram_notifier 모듈용)
 _WORKSPACE_ROOT = _PROJECT_ROOT.parent.parent / "workspace"

@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 from collections import Counter
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -23,6 +23,7 @@ DEFAULT_SOURCES: dict[str, str] = {
     "jobplanet": "https://www.jobplanet.co.kr/api/v5/community/posts?limit=20&order_by=recent",
     "ppomppu": "https://www.ppomppu.co.kr/hot.php",
 }
+DEFAULT_FAILURE_REPORT_DIR = Path(".tmp/failures/source_preflight")
 ALL_SOURCE_ALIASES = frozenset({"all", "auto", "multi"})
 
 _JOBPLANET_BASE_URL = "https://www.jobplanet.co.kr"
@@ -124,6 +125,12 @@ class ProbeResult:
     screenshot_path: str | None = None
     click_through: ClickThroughResult | None = None
     error: str | None = None
+    exception_type: str | None = None
+    html_snapshot_path: str | None = None
+    trace_path: str | None = None
+    failure_report_path: str | None = None
+    operator_action_required: bool = False
+    operator_action: str | None = None
 
 
 def _compact_text(value: str | None) -> str:
@@ -241,22 +248,26 @@ def _build_summary(results: list[ProbeResult], *, viewport: str = "desktop") -> 
     ]
     ready_warnings = [warning for result in ready_results for warning in _build_ready_warnings(result)]
     recommended_source = _recommend_ready_source(ready_results)
+    problem_actions = [
+        _build_problem_action(result) for result in results if result.classification.status != READY_STATUS
+    ]
+    problem_evidence_sources = [action["source"] for action in problem_actions if action.get("evidence")]
     return {
         "source_count": len(results),
         "viewport": viewport,
         "ready_count": len(ready_sources),
         "problem_count": len(problem_sources),
+        "problem_evidence_count": len(problem_evidence_sources),
         "ready_warning_count": len(ready_warnings),
         "ok": len(ready_sources) == len(results),
         "statuses": dict(sorted(statuses.items())),
         "ready_sources": ready_sources,
         "ready_warnings": ready_warnings,
         "problem_sources": problem_sources,
+        "problem_evidence_sources": problem_evidence_sources,
         "recommended_source": recommended_source,
         "recommended_command": _build_recommended_command(recommended_source, viewport=viewport),
-        "problem_actions": [
-            _build_problem_action(result) for result in results if result.classification.status != READY_STATUS
-        ],
+        "problem_actions": problem_actions,
     }
 
 
@@ -324,6 +335,8 @@ def _build_recommended_command(source: str | None, *, viewport: str = "desktop")
         str(_PROJECT_ROOT / ".tmp" / "source_browser_preflight.json"),
         "--source-preflight-screenshot-dir",
         str(_PROJECT_ROOT / "screenshots" / "source_preflight"),
+        "--source-preflight-failure-dir",
+        str(_PROJECT_ROOT / ".tmp" / "failures" / "source_preflight"),
     ]
     if viewport != "desktop":
         command_parts.extend(["--source-preflight-viewport", viewport])
@@ -348,24 +361,54 @@ def _build_problem_action(result: ProbeResult) -> dict[str, Any]:
         action = "Inspect the screenshot and source parser because the page returned too little readable text."
     else:
         action = "Inspect the captured evidence, then use a ready fallback source for this run."
-    return {
+    problem_action = {
         "source": result.source,
         "status": status,
         "action": action,
     }
+    evidence = _build_problem_evidence(result)
+    if evidence:
+        problem_action["evidence"] = evidence
+    return problem_action
+
+
+def _build_problem_evidence(result: ProbeResult) -> dict[str, str]:
+    evidence: dict[str, str] = {}
+    if result.failure_report_path:
+        evidence["failure_report_path"] = result.failure_report_path
+    if result.screenshot_path:
+        evidence["screenshot_path"] = result.screenshot_path
+    if result.html_snapshot_path:
+        evidence["html_snapshot_path"] = result.html_snapshot_path
+    if result.trace_path:
+        evidence["trace_path"] = result.trace_path
+    if result.error:
+        evidence["error"] = result.error
+    if result.exception_type:
+        evidence["exception_type"] = result.exception_type
+    if result.click_through:
+        if result.click_through.screenshot_path:
+            evidence["click_screenshot_path"] = result.click_through.screenshot_path
+        if result.click_through.error:
+            evidence["click_error"] = result.click_through.error
+    return evidence
 
 
 def _build_browser_unavailable_action(result: ProbeResult) -> str:
     error_text = (result.error or " ".join(result.classification.signals)).lower()
     if "no module named 'playwright" in error_text or 'no module named "playwright' in error_text:
         return (
-            "Run this helper with the Blind-to-X virtualenv, or install Playwright into the current "
-            "interpreter with `python -m pip install playwright` and then "
-            "`python -m playwright install chromium`."
+            "Run this helper with the Blind-to-X virtualenv. If Playwright is missing in the active "
+            "interpreter, run `py -3 -m pip install playwright` first. Then install Chromium with "
+            "`py -3 -m playwright install chromium` (or "
+            "`.venv\\Scripts\\python.exe -m playwright install chromium` from the project venv), "
+            "and rerun the preflight."
         )
     return (
-        "Install Chromium in the active Python environment with "
-        "`python -m playwright install chromium`, then rerun the preflight."
+        "Install Chromium in the same Python environment used for this preflight with "
+        "`py -3 -m playwright install chromium` (or "
+        "`.venv\\Scripts\\python.exe -m playwright install chromium` from the project venv), "
+        "then rerun the preflight."
     )
 
 
@@ -380,6 +423,8 @@ async def run_probe(
     *,
     timeout_ms: int,
     screenshot_dir: Path | None,
+    failure_dir: Path | None = DEFAULT_FAILURE_REPORT_DIR,
+    trace_dir: Path | None = None,
     headed: bool = False,
     viewport: str = "desktop",
     click_through: bool = False,
@@ -388,14 +433,17 @@ async def run_probe(
         from playwright.async_api import TimeoutError as PlaywrightTimeoutError
         from playwright.async_api import async_playwright
     except ImportError as exc:
-        return [_browser_unavailable_result(target, exc) for target in targets]
+        return [_with_failure_evidence(_browser_unavailable_result(target, exc), failure_dir) for target in targets]
 
     try:
         async with async_playwright() as playwright:
             browser = await playwright.chromium.launch(headless=not headed)
             try:
                 context = await browser.new_context(**_context_options(viewport))
+                trace_started = False
+                trace_path = _trace_output_path(trace_dir, viewport=viewport)
                 try:
+                    trace_started = await _safe_start_trace(context, trace_path)
                     results = []
                     for target in targets:
                         results.append(
@@ -404,17 +452,28 @@ async def run_probe(
                                 target,
                                 timeout_ms=timeout_ms,
                                 screenshot_dir=screenshot_dir,
+                                failure_dir=failure_dir,
                                 timeout_error_cls=PlaywrightTimeoutError,
                                 click_through=click_through,
                             )
                         )
+                    saved_trace_path = await _safe_stop_trace(
+                        context,
+                        trace_path,
+                        keep=_has_problem_result(results),
+                    )
+                    trace_started = False
+                    if saved_trace_path:
+                        results = _attach_trace_path_to_problem_results(results, saved_trace_path, failure_dir)
                     return results
                 finally:
+                    if trace_started:
+                        await _safe_stop_trace(context, trace_path, keep=False)
                     await context.close()
             finally:
                 await browser.close()
     except Exception as exc:
-        return [_browser_unavailable_result(target, exc) for target in targets]
+        return [_with_failure_evidence(_browser_unavailable_result(target, exc), failure_dir) for target in targets]
 
 
 async def _probe_target(
@@ -423,6 +482,7 @@ async def _probe_target(
     *,
     timeout_ms: int,
     screenshot_dir: Path | None,
+    failure_dir: Path | None,
     timeout_error_cls: type[Exception],
     click_through: bool = False,
 ) -> ProbeResult:
@@ -449,25 +509,154 @@ async def _probe_target(
                     "first post click-through failed",
                     [click_result.error or "click_failed"],
                 )
-        return ProbeResult(
-            source=target.source,
-            url=target.url,
-            final_url=page.url,
-            http_status=http_status,
-            title=_compact_text(title)[:160],
-            body_chars=len(_compact_text(body_text)),
-            classification=classification,
-            console_errors=console_errors[:10],
-            page_errors=page_errors[:10],
-            screenshot_path=str(screenshot_path) if screenshot_path else None,
-            click_through=click_result,
+        html_snapshot_path = None
+        if classification.status != READY_STATUS:
+            html_snapshot_path = await _safe_html_snapshot(page, target, failure_dir)
+        return _with_failure_evidence(
+            ProbeResult(
+                source=target.source,
+                url=target.url,
+                final_url=page.url,
+                http_status=http_status,
+                title=_compact_text(title)[:160],
+                body_chars=len(_compact_text(body_text)),
+                classification=classification,
+                console_errors=console_errors[:10],
+                page_errors=page_errors[:10],
+                screenshot_path=str(screenshot_path) if screenshot_path else None,
+                click_through=click_result,
+                html_snapshot_path=str(html_snapshot_path) if html_snapshot_path else None,
+            ),
+            failure_dir,
         )
     except timeout_error_cls as exc:
-        return _error_result(target, page.url, console_errors, page_errors, str(exc), http_status=None)
+        screenshot_path = await _safe_screenshot(page, target, screenshot_dir)
+        html_snapshot_path = await _safe_html_snapshot(page, target, failure_dir)
+        return _with_failure_evidence(
+            _error_result(
+                target,
+                page.url,
+                console_errors,
+                page_errors,
+                str(exc),
+                http_status=None,
+                screenshot_path=str(screenshot_path) if screenshot_path else None,
+                exception_type=type(exc).__name__,
+                html_snapshot_path=str(html_snapshot_path) if html_snapshot_path else None,
+            ),
+            failure_dir,
+        )
     except Exception as exc:
-        return _error_result(target, page.url, console_errors, page_errors, str(exc), http_status=None)
+        screenshot_path = await _safe_screenshot(page, target, screenshot_dir)
+        html_snapshot_path = await _safe_html_snapshot(page, target, failure_dir)
+        return _with_failure_evidence(
+            _error_result(
+                target,
+                page.url,
+                console_errors,
+                page_errors,
+                str(exc),
+                http_status=None,
+                screenshot_path=str(screenshot_path) if screenshot_path else None,
+                exception_type=type(exc).__name__,
+                html_snapshot_path=str(html_snapshot_path) if html_snapshot_path else None,
+            ),
+            failure_dir,
+        )
     finally:
         await page.close()
+
+
+def _problem_action_text(result: ProbeResult) -> str | None:
+    if result.classification.status == READY_STATUS:
+        return None
+    return str(_build_problem_action(result)["action"])
+
+
+def _has_problem_result(results: list[ProbeResult]) -> bool:
+    return any(result.classification.status != READY_STATUS for result in results)
+
+
+def _trace_output_path(trace_dir: Path | None, *, viewport: str) -> Path | None:
+    if not trace_dir:
+        return None
+    return Path(trace_dir) / f"source-preflight-{_safe_slug(viewport)}.zip"
+
+
+async def _safe_start_trace(context: Any, trace_path: Path | None) -> bool:
+    if not trace_path:
+        return False
+    try:
+        trace_path.parent.mkdir(parents=True, exist_ok=True)
+        await context.tracing.start(screenshots=True, snapshots=True, sources=True)
+    except Exception:
+        return False
+    return True
+
+
+async def _safe_stop_trace(context: Any, trace_path: Path | None, *, keep: bool) -> str | None:
+    if not trace_path:
+        return None
+    try:
+        if keep:
+            await context.tracing.stop(path=str(trace_path))
+            return str(trace_path)
+        await context.tracing.stop()
+    except Exception:
+        return None
+    return None
+
+
+def _attach_trace_path_to_problem_results(
+    results: list[ProbeResult],
+    trace_path: str,
+    failure_dir: Path | None,
+) -> list[ProbeResult]:
+    enriched_results: list[ProbeResult] = []
+    for result in results:
+        if result.classification.status == READY_STATUS:
+            enriched_results.append(result)
+            continue
+        enriched_results.append(_with_failure_evidence(replace(result, trace_path=trace_path), failure_dir))
+    return enriched_results
+
+
+def _with_failure_evidence(result: ProbeResult, failure_dir: Path | None) -> ProbeResult:
+    action = _problem_action_text(result)
+    if not action:
+        return replace(result, operator_action_required=False, operator_action=None)
+    if not failure_dir:
+        return replace(result, operator_action_required=True, operator_action=action)
+
+    failure_dir = Path(failure_dir)
+    failure_dir.mkdir(parents=True, exist_ok=True)
+    failure_report_path = failure_dir / f"{_safe_slug(result.source)}-{_safe_slug(result.classification.status)}.json"
+    enriched = replace(
+        result,
+        failure_report_path=str(failure_report_path),
+        operator_action_required=True,
+        operator_action=action,
+    )
+    failure_report_path.write_text(
+        json.dumps(_failure_report_payload(enriched), ensure_ascii=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return enriched
+
+
+def _failure_report_payload(result: ProbeResult) -> dict[str, Any]:
+    data = _result_to_dict(result)
+    data["failure_report"] = {
+        "schema_version": 1,
+        "tool": "source_browser_probe",
+        "captured_at": datetime.now(timezone.utc).isoformat(),
+    }
+    data["operator"] = {
+        "action_required": bool(data.get("operator_action_required")),
+        "action": data.get("operator_action"),
+        "evidence": _build_problem_evidence(result),
+    }
+    return data
 
 
 def _context_options(viewport: str) -> dict[str, Any]:
@@ -835,6 +1024,19 @@ async def _safe_screenshot(page: Any, target: ProbeTarget, screenshot_dir: Path 
     return screenshot_path
 
 
+async def _safe_html_snapshot(page: Any, target: ProbeTarget, failure_dir: Path | None) -> Path | None:
+    if not failure_dir:
+        return None
+    failure_dir = Path(failure_dir)
+    failure_dir.mkdir(parents=True, exist_ok=True)
+    snapshot_path = failure_dir / f"{_safe_slug(target.source)}.html"
+    try:
+        snapshot_path.write_text(await page.content(), encoding="utf-8")
+    except Exception:
+        return None
+    return snapshot_path
+
+
 def _browser_unavailable_result(target: ProbeTarget, exc: Exception) -> ProbeResult:
     error = str(exc)
     return ProbeResult(
@@ -859,6 +1061,9 @@ def _error_result(
     error: str,
     *,
     http_status: int | None,
+    screenshot_path: str | None = None,
+    exception_type: str | None = None,
+    html_snapshot_path: str | None = None,
 ) -> ProbeResult:
     return ProbeResult(
         source=target.source,
@@ -870,7 +1075,10 @@ def _error_result(
         classification=classify_probe(http_status=http_status, error=error),
         console_errors=console_errors[:10],
         page_errors=page_errors[:10],
+        screenshot_path=screenshot_path,
         error=error[:500],
+        exception_type=exception_type,
+        html_snapshot_path=html_snapshot_path,
     )
 
 
@@ -885,8 +1093,16 @@ def _safe_slug(value: str) -> str:
 
 
 def _result_to_dict(result: ProbeResult) -> dict[str, Any]:
-    data = asdict(result)
-    return data
+    action = _problem_action_text(result)
+    if action:
+        result = replace(
+            result,
+            operator_action_required=True,
+            operator_action=result.operator_action or action,
+        )
+    else:
+        result = replace(result, operator_action_required=False, operator_action=None)
+    return asdict(result)
 
 
 async def run_source_preflight(
@@ -896,6 +1112,8 @@ async def run_source_preflight(
     timeout_ms: int,
     output_path: Path | None,
     screenshot_dir: Path | None,
+    failure_dir: Path | None = DEFAULT_FAILURE_REPORT_DIR,
+    trace_dir: Path | None = None,
     headed: bool = False,
     viewport: str = "desktop",
     click_through: bool = False,
@@ -905,6 +1123,8 @@ async def run_source_preflight(
         targets,
         timeout_ms=timeout_ms,
         screenshot_dir=screenshot_dir,
+        failure_dir=failure_dir,
+        trace_dir=trace_dir,
         headed=headed,
         viewport=viewport,
         click_through=click_through,
@@ -941,6 +1161,18 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--timeout-ms", type=int, default=12000, help="Navigation timeout in milliseconds.")
     parser.add_argument("--output", type=Path, default=None, help="Write the JSON report to this path.")
     parser.add_argument("--screenshot-dir", type=Path, default=None, help="Directory for full-page screenshots.")
+    parser.add_argument(
+        "--failure-dir",
+        type=Path,
+        default=DEFAULT_FAILURE_REPORT_DIR,
+        help="Directory for problem-source JSON failure reports and HTML snapshots.",
+    )
+    parser.add_argument(
+        "--trace-dir",
+        type=Path,
+        default=None,
+        help="Optional directory for Playwright trace.zip evidence; retained only when a source has a problem.",
+    )
     parser.add_argument("--headed", action="store_true", help="Run a visible browser.")
     parser.add_argument(
         "--click-through",
@@ -977,6 +1209,8 @@ async def async_main(argv: list[str] | None = None) -> int:
         timeout_ms=max(1000, args.timeout_ms),
         output_path=args.output,
         screenshot_dir=args.screenshot_dir,
+        failure_dir=args.failure_dir,
+        trace_dir=args.trace_dir,
         headed=args.headed,
         viewport=args.viewport,
         click_through=args.click_through,

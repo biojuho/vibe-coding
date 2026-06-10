@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
+import time
 from typing import Any
 
 import pipeline.draft_prompts as _draft_prompts_mod
@@ -22,6 +23,118 @@ from pipeline.draft_validation import DraftValidationMixin
 from pipeline.regulation_checker import RegulationChecker
 
 logger = logging.getLogger(__name__)
+
+
+def _compact_error_preview(error: Any, *, limit: int = 240) -> str:
+    return " ".join(str(error or "").split())[:limit]
+
+
+def classify_provider_failure(
+    provider: str,
+    model: str,
+    error: Exception,
+    *,
+    attempt: int,
+    max_attempts: int,
+    latency_ms: float,
+) -> dict[str, Any]:
+    """Return an operator-friendly, JSON-safe LLM provider failure record."""
+    error_text = str(error or "").lower()
+    if isinstance(error, asyncio.TimeoutError) or "timeout" in error_text or "timed out" in error_text:
+        category = "timeout"
+        retryable = True
+        action = "Retry with current fallback chain; if repeated, raise provider timeout or reduce prompt size."
+    elif "invalid_draft_output:" in error_text:
+        category = "invalid_output"
+        retryable = False
+        action = "Inspect prompt and parser contract; do not retry the same provider output blindly."
+    elif any(token in error_text for token in ("invalid api key", "unauthorized", "permission denied", "401", "403")):
+        category = "auth"
+        retryable = False
+        action = "Check provider API key, env wiring, and enabled flags before rerunning."
+    elif any(
+        token in error_text
+        for token in (
+            "credit balance is too low",
+            "insufficient_quota",
+            "current quota",
+            "quota exceeded",
+            "billing",
+        )
+    ):
+        category = "quota_or_billing"
+        retryable = False
+        action = "Check provider quota, billing, or credits; keep fallback providers enabled."
+    elif any(token in error_text for token in ("429", "rate limit", "too many requests", "resource_exhausted")):
+        category = "rate_limit"
+        retryable = True
+        action = "Wait for provider rate-limit reset or reduce request volume before retrying."
+    elif any(token in error_text for token in ("503", "529", "overloaded", "overloaded_error", "unavailable")):
+        category = "overloaded"
+        retryable = True
+        action = "Retry with exponential backoff and fallback providers enabled; reduce burst traffic if repeated."
+    elif any(token in error_text for token in ("500", "502", "504", "server error")):
+        category = "server_error"
+        retryable = True
+        action = "Retry later with fallback providers enabled; provider service may be degraded."
+    elif any(token in error_text for token in ("connection", "dns", "ssl", "read error", "network")):
+        category = "network_error"
+        retryable = True
+        action = "Check network path and retry with the same fallback chain."
+    else:
+        category = "provider_error"
+        retryable = True
+        action = "Inspect provider response and fallback evidence before changing provider order."
+
+    return {
+        "provider": provider,
+        "model": model,
+        "attempt": int(attempt),
+        "max_attempts": int(max_attempts),
+        "category": category,
+        "retryable": bool(retryable),
+        "circuit_breaker_candidate": category in {"auth", "quota_or_billing"},
+        "latency_ms": round(max(0.0, float(latency_ms)), 1),
+        "error_preview": _compact_error_preview(error),
+        "operator_action_required": True,
+        "operator_action": action,
+    }
+
+
+def summarize_provider_failures(failures: list[dict[str, Any]]) -> dict[str, Any]:
+    categories: dict[str, int] = {}
+    providers: list[str] = []
+    retryable_count = 0
+    non_retryable_count = 0
+    primary_action = ""
+    for failure in failures:
+        category = str(failure.get("category") or "provider_error")
+        categories[category] = categories.get(category, 0) + 1
+        provider = str(failure.get("provider") or "")
+        if provider and provider not in providers:
+            providers.append(provider)
+        if failure.get("retryable"):
+            retryable_count += 1
+        else:
+            non_retryable_count += 1
+        if not primary_action and failure.get("operator_action"):
+            primary_action = str(failure["operator_action"])
+    return {
+        "total_failures": len(failures),
+        "providers_attempted": providers,
+        "categories": dict(sorted(categories.items())),
+        "retryable_count": retryable_count,
+        "non_retryable_count": non_retryable_count,
+        "operator_action_required": bool(failures),
+        "primary_operator_action": primary_action,
+    }
+
+
+class ProviderFallbackError(RuntimeError):
+    def __init__(self, message: str, failures: list[dict[str, Any]]):
+        super().__init__(message)
+        self.failures = failures
+        self.summary = summarize_provider_failures(failures)
 
 
 class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidationMixin):
@@ -84,12 +197,22 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
             pass
 
     @staticmethod
-    def _generation_failure(error: str) -> tuple[dict[str, Any], None]:
-        return {
+    def _generation_failure(
+        error: str,
+        *,
+        provider_failures: list[dict[str, Any]] | None = None,
+        provider_failure_summary: dict[str, Any] | None = None,
+    ) -> tuple[dict[str, Any], None]:
+        payload = {
             "_provider_used": "none",
             "_generation_failed": True,
             "_generation_error": error,
-        }, None
+        }
+        if provider_failures is not None:
+            payload["_provider_failures"] = provider_failures
+        if provider_failure_summary is not None:
+            payload["_provider_failure_summary"] = provider_failure_summary
+        return payload, None
 
     def _available_providers_after_recent_failures(self) -> list[str]:
         providers = self._enabled_providers()
@@ -126,8 +249,10 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
     ) -> tuple[dict[str, Any], str | None]:
         """주어진 프롬프트와 프로바이더 목록으로 초안 후보를 1회 성공적으로 생성하여 리턴합니다."""
         provider_errors = []
+        provider_failures: list[dict[str, Any]] = []
         for provider in providers:
             for attempt in range(1, self.max_retries_per_provider + 1):
+                attempt_started_at = time.monotonic()
                 try:
                     logger.info(
                         "Generating drafts candidate via %s (%s/%s)...",
@@ -170,19 +295,21 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
 
                     return drafts_dict, image_prompt
                 except Exception as exc:
+                    failure = classify_provider_failure(
+                        provider,
+                        self._model_for_provider(provider),
+                        exc,
+                        attempt=attempt,
+                        max_attempts=self.max_retries_per_provider,
+                        latency_ms=(time.monotonic() - attempt_started_at) * 1000,
+                    )
+                    provider_failures.append(failure)
                     provider_errors.append(f"{provider}: {exc}")
                     error_text = str(exc).lower()
-                    non_retryable = any(
-                        token in error_text
-                        for token in (
-                            "credit balance is too low",
-                            "insufficient_quota",
-                            "invalid api key",
-                            "unauthorized",
-                            "permission denied",
-                        )
+                    non_retryable = failure["category"] in {"auth", "quota_or_billing"} or any(
+                        token in error_text for token in ("invalid api key", "unauthorized", "permission denied")
                     )
-                    no_retry_only = "invalid_draft_output:" in error_text
+                    no_retry_only = failure["category"] == "invalid_output"
                     should_retry = attempt < self.max_retries_per_provider
                     if non_retryable or no_retry_only:
                         should_retry = False
@@ -198,10 +325,12 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
                             pass
                     wait_seconds = min(2**attempt, 10)
                     logger.warning(
-                        "Draft candidate generation failed via %s (%s/%s): %s",
+                        "Draft candidate generation failed via %s (%s/%s, category=%s, retryable=%s): %s",
                         provider,
                         attempt,
                         self.max_retries_per_provider,
+                        failure["category"],
+                        failure["retryable"],
                         exc,
                     )
                     if should_retry:
@@ -209,7 +338,10 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
             logger.info("Provider %s exhausted for candidate. Trying next provider.", provider)
 
         error_text = " | ".join(provider_errors)
-        raise RuntimeError(f"All providers failed to generate candidate: {error_text}")
+        raise ProviderFallbackError(
+            f"All providers failed to generate candidate: {error_text}",
+            provider_failures,
+        )
 
     _DEFAULT_BEST_OF_N_COMMENT_WEIGHT = 0.5
     _DEFAULT_BEST_OF_N_QUALITY_WEIGHT = 0.35
@@ -488,6 +620,13 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
                 )
                 self._cache_generated_drafts(cache_key, drafts_dict, image_prompt)
                 return drafts_dict, image_prompt
+            except ProviderFallbackError as exc:
+                logger.error("Draft generation failed: %s", exc)
+                return self._generation_failure(
+                    str(exc),
+                    provider_failures=exc.failures,
+                    provider_failure_summary=exc.summary,
+                )
             except Exception as exc:
                 logger.error("Draft generation failed: %s", exc)
                 return self._generation_failure(str(exc))
