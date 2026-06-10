@@ -82,8 +82,20 @@ def test_build_evidence_payload_passes_for_complete_failure_report(tmp_path):
         "failure_report_count": 1,
         "error_count": 0,
         "warning_count": 0,
+        "strategy_change_ready_count": 1,
+        "evidence_gate_status_counts": {"strategy_review_ready": 1},
+        "repair_command_count": 0,
     }
     assert payload["items"][0]["failure_report_status"] == "valid"
+    assert payload["items"][0]["evidence_gate"] == {
+        "status": "strategy_review_ready",
+        "strategy_change_ready": True,
+        "decision": "review_source_strategy",
+        "reason": "Failure evidence is structurally complete enough to review selector, timeout, or source strategy.",
+        "evidence_fields": ["failure_report_path", "html_snapshot_path", "screenshot_path"],
+        "missing_required_evidence": [],
+    }
+    assert payload["items"][0]["repair_commands"] == []
     assert exit_code_for_payload(payload) == 0
 
 
@@ -107,12 +119,20 @@ def test_build_evidence_payload_warns_when_problem_action_has_no_failure_report_
 
     assert payload["status"] == "WARN"
     assert payload["summary"]["warning_count"] == 1
+    assert payload["summary"]["strategy_change_ready_count"] == 0
+    assert payload["summary"]["evidence_gate_status_counts"] == {"fix_evidence_first": 1}
     assert payload["issues"][0]["code"] == "missing_failure_report_path"
+    assert payload["items"][0]["evidence_gate"]["status"] == "fix_evidence_first"
+    assert payload["summary"]["repair_command_count"] == 2
+    assert payload["items"][0]["repair_commands"][0].startswith("py -3 scripts/source_preflight_evidence_doctor.py")
+    assert "--fail-on-warning" in payload["items"][0]["repair_commands"][0]
+    assert "--source blind" in payload["items"][0]["repair_commands"][1]
+    assert "--source-preflight-click-through" in payload["items"][0]["repair_commands"][1]
     assert exit_code_for_payload(payload) == 0
     assert exit_code_for_payload(payload, fail_on_warning=True) == 1
 
 
-def test_build_evidence_payload_fails_when_referenced_artifact_is_missing(tmp_path):
+def test_build_evidence_payload_fails_when_referenced_artifact_is_missing(tmp_path, capsys):
     _write_json(tmp_path / ".tmp/source_browser_preflight.json", _preflight_report())
     _write_json(
         tmp_path / ".tmp/failures/source_preflight/ppomppu-timeout.json",
@@ -126,8 +146,60 @@ def test_build_evidence_payload_fails_when_referenced_artifact_is_missing(tmp_pa
     assert payload["status"] == "FAIL"
     assert payload["ok"] is False
     assert payload["summary"]["error_count"] == 1
+    assert payload["summary"]["strategy_change_ready_count"] == 0
+    assert payload["summary"]["evidence_gate_status_counts"] == {"fix_evidence_first": 1}
     assert payload["issues"][0]["code"] == "missing_screenshot_path"
+    assert payload["summary"]["repair_command_count"] == 2
+    repair_commands = payload["items"][0]["repair_commands"]
+    assert repair_commands[0].startswith("py -3 scripts/source_preflight_evidence_doctor.py")
+    assert "--input" in repair_commands[0]
+    assert "--base-dir" in repair_commands[0]
+    assert "--fail-on-warning" in repair_commands[0]
+    assert repair_commands[1].startswith("py -3 main.py")
+    assert "--source ppomppu" in repair_commands[1]
+    assert "--source-preflight-output" in repair_commands[1]
+    assert "--source-preflight-screenshot-dir" in repair_commands[1]
+    assert "--source-preflight-failure-dir" in repair_commands[1]
     assert exit_code_for_payload(payload) == 2
+
+    _print_text_report(payload)
+    text = capsys.readouterr().out
+    assert "repair_commands: 2" in text
+    assert "repair_commands item=0 source=ppomppu:" in text
+    assert "py -3 main.py" in text
+
+
+def test_build_evidence_payload_marks_blocked_source_as_fallback_only(tmp_path):
+    report = _preflight_report()
+    action = report["summary"]["problem_actions"][0]
+    action["source"] = "blind"
+    action["status"] = "blocked"
+    action["evidence"]["failure_report_path"] = ".tmp/failures/source_preflight/blind-blocked.json"
+    action["evidence"]["screenshot_path"] = "screenshots/source_preflight/blind.png"
+    action["evidence"]["html_snapshot_path"] = ".tmp/failures/source_preflight/blind.html"
+    _write_json(tmp_path / ".tmp/source_browser_preflight.json", report)
+    _write_json(
+        tmp_path / ".tmp/failures/source_preflight/blind-blocked.json",
+        _valid_failure_report(source="blind", status="blocked"),
+    )
+    (tmp_path / ".tmp/failures/source_preflight/blind.html").write_text("<html>blocked</html>", encoding="utf-8")
+    screenshot = tmp_path / "screenshots/source_preflight/blind.png"
+    screenshot.parent.mkdir(parents=True, exist_ok=True)
+    screenshot.write_bytes(b"png")
+
+    payload = build_evidence_payload(tmp_path / ".tmp/source_browser_preflight.json", base_dir=tmp_path)
+
+    assert payload["status"] == "PASS"
+    assert payload["summary"]["strategy_change_ready_count"] == 0
+    assert payload["summary"]["evidence_gate_status_counts"] == {"fallback_only": 1}
+    assert payload["items"][0]["evidence_gate"] == {
+        "status": "fallback_only",
+        "strategy_change_ready": False,
+        "decision": "use_ready_fallback",
+        "reason": "This status points to access control or browser environment repair, not selector/timeout tuning.",
+        "evidence_fields": ["failure_report_path", "html_snapshot_path", "screenshot_path"],
+        "missing_required_evidence": [],
+    }
 
 
 def test_build_evidence_payload_validates_optional_trace_path(tmp_path):
@@ -148,6 +220,8 @@ def test_build_evidence_payload_validates_optional_trace_path(tmp_path):
 
     assert payload["status"] == "FAIL"
     assert payload["issues"][0]["code"] == "missing_trace_path"
+    assert payload["summary"]["evidence_gate_status_counts"] == {"fix_evidence_first": 1}
+    assert "--source-preflight-trace-dir" in " ".join(payload["items"][0]["repair_commands"])
 
     trace_path = tmp_path / ".tmp/traces/source-preflight-desktop.zip"
     trace_path.parent.mkdir(parents=True, exist_ok=True)
@@ -155,6 +229,7 @@ def test_build_evidence_payload_validates_optional_trace_path(tmp_path):
     payload = build_evidence_payload(tmp_path / ".tmp/source_browser_preflight.json", base_dir=tmp_path)
 
     assert payload["status"] == "PASS"
+    assert payload["summary"]["strategy_change_ready_count"] == 1
 
 
 def test_build_evidence_payload_fails_for_invalid_failure_report_metadata(tmp_path):

@@ -63,13 +63,28 @@ def _counter_dict(counter: Counter[str], *, limit: int | None = None) -> dict[st
     return {key: count for key, count in items}
 
 
+def _repair_command_type(command: str) -> str:
+    if "source_preflight_evidence_doctor.py" in command:
+        return "evidence_doctor"
+    if "--source-preflight-trace-dir" in command:
+        return "source_preflight_capture_with_trace"
+    if "--source-preflight" in command:
+        return "source_preflight_capture"
+    return "other"
+
+
 def _bucket_report(payload: dict[str, Any]) -> dict[str, Any]:
     items = payload.get("items") if isinstance(payload.get("items"), list) else []
     status_counts: Counter[str] = Counter()
     source_counts: Counter[str] = Counter()
     source_status_counts: Counter[tuple[str, str]] = Counter()
     failure_report_status_counts: Counter[str] = Counter()
+    evidence_gate_status_counts: Counter[str] = Counter()
+    repair_command_counts: Counter[str] = Counter()
+    repair_command_type_counts: Counter[str] = Counter()
+    repair_command_source_counts: Counter[tuple[str, str]] = Counter()
     operator_action_required_count = 0
+    strategy_change_ready_count = 0
     for item in items:
         if not isinstance(item, dict):
             continue
@@ -82,6 +97,19 @@ def _bucket_report(payload: dict[str, Any]) -> dict[str, Any]:
         failure_report_status_counts[failure_report_status] += 1
         if status != "ready":
             operator_action_required_count += 1
+        evidence_gate = item.get("evidence_gate") if isinstance(item.get("evidence_gate"), dict) else {}
+        evidence_gate_status = str(evidence_gate.get("status") or "unknown")
+        evidence_gate_status_counts[evidence_gate_status] += 1
+        if evidence_gate.get("strategy_change_ready") is True:
+            strategy_change_ready_count += 1
+        repair_commands = item.get("repair_commands") if isinstance(item.get("repair_commands"), list) else []
+        for command in repair_commands:
+            command_text = str(command or "").strip()
+            if not command_text:
+                continue
+            repair_command_counts[command_text] += 1
+            repair_command_type_counts[_repair_command_type(command_text)] += 1
+            repair_command_source_counts[(command_text, source)] += 1
 
     summary = payload.get("summary") if isinstance(payload.get("summary"), dict) else {}
     return {
@@ -93,12 +121,20 @@ def _bucket_report(payload: dict[str, Any]) -> dict[str, Any]:
         "error_count": int(summary.get("error_count") or 0),
         "warning_count": int(summary.get("warning_count") or 0),
         "operator_action_required_count": operator_action_required_count,
+        "strategy_change_ready_count": strategy_change_ready_count,
         "status_counts": _counter_dict(status_counts),
         "source_counts": _counter_dict(source_counts),
         "source_status_counts": {
             f"{source}|{status}": count for (source, status), count in source_status_counts.items()
         },
         "failure_report_status_counts": _counter_dict(failure_report_status_counts),
+        "evidence_gate_status_counts": _counter_dict(evidence_gate_status_counts),
+        "repair_command_count": sum(repair_command_counts.values()),
+        "repair_command_counts": _counter_dict(repair_command_counts),
+        "repair_command_type_counts": _counter_dict(repair_command_type_counts),
+        "repair_command_source_counts": {
+            f"{source}|{command}": count for (command, source), count in repair_command_source_counts.items()
+        },
         "next_step": payload.get("next_step"),
     }
 
@@ -228,6 +264,137 @@ def _top_source_remediation(report_summaries: list[dict[str, Any]]) -> dict[str,
     }
 
 
+def _top_repair_commands(
+    repair_command_counts: Counter[str],
+    repair_command_source_counts: Counter[tuple[str, str]],
+    *,
+    limit: int = 4,
+) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    for command, count in sorted(repair_command_counts.items(), key=lambda item: (-item[1], item[0]))[:limit]:
+        source_counter: Counter[str] = Counter()
+        for (candidate_command, source), source_count in repair_command_source_counts.items():
+            if candidate_command == command:
+                source_counter[source] += source_count
+        items.append(
+            {
+                "command": command,
+                "type": _repair_command_type(command),
+                "count": count,
+                "sources": _counter_dict(source_counter, limit=4),
+            }
+        )
+    return items
+
+
+def _operator_recommendation(
+    *,
+    problem_action_count: int,
+    error_count: int,
+    warning_count: int,
+    evidence_gate_status_counts: Counter[str],
+    top_source_action: dict[str, Any],
+) -> dict[str, Any]:
+    fix_evidence_count = int(evidence_gate_status_counts.get("fix_evidence_first", 0))
+    fallback_only_count = int(evidence_gate_status_counts.get("fallback_only", 0))
+    strategy_ready_count = int(evidence_gate_status_counts.get("strategy_review_ready", 0))
+    source = str(top_source_action.get("source") or "").strip()
+    status = str(top_source_action.get("status") or "").strip()
+    top_action = str(top_source_action.get("operator_action") or "").strip()
+
+    if error_count or warning_count or fix_evidence_count:
+        return {
+            "action": "repair_evidence",
+            "priority": "high" if error_count or fix_evidence_count else "medium",
+            "source": source,
+            "status": status,
+            "reason": "Evidence is missing, invalid, or warning-level incomplete.",
+            "operator_action": (
+                "Run the evidence doctor for affected reports, restore missing artifacts, then rerun trend reporting "
+                "before changing selectors, timeouts, or source strategy."
+            ),
+            "gate_counts": {
+                "fix_evidence_first": fix_evidence_count,
+                "fallback_only": fallback_only_count,
+                "strategy_review_ready": strategy_ready_count,
+            },
+        }
+    if strategy_ready_count and fallback_only_count:
+        return {
+            "action": "split_fallback_and_strategy_review",
+            "priority": "medium",
+            "source": source,
+            "status": status,
+            "reason": "Some failures need fallback handling while others are ready for strategy review.",
+            "operator_action": (
+                "Use ready fallback sources for fallback-only failures, then inspect strategy-ready evidence before "
+                "selector, timeout, or source-strategy changes."
+            ),
+            "gate_counts": {
+                "fix_evidence_first": fix_evidence_count,
+                "fallback_only": fallback_only_count,
+                "strategy_review_ready": strategy_ready_count,
+            },
+        }
+    if strategy_ready_count:
+        return {
+            "action": "review_source_strategy",
+            "priority": "medium",
+            "source": source,
+            "status": status,
+            "reason": "Failure evidence is complete enough for selector, timeout, or source-strategy review.",
+            "operator_action": top_action
+            or "Inspect the strategy-ready evidence, adjust the narrow source strategy, then rerun click-through preflight.",
+            "gate_counts": {
+                "fix_evidence_first": fix_evidence_count,
+                "fallback_only": fallback_only_count,
+                "strategy_review_ready": strategy_ready_count,
+            },
+        }
+    if fallback_only_count:
+        return {
+            "action": "use_ready_fallback",
+            "priority": "medium",
+            "source": source,
+            "status": status,
+            "reason": "Failures point to access control or browser environment repair, not selector/timeout tuning.",
+            "operator_action": top_action
+            or "Use a ready fallback source for this run, then recheck the affected source after conditions change.",
+            "gate_counts": {
+                "fix_evidence_first": fix_evidence_count,
+                "fallback_only": fallback_only_count,
+                "strategy_review_ready": strategy_ready_count,
+            },
+        }
+    if problem_action_count:
+        return {
+            "action": "inspect_source_evidence",
+            "priority": "low",
+            "source": source,
+            "status": status,
+            "reason": "Source failures exist but no actionable evidence gate bucket was available.",
+            "operator_action": top_action or "Inspect local source evidence before changing source strategy.",
+            "gate_counts": {
+                "fix_evidence_first": fix_evidence_count,
+                "fallback_only": fallback_only_count,
+                "strategy_review_ready": strategy_ready_count,
+            },
+        }
+    return {
+        "action": "no_source_action",
+        "priority": "low",
+        "source": "",
+        "status": "",
+        "reason": "No source preflight failures were present in the selected reports.",
+        "operator_action": "No source preflight action required for the selected local reports.",
+        "gate_counts": {
+            "fix_evidence_first": fix_evidence_count,
+            "fallback_only": fallback_only_count,
+            "strategy_review_ready": strategy_ready_count,
+        },
+    }
+
+
 def build_trend_payload(
     input_paths: list[Path],
     *,
@@ -243,23 +410,40 @@ def build_trend_payload(
     status_counts: Counter[str] = Counter()
     source_counts: Counter[str] = Counter()
     failure_report_status_counts: Counter[str] = Counter()
+    repair_command_counts: Counter[str] = Counter()
+    repair_command_type_counts: Counter[str] = Counter()
+    repair_command_source_counts: Counter[tuple[str, str]] = Counter()
     error_count = 0
     warning_count = 0
     problem_action_count = 0
     failure_report_count = 0
     operator_action_required_count = 0
+    strategy_change_ready_count = 0
+    evidence_gate_status_counts: Counter[str] = Counter()
 
     for summary in report_summaries:
         status_counts.update(summary["status_counts"])
         source_counts.update(summary["source_counts"])
         failure_report_status_counts.update(summary["failure_report_status_counts"])
+        evidence_gate_status_counts.update(summary["evidence_gate_status_counts"])
+        repair_command_counts.update(summary["repair_command_counts"])
+        repair_command_type_counts.update(summary["repair_command_type_counts"])
+        repair_source_counts = summary.get("repair_command_source_counts")
+        if isinstance(repair_source_counts, dict):
+            for key, count in repair_source_counts.items():
+                source, _, command = str(key).partition("|")
+                if command:
+                    repair_command_source_counts[(command, source or "unknown")] += int(count or 0)
         error_count += int(summary["error_count"])
         warning_count += int(summary["warning_count"])
         problem_action_count += int(summary["problem_action_count"])
         failure_report_count += int(summary["failure_report_count"])
         operator_action_required_count += int(summary["operator_action_required_count"])
+        strategy_change_ready_count += int(summary["strategy_change_ready_count"])
 
     status = "FAIL" if error_count else "WARN" if warning_count else "PASS"
+    top_source_action = _top_source_action(report_summaries)
+    top_source_remediation = _top_source_remediation(report_summaries)
     return {
         "ok": error_count == 0,
         "status": status,
@@ -277,14 +461,26 @@ def build_trend_payload(
             "problem_action_count": problem_action_count,
             "failure_report_count": failure_report_count,
             "operator_action_required_count": operator_action_required_count,
+            "strategy_change_ready_count": strategy_change_ready_count,
             "error_count": error_count,
             "warning_count": warning_count,
             "status_counts": _counter_dict(status_counts),
             "source_counts": _counter_dict(source_counts),
             "failure_report_status_counts": _counter_dict(failure_report_status_counts),
+            "evidence_gate_status_counts": _counter_dict(evidence_gate_status_counts),
             "top_issue_codes": _top_issue_codes(reports),
-            "top_source_action": _top_source_action(report_summaries),
-            "top_source_remediation": _top_source_remediation(report_summaries),
+            "repair_command_count": sum(repair_command_counts.values()),
+            "repair_command_type_counts": _counter_dict(repair_command_type_counts),
+            "top_repair_commands": _top_repair_commands(repair_command_counts, repair_command_source_counts),
+            "top_source_action": top_source_action,
+            "top_source_remediation": top_source_remediation,
+            "operator_recommendation": _operator_recommendation(
+                problem_action_count=problem_action_count,
+                error_count=error_count,
+                warning_count=warning_count,
+                evidence_gate_status_counts=evidence_gate_status_counts,
+                top_source_action=top_source_action,
+            ),
         },
         "reports": report_summaries,
         "next_step": _next_step(status, problem_action_count),
@@ -316,18 +512,41 @@ def _print_text_report(payload: dict[str, Any]) -> None:
     top_source_remediation = (
         summary.get("top_source_remediation") if isinstance(summary.get("top_source_remediation"), dict) else {}
     )
+    operator_recommendation = (
+        summary.get("operator_recommendation") if isinstance(summary.get("operator_recommendation"), dict) else {}
+    )
     print("[SOURCE PREFLIGHT TREND REPORT]")
     print(f"  status: {payload['status']}")
     print(f"  reports: {summary['report_count']}")
     print(f"  problem_actions: {summary['problem_action_count']}")
     print(f"  failure_reports: {summary['failure_report_count']}")
     print(f"  operator_action_required: {summary['operator_action_required_count']}")
+    print(f"  strategy_change_ready: {summary['strategy_change_ready_count']}")
     print(f"  errors: {summary['error_count']}")
     print(f"  warnings: {summary['warning_count']}")
     print(f"  statuses: {_format_counts(summary['status_counts'])}")
     print(f"  sources: {_format_counts(summary['source_counts'])}")
     print(f"  failure_report_statuses: {_format_counts(summary['failure_report_status_counts'])}")
+    print(f"  evidence_gates: {_format_counts(summary['evidence_gate_status_counts'])}")
     print(f"  top_issue_codes: {_format_counts(summary['top_issue_codes'])}")
+    print(
+        "  repair_commands: "
+        f"count={summary.get('repair_command_count', 0)}; "
+        f"types={_format_counts(summary.get('repair_command_type_counts') or {})}"
+    )
+    top_repair_commands = (
+        summary.get("top_repair_commands") if isinstance(summary.get("top_repair_commands"), list) else []
+    )
+    for item in top_repair_commands[:3]:
+        if not isinstance(item, dict):
+            continue
+        print(
+            "  top_repair_command: "
+            f"count={item.get('count', 0)}; "
+            f"type={item.get('type', '-')}; "
+            f"sources={_format_counts(item.get('sources') or {})}; "
+            f"command={item.get('command', '-')}"
+        )
     if top_source_action:
         print(
             "  top_source_action: "
@@ -335,6 +554,15 @@ def _print_text_report(payload: dict[str, Any]) -> None:
             f"status={top_source_action.get('status')}; "
             f"count={top_source_action.get('count')}; "
             f"action={top_source_action.get('operator_action')}"
+        )
+    if operator_recommendation:
+        print(
+            "  operator_recommendation: "
+            f"action={operator_recommendation.get('action')}; "
+            f"priority={operator_recommendation.get('priority')}; "
+            f"source={operator_recommendation.get('source') or '-'}; "
+            f"status={operator_recommendation.get('status') or '-'}; "
+            f"next={operator_recommendation.get('operator_action')}"
         )
     checklist = (
         top_source_remediation.get("checklist") if isinstance(top_source_remediation.get("checklist"), list) else []

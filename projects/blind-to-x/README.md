@@ -53,6 +53,15 @@ py -3 main.py --source all --popular --review-only --limit 5
 # Summarize recent local preflight failure evidence without browser/network IO
 .\.venv\Scripts\python.exe scripts/source_preflight_trend_report.py --input-dir .tmp --glob "source_browser_preflight*.json" --base-dir . --output .tmp/source_preflight_trend.json --json
 
+# Compare current source-preflight handling against gate-directed handling without browser/network IO
+.\.venv\Scripts\python.exe scripts/source_preflight_strategy_simulation.py --input-dir .tmp --glob "source_browser_preflight*.json" --base-dir . --output .tmp/source_preflight_strategy_simulation.json --json
+
+# Fast stdout-only check; prints repair_remaining, metric_missing, and scope without writing output.
+.\.venv\Scripts\python.exe scripts/source_preflight_strategy_simulation.py --input-dir .tmp --glob "source_browser_preflight*.json" --base-dir . --summary-only
+
+# Optional local gate before manual source-strategy review; exits 2 when evidence is not ready.
+.\.venv\Scripts\python.exe scripts/source_preflight_strategy_simulation.py --input-dir .tmp --glob "source_browser_preflight*.json" --base-dir . --output .tmp/source_preflight_strategy_simulation.json --require-manual-ready
+
 # The preflight JSON summary includes viewport, ready_sources, problem_sources, and recommended_source.
 # recommended_source prefers the ready source with the strongest successful detail evidence.
 # recommended_command gives a copyable guarded pipeline command for the recommended source,
@@ -66,6 +75,18 @@ py -3 main.py --source all --popular --review-only --limit 5
 # source_preflight_trend_report.py summarizes repeated source/status buckets across local reports
 # and surfaces summary.top_source_action plus summary.top_source_remediation.checklist
 # as source-specific operator steps.
+# evidence_gate_status_counts separates fix_evidence_first, fallback_only, and strategy_review_ready.
+# operator_recommendation turns those gates into the next dry-run action: repair evidence, fallback, or strategy review.
+# source_preflight_strategy_simulation.py compares current vs gate-directed handling as an A/B dry-run.
+# rollout_gate shows whether manual strategy review is ready; auto_apply_allowed stays false.
+# --require-manual-ready turns rollout_gate into a local non-destructive CLI gate for operators.
+# blocked manual_ready_gate output includes a source_preflight_evidence_doctor.py repair command.
+# summary output includes repair_remaining=N, metric_missing=current:N/10,candidate:N/10,
+# and scope=local_preflight_evidence so stdout-only operators can see repair and metric coverage.
+# trend output includes repair_command_count, repair_command_type_counts, and top_repair_commands.
+# repair_command_debt blocks source strategy review until top repair commands have been run.
+# Repair flow runbook: docs/source-preflight-repair-flow.md
+# Automation can add --json to --summary-only and read summary.metric_missing plus output.write_suppressed.
 # Keep .tmp/failures, .tmp/traces, and screenshots/source_probe artifacts out of commits.
 # HTML sources click the first post and fall back to the canonical detail URL
 # if the click is obstructed; API-backed JobPlanet verifies the first post detail endpoint.
@@ -91,6 +112,9 @@ py -3 scripts/recompute_scores.py --days 30
 
 # 주간 리포트 생성
 py -3 scripts/build_weekly_report.py --days 7
+
+# Local weekly A/B smoke without Notion/browser IO; check output for metric_missing=current:N/10,candidate:N/10.
+py -3 scripts/build_weekly_report.py --payload-input .tmp/weekly_report_payload_smoke.json --review-experiment-input .tmp/weekly_report_experiment_smoke.json --source-preflight-trend-input .tmp/source_preflight_trend.json --source-preflight-strategy-input .tmp/source_preflight_strategy_simulation.json --output .tmp/weekly_report_smoke.md
 
 # 전체 단위 테스트
 py -3 -m pytest --no-cov -q tests/unit
@@ -246,7 +270,7 @@ py -3 main.py --source auto --popular --review-only --limit 5
 py -3 scripts/build_weekly_report.py --days 7
 ```
 
-   For a local A/B and source-preflight trend smoke that does not call Notion or launch a browser, use the `--payload-input` command in [`docs/ops-runbook.md`](docs/ops-runbook.md). Keep sample inputs and outputs under `.tmp/` and do not commit them.
+   For a local A/B and source-preflight trend smoke that does not call Notion or launch a browser, use the `--payload-input` command in [`docs/ops-runbook.md`](docs/ops-runbook.md). Confirm `metric_missing=current:N/10,candidate:N/10` in the output, or use the ops-runbook `metric_missing=ok` verifier, before treating source strategy metric coverage as reviewed. Keep sample inputs and outputs under `.tmp/` and do not commit them.
 
    리포트 끝에 `## Best-of-N Comment-Weight Tuning (dry-run)` 섹션이 자동으로 임베드됩니다 (`scripts/tune_best_of_n_weight.py`의 dry-run 분석을 30일 윈도우로 호출). 표본이 부족하거나 tuner가 실패해도 본문은 깨지지 않으며 (fail-open), 권장 `llm.best_of_n_comment_weight` 값이 표시될 때만 설정 검토를 시작하면 됩니다.
 

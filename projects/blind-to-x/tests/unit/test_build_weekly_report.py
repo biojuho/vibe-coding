@@ -149,12 +149,40 @@ def _source_preflight_trend_payload():
             "problem_action_count": 4,
             "failure_report_count": 3,
             "operator_action_required_count": 4,
+            "strategy_change_ready_count": 2,
             "error_count": 0,
             "warning_count": 1,
             "status_counts": {"timeout": 2, "blocked": 1, "browser_unavailable": 1},
             "source_counts": {"ppomppu": 2, "blind": 1, "fmkorea": 1},
             "failure_report_status_counts": {"valid": 3, "missing": 1},
+            "evidence_gate_status_counts": {
+                "strategy_review_ready": 2,
+                "fallback_only": 1,
+                "fix_evidence_first": 1,
+            },
             "top_issue_codes": {"missing_failure_report_path": 1},
+            "repair_command_count": 3,
+            "repair_command_type_counts": {
+                "evidence_doctor": 2,
+                "source_preflight_capture": 1,
+            },
+            "top_repair_commands": [
+                {
+                    "command": "py -3 scripts/source_preflight_evidence_doctor.py --input .tmp/source_browser_preflight.json",
+                    "type": "evidence_doctor",
+                    "count": 2,
+                    "sources": {"ppomppu": 2},
+                },
+                {
+                    "command": (
+                        "py -3 main.py --config config.yaml --source ppomppu --source-preflight "
+                        "--source-preflight-click-through"
+                    ),
+                    "type": "source_preflight_capture",
+                    "count": 1,
+                    "sources": {"ppomppu": 1},
+                },
+            ],
             "top_source_action": {
                 "source": "ppomppu",
                 "status": "timeout",
@@ -186,8 +214,139 @@ def _source_preflight_trend_payload():
                     "Rerun ppomppu preflight with --failure-dir after any timeout or selector change.",
                 ],
             },
+            "operator_recommendation": {
+                "action": "repair_evidence",
+                "priority": "medium",
+                "source": "ppomppu",
+                "status": "timeout",
+                "reason": "Evidence is missing, invalid, or warning-level incomplete.",
+                "operator_action": (
+                    "Run the evidence doctor for affected reports, restore missing artifacts, then rerun trend "
+                    "reporting before changing selectors, timeouts, or source strategy."
+                ),
+                "gate_counts": {
+                    "fix_evidence_first": 1,
+                    "fallback_only": 1,
+                    "strategy_review_ready": 2,
+                },
+            },
         },
         "next_step": "Review warning codes; rerun individual evidence doctor for any unclear report.",
+    }
+
+
+def _source_preflight_strategy_payload():
+    return {
+        "dry_run": True,
+        "trend_status": "PASS",
+        "objective_metrics": [
+            "success",
+            "latency_ms",
+            "provider",
+            "model",
+            "token_cost_estimate",
+            "final_rank_score",
+            "draft_quality_score",
+            "safety_risk_flags",
+            "duplicate_or_near_duplicate",
+            "operator_action_required",
+        ],
+        "safety": {
+            "read_only": True,
+            "browser_launches": False,
+            "notion_writes": False,
+            "x_posts": False,
+            "auto_publish_default": False,
+            "manual_publish_required": True,
+        },
+        "summary": {
+            "report_count": 2,
+            "problem_action_count": 2,
+            "error_count": 0,
+            "warning_count": 0,
+            "evidence_gate_status_counts": {
+                "strategy_review_ready": 1,
+                "fallback_only": 1,
+            },
+            "missing_metric_counts": {"current": 2, "candidate": 2},
+            "missing_metric_names": {
+                "current": ["latency_ms", "draft_quality_score"],
+                "candidate": ["latency_ms", "draft_quality_score"],
+            },
+            "measurement_scope": {
+                "mode": "local_preflight_evidence",
+                "external_llm_calls": False,
+                "costed_generation": False,
+                "not_measured_metrics": ["latency_ms", "draft_quality_score"],
+                "deterministic_defaults": {
+                    "token_cost_estimate": 0.0,
+                    "duplicate_or_near_duplicate": False,
+                },
+            },
+        },
+        "variants": {
+            "current": {
+                "name": "current_top_source_action",
+                "signals": {
+                    "provider": "source_preflight",
+                    "model": "current_top_source_action",
+                    "token_cost_estimate": 0.0,
+                    "latency_ms": None,
+                    "draft_quality_score": None,
+                    "duplicate_or_near_duplicate": False,
+                    "final_rank_score": 44.0,
+                    "strategy_review_count": 2,
+                    "unsafe_strategy_change_count": 1,
+                    "success": False,
+                    "operator_action_required": True,
+                    "safety_risk_flags": ["ungated_strategy_change"],
+                },
+            },
+            "candidate": {
+                "name": "candidate_gate_directed_operator_recommendation",
+                "signals": {
+                    "provider": "source_preflight",
+                    "model": "gate_directed_operator_recommendation",
+                    "token_cost_estimate": 0.0,
+                    "latency_ms": None,
+                    "draft_quality_score": None,
+                    "duplicate_or_near_duplicate": False,
+                    "final_rank_score": 68.0,
+                    "strategy_review_count": 1,
+                    "unsafe_strategy_change_count": 0,
+                    "recommendation_action": "split_fallback_and_strategy_review",
+                    "success": True,
+                    "operator_action_required": True,
+                    "safety_risk_flags": [],
+                },
+            },
+        },
+        "comparison": {
+            "recommendation": "adopt_candidate",
+            "score_delta": 24.0,
+            "unsafe_strategy_change_delta": -1,
+            "operator_action_required_delta": 0,
+        },
+        "rollout_gate": {
+            "status": "split_manual_review",
+            "ready_for_manual_strategy_review": True,
+            "auto_apply_allowed": False,
+            "manual_review_required": True,
+            "blocked_by": ["fallback_only_sources_present"],
+            "operator_action": (
+                "Use ready fallback sources for fallback-only failures, then manually review only strategy-ready evidence."
+            ),
+            "safety_note": (
+                "This dry-run never applies selector, timeout, source, Notion, or publish changes automatically."
+            ),
+        },
+        "manual_ready_gate": {
+            "required": True,
+            "passed": True,
+            "status": "pass",
+            "exit_code": 0,
+            "reason": "Manual strategy review is ready: split_manual_review.",
+        },
     }
 
 
@@ -275,16 +434,226 @@ def test_render_report_embeds_source_preflight_trend_summary():
     assert "Source buckets: ppomppu=2, blind=1, fmkorea=1" in text
     assert "Evidence: failure_report_statuses=valid=3, missing=1; errors=0; warnings=1" in text
     assert "top_issue_codes=missing_failure_report_path=1" in text
+    assert "Evidence gates: strategy_change_ready=2" in text
+    assert "statuses=strategy_review_ready=2, fallback_only=1, fix_evidence_first=1" in text
+    assert "Repair commands: total=3; types=evidence_doctor=2, source_preflight_capture=1" in text
+    assert "2x evidence_doctor sources=ppomppu=2 command=py -3 scripts/source_preflight_evidence_doctor.py" in text
+    assert "1x source_preflight_capture sources=ppomppu=1 command=py -3 main.py --config config.yaml" in text
     assert "Top source action: source=ppomppu; status=timeout; count=2" in text
     assert (
         "Inspect ppomppu timeout evidence, then adjust timeout or source fallback only after evidence is valid." in text
     )
+    assert "Operator recommendation: action=repair_evidence; priority=medium; source=ppomppu; status=timeout" in text
+    assert "restore missing artifacts, then rerun trend reporting" in text
     assert "Top source checklist: Open ppomppu evidence fields first" in text
     assert "do not increase ppomppu timeout" in text
     assert "Rerun ppomppu preflight with --failure-dir" in text
     assert "Safety: read_only=true; browser_launches=false; notion_writes=false; x_posts=false" in text
     assert "manual_publish_required=true" in text
     assert "Next manual action: Review warning codes; rerun individual evidence doctor for any unclear report." in text
+
+
+def test_render_report_embeds_source_preflight_strategy_simulation():
+    payload = _basic_payload()
+    payload["source_preflight_strategy"] = _source_preflight_strategy_payload()
+
+    with patch("scripts.build_weekly_report._render_best_of_n_section", return_value=""):
+        text = _render_report(payload)
+
+    assert "## Source Preflight Strategy A/B (dry-run)" in text
+    assert "Reports: 2; trend_status=PASS; problem_actions=2" in text
+    assert "Recommendation: adopt_candidate; score_delta=24; unsafe_strategy_change_delta=-1" in text
+    assert "Current: score=44; strategy_reviews=2; unsafe_changes=1" in text
+    assert "Candidate: score=68; strategy_reviews=1; unsafe_changes=0" in text
+    assert "action=split_fallback_and_strategy_review" in text
+    assert (
+        "Outcome signals: current_success=false; candidate_success=true; "
+        "current_operator_action_required=true; candidate_operator_action_required=true"
+    ) in text
+    assert (
+        "Provider/model/cost: current=source_preflight/current_top_source_action/$0.0000; "
+        "candidate=source_preflight/gate_directed_operator_recommendation/$0.0000"
+    ) in text
+    assert (
+        "A/B metrics: latency_ms current=-; candidate=-; draft_quality_score current=-; candidate=-; "
+        "duplicate_or_near_duplicate current=false; candidate=false"
+    ) in text
+    assert (
+        "Metric coverage: current_missing=2/10; candidate_missing=2/10; "
+        "metric_missing=current:2/10,candidate:2/10; "
+        "scope=local_preflight_evidence; external_llm_calls=false; costed_generation=false; "
+        "not_measured=latency_ms, draft_quality_score"
+    ) in text
+    assert "Safety risk flags: current=ungated_strategy_change; candidate=-" in text
+    assert "Evidence gates: fallback_only=1, strategy_review_ready=1" in text
+    assert (
+        "Rollout gate: status=split_manual_review; ready_for_manual_strategy_review=true; "
+        "auto_apply_allowed=false; blocked_by=fallback_only_sources_present"
+    ) in text
+    assert (
+        "Blocked checklist: fallback_only_sources_present=1: use ready fallback sources; keep strategy manual" in text
+    )
+    assert "Gate action: Use ready fallback sources for fallback-only failures" in text
+    assert (
+        "Manual-ready gate: status=pass; required=true; passed=true; exit_code=0; "
+        "repair_remaining=0; reason=Manual strategy review is ready: split_manual_review."
+    ) in text
+    assert "Remaining repair commands:" not in text
+    assert "Safety: read_only=true; browser_launches=false; notion_writes=false; x_posts=false" in text
+
+
+def test_render_report_infers_source_preflight_metric_coverage_for_legacy_strategy_json():
+    payload = _basic_payload()
+    strategy = _source_preflight_strategy_payload()
+    strategy.pop("objective_metrics")
+    strategy["summary"].pop("missing_metric_counts")
+    strategy["summary"].pop("missing_metric_names")
+    strategy["summary"].pop("measurement_scope")
+    strategy["variants"]["current"]["missing_required_metrics"] = ["latency_ms", "draft_quality_score"]
+    strategy["variants"]["candidate"]["missing_required_metrics"] = ["latency_ms", "draft_quality_score"]
+    payload["source_preflight_strategy"] = strategy
+
+    with patch("scripts.build_weekly_report._render_best_of_n_section", return_value=""):
+        text = _render_report(payload)
+
+    assert (
+        "Metric coverage: current_missing=2/10; candidate_missing=2/10; "
+        "metric_missing=current:2/10,candidate:2/10; "
+        "scope=local_preflight_evidence_legacy; external_llm_calls=false; costed_generation=false; "
+        "not_measured=latency_ms, draft_quality_score"
+    ) in text
+
+
+def test_render_report_uses_compact_source_preflight_metric_alias():
+    payload = _basic_payload()
+    strategy = _source_preflight_strategy_payload()
+    strategy.pop("objective_metrics")
+    strategy["summary"].pop("missing_metric_counts")
+    strategy["summary"].pop("missing_metric_names")
+    strategy["summary"]["metric_total"] = 7
+    strategy["summary"]["metric_missing"] = "current:1/7,candidate:3/7"
+    strategy["variants"]["current"]["missing_required_metrics"] = []
+    strategy["variants"]["candidate"]["missing_required_metrics"] = []
+    payload["source_preflight_strategy"] = strategy
+
+    with patch("scripts.build_weekly_report._render_best_of_n_section", return_value=""):
+        text = _render_report(payload)
+
+    assert (
+        "Metric coverage: current_missing=1/7; candidate_missing=3/7; "
+        "metric_missing=current:1/7,candidate:3/7; "
+        "scope=local_preflight_evidence; external_llm_calls=false; costed_generation=false"
+    ) in text
+
+
+def test_render_report_embeds_blocked_source_preflight_manual_ready_action():
+    payload = _basic_payload()
+    strategy = _source_preflight_strategy_payload()
+    strategy["rollout_gate"] = {
+        "status": "blocked_repair_evidence",
+        "ready_for_manual_strategy_review": False,
+        "auto_apply_allowed": False,
+        "manual_review_required": True,
+        "blocked_by": ["repair_evidence_first", "repair_command_debt"],
+        "operator_action": (
+            "Repair missing or invalid failure evidence before reviewing selector, timeout, or source strategy changes."
+        ),
+    }
+    strategy["summary"]["evidence_gate_status_counts"] = {"fix_evidence_first": 2}
+    strategy["summary"]["repair_command_count"] = 2
+    strategy["variants"]["candidate"]["signals"]["success"] = False
+    strategy["variants"]["candidate"]["signals"]["safety_risk_flags"] = ["evidence_repair_required"]
+    strategy["manual_ready_gate"] = {
+        "required": True,
+        "passed": False,
+        "status": "blocked",
+        "exit_code": 2,
+        "reason": (
+            "Repair missing or invalid failure evidence before reviewing selector, timeout, or source strategy changes."
+        ),
+        "primary_repair_command": (
+            "py -3 scripts/source_preflight_evidence_doctor.py --input 'source_browser_preflight.json' "
+            "--base-dir '.tmp/source_preflight_strategy_blocked_smoke' --json --fail-on-warning"
+        ),
+        "repair_command_count": 2,
+        "repair_command_remaining_count": 1,
+        "repair_commands": [
+            (
+                "py -3 scripts/source_preflight_evidence_doctor.py --input 'source_browser_preflight.json' "
+                "--base-dir '.tmp/source_preflight_strategy_blocked_smoke' --json --fail-on-warning"
+            ),
+            (
+                "py -3 scripts/source_preflight_evidence_doctor.py --input 'source_browser_preflight-extra.json' "
+                "--base-dir '.tmp/source_preflight_strategy_blocked_smoke' --json --fail-on-warning"
+            ),
+        ],
+    }
+    payload["source_preflight_strategy"] = strategy
+
+    with patch("scripts.build_weekly_report._render_best_of_n_section", return_value=""):
+        text = _render_report(payload)
+
+    assert (
+        "Rollout gate: status=blocked_repair_evidence; ready_for_manual_strategy_review=false; "
+        "auto_apply_allowed=false; blocked_by=repair_evidence_first, repair_command_debt"
+    ) in text
+    assert (
+        "Outcome signals: current_success=false; candidate_success=false; "
+        "current_operator_action_required=true; candidate_operator_action_required=true"
+    ) in text
+    assert (
+        "Metric coverage: current_missing=2/10; candidate_missing=2/10; "
+        "metric_missing=current:2/10,candidate:2/10; scope=local_preflight_evidence"
+    ) in text
+    assert "Safety risk flags: current=ungated_strategy_change; candidate=evidence_repair_required" in text
+    assert "Blocked checklist: repair_evidence_first=2: run evidence doctor before strategy review" in text
+    assert "repair_command_debt=2: run top repair commands before strategy review" in text
+    assert "Manual-ready gate: status=blocked; required=true; passed=false; exit_code=2; repair_remaining=1" in text
+    assert (
+        "Next manual action: Repair missing or invalid failure evidence before reviewing selector, timeout, "
+        "or source strategy changes."
+    ) in text
+    assert "Repair commands: count=2; primary_shown=true; remaining=1" in text
+    assert (
+        "Repair command: `py -3 scripts/source_preflight_evidence_doctor.py --input "
+        "'source_browser_preflight.json' --base-dir '.tmp/source_preflight_strategy_blocked_smoke' "
+        "--json --fail-on-warning`"
+    ) in text
+    assert (
+        "Remaining repair commands: see `manual_ready_gate.repair_commands` in the source strategy JSON "
+        "after running the primary command."
+    ) in text
+
+
+def test_render_report_keeps_unknown_source_preflight_blocker_visible():
+    payload = _basic_payload()
+    strategy = _source_preflight_strategy_payload()
+    strategy["rollout_gate"] = {
+        "status": "blocked_new_gate",
+        "ready_for_manual_strategy_review": False,
+        "auto_apply_allowed": False,
+        "manual_review_required": True,
+        "blocked_by": ["new_provider_gate"],
+        "operator_action": "Inspect the new provider gate before changing source strategy.",
+    }
+    strategy["manual_ready_gate"] = {
+        "required": True,
+        "passed": False,
+        "status": "blocked",
+        "exit_code": 2,
+        "reason": "Inspect the new provider gate before changing source strategy.",
+    }
+    payload["source_preflight_strategy"] = strategy
+
+    with patch("scripts.build_weekly_report._render_best_of_n_section", return_value=""):
+        text = _render_report(payload)
+
+    assert (
+        "Rollout gate: status=blocked_new_gate; ready_for_manual_strategy_review=false; "
+        "auto_apply_allowed=false; blocked_by=new_provider_gate"
+    ) in text
+    assert "Blocked checklist: new_provider_gate: inspect rollout_gate.operator_action" in text
+    assert "Gate action: Inspect the new provider gate before changing source strategy." in text
 
 
 def test_render_report_blocks_unsafe_source_preflight_trend_summary():
@@ -305,10 +674,12 @@ def test_run_renders_payload_input_without_notion_fetch(tmp_path):
     payload_path = tmp_path / "weekly_payload.json"
     experiment_path = tmp_path / "review_experiment.json"
     trend_path = tmp_path / "source_preflight_trend.json"
+    strategy_path = tmp_path / "source_preflight_strategy.json"
     output_path = tmp_path / "weekly_report.md"
     payload_path.write_text(json.dumps(_basic_payload()), encoding="utf-8")
     experiment_path.write_text(json.dumps(_review_experiment_payload()), encoding="utf-8")
     trend_path.write_text(json.dumps(_source_preflight_trend_payload()), encoding="utf-8")
+    strategy_path.write_text(json.dumps(_source_preflight_strategy_payload()), encoding="utf-8")
 
     with (
         patch("scripts.build_weekly_report.ConfigManager") as config_manager,
@@ -322,6 +693,7 @@ def test_run_renders_payload_input_without_notion_fetch(tmp_path):
                 output_path=str(output_path),
                 review_experiment_input=str(experiment_path),
                 source_preflight_trend_input=str(trend_path),
+                source_preflight_strategy_input=str(strategy_path),
                 payload_input=str(payload_path),
             )
         )
@@ -332,6 +704,7 @@ def test_run_renders_payload_input_without_notion_fetch(tmp_path):
     text = output_path.read_text(encoding="utf-8")
     assert "## Review Experiment A/B Summary (dry-run)" in text
     assert "## Source Preflight Trend (dry-run)" in text
+    assert "## Source Preflight Strategy A/B (dry-run)" in text
     assert "Next manual action: Fill the top missing metrics before using this experiment as adoption evidence." in text
 
 
@@ -356,9 +729,11 @@ def test_run_rejects_non_object_payload_input(tmp_path):
 def test_direct_script_renders_payload_input_without_project_pythonpath(tmp_path):
     payload_path = tmp_path / "weekly_payload.json"
     trend_path = tmp_path / "source_preflight_trend.json"
+    strategy_path = tmp_path / "source_preflight_strategy.json"
     output_path = tmp_path / "weekly_report.md"
     payload_path.write_text(json.dumps(_basic_payload()), encoding="utf-8")
     trend_path.write_text(json.dumps(_source_preflight_trend_payload()), encoding="utf-8")
+    strategy_path.write_text(json.dumps(_source_preflight_strategy_payload()), encoding="utf-8")
 
     result = subprocess.run(
         [
@@ -368,6 +743,8 @@ def test_direct_script_renders_payload_input_without_project_pythonpath(tmp_path
             str(payload_path),
             "--source-preflight-trend-input",
             str(trend_path),
+            "--source-preflight-strategy-input",
+            str(strategy_path),
             "--output",
             str(output_path),
         ],
@@ -379,8 +756,11 @@ def test_direct_script_renders_payload_input_without_project_pythonpath(tmp_path
 
     assert result.returncode == 0, result.stderr
     assert output_path.exists()
-    assert "Smoke item" not in output_path.read_text(encoding="utf-8")
-    assert "## Source Preflight Trend (dry-run)" in output_path.read_text(encoding="utf-8")
+    text = output_path.read_text(encoding="utf-8")
+    assert "Smoke item" not in text
+    assert "## Source Preflight Trend (dry-run)" in text
+    assert "## Source Preflight Strategy A/B (dry-run)" in text
+    assert "metric_missing=current:2/10,candidate:2/10" in text
     assert "Title A | views=1000 likes=50 retweets=10" in result.stdout
 
 
