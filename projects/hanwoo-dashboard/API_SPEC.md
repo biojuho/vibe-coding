@@ -76,6 +76,9 @@ data: {"error":"Failed to generate an AI response."}
 
 ## Existing API Surface
 
+- `GET|POST /api/auth/[...nextauth]`: public Auth.js control-plane route for sign-in/session/callback handling. This route is intentionally outside `requireAuthenticatedSession()` so users can create or refresh a session.
+- `GET /api/health`: public health probe. Build/CI requests skip the database ping; runtime requests return degraded health instead of exposing a protected dashboard payload.
+- `POST /api/ai/insight`: authenticated daily insight endpoint with AI/cache/heuristic fallback. Unauthenticated requests return `401`.
 - `GET /api/dashboard/summary`: authenticated dashboard aggregate summary.
 - `GET /api/dashboard/cattle`: authenticated cattle list with cursor pagination and query validation.
 - `GET /api/dashboard/sales`: authenticated sales list with cursor pagination and query validation.
