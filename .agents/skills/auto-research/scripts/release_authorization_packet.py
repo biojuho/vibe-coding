@@ -15,6 +15,7 @@ from typing import Any
 
 DEFAULT_REQUIRED_WORKFLOWS = ("root-quality-gate", "active-project-matrix")
 DEFAULT_COMMIT_PREVIEW_LIMIT = 25
+DEFAULT_ACTIONS_RUN_LIMIT = 20
 DEFAULT_LLM_WIKI_STRICT_EVIDENCE_PATH = Path(".tmp/llm-wiki-strict-audit-current.json")
 
 
@@ -235,43 +236,206 @@ def _llm_wiki_strict_evidence(root: Path, current_head_sha: str) -> dict[str, An
     }
 
 
-def build_packet(
-    root: Path,
+def _actions_lookup_command(head_sha: str, limit: int = DEFAULT_ACTIONS_RUN_LIMIT) -> list[str]:
+    return [
+        "gh",
+        "run",
+        "list",
+        "--commit",
+        head_sha,
+        "--limit",
+        str(max(0, limit)),
+        "--json",
+        "databaseId,name,workflowName,status,conclusion,headSha,createdAt,url",
+    ]
+
+
+def _current_head_actions_unavailable(
     *,
-    readiness: dict[str, Any],
-    git_info: dict[str, Any] | None = None,
-    max_commits: int = DEFAULT_COMMIT_PREVIEW_LIMIT,
+    head_sha: str,
+    reason: str,
+    command: list[str] | None = None,
+    returncode: int | None = None,
+    stderr: str = "",
+    limit: int = DEFAULT_ACTIONS_RUN_LIMIT,
 ) -> dict[str, Any]:
-    git_info = git_info or _collect_git_info(root, timeout=30)
-    branch_status = str(git_info.get("branch_status") or "")
+    return {
+        "available": False,
+        "head_sha": head_sha,
+        "command": " ".join(command or []),
+        "returncode": returncode,
+        "reason": reason,
+        "stderr": stderr,
+        "limit": max(0, limit),
+        "run_count": 0,
+        "required_workflow_names": list(DEFAULT_REQUIRED_WORKFLOWS),
+        "required_run_count": 0,
+        "required_success_count": 0,
+        "successful_required_workflows": [],
+        "missing_required_workflows": list(DEFAULT_REQUIRED_WORKFLOWS),
+        "runs_preview": [],
+    }
+
+
+def _workflow_name(row: dict[str, Any]) -> str:
+    return str(row.get("workflowName") or row.get("name") or "").strip()
+
+
+def _required_workflow_rows(rows: list[dict[str, Any]], required_names: list[str]) -> list[dict[str, Any]]:
+    required_set = set(required_names)
+    return [row for row in rows if _workflow_name(row) in required_set]
+
+
+def _successful_required_workflow_rows(rows: list[dict[str, Any]], required_names: list[str]) -> list[dict[str, Any]]:
+    required_set = set(required_names)
+    return [
+        row
+        for row in rows
+        if _workflow_name(row) in required_set
+        and row.get("status") == "completed"
+        and row.get("conclusion") == "success"
+    ]
+
+
+def _workflow_run_rows(parsed: list[Any]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for row in parsed:
+        if not isinstance(row, dict):
+            continue
+        rows.append(
+            {
+                "databaseId": row.get("databaseId"),
+                "name": row.get("name"),
+                "workflowName": row.get("workflowName"),
+                "status": row.get("status"),
+                "conclusion": row.get("conclusion"),
+                "headSha": row.get("headSha"),
+                "createdAt": row.get("createdAt"),
+                "url": row.get("url"),
+            }
+        )
+    return rows
+
+
+def _collect_current_head_actions(
+    root: Path,
+    head_sha: str,
+    timeout: int,
+    limit: int = DEFAULT_ACTIONS_RUN_LIMIT,
+) -> dict[str, Any]:
+    normalized_head = str(head_sha or "").strip()
+    if not normalized_head:
+        return _current_head_actions_unavailable(
+            head_sha="",
+            reason="missing head_sha",
+            limit=limit,
+        )
+
+    command = _actions_lookup_command(normalized_head, limit)
+    if not (root / ".git").exists():
+        return _current_head_actions_unavailable(
+            head_sha=normalized_head,
+            reason="not a git worktree",
+            command=command,
+            limit=limit,
+        )
+
+    result = _run(root, command, timeout)
+    if not result.get("ok"):
+        return _current_head_actions_unavailable(
+            head_sha=normalized_head,
+            reason="gh run list failed",
+            command=command,
+            returncode=result.get("returncode"),
+            stderr=str(result.get("stderr") or ""),
+            limit=limit,
+        )
+
+    try:
+        parsed = json.loads(str(result.get("stdout") or "[]"))
+    except json.JSONDecodeError:
+        return _current_head_actions_unavailable(
+            head_sha=normalized_head,
+            reason="gh run list returned non-json output",
+            command=command,
+            returncode=result.get("returncode"),
+            stderr=str(result.get("stderr") or ""),
+            limit=limit,
+        )
+    if not isinstance(parsed, list):
+        return _current_head_actions_unavailable(
+            head_sha=normalized_head,
+            reason="gh run list returned non-list output",
+            command=command,
+            returncode=result.get("returncode"),
+            stderr=str(result.get("stderr") or ""),
+            limit=limit,
+        )
+
+    rows = _workflow_run_rows(parsed)
+    required_names = list(DEFAULT_REQUIRED_WORKFLOWS)
+    required_rows = _required_workflow_rows(rows, required_names)
+    successful_required = _successful_required_workflow_rows(required_rows, required_names)
+    successful_names = {_workflow_name(row) for row in successful_required}
+    missing_required = [name for name in required_names if name not in successful_names]
+
+    return {
+        "available": True,
+        "head_sha": normalized_head,
+        "command": " ".join(command),
+        "returncode": result.get("returncode"),
+        "limit": max(0, limit),
+        "run_count": len(rows),
+        "required_workflow_names": required_names,
+        "required_run_count": len(required_rows),
+        "required_success_count": len(successful_required),
+        "successful_required_workflows": successful_required,
+        "missing_required_workflows": missing_required,
+        "runs_preview": rows[: max(0, limit)],
+    }
+
+
+def _packet_status(
+    *,
+    git_available: bool,
+    dirty_paths: list[str],
+    ahead_count: int,
+    unproven: list[str],
+) -> str:
+    if not git_available:
+        return "git_unavailable"
+    if dirty_paths:
+        return "blocked_dirty_worktree"
+    if ahead_count <= 0:
+        return "not_required"
+    if unproven:
+        return "ready_for_authorization"
+    return "already_verified"
+
+
+def _packet_ahead_count(readiness: dict[str, Any], branch_status: str) -> int:
     ahead_count = _int(_as_dict(_as_dict(readiness.get("workspace_gates")).get("github_release")).get("ahead_count"))
-    if ahead_count == 0:
-        ahead_count = _parse_ahead_count(branch_status)
-    dirty_paths = [str(path) for path in _as_list(git_info.get("dirty_paths"))]
+    return ahead_count if ahead_count else _parse_ahead_count(branch_status)
+
+
+def _packet_workflows(readiness: dict[str, Any]) -> list[dict[str, Any]]:
     workflows = _workflow_rows(readiness)
-    if not workflows:
-        workflows = [
-            {"name": name, "status": "missing", "conclusion": None, "databaseId": None, "url": None}
-            for name in DEFAULT_REQUIRED_WORKFLOWS
-        ]
-    unproven = _unproven_workflows(workflows)
-    external_task_ids = _external_task_ids(readiness)
-    llm_wiki_evidence = _llm_wiki_strict_evidence(root, str(git_info.get("head_sha") or ""))
+    if workflows:
+        return workflows
+    return [
+        {"name": name, "status": "missing", "conclusion": None, "databaseId": None, "url": None}
+        for name in DEFAULT_REQUIRED_WORKFLOWS
+    ]
 
-    if not git_info.get("available", True):
-        status = "git_unavailable"
-    elif dirty_paths:
-        status = "blocked_dirty_worktree"
-    elif ahead_count <= 0:
-        status = "not_required"
-    elif unproven:
-        status = "ready_for_authorization"
-    else:
-        status = "already_verified"
 
-    push_command = (
-        f"git push origin {git_info.get('branch') or 'main'}" if ahead_count > 0 and not dirty_paths else None
-    )
+def _packet_blockers(
+    *,
+    dirty_paths: list[str],
+    ahead_count: int,
+    unproven: list[str],
+    external_task_ids: list[str],
+    llm_wiki_evidence: dict[str, Any],
+) -> list[str]:
     blockers: list[str] = []
     if dirty_paths:
         blockers.append(f"dirty worktree paths: {len(dirty_paths)}")
@@ -285,6 +449,132 @@ def build_packet(
         blockers.append(f"LLM Wiki strict release evidence status={llm_wiki_evidence.get('status')}")
     elif llm_wiki_evidence.get("head_matches_current") is False:
         blockers.append("LLM Wiki strict release evidence head does not match current HEAD")
+    return blockers
+
+
+def _packet_push_command(git_info: dict[str, Any], *, ahead_count: int, dirty_paths: list[str]) -> str | None:
+    if ahead_count <= 0 or dirty_paths:
+        return None
+    return f"git push origin {git_info.get('branch') or 'main'}"
+
+
+def _packet_summary(
+    *,
+    git_info: dict[str, Any],
+    ahead_count: int,
+    dirty_paths: list[str],
+    unproven: list[str],
+    external_task_ids: list[str],
+    commit_count: int,
+    commits_preview: list[Any],
+    commits_omitted: int,
+    llm_wiki_evidence: dict[str, Any],
+    current_head_actions: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "branch": git_info.get("branch"),
+        "head": git_info.get("head_sha"),
+        "head_short": str(git_info.get("head_sha") or "")[:8],
+        "ahead_count": ahead_count,
+        "dirty_count": len(dirty_paths),
+        "unproven_workflow_count": len(unproven),
+        "external_blocker_ids": external_task_ids,
+        "commit_count": commit_count,
+        "commit_preview_count": len(commits_preview),
+        "commit_omitted_count": commits_omitted,
+        "authorization_required": ahead_count > 0 and not dirty_paths,
+        "llm_wiki_strict_evidence_status": llm_wiki_evidence.get("status"),
+        "llm_wiki_strict_evidence_head_matches_current": llm_wiki_evidence.get("head_matches_current"),
+        "llm_wiki_strict_evidence_unexpected_count": llm_wiki_evidence.get("unexpected_manifest_warning_count"),
+        "llm_wiki_strict_evidence_path": llm_wiki_evidence.get("path"),
+        "current_head_actions_available": current_head_actions.get("available"),
+        "current_head_run_count": _int(current_head_actions.get("run_count")),
+        "current_head_required_success_count": _int(current_head_actions.get("required_success_count")),
+    }
+
+
+def _packet_git_section(
+    *,
+    git_info: dict[str, Any],
+    branch_status: str,
+    ahead_count: int,
+    dirty_paths: list[str],
+    commits_preview: list[Any],
+    commits_omitted: int,
+    commit_count: int,
+    max_commits: int,
+) -> dict[str, Any]:
+    return {
+        "branch": git_info.get("branch"),
+        "upstream": git_info.get("upstream"),
+        "head_sha": git_info.get("head_sha"),
+        "branch_status": branch_status,
+        "ahead_count": ahead_count,
+        "dirty_count": len(dirty_paths),
+        "dirty_paths": dirty_paths,
+        "commits_ahead": commits_preview,
+        "commits_ahead_preview": commits_preview,
+        "commits_ahead_limit": max(0, max_commits),
+        "commits_ahead_omitted": commits_omitted,
+        "commit_count": commit_count,
+        "review_commands": _review_commands(git_info),
+    }
+
+
+def _packet_authorization(
+    *,
+    git_info: dict[str, Any],
+    ahead_count: int,
+    dirty_paths: list[str],
+    unproven: list[str],
+    workflows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    return {
+        "push_required": ahead_count > 0,
+        "allowed_without_explicit_user_authorization": False,
+        "suggested_command": _packet_push_command(git_info, ahead_count=ahead_count, dirty_paths=dirty_paths),
+        "post_push_gates": unproven or [workflow["name"] for workflow in workflows],
+        "guardrails": [
+            "Do not push without explicit user authorization.",
+            "After push, wait for root-quality-gate and active-project-matrix on the exact current HEAD.",
+            "Do not retry external T-251 until Supabase credentials were reset.",
+        ],
+    }
+
+
+def build_packet(
+    root: Path,
+    *,
+    readiness: dict[str, Any],
+    git_info: dict[str, Any] | None = None,
+    current_head_actions: dict[str, Any] | None = None,
+    max_commits: int = DEFAULT_COMMIT_PREVIEW_LIMIT,
+) -> dict[str, Any]:
+    git_info = git_info or _collect_git_info(root, timeout=30)
+    if current_head_actions is None:
+        current_head_actions = _collect_current_head_actions(root, str(git_info.get("head_sha") or ""), timeout=30)
+    branch_status = str(git_info.get("branch_status") or "")
+    ahead_count = _packet_ahead_count(readiness, branch_status)
+    dirty_paths = [str(path) for path in _as_list(git_info.get("dirty_paths"))]
+    workflows = _packet_workflows(readiness)
+    unproven = _unproven_workflows(workflows)
+    external_task_ids = _external_task_ids(readiness)
+    llm_wiki_evidence = _llm_wiki_strict_evidence(root, str(git_info.get("head_sha") or ""))
+
+    status = _packet_status(
+        git_available=bool(git_info.get("available", True)),
+        dirty_paths=dirty_paths,
+        ahead_count=ahead_count,
+        unproven=unproven,
+    )
+
+    blockers = _packet_blockers(
+        dirty_paths=dirty_paths,
+        ahead_count=ahead_count,
+        unproven=unproven,
+        external_task_ids=external_task_ids,
+        llm_wiki_evidence=llm_wiki_evidence,
+    )
 
     commits = _as_list(git_info.get("commits"))
     commit_count = max(len(commits), ahead_count if ahead_count > 0 else 0)
@@ -295,52 +585,39 @@ def build_packet(
         "generated_at": datetime.now(UTC).isoformat(),
         "root": str(root.resolve()),
         "status": status,
-        "summary": {
-            "branch": git_info.get("branch"),
-            "head": git_info.get("head_sha"),
-            "head_short": str(git_info.get("head_sha") or "")[:8],
-            "ahead_count": ahead_count,
-            "dirty_count": len(dirty_paths),
-            "unproven_workflow_count": len(unproven),
-            "external_blocker_ids": external_task_ids,
-            "commit_count": commit_count,
-            "commit_preview_count": len(commits_preview),
-            "commit_omitted_count": commits_omitted,
-            "authorization_required": ahead_count > 0 and not dirty_paths,
-            "llm_wiki_strict_evidence_status": llm_wiki_evidence.get("status"),
-            "llm_wiki_strict_evidence_head_matches_current": llm_wiki_evidence.get("head_matches_current"),
-            "llm_wiki_strict_evidence_unexpected_count": llm_wiki_evidence.get("unexpected_manifest_warning_count"),
-            "llm_wiki_strict_evidence_path": llm_wiki_evidence.get("path"),
-        },
-        "git": {
-            "branch": git_info.get("branch"),
-            "upstream": git_info.get("upstream"),
-            "head_sha": git_info.get("head_sha"),
-            "branch_status": branch_status,
-            "ahead_count": ahead_count,
-            "dirty_count": len(dirty_paths),
-            "dirty_paths": dirty_paths,
-            "commits_ahead": commits_preview,
-            "commits_ahead_preview": commits_preview,
-            "commits_ahead_limit": max(0, max_commits),
-            "commits_ahead_omitted": commits_omitted,
-            "commit_count": commit_count,
-            "review_commands": _review_commands(git_info),
-        },
+        "summary": _packet_summary(
+            git_info=git_info,
+            ahead_count=ahead_count,
+            dirty_paths=dirty_paths,
+            unproven=unproven,
+            external_task_ids=external_task_ids,
+            commit_count=commit_count,
+            commits_preview=commits_preview,
+            commits_omitted=commits_omitted,
+            llm_wiki_evidence=llm_wiki_evidence,
+            current_head_actions=current_head_actions,
+        ),
+        "git": _packet_git_section(
+            git_info=git_info,
+            branch_status=branch_status,
+            ahead_count=ahead_count,
+            dirty_paths=dirty_paths,
+            commits_preview=commits_preview,
+            commits_omitted=commits_omitted,
+            commit_count=commit_count,
+            max_commits=max_commits,
+        ),
         "required_workflows": workflows,
         "unproven_workflows": unproven,
         "llm_wiki_strict_evidence": llm_wiki_evidence,
-        "authorization": {
-            "push_required": ahead_count > 0,
-            "allowed_without_explicit_user_authorization": False,
-            "suggested_command": push_command,
-            "post_push_gates": unproven or [workflow["name"] for workflow in workflows],
-            "guardrails": [
-                "Do not push without explicit user authorization.",
-                "After push, wait for root-quality-gate and active-project-matrix on the exact current HEAD.",
-                "Do not retry external T-251 until Supabase credentials were reset.",
-            ],
-        },
+        "current_head_actions": current_head_actions,
+        "authorization": _packet_authorization(
+            git_info=git_info,
+            ahead_count=ahead_count,
+            dirty_paths=dirty_paths,
+            unproven=unproven,
+            workflows=workflows,
+        ),
         "blockers": blockers,
     }
 

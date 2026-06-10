@@ -11,7 +11,7 @@ import sys
 import zlib
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 
 BROWSER_DEPENDENCIES = {
@@ -59,6 +59,7 @@ MAX_LOG_SUMMARY_CHARS = 260
 STALE_SCREENSHOT_DAYS = 14
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 PNG_CHANNELS_BY_COLOR_TYPE = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}
+PNG_NONBLANK_UNSUPPORTED_ISSUE = "png nonblank check supports only 8-bit non-interlaced color types 0, 2, 3, 4, and 6"
 GENERIC_PROJECT_TOKENS = {
     "app",
     "chain",
@@ -68,6 +69,29 @@ GENERIC_PROJECT_TOKENS = {
     "project",
     "tool",
 }
+
+
+class PngHeader(NamedTuple):
+    width: int
+    height: int
+    bit_depth: int
+    color_type: int
+    compression_method: int
+    filter_method: int
+    interlace_method: int
+
+
+class PngChunkScan(NamedTuple):
+    width: int
+    height: int
+    bit_depth: int
+    color_type: int
+    compression_method: int
+    filter_method: int
+    interlace_method: int
+    idat: bytes
+    saw_iend: bool
+    issues: list[str]
 
 
 def _relative(path: Path, root: Path) -> str:
@@ -218,6 +242,53 @@ def _paeth_predictor(left: int, up: int, upper_left: int) -> int:
     return upper_left
 
 
+def _apply_png_filter(
+    row: bytearray,
+    previous: bytearray,
+    *,
+    filter_type: int,
+    bytes_per_pixel: int,
+) -> None:
+    if filter_type == 0:
+        return
+    for index in range(len(row)):
+        left = row[index - bytes_per_pixel] if index >= bytes_per_pixel else 0
+        up = previous[index]
+        upper_left = previous[index - bytes_per_pixel] if index >= bytes_per_pixel else 0
+        if filter_type == 1:
+            row[index] = (row[index] + left) & 0xFF
+        elif filter_type == 2:
+            row[index] = (row[index] + up) & 0xFF
+        elif filter_type == 3:
+            row[index] = (row[index] + ((left + up) // 2)) & 0xFF
+        elif filter_type == 4:
+            row[index] = (row[index] + _paeth_predictor(left, up, upper_left)) & 0xFF
+
+
+def _png_reconstruct_row(
+    raw: bytes,
+    offset: int,
+    row_length: int,
+    previous: bytearray,
+    bytes_per_pixel: int,
+) -> tuple[bytearray, int, list[str]]:
+    filter_type = raw[offset]
+    offset += 1
+    row = bytearray(raw[offset : offset + row_length])
+    offset += row_length
+    if filter_type not in {0, 1, 2, 3, 4}:
+        return bytearray(), offset, [f"unsupported png filter type: {filter_type}"]
+
+    _apply_png_filter(row, previous, filter_type=filter_type, bytes_per_pixel=bytes_per_pixel)
+    return row, offset, []
+
+
+def _png_row_has_pixel_change(row: bytearray, bytes_per_pixel: int, first_pixel: bytes) -> bool:
+    return any(
+        bytes(row[index : index + bytes_per_pixel]) != first_pixel for index in range(0, len(row), bytes_per_pixel)
+    )
+
+
 def _png_is_nonblank(
     compressed: bytes,
     width: int,
@@ -238,65 +309,57 @@ def _png_is_nonblank(
     first_pixel: bytes | None = None
     offset = 0
     for _row_index in range(height):
-        filter_type = raw[offset]
-        offset += 1
-        row = bytearray(raw[offset : offset + row_length])
-        offset += row_length
-        if filter_type not in {0, 1, 2, 3, 4}:
-            return False, [f"unsupported png filter type: {filter_type}"]
-
-        for index in range(row_length):
-            left = row[index - bytes_per_pixel] if index >= bytes_per_pixel else 0
-            up = previous[index]
-            upper_left = previous[index - bytes_per_pixel] if index >= bytes_per_pixel else 0
-            if filter_type == 1:
-                row[index] = (row[index] + left) & 0xFF
-            elif filter_type == 2:
-                row[index] = (row[index] + up) & 0xFF
-            elif filter_type == 3:
-                row[index] = (row[index] + ((left + up) // 2)) & 0xFF
-            elif filter_type == 4:
-                row[index] = (row[index] + _paeth_predictor(left, up, upper_left)) & 0xFF
+        row, offset, row_issues = _png_reconstruct_row(raw, offset, row_length, previous, bytes_per_pixel)
+        if row_issues:
+            return False, row_issues
 
         if first_pixel is None:
             first_pixel = bytes(row[:bytes_per_pixel])
-        for index in range(0, row_length, bytes_per_pixel):
-            if bytes(row[index : index + bytes_per_pixel]) != first_pixel:
-                return True, []
+        if _png_row_has_pixel_change(row, bytes_per_pixel, first_pixel):
+            return True, []
         previous = row
 
     return False, []
 
 
-def _png_metadata(path: Path) -> dict[str, Any]:
-    issues: list[str] = []
-    try:
-        data = path.read_bytes()
-    except OSError as exc:
-        return {
-            "image_check": "unreadable",
-            "image_valid": False,
-            "nonblank": False,
-            "image_issues": [str(exc)],
+def _image_issue_metadata(
+    *,
+    image_check: str,
+    image_valid: bool,
+    nonblank: bool | None,
+    issues: list[str],
+    width: int | None = None,
+    height: int | None = None,
+) -> dict[str, Any]:
+    metadata: dict[str, Any] = {}
+    if width is not None and height is not None:
+        metadata.update({"width": width, "height": height})
+    metadata.update(
+        {
+            "image_check": image_check,
+            "image_valid": image_valid,
+            "nonblank": nonblank,
+            "image_issues": issues,
         }
+    )
+    return metadata
 
-    if not data.startswith(PNG_SIGNATURE):
-        return {
-            "image_check": "invalid",
-            "image_valid": False,
-            "nonblank": False,
-            "image_issues": ["png signature missing"],
-        }
 
+def _png_chunk_name(chunk_type: bytes) -> str:
+    return chunk_type.decode("ascii", errors="replace")
+
+
+def _png_header_from_ihdr(chunk_length: int, payload: bytes) -> tuple[PngHeader | None, str | None]:
+    if chunk_length != 13:
+        return None, "png ihdr chunk has invalid length"
+    return PngHeader(*struct.unpack(">IIBBBBB", payload)), None
+
+
+def _png_chunk_scan(data: bytes) -> PngChunkScan:
     offset = len(PNG_SIGNATURE)
-    width = 0
-    height = 0
-    bit_depth = 0
-    color_type = -1
-    compression_method = 0
-    filter_method = 0
-    interlace_method = 0
+    header = PngHeader(0, 0, 0, -1, 0, 0, 0)
     idat = bytearray()
+    issues: list[str] = []
     saw_iend = False
     while offset + 8 <= len(data):
         chunk_length = struct.unpack(">I", data[offset : offset + 4])[0]
@@ -305,22 +368,15 @@ def _png_metadata(path: Path) -> dict[str, Any]:
         payload_end = payload_start + chunk_length
         chunk_end = payload_end + 4
         if chunk_end > len(data):
-            issues.append(f"png chunk {chunk_type.decode('ascii', errors='replace')} is truncated")
+            issues.append(f"png chunk {_png_chunk_name(chunk_type)} is truncated")
             break
         payload = data[payload_start:payload_end]
         if chunk_type == b"IHDR":
-            if chunk_length != 13:
-                issues.append("png ihdr chunk has invalid length")
-            else:
-                (
-                    width,
-                    height,
-                    bit_depth,
-                    color_type,
-                    compression_method,
-                    filter_method,
-                    interlace_method,
-                ) = struct.unpack(">IIBBBBB", payload)
+            next_header, issue = _png_header_from_ihdr(chunk_length, payload)
+            if issue:
+                issues.append(issue)
+            elif next_header is not None:
+                header = next_header
         elif chunk_type == b"IDAT":
             idat.extend(payload)
         elif chunk_type == b"IEND":
@@ -328,24 +384,27 @@ def _png_metadata(path: Path) -> dict[str, Any]:
             break
         offset = chunk_end
 
-    metadata: dict[str, Any] = {"width": width, "height": height}
-    if width <= 0 or height <= 0:
-        issues.append("png dimensions are missing or invalid")
-    if not saw_iend:
-        issues.append("png iend chunk missing")
-    if not idat:
-        issues.append("png idat chunk missing")
-    if issues:
-        metadata.update(
-            {
-                "image_check": "invalid",
-                "image_valid": False,
-                "nonblank": False,
-                "image_issues": issues,
-            }
-        )
-        return metadata
+    return PngChunkScan(
+        header.width,
+        header.height,
+        header.bit_depth,
+        header.color_type,
+        header.compression_method,
+        header.filter_method,
+        header.interlace_method,
+        bytes(idat),
+        saw_iend,
+        issues,
+    )
 
+
+def _png_supported_bytes_per_pixel(
+    bit_depth: int,
+    color_type: int,
+    compression_method: int,
+    filter_method: int,
+    interlace_method: int,
+) -> int | None:
     bytes_per_pixel = PNG_CHANNELS_BY_COLOR_TYPE.get(color_type)
     if (
         bit_depth != 8
@@ -354,36 +413,82 @@ def _png_metadata(path: Path) -> dict[str, Any]:
         or filter_method != 0
         or interlace_method != 0
     ):
-        metadata.update(
-            {
-                "image_check": "nonblank_check_unsupported",
-                "image_valid": True,
-                "nonblank": None,
-                "image_issues": ["png nonblank check supports only 8-bit non-interlaced color types 0, 2, 3, 4, and 6"],
-            }
-        )
-        return metadata
+        return None
+    return bytes_per_pixel
 
-    nonblank, pixel_issues = _png_is_nonblank(bytes(idat), width, height, bytes_per_pixel)
-    if pixel_issues:
-        metadata.update(
-            {
-                "image_check": "invalid",
-                "image_valid": False,
-                "nonblank": False,
-                "image_issues": pixel_issues,
-            }
-        )
-        return metadata
 
-    metadata.update(
-        {
-            "image_check": "ok" if nonblank else "blank",
-            "image_valid": True,
-            "nonblank": nonblank,
-        }
+def _png_metadata(path: Path) -> dict[str, Any]:
+    try:
+        data = path.read_bytes()
+    except OSError as exc:
+        return _image_issue_metadata(
+            image_check="unreadable",
+            image_valid=False,
+            nonblank=False,
+            issues=[str(exc)],
+        )
+
+    if not data.startswith(PNG_SIGNATURE):
+        return _image_issue_metadata(
+            image_check="invalid",
+            image_valid=False,
+            nonblank=False,
+            issues=["png signature missing"],
+        )
+
+    scan = _png_chunk_scan(data)
+    issues = list(scan.issues)
+    if scan.width <= 0 or scan.height <= 0:
+        issues.append("png dimensions are missing or invalid")
+    if not scan.saw_iend:
+        issues.append("png iend chunk missing")
+    if not scan.idat:
+        issues.append("png idat chunk missing")
+    if issues:
+        return _image_issue_metadata(
+            width=scan.width,
+            height=scan.height,
+            image_check="invalid",
+            image_valid=False,
+            nonblank=False,
+            issues=issues,
+        )
+
+    bytes_per_pixel = _png_supported_bytes_per_pixel(
+        scan.bit_depth,
+        scan.color_type,
+        scan.compression_method,
+        scan.filter_method,
+        scan.interlace_method,
     )
-    return metadata
+    if bytes_per_pixel is None:
+        return _image_issue_metadata(
+            width=scan.width,
+            height=scan.height,
+            image_check="nonblank_check_unsupported",
+            image_valid=True,
+            nonblank=None,
+            issues=[PNG_NONBLANK_UNSUPPORTED_ISSUE],
+        )
+
+    nonblank, pixel_issues = _png_is_nonblank(scan.idat, scan.width, scan.height, bytes_per_pixel)
+    if pixel_issues:
+        return _image_issue_metadata(
+            width=scan.width,
+            height=scan.height,
+            image_check="invalid",
+            image_valid=False,
+            nonblank=False,
+            issues=pixel_issues,
+        )
+
+    return {
+        "width": scan.width,
+        "height": scan.height,
+        "image_check": "ok" if nonblank else "blank",
+        "image_valid": True,
+        "nonblank": nonblank,
+    }
 
 
 def _image_metadata(path: Path) -> dict[str, Any]:
@@ -675,13 +780,17 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
 
 
-def main(argv: list[str] | None = None) -> int:
+def _browser_inventory_args_from_argv(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path.cwd(), help="Repository root to inspect")
     parser.add_argument("--include-non-browser", action="store_true", help="Include non-browser package projects")
     parser.add_argument("--json", action="store_true", help="Emit JSON instead of text")
     parser.add_argument("--output", type=Path, help="Optional path to write the inventory JSON")
-    args = parser.parse_args(argv)
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _browser_inventory_args_from_argv(argv)
 
     inventory = build_inventory(args.root, args.include_non_browser)
     if args.output:

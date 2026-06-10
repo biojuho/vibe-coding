@@ -114,7 +114,11 @@ def test_build_plan_records_group_order_boundaries_and_sources(tmp_path: Path) -
     assert plan["decision"]["stage_commit_push_authorized"] is False
     assert [group["key"] for group in plan["group_order"]] == ["auto-research", "llm-wiki"]
     assert any("T-251 is user-owned" in item for item in plan["handoff_only_boundaries"])
+    assert plan["freshness"]["status"] == "current"
+    assert plan["previous_plan_freshness"]["status"] == "missing_previous_json"
     assert plan["inputs"]["code_review_gate"]["risk_score"] == 0.55
+    assert plan["inputs"]["state_consistency"]["effective_dirty_count"] == 3
+    assert plan["inputs"]["state_consistency"]["warnings"] == []
     assert plan["inputs"]["code_review_gate"]["test_gap_count"] == 1
     assert plan["inputs"]["code_review_gate"]["untracked_graph_relevant_file_count"] == 1
     assert plan["ab_comparison"][1]["decision"] == "adopt"
@@ -122,6 +126,45 @@ def test_build_plan_records_group_order_boundaries_and_sources(tmp_path: Path) -
         "https://git-scm.com/docs/git-status",
         "https://git-scm.com/docs/git-ls-files",
     }
+
+
+def test_build_plan_uses_session_dirty_count_when_inventory_claims_clean(tmp_path: Path) -> None:
+    github_inventory = {"git": {"dirty_count": 0, "dirty_paths": [], "dirty_path_groups": []}, "open_prs": {}}
+
+    plan = dirty_plan.build_plan(
+        root=tmp_path,
+        github_inventory=github_inventory,
+        session_orient=_session_orient(),
+        readiness=_readiness(),
+        code_review_gate=_gate(),
+    )
+
+    assert plan["status"] == "handoff_required"
+    assert plan["decision"]["mode"] == "handoff_only"
+    assert plan["inputs"]["github_inventory"]["dirty_count"] == 0
+    assert plan["inputs"]["state_consistency"]["effective_dirty_count"] == 3
+    assert plan["inputs"]["state_consistency"]["warnings"] == [
+        "session_orient reports dirty worktree while github inventory reports clean"
+    ]
+
+
+def test_dirty_state_helpers_are_conservative() -> None:
+    assert dirty_plan._session_dirty_count(_session_orient()) == 3
+    assert dirty_plan._state_consistency(0, 3) == {
+        "inventory_dirty_count": 0,
+        "session_dirty_count": 3,
+        "effective_dirty_count": 3,
+        "warnings": ["session_orient reports dirty worktree while github inventory reports clean"],
+    }
+    assert dirty_plan._state_consistency(2, 0)["warnings"] == [
+        "github inventory reports dirty worktree while session_orient reports clean"
+    ]
+
+
+def test_state_consistency_warning_text_formats_missing_and_populated_warnings() -> None:
+    assert dirty_plan._state_consistency_warning_text({}) == "none"
+    assert dirty_plan._state_consistency_warning_text({"warnings": []}) == "none"
+    assert dirty_plan._state_consistency_warning_text({"warnings": ["first\nline", "second"]}) == "first line, second"
 
 
 def test_previous_plan_freshness_detects_current_and_stale(tmp_path: Path) -> None:
@@ -152,7 +195,24 @@ def test_previous_plan_freshness_detects_current_and_stale(tmp_path: Path) -> No
     )
 
     assert current["freshness"]["status"] == "current"
-    assert stale["freshness"]["status"] == "stale"
+    assert current["previous_plan_freshness"]["status"] == "current"
+    assert stale["freshness"]["status"] == "current"
+    assert stale["previous_plan_freshness"]["status"] == "stale"
+
+
+def test_plan_freshness_helpers_detect_current_and_stale() -> None:
+    current_signature = {"value": "abc"}
+
+    missing = dirty_plan._previous_plan_freshness(current_signature, {})
+    current = dirty_plan._previous_plan_freshness(current_signature, {"dirty_signature": {"value": "abc"}})
+    stale = dirty_plan._previous_plan_freshness(current_signature, {"dirty_signature": {"value": "def"}})
+    current_plan = dirty_plan._current_plan_freshness(stale)
+
+    assert missing["status"] == "missing_previous_json"
+    assert current["status"] == "current"
+    assert stale["status"] == "stale"
+    assert current_plan["status"] == "current"
+    assert current_plan["previous_status"] == "stale"
 
 
 def test_main_writes_json_and_markdown_from_existing_artifacts(tmp_path: Path) -> None:
@@ -191,6 +251,8 @@ def test_main_writes_json_and_markdown_from_existing_artifacts(tmp_path: Path) -
 
     assert code == 0
     assert payload["status"] == "handoff_required"
-    assert payload["freshness"]["status"] == "missing_previous_json"
+    assert payload["freshness"]["status"] == "current"
+    assert payload["previous_plan_freshness"]["status"] == "missing_previous_json"
+    assert "Previous plan freshness: missing_previous_json" in markdown
     assert "Deterministic JSON plus Markdown handoff" in markdown
     assert "Do not stage, commit, push, or revert automatically" in markdown

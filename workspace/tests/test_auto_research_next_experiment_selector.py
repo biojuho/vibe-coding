@@ -145,9 +145,10 @@ def _dirty_plan(
     dirty_count: int = 2,
     dirty_paths: list[str] | None = None,
     current: bool = True,
+    previous_status: str | None = None,
 ) -> dict[str, object]:
     paths = dirty_paths or [".ai/HANDOFF.md", ".agents/skills/auto-research/scripts/next_experiment_selector.py"]
-    return {
+    plan: dict[str, object] = {
         "status": "handoff_required",
         "freshness": {"status": "current" if current else "stale", "current": current},
         "dirty_signature": {
@@ -160,6 +161,9 @@ def _dirty_plan(
             {"key": "ai-context"},
         ],
     }
+    if previous_status is not None:
+        plan["previous_plan_freshness"] = {"status": previous_status, "current": previous_status == "current"}
+    return plan
 
 
 def _select(**overrides):
@@ -263,12 +267,36 @@ def test_current_dirty_handoff_plan_blocks_repeated_handoff_generation() -> None
     assert result["selected"]["kind"] == "dirty_worktree_handoff_current"
     assert result["selected"]["blocked"] is True
     assert next_experiment_selector.DIRTY_HANDOFF_PLAN_GATE in result["selected"]["required_gates"]
+    assert next_experiment_selector.DEBUG_INVENTORY_COMPLETION_BLOCKED_GATE in result["selected"]["required_gates"]
     assert any("handoff plan freshness=current" in item for item in result["selected"]["evidence"])
     assert any("handoff plan signature=test-signature" in item for item in result["selected"]["evidence"])
     assert any("explicit scoped staging/commit authorization" in item for item in result["selected"]["blockers"])
+    assert any("exit code 1" in item for item in result["selected"]["guardrails"])
+    expectation = result["selected"]["gate_expectations"][0]
+    assert expectation["gate"] == next_experiment_selector.DEBUG_INVENTORY_COMPLETION_BLOCKED_GATE
+    assert expectation["expected_exit_codes"] == [1]
+    assert "not a source failure" in expectation["meaning"]
 
 
 def test_matching_dirty_handoff_signature_blocks_even_when_previous_plan_was_stale() -> None:
+    dirty_paths = [".ai/HANDOFF.md", "docs/wiki/llm/27-data-retention-privacy-logging.md"]
+    result = _select(
+        readiness=_readiness(workspace=1, local=1, external=1, missing_actions=True),
+        github_inventory=_github(dirty=2, dirty_paths=dirty_paths),
+        dirty_handoff_plan=_dirty_plan(dirty_paths=dirty_paths, previous_status="stale"),
+    )
+
+    assert result["status"] == "blocked"
+    assert result["selected"]["kind"] == "dirty_worktree_handoff_current"
+    assert any("handoff plan freshness=current" in item for item in result["selected"]["evidence"])
+    assert any("previous handoff plan freshness=stale" in item for item in result["selected"]["evidence"])
+    assert any("signature matches current dirty inventory" in item for item in result["selected"]["evidence"])
+    blocker_text = "\n".join(result["selected"]["blockers"])
+    assert "matches the current dirty inventory" in blocker_text
+    assert "plan is fresh" not in blocker_text
+
+
+def test_legacy_stale_dirty_handoff_plan_match_is_labeled_current_by_signature() -> None:
     dirty_paths = [".ai/HANDOFF.md", "docs/wiki/llm/27-data-retention-privacy-logging.md"]
     result = _select(
         readiness=_readiness(workspace=1, local=1, external=1, missing_actions=True),
@@ -278,8 +306,23 @@ def test_matching_dirty_handoff_signature_blocks_even_when_previous_plan_was_sta
 
     assert result["status"] == "blocked"
     assert result["selected"]["kind"] == "dirty_worktree_handoff_current"
-    assert any("handoff plan freshness=stale" in item for item in result["selected"]["evidence"])
-    assert any("signature matches current dirty inventory" in item for item in result["selected"]["evidence"])
+    assert any(
+        "handoff plan freshness=current_by_signature (recorded=stale)" in item
+        for item in result["selected"]["evidence"]
+    )
+
+
+def test_dirty_handoff_plan_matches_inventory_evidence_separates_current_and_previous_freshness() -> None:
+    dirty_paths = [".ai/HANDOFF.md", "docs/wiki/llm/27-data-retention-privacy-logging.md"]
+    matches, evidence = next_experiment_selector._dirty_handoff_plan_matches_inventory(
+        _dirty_plan(dirty_paths=dirty_paths, previous_status="stale"),
+        _github(dirty=2, dirty_paths=dirty_paths),
+    )
+
+    assert matches is True
+    assert "handoff plan freshness=current" in evidence
+    assert "previous handoff plan freshness=stale" in evidence
+    assert "handoff plan freshness=stale" not in evidence
 
 
 def test_stale_or_mismatched_dirty_handoff_plan_still_requests_refresh() -> None:
@@ -293,6 +336,7 @@ def test_stale_or_mismatched_dirty_handoff_plan_still_requests_refresh() -> None
 
     assert result["status"] == "candidate"
     assert result["selected"]["kind"] == "dirty_worktree_handoff"
+    assert result["selected"]["gate_expectations"] == []
     assert result["selected"]["blocked"] is False
 
 
@@ -358,6 +402,36 @@ def test_candidate_helpers_emit_executable_required_gates() -> None:
         "python execution/project_qc_runner.py --json",
         next_experiment_selector.PRODUCT_READINESS_GATE,
     ]
+
+
+def test_candidate_helper_defaults_and_preserves_gate_expectations() -> None:
+    candidate = next_experiment_selector._candidate(
+        kind="test_candidate",
+        priority=1,
+        project="workspace",
+        action="Run focused gate.",
+        reason="Unit test contract.",
+        evidence=["evidence"],
+        required_gates=["gate"],
+    )
+    expectation = next_experiment_selector._gate_expectation(
+        gate="gate",
+        expected_exit_codes=[1],
+        meaning="expected blocked proof",
+    )
+    candidate_with_expectation = next_experiment_selector._candidate(
+        kind="test_candidate",
+        priority=1,
+        project="workspace",
+        action="Run focused gate.",
+        reason="Unit test contract.",
+        evidence=["evidence"],
+        required_gates=["gate"],
+        gate_expectations=[expectation],
+    )
+
+    assert candidate["gate_expectations"] == []
+    assert candidate_with_expectation["gate_expectations"] == [expectation]
 
 
 def test_cli_writes_ascii_json_artifact(tmp_path: Path, capsys) -> None:
@@ -428,6 +502,11 @@ def test_cli_reads_dirty_handoff_plan_artifact(tmp_path: Path, capsys) -> None:
     assert code == 0
     assert stdout["status"] == "blocked"
     assert stdout["selected"]["kind"] == "dirty_worktree_handoff_current"
+    assert next_experiment_selector.DEBUG_INVENTORY_COMPLETION_BLOCKED_GATE in stdout["selected"]["required_gates"]
+    expectation = stdout["selected"]["gate_expectations"][0]
+    assert expectation["gate"] == next_experiment_selector.DEBUG_INVENTORY_COMPLETION_BLOCKED_GATE
+    assert expectation["expected_exit_codes"] == [1]
+    assert "not a source failure" in expectation["meaning"]
 
 
 def test_cli_live_helper_defaults_are_bounded(tmp_path: Path, capsys, monkeypatch) -> None:
@@ -598,3 +677,35 @@ def test_cli_reads_utf16_input_artifacts(tmp_path: Path, capsys) -> None:
     assert code == 0
     assert stdout["status"] == "blocked_external_only"
     assert stdout["selected"]["kind"] == "external_user_blocker"
+
+
+def test_print_text_includes_blockers_gates_and_expected_failure_contract(capsys) -> None:
+    next_experiment_selector._print_text(
+        {
+            "status": "blocked",
+            "selected": {
+                "kind": "dirty_worktree_handoff_current",
+                "project": "workspace",
+                "action": "Wait for authorization.",
+                "blockers": ["Scoped staging authorization required."],
+                "required_gates": ["python execution/session_orient.py --json"],
+                "gate_expectations": [
+                    {
+                        "gate": "debug_loop_inventory.py --fail-on-completion-blocked",
+                        "expected_exit_codes": [1],
+                        "meaning": "blocked completion proof",
+                    }
+                ],
+            },
+        }
+    )
+
+    output = capsys.readouterr().out
+    assert "next experiment status: blocked" in output
+    assert "selected: dirty_worktree_handoff_current (workspace)" in output
+    assert "blocker: Scoped staging authorization required." in output
+    assert "gate: python execution/session_orient.py --json" in output
+    assert (
+        "gate_expectation: debug_loop_inventory.py --fail-on-completion-blocked "
+        "expected_exit_codes=1 meaning=blocked completion proof"
+    ) in output

@@ -551,6 +551,10 @@ def _release_packet(
             "external/user-owned blocker(s): T-251",
         ]
     )
+    required_workflows = ["root-quality-gate", "active-project-matrix"]
+    current_head_missing = required_workflows if ahead_count else []
+    current_head_success_count = 0 if ahead_count else len(required_workflows)
+    current_head_run_count = 0 if ahead_count else len(required_workflows)
     return {
         "status": status,
         "git": {
@@ -577,6 +581,21 @@ def _release_packet(
             "unexpected_manifest_warning_count": 0,
             "strict_manifest_warning_failure": False,
             "source_inventory_count": 64,
+        },
+        "current_head_actions": {
+            "available": True,
+            "head_sha": "abcdef123456",
+            "command": (
+                "gh run list --commit abcdef123456 --limit 20 --json "
+                "databaseId,name,workflowName,status,conclusion,headSha,createdAt,url"
+            ),
+            "run_count": current_head_run_count,
+            "required_workflow_names": required_workflows,
+            "required_run_count": current_head_run_count,
+            "required_success_count": current_head_success_count,
+            "successful_required_workflows": [],
+            "missing_required_workflows": current_head_missing,
+            "runs_preview": [],
         },
         "authorization": {
             "push_required": ahead_count > 0,
@@ -780,6 +799,11 @@ def test_release_authorization_packet_publish_boundary_is_direct_audit_item(tmp_
         and "--write-strict-release-evidence --json" in evidence
         for evidence in packet_item["evidence"]
     )
+    assert any(
+        "Current-head Actions lookup: available=True, run_count=0, "
+        "required_success=0/2, missing=root-quality-gate, active-project-matrix." in evidence
+        for evidence in packet_item["evidence"]
+    )
     assert any("Packet blockers:" in evidence and "T-251" in evidence for evidence in packet_item["evidence"])
     assert result["status"] == "incomplete"
     assert not any(issue["code"] == "incomplete_coverage" for issue in result["issues"])
@@ -836,6 +860,54 @@ def test_release_authorization_packet_requires_explicit_user_authorization_guard
     assert packet_item["coverage"] == "complete"
     assert packet_item["blockers"] == ["release authorization packet did not enforce explicit user authorization."]
     assert result["status"] == "incomplete"
+
+
+def test_release_authorization_packet_item_helper_contracts() -> None:
+    assert launch_objective_audit._release_packet_status_blockers("ready_for_authorization", dirty_count=0) == [
+        "release authorization packet is ready, but explicit push authorization and current-head Actions are still required."
+    ]
+    assert launch_objective_audit._release_packet_status_blockers("blocked_dirty_worktree", dirty_count=3) == [
+        "release authorization packet blocked by dirty worktree paths: 3."
+    ]
+    assert launch_objective_audit._llm_wiki_strict_evidence_blockers({"available": False}) == [
+        "release authorization packet is missing LLM Wiki strict release evidence."
+    ]
+    assert launch_objective_audit._llm_wiki_strict_evidence_blockers(
+        {"available": True, "status": "fail", "head_matches_current": True}
+    ) == ["LLM Wiki strict release evidence status=fail; expected pass."]
+
+    summary = launch_objective_audit._llm_wiki_strict_evidence_summary(
+        {
+            "available": True,
+            "status": "pass",
+            "path": ".tmp/llm-wiki.json",
+            "head_matches_current": True,
+            "unexpected_manifest_warning_count": 0,
+            "generated_at": "2026-06-10T00:00:00Z",
+            "command": "py -3.13 execution/llm_wiki_audit.py --json",
+        }
+    )
+    assert summary == (
+        "LLM Wiki strict evidence: status=pass, path=.tmp/llm-wiki.json, "
+        "head_matches_current=True, unexpected=0, generated_at=2026-06-10T00:00:00Z, "
+        "command=py -3.13 execution/llm_wiki_audit.py --json."
+    )
+
+
+def test_release_authorization_packet_item_direct_current_head_actions_contract() -> None:
+    packet_item = launch_objective_audit._release_authorization_packet_item(_release_packet())
+
+    assert packet_item["coverage"] == "complete"
+    assert packet_item["verified"] is True
+    assert packet_item["blockers"] == [
+        "release authorization packet is ready, but explicit push authorization and current-head Actions are still required."
+    ]
+    assert any(
+        "Current-head Actions lookup: available=True, run_count=0, "
+        "required_success=0/2, missing=root-quality-gate, active-project-matrix." in evidence
+        for evidence in packet_item["evidence"]
+    )
+    assert any("allowed_without_explicit_user_authorization=False" in evidence for evidence in packet_item["evidence"])
 
 
 def test_collect_current_inputs_uses_one_snapshot_for_selector(monkeypatch, tmp_path: Path) -> None:
@@ -974,6 +1046,98 @@ def test_collect_current_inputs_passes_current_dirty_handoff_plan_to_selector(
     )
 
 
+def test_collect_current_inputs_refreshes_dirty_handoff_plan_cache_before_selector(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    dirty_paths = [
+        ".agents/skills/auto-research/scripts/launch_objective_audit.py",
+        "workspace/tests/test_auto_research_launch_objective_audit.py",
+        "execution/product_readiness_score.py",
+    ]
+    dirty_plan_path = tmp_path / launch_objective_audit.DIRTY_HANDOFF_PLAN_CACHE
+    dirty_plan_path.parent.mkdir(parents=True)
+    dirty_plan_path.write_text(
+        json.dumps(
+            {
+                "status": "handoff_required",
+                "freshness": {"status": "stale", "current": False},
+                "dirty_signature": {
+                    "value": "stale-dirty-signature",
+                    "input": {"dirty_count": 1, "dirty_paths": [dirty_paths[0]]},
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    current_plan = {
+        "status": "handoff_required",
+        "freshness": {"status": "current", "current": True},
+        "dirty_signature": {
+            "value": "current-dirty-signature",
+            "input": {"dirty_count": len(dirty_paths), "dirty_paths": dirty_paths},
+        },
+        "group_order": [{"key": "auto-research", "path_count": 2}, {"key": "execution", "path_count": 1}],
+    }
+    github_inventory = _github_inventory()
+    assert isinstance(github_inventory["git"], dict)
+    github_inventory["git"].update(
+        {
+            "dirty_count": len(dirty_paths),
+            "dirty_paths": dirty_paths,
+            "dirty_path_groups": [
+                {"key": "auto-research", "path_count": 2, "paths": dirty_paths[:2]},
+                {"key": "execution", "path_count": 1, "paths": dirty_paths[2:]},
+            ],
+            "status": {"stdout": "## main...origin/main"},
+        }
+    )
+    calls: list[list[str]] = []
+
+    def fake_run_json(_root: Path, command: list[str], _timeout: int) -> dict[str, object]:
+        calls.append(command)
+        command_text = " ".join(command)
+        if "dirty_worktree_handoff_plan.py" in command_text:
+            dirty_plan_path.write_text(json.dumps(current_plan), encoding="utf-8")
+            data = current_plan
+        elif "product_readiness_score.py" in command_text:
+            data = _clean_readiness(external_blockers=1)
+        elif "github_project_inventory.py" in command_text:
+            data = github_inventory
+        elif "browser_qa_inventory.py" in command_text:
+            data = _browser_inventory()
+        elif "dependency_freshness_inventory.py" in command_text:
+            data = _dependency_inventory()
+        else:
+            data = _code_review_gate()
+        return {"available": True, "returncode": 0, "stdout": json.dumps(data), "stderr": "", "data": data}
+
+    monkeypatch.setattr(launch_objective_audit, "_run_json", fake_run_json)
+    monkeypatch.setattr(
+        launch_objective_audit,
+        "_release_authorization_packet_from_inputs",
+        lambda _root, _readiness: {
+            "available": True,
+            "returncode": 0,
+            "stdout": json.dumps(_release_packet(dirty_count=len(dirty_paths))),
+            "stderr": "",
+            "data": _release_packet(dirty_count=len(dirty_paths)),
+        },
+    )
+
+    collected = launch_objective_audit.collect_current_inputs(tmp_path, timeout=1)
+
+    assert any("dirty_worktree_handoff_plan.py" in " ".join(command) for command in calls)
+    assert all("next_experiment_selector.py" not in " ".join(command) for command in calls)
+    selection = collected["next_experiment_selection"]["data"]
+    assert selection["status"] == "blocked"
+    assert selection["summary"]["adoptable_candidate_count"] == 0
+    assert selection["selected"]["kind"] == "dirty_worktree_handoff_current"
+    assert any(
+        "handoff plan signature=current-dirty-signature" in evidence for evidence in selection["selected"]["evidence"]
+    )
+
+
 def test_collect_current_inputs_uses_recent_browser_inventory_after_live_timeout(monkeypatch, tmp_path: Path) -> None:
     (tmp_path / ".tmp").mkdir()
     browser_artifact = tmp_path / ".tmp" / "browser-qa-inventory.json"
@@ -1038,6 +1202,98 @@ def test_collect_current_inputs_uses_recent_browser_inventory_after_live_timeout
     assert selection["selected"]["kind"] == "current_head_release_checks_unproven"
 
 
+def test_recent_json_result_returns_ascii_safe_fallback_details(tmp_path: Path) -> None:
+    (tmp_path / ".tmp").mkdir()
+    artifact = tmp_path / ".tmp" / "browser-qa-inventory.json"
+    artifact.write_text(json.dumps({"status": "ok", "label": "한글"}), encoding="utf-8")
+
+    result = launch_objective_audit._recent_json_result(
+        tmp_path,
+        label="browser inventory",
+        rel_path=".tmp/browser-qa-inventory.json",
+        failed_result={"stderr": "timed out after 120 seconds"},
+        max_age_seconds=60 * 60,
+    )
+
+    assert result is not None
+    assert result["available"] is True
+    assert result["fallback_path"] == ".tmp/browser-qa-inventory.json"
+    assert result["data"] == {"status": "ok", "label": "한글"}
+    assert result["fallback_age_seconds"] >= 0
+    assert "timed out after 120 seconds" in result["stderr"]
+    assert "\\ud55c\\uae00" in result["stdout"]
+    assert all(ord(char) < 128 for char in result["stdout"])
+
+
+def test_recent_json_result_rejects_stale_invalid_or_missing_cache(tmp_path: Path) -> None:
+    (tmp_path / ".tmp").mkdir()
+    stale = tmp_path / ".tmp" / "stale.json"
+    stale.write_text(json.dumps({"status": "old"}), encoding="utf-8")
+    os.utime(stale, (1, 1))
+    invalid = tmp_path / ".tmp" / "invalid.json"
+    invalid.write_text("{", encoding="utf-8")
+
+    assert (
+        launch_objective_audit._recent_json_result(
+            tmp_path,
+            label="browser inventory",
+            rel_path=".tmp/stale.json",
+            failed_result={},
+            max_age_seconds=1,
+        )
+        is None
+    )
+    assert (
+        launch_objective_audit._recent_json_result(
+            tmp_path,
+            label="browser inventory",
+            rel_path=".tmp/invalid.json",
+            failed_result={},
+        )
+        is None
+    )
+    assert (
+        launch_objective_audit._recent_json_result(
+            tmp_path,
+            label="browser inventory",
+            rel_path=".tmp/missing.json",
+            failed_result={},
+        )
+        is None
+    )
+
+
+def test_with_recent_inventory_fallback_preserves_live_data_and_unknown_labels(tmp_path: Path) -> None:
+    (tmp_path / ".tmp").mkdir()
+    (tmp_path / ".tmp" / "browser-qa-inventory.json").write_text(
+        json.dumps({"status": "cached"}),
+        encoding="utf-8",
+    )
+    live_result = {
+        "available": True,
+        "returncode": 0,
+        "stdout": "{}",
+        "stderr": "",
+        "data": {"status": "live"},
+    }
+    failed_unknown = {
+        "available": False,
+        "returncode": 1,
+        "stdout": "",
+        "stderr": "missing helper",
+        "data": {},
+    }
+
+    assert (
+        launch_objective_audit._with_recent_inventory_fallback(tmp_path, "browser_inventory", live_result)
+        is live_result
+    )
+    assert (
+        launch_objective_audit._with_recent_inventory_fallback(tmp_path, "unknown_inventory", failed_unknown)
+        is failed_unknown
+    )
+
+
 def test_selector_external_only_state_is_evidence_not_duplicate_blocker(tmp_path: Path) -> None:
     _write_required_skill(tmp_path)
     _write_ai_relay(tmp_path)
@@ -1066,6 +1322,34 @@ def test_selector_external_only_state_is_evidence_not_duplicate_blocker(tmp_path
     }
     assert not any(
         issue["requirement"].startswith("Run the deterministic next-experiment") for issue in result["issues"]
+    )
+
+
+def test_selector_item_direct_dirty_handoff_current_contract() -> None:
+    selector_item = launch_objective_audit._selector_item(
+        _selector_selection(
+            status="blocked",
+            kind="dirty_worktree_handoff_current",
+            blocked=True,
+            project="workspace",
+            guardrails=[
+                "Do not stage, commit, push, or revert without explicit user authorization.",
+                "Do not retry T-251 until Supabase credentials are reset.",
+            ],
+            required_gates=["python execution/session_orient.py --json"],
+        )
+    )
+
+    assert selector_item["coverage"] == "partial"
+    assert selector_item["blockers"] == [
+        "next_experiment_selector selected unresolved local work: "
+        "status=blocked, kind=dirty_worktree_handoff_current, project=workspace"
+    ]
+    assert any("Selector reports local follow-up work" in evidence for evidence in selector_item["evidence"])
+    assert any("Selector guardrails:" in evidence for evidence in selector_item["evidence"])
+    assert any(
+        "Selector required gates: python execution/session_orient.py --json." in evidence
+        for evidence in selector_item["evidence"]
     )
 
 
@@ -1477,6 +1761,39 @@ def test_ab_item_prefers_suffixed_task_manifest_over_lower_unsuffixed_task(tmp_p
     assert any("Latest A/B manifest selection used task id T-1567b" in item for item in ab_item["evidence"])
 
 
+def test_ab_item_accepts_recent_nonlegacy_manifest_over_older_numbered_manifest(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+    legacy_manifest = _write_ab_manifest(
+        tmp_path,
+        name="ab-manifest-t1602-word-chain.json",
+        experiment="T-1602 Word Chain mobile candidate",
+    )
+    current_manifest = _write_ab_manifest(
+        tmp_path,
+        name="ab-github-inventory-auto-research-test-groups.json",
+        experiment="GitHub inventory auto-research test groups",
+    )
+    os.utime(legacy_manifest, (1_700_000_000, 1_700_000_000))
+    os.utime(current_manifest, (1_800_000_000, 1_800_000_000))
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+    )
+    ab_item = next(item for item in manifest["items"] if item["requirement"].startswith("Run bounded A/B"))
+
+    assert current_manifest.relative_to(tmp_path).as_posix() in ab_item["artifacts"]
+    assert legacy_manifest.relative_to(tmp_path).as_posix() not in ab_item["artifacts"]
+    assert any(
+        "Latest A/B manifest artifact: .tmp/ab-github-inventory-auto-research-test-groups.json" in item
+        for item in ab_item["evidence"]
+    )
+
+
 def test_ab_item_can_use_explicit_manifest_override(tmp_path: Path) -> None:
     _write_required_skill(tmp_path)
     _write_ai_relay(tmp_path)
@@ -1504,6 +1821,45 @@ def test_ab_item_can_use_explicit_manifest_override(tmp_path: Path) -> None:
     assert requested.relative_to(tmp_path).as_posix() in ab_item["artifacts"]
     assert default_selected.relative_to(tmp_path).as_posix() not in ab_item["artifacts"]
     assert any("Latest A/B manifest selection used task id T-1299" in item for item in ab_item["evidence"])
+
+
+def test_ab_item_rejects_explicit_non_manifest_override(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+    default_selected = _write_ab_manifest(
+        tmp_path,
+        name="ab-manifest-t1300.json",
+        experiment="T-1300 default latest manifest",
+    )
+    non_manifest = tmp_path / ".tmp" / "ab-decision-result.json"
+    non_manifest.write_text(
+        json.dumps({"decision": "adopt_candidate", "score_delta": 1.0}),
+        encoding="utf-8",
+    )
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        ab_manifest_path=Path(".tmp/ab-decision-result.json"),
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+    )
+    result = completion_audit.audit_manifest(manifest)
+    ab_item = next(item for item in manifest["items"] if item["requirement"].startswith("Run bounded A/B"))
+
+    assert result["status"] == "incomplete"
+    assert ab_item["coverage"] == "partial"
+    assert default_selected.relative_to(tmp_path).as_posix() not in ab_item["artifacts"]
+    assert non_manifest.relative_to(tmp_path).as_posix() not in ab_item["artifacts"]
+    assert any(
+        "Requested non-manifest A/B artifact: .tmp/ab-decision-result.json" in item for item in ab_item["evidence"]
+    )
+    assert any(
+        "Requested A/B manifest artifact was not usable: .tmp/ab-decision-result.json" in item
+        for item in ab_item["evidence"]
+    )
+    assert ab_item["blockers"] == ["Requested A/B manifest artifact could not be used: .tmp/ab-decision-result.json"]
 
 
 def test_ab_item_failed_manifest_gate_prevents_complete_claim(tmp_path: Path) -> None:
@@ -1542,6 +1898,32 @@ def test_ab_item_accepts_utf8_bom_manifest(tmp_path: Path) -> None:
     assert result["status"] == "complete"
     assert manifest_path.relative_to(tmp_path).as_posix() in ab_item["artifacts"]
     assert any("required gates passed 2/2" in item for item in ab_item["evidence"])
+
+
+def test_ab_manifest_scan_ignores_utf16_manifest_without_crashing(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+    good_manifest = _write_ab_manifest(tmp_path, name="ab-manifest-good.json")
+    utf16_manifest = _write_ab_manifest(tmp_path, name="ab-manifest-utf16.json", encoding="utf-16")
+    os.utime(good_manifest, (1_700_000_000, 1_700_000_000))
+    os.utime(utf16_manifest, (1_800_000_000, 1_800_000_000))
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+    )
+    result = completion_audit.audit_manifest(manifest)
+    ab_item = next(item for item in manifest["items"] if item["requirement"].startswith("Run bounded A/B"))
+
+    assert result["status"] == "complete"
+    assert good_manifest.relative_to(tmp_path).as_posix() in ab_item["artifacts"]
+    assert utf16_manifest.relative_to(tmp_path).as_posix() not in ab_item["artifacts"]
+    assert any(
+        "Ignored invalid A/B manifest artifact: .tmp/ab-manifest-utf16.json" in item for item in ab_item["evidence"]
+    )
 
 
 def test_ab_item_accepts_top_level_candidate_gates(tmp_path: Path) -> None:
@@ -1599,6 +1981,62 @@ def test_ab_manifest_stat_failure_is_ignored(tmp_path: Path, monkeypatch) -> Non
     assert any(
         "Ignored unreadable A/B manifest artifact: .tmp/ab-manifest-broken.json" in item for item in ab_item["evidence"]
     )
+
+
+def test_ab_manifest_scan_skips_decision_result_artifacts_without_evidence_noise(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+    good_manifest = _write_ab_manifest(tmp_path, name="ab-debug-inventory-good.json")
+    non_manifest = tmp_path / ".tmp" / "ab-decision-result.json"
+    non_manifest.write_text(
+        json.dumps({"decision": "adopt_candidate", "score_delta": 1.0}),
+        encoding="utf-8",
+    )
+    os.utime(good_manifest, (1_700_000_000, 1_700_000_000))
+    os.utime(non_manifest, (1_800_000_000, 1_800_000_000))
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+    )
+    result = completion_audit.audit_manifest(manifest)
+    ab_item = next(item for item in manifest["items"] if item["requirement"].startswith("Run bounded A/B"))
+
+    assert result["status"] == "complete"
+    assert good_manifest.relative_to(tmp_path).as_posix() in ab_item["artifacts"]
+    assert non_manifest.relative_to(tmp_path).as_posix() not in ab_item["artifacts"]
+    assert not any(".tmp/ab-decision-result.json" in item for item in ab_item["evidence"])
+
+
+def test_ab_manifest_scan_skips_utf16_decision_result_artifacts_without_crashing(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+    good_manifest = _write_ab_manifest(tmp_path, name="ab-debug-inventory-good.json")
+    result_artifact = tmp_path / ".tmp" / "ab-result-t999-debug-helper.json"
+    result_artifact.write_text(
+        json.dumps({"decision": "adopt_candidate", "score_delta": 1.0}),
+        encoding="utf-16",
+    )
+    os.utime(good_manifest, (1_700_000_000, 1_700_000_000))
+    os.utime(result_artifact, (1_800_000_000, 1_800_000_000))
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+    )
+    result = completion_audit.audit_manifest(manifest)
+    ab_item = next(item for item in manifest["items"] if item["requirement"].startswith("Run bounded A/B"))
+
+    assert result["status"] == "complete"
+    assert good_manifest.relative_to(tmp_path).as_posix() in ab_item["artifacts"]
+    assert result_artifact.relative_to(tmp_path).as_posix() not in ab_item["artifacts"]
+    assert not any(".tmp/ab-result-t999-debug-helper.json" in item for item in ab_item["evidence"])
 
 
 def test_external_user_blocker_prevents_completion(tmp_path: Path) -> None:
@@ -1925,6 +2363,18 @@ def test_relay_item_rejects_stale_completed_goal(tmp_path: Path) -> None:
     assert "GOAL.md does not describe the current product launch/auto-research objective." in relay_item["blockers"]
 
 
+def test_relay_item_direct_active_goal_contract(tmp_path: Path) -> None:
+    _write_ai_relay(tmp_path)
+
+    relay_item = launch_objective_audit._relay_item(tmp_path)
+
+    assert relay_item["coverage"] == "complete"
+    assert relay_item["blockers"] == []
+    assert relay_item["artifacts"] == list(launch_objective_audit.AI_RELAY_ARTIFACTS)
+    assert "5/5 relay files exist." in relay_item["evidence"]
+    assert "GOAL.md status=active; current launch objective mapped=True." in relay_item["evidence"]
+
+
 def test_cli_output_file_is_ascii_safe_for_powershell_default_reads(tmp_path: Path, monkeypatch) -> None:
     root = tmp_path / "박주호"
     root.mkdir()
@@ -1954,3 +2404,75 @@ def test_cli_output_file_is_ascii_safe_for_powershell_default_reads(tmp_path: Pa
     raw = output_path.read_bytes()
     assert all(byte < 128 for byte in raw)
     assert "\\ubc15\\uc8fc\\ud638" in raw.decode("ascii")
+
+
+def test_ab_manifest_helpers_report_explicit_and_latest_artifacts(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+    older = _write_ab_manifest(
+        tmp_path,
+        name="ab-manifest-t100.json",
+        experiment="T-100 older",
+    )
+    newer = _write_ab_manifest(
+        tmp_path,
+        name="ab-launch-audit-helper-direct.json",
+        experiment="T-101b helper direct",
+    )
+    decision_result = tmp_path / ".tmp" / "ab-result-t101-helper-direct.json"
+    decision_result.write_text(
+        json.dumps({"decision": "adopt_candidate", "score_delta": 1.0}),
+        encoding="utf-8",
+    )
+    os.utime(older, (1_700_000_000, 1_700_000_000))
+    os.utime(newer, (1_700_000_000, 1_700_000_000))
+    os.utime(decision_result, (1_800_000_000, 1_800_000_000))
+
+    manifest_names = [path.name for path in launch_objective_audit._ab_manifest_paths(tmp_path / ".tmp")]
+    assert manifest_names == ["ab-launch-audit-helper-direct.json", "ab-manifest-t100.json"]
+    candidates, candidate_errors = launch_objective_audit._ab_manifest_candidates(tmp_path, tmp_path / ".tmp")
+    assert candidate_errors == []
+    assert [candidate.path.name for candidate in candidates] == manifest_names
+    assert not launch_objective_audit._is_auto_ab_manifest_path(Path("ab-result-t101-helper-direct.json"))
+    assert not launch_objective_audit._is_auto_ab_manifest_path(Path("ab-decision-result.json"))
+    assert launch_objective_audit._is_auto_ab_manifest_path(Path("ab-launch-audit-helper-direct.json"))
+    assert launch_objective_audit._is_ab_manifest_artifact(
+        {"baseline": {"variant": "A"}, "candidate": {"variant": "B"}}
+    )
+    assert not launch_objective_audit._is_ab_manifest_artifact({"baseline": {"variant": "A"}})
+
+    assert launch_objective_audit._ab_manifest_task_id_parts(Path("ab-manifest-t100.json"), {}) == (100, "")
+    assert launch_objective_audit._ab_manifest_task_id_parts(Path("ignored.json"), {"experiment": "T-101b"}) == (
+        101,
+        "b",
+    )
+
+    requested_path, requested_manifest, requested_errors = launch_objective_audit._requested_ab_manifest(
+        tmp_path, older
+    )
+    assert requested_errors == []
+    assert requested_path == ".tmp/ab-manifest-t100.json"
+    assert requested_manifest and requested_manifest["experiment"] == "T-100 older"
+
+    manifest_path, manifest, errors = launch_objective_audit._latest_ab_manifest(tmp_path)
+    assert errors == []
+    assert manifest_path == ".tmp/ab-launch-audit-helper-direct.json"
+    assert manifest and manifest["experiment"] == "T-101b helper direct"
+
+    artifacts, evidence, blockers = launch_objective_audit._ab_manifest_evidence(tmp_path)
+    assert artifacts == [".tmp/ab-launch-audit-helper-direct.json"]
+    assert blockers == []
+    assert any("Latest A/B manifest artifact" in line for line in evidence)
+
+    explicit_path, explicit_manifest, explicit_errors = launch_objective_audit._latest_ab_manifest(
+        tmp_path,
+        ab_manifest_path=older,
+    )
+    assert explicit_errors == []
+    assert explicit_path == ".tmp/ab-manifest-t100.json"
+    assert explicit_manifest and explicit_manifest["experiment"] == "T-100 older"
+
+    item = launch_objective_audit._ab_loop_item(tmp_path, ab_manifest_path=newer)
+    assert item["coverage"] == "complete"
+    assert item["blockers"] == []
+    assert ".tmp/ab-launch-audit-helper-direct.json" in item["artifacts"]

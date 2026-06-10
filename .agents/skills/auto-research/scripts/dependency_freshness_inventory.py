@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import platform
 import re
 import shutil
 import subprocess
@@ -23,6 +24,21 @@ PEER_VERSION_TOKEN_PATTERN = re.compile(
     r"(?P<op>>=|<=|>|<|\^|~|=)?\s*v?(?P<major>\d+)(?:\.(?:\d+|x|X|\*))?(?:\.(?:\d+|x|X|\*))?"
 )
 PEER_BLOCKER_SAMPLE_LIMIT = 10
+BINARY_RUNTIME_PACKAGES = {"turbo": ("turbo", "--version")}
+ARCH_ALIASES = {
+    "amd64": "x64",
+    "x86_64": "x64",
+    "arm64": "arm64",
+    "aarch64": "arm64",
+}
+LATEST_BINARY_RUNTIME_MISMATCHES = {
+    ("turbo", "2.9.17", "win32", "x64"): {
+        "platform_package": "@turbo/windows-64",
+        "runtime_version": "2.9.16",
+        "source": "https://registry.npmjs.org/@turbo/windows-64/-/windows-64-2.9.17.tgz",
+    }
+}
+RUNTIME_BLOCKING_CLASSIFICATIONS = {"runtime_version_mismatch", "defer_latest_runtime_mismatch"}
 
 
 def _relative(path: Path, root: Path) -> str:
@@ -49,6 +65,14 @@ def _package_dependency_names(package_data: dict[str, Any]) -> set[str]:
     return names
 
 
+def _declared_dependency_spec(package_data: dict[str, Any], package_name: str) -> str | None:
+    for section_name in PACKAGE_SECTIONS:
+        section = package_data.get(section_name)
+        if isinstance(section, dict) and package_name in section:
+            return str(section[package_name]).strip()
+    return None
+
+
 def _project_dirs(root: Path) -> list[Path]:
     candidates: list[Path] = []
     projects_dir = root / "projects"
@@ -62,6 +86,14 @@ def _project_dirs(root: Path) -> list[Path]:
 
 def _npm_command() -> str | None:
     for command in ("npm.cmd", "npm"):
+        resolved = shutil.which(command)
+        if resolved:
+            return resolved
+    return None
+
+
+def _pnpm_command() -> str | None:
+    for command in ("pnpm.cmd", "pnpm"):
         resolved = shutil.which(command)
         if resolved:
             return resolved
@@ -95,6 +127,57 @@ def _run_npm_outdated(project_path: Path, timeout: int) -> dict[str, Any]:
             "returncode": None,
             "stdout": exc.stdout or "",
             "stderr": f"npm outdated timed out after {timeout}s",
+        }
+    except (FileNotFoundError, OSError) as exc:
+        return {
+            "available": False,
+            "returncode": None,
+            "stdout": "",
+            "stderr": str(exc),
+        }
+    return {
+        "available": True,
+        "returncode": completed.returncode,
+        "stdout": completed.stdout.strip(),
+        "stderr": completed.stderr.strip(),
+    }
+
+
+def _run_binary_runtime_version(project_path: Path, package_name: str, timeout: int) -> dict[str, Any]:
+    command = _pnpm_command()
+    if command is None:
+        return {
+            "available": False,
+            "returncode": None,
+            "stdout": "",
+            "stderr": "pnpm command not found",
+        }
+    runtime_command = BINARY_RUNTIME_PACKAGES.get(package_name)
+    if runtime_command is None:
+        return {
+            "available": False,
+            "returncode": None,
+            "stdout": "",
+            "stderr": f"runtime version check is not configured for {package_name}",
+        }
+    try:
+        completed = subprocess.run(
+            [command, "exec", *runtime_command],
+            cwd=str(project_path),
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=timeout,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        return {
+            "available": False,
+            "returncode": None,
+            "stdout": exc.stdout or "",
+            "stderr": f"runtime version check for {package_name} timed out after {timeout}s",
         }
     except (FileNotFoundError, OSError) as exc:
         return {
@@ -210,6 +293,12 @@ def _parse_version(version: Any) -> tuple[int, int, int] | None:
     )
 
 
+def _version_string(version: tuple[int, int, int] | None) -> str:
+    if version is None:
+        return ""
+    return ".".join(str(part) for part in version)
+
+
 def _package_name_from_lock_path(lock_path: str) -> str:
     parts = [part for part in lock_path.replace("\\", "/").split("node_modules/") if part]
     if not parts:
@@ -219,6 +308,44 @@ def _package_name_from_lock_path(lock_path: str) -> str:
         scoped_parts = tail.split("/")
         return "/".join(scoped_parts[:2]) if len(scoped_parts) >= 2 else tail
     return tail.split("/", 1)[0] or "unknown"
+
+
+def _peer_range_tokens(alternative: str) -> list[tuple[str, int]]:
+    return [
+        (match.group("op") or "", int(match.group("major")))
+        for match in PEER_VERSION_TOKEN_PATTERN.finditer(alternative)
+    ]
+
+
+def _peer_range_tokens_allow_major(tokens: list[tuple[str, int]], target_major: int) -> bool:
+    if any(op in {"", "^", "~", "="} and major == target_major for op, major in tokens):
+        return True
+
+    lower_allows_target = False
+    upper_allows_target = False
+    upper_blocks_target = False
+    for op, major in tokens:
+        if op in {">=", ">"} and major <= target_major:
+            lower_allows_target = True
+        elif op == "<" and major <= target_major:
+            upper_blocks_target = True
+        elif op == "<=" and major < target_major:
+            upper_blocks_target = True
+        elif op in {"<", "<="} and major > target_major:
+            upper_allows_target = True
+
+    return not upper_blocks_target and (lower_allows_target or upper_allows_target)
+
+
+def _peer_range_alternative_allows_major(alternative: str, target_major: int) -> bool:
+    alternative = alternative.strip()
+    if not alternative:
+        return False
+    if alternative in {"*", "x", "X"}:
+        return True
+
+    tokens = _peer_range_tokens(alternative)
+    return bool(tokens) and _peer_range_tokens_allow_major(tokens, target_major)
 
 
 def _peer_range_allows_major(range_value: Any, target_major: int) -> bool:
@@ -232,36 +359,7 @@ def _peer_range_allows_major(range_value: Any, target_major: int) -> bool:
         return True
 
     for alternative in range_text.split("||"):
-        alternative = alternative.strip()
-        if not alternative:
-            continue
-        if alternative in {"*", "x", "X"}:
-            return True
-
-        tokens = [
-            (match.group("op") or "", int(match.group("major")))
-            for match in PEER_VERSION_TOKEN_PATTERN.finditer(alternative)
-        ]
-        if not tokens:
-            continue
-
-        if any(op in {"", "^", "~", "="} and major == target_major for op, major in tokens):
-            return True
-
-        lower_allows_target = False
-        upper_allows_target = False
-        upper_blocks_target = False
-        for op, major in tokens:
-            if op in {">=", ">"} and major <= target_major:
-                lower_allows_target = True
-            elif op == "<" and major <= target_major:
-                upper_blocks_target = True
-            elif op == "<=" and major < target_major:
-                upper_blocks_target = True
-            elif op in {"<", "<="} and major > target_major:
-                upper_allows_target = True
-
-        if not upper_blocks_target and (lower_allows_target or upper_allows_target):
+        if _peer_range_alternative_allows_major(alternative, target_major):
             return True
 
     return False
@@ -320,6 +418,46 @@ def _version_delta(current: tuple[int, int, int] | None, target: tuple[int, int,
     if target[2] != current[2]:
         return "patch"
     return "same"
+
+
+def _normalized_arch(machine: str | None = None) -> str:
+    raw_machine = (machine if machine is not None else platform.machine()).strip().lower()
+    return ARCH_ALIASES.get(raw_machine, raw_machine)
+
+
+def _apply_known_binary_latest_runtime_context(
+    dependency: dict[str, Any],
+    platform_name: str | None = None,
+    machine: str | None = None,
+) -> dict[str, Any]:
+    if not dependency.get("candidate"):
+        return dependency
+
+    key = (
+        str(dependency.get("name") or ""),
+        str(dependency.get("latest") or ""),
+        platform_name or sys.platform,
+        _normalized_arch(machine),
+    )
+    mismatch = LATEST_BINARY_RUNTIME_MISMATCHES.get(key)
+    if not mismatch:
+        return dependency
+
+    dependency["classification"] = "defer_latest_runtime_mismatch"
+    dependency["action"] = "defer"
+    dependency["candidate"] = False
+    dependency["deferred"] = True
+    dependency["latest_runtime_check"] = "known_mismatch"
+    dependency["platform_package"] = mismatch["platform_package"]
+    dependency["runtime_version"] = mismatch["runtime_version"]
+    dependency["expected_latest_version"] = dependency.get("latest")
+    dependency["evidence"] = mismatch["source"]
+    dependency["reason"] = (
+        f"{dependency['name']} latest {dependency['latest']} publishes {mismatch['platform_package']} "
+        f"metadata as {dependency['latest']}, but the packaged runtime reports {mismatch['runtime_version']} "
+        "on this platform; defer until upstream publishes a matching runtime"
+    )
+    return dependency
 
 
 def classify_dependency(name: str, raw: dict[str, Any]) -> dict[str, Any]:
@@ -586,6 +724,65 @@ def _apply_deferred_major_peer_context(
     return dependency
 
 
+def _parse_runtime_version_result(result: dict[str, Any]) -> tuple[str, list[str]]:
+    if not result.get("available", False):
+        return "", [str(result.get("stderr") or "runtime version check unavailable")]
+    if int(result.get("returncode") or 0) != 0:
+        stderr = str(result.get("stderr") or "").strip()
+        return "", [stderr or "runtime version command failed"]
+    runtime_version = _version_string(_parse_version(str(result.get("stdout") or "")))
+    if not runtime_version:
+        return "", ["runtime version output was not parseable"]
+    return runtime_version, []
+
+
+def _runtime_version_mismatch_dependencies(
+    project_path: Path,
+    package_data: dict[str, Any],
+    skipped_names: set[str],
+    timeout: int,
+    runtime_runner: "RuntimeVersionRunner",
+) -> list[dict[str, Any]]:
+    dependencies: list[dict[str, Any]] = []
+    for package_name in sorted(BINARY_RUNTIME_PACKAGES):
+        if package_name in skipped_names:
+            continue
+        declared_spec = _declared_dependency_spec(package_data, package_name)
+        if not declared_spec:
+            continue
+        declared_version = _version_string(_parse_version(declared_spec))
+        if not declared_version:
+            continue
+
+        runtime_version, issues = _parse_runtime_version_result(runtime_runner(project_path, package_name, timeout))
+        if issues or runtime_version == declared_version:
+            continue
+
+        dependencies.append(
+            {
+                "name": package_name,
+                "current": runtime_version,
+                "wanted": declared_version,
+                "latest": declared_version,
+                "wanted_delta": _version_delta(_parse_version(runtime_version), _parse_version(declared_version)),
+                "latest_delta": "same",
+                "classification": "runtime_version_mismatch",
+                "action": "repair_runtime_install",
+                "candidate": False,
+                "deferred": True,
+                "runtime_check": "mismatch",
+                "runtime_version": runtime_version,
+                "declared_specifier": declared_spec,
+                "declared_version": declared_version,
+                "reason": (
+                    f"{package_name} declares {declared_spec} but the local runtime reports "
+                    f"{runtime_version}; repair the package install before adoption"
+                ),
+            }
+        )
+    return dependencies
+
+
 def summarize_project(
     project_path: Path,
     root: Path,
@@ -593,6 +790,7 @@ def summarize_project(
     timeout: int = 60,
     tag_runner: "DistTagRunner" = _run_npm_dist_tags,
     peer_metadata_runner: "PeerMetadataRunner" = _run_npm_peer_metadata,
+    runtime_runner: "RuntimeVersionRunner" = _run_binary_runtime_version,
 ) -> dict[str, Any]:
     package_data = _load_json(project_path / "package.json")
     declared_names = _package_dependency_names(package_data)
@@ -622,9 +820,19 @@ def summarize_project(
     dependencies = []
     for name, raw in sorted(parsed.items(), key=lambda item: str(item[0]).lower()):
         dependency = classify_dependency(str(name), raw if isinstance(raw, dict) else {})
+        dependency = _apply_known_binary_latest_runtime_context(dependency)
         dependency = _apply_prerelease_dist_tag_context(dependency, project_path, timeout, tag_runner)
         dependency = _apply_deferred_major_peer_context(dependency, project_path, timeout, peer_metadata_runner)
         dependencies.append(dependency)
+    dependencies.extend(
+        _runtime_version_mismatch_dependencies(
+            project_path,
+            package_data,
+            {str(dependency.get("name") or "") for dependency in dependencies},
+            timeout,
+            runtime_runner,
+        )
+    )
     project["dependencies"] = dependencies
     project["outdated_count"] = len(dependencies)
     project["candidate_count"] = sum(1 for dependency in dependencies if dependency["candidate"])
@@ -641,6 +849,122 @@ def summarize_project(
     else:
         project["status"] = "clean"
     return project
+
+
+def _peer_blocker_dependency_label(dependency: dict[str, Any]) -> str:
+    blocker_count = int(dependency.get("peer_blocker_count") or 0)
+    label = f"{dependency['name']}: {blocker_count} peer blocker(s)"
+    if dependency.get("peer_blocker_latest_check"):
+        latest_supported = int(dependency.get("peer_blocker_latest_supported_count") or 0)
+        latest_blocked = int(dependency.get("peer_blocker_latest_blocked_count") or 0)
+        latest_unavailable = int(dependency.get("peer_blocker_latest_unavailable_count") or 0)
+        latest_parts = [f"{latest_supported}/{blocker_count} latest-supported"]
+        if latest_blocked:
+            latest_parts.append(f"{latest_blocked} still blocked")
+        if latest_unavailable:
+            latest_parts.append(f"{latest_unavailable} unavailable")
+        label += ", " + ", ".join(latest_parts)
+    return label
+
+
+def _runtime_blocking_recommendations(
+    deferred_projects: list[dict[str, Any]],
+) -> tuple[list[str], int]:
+    runtime_mismatch_projects = []
+    latest_runtime_mismatch_projects = []
+    runtime_deferred_count = 0
+    latest_runtime_deferred_count = 0
+    for project in deferred_projects:
+        labels = []
+        latest_labels = []
+        for dependency in project["dependencies"]:
+            classification = dependency.get("classification")
+            if classification == "runtime_version_mismatch":
+                runtime_deferred_count += 1
+                labels.append(
+                    f"{dependency['name']}: expected {dependency.get('declared_version')}, "
+                    f"runtime {dependency.get('runtime_version')}"
+                )
+            elif classification == "defer_latest_runtime_mismatch":
+                latest_runtime_deferred_count += 1
+                latest_labels.append(
+                    f"{dependency['name']}: latest {dependency.get('latest')}, "
+                    f"runtime {dependency.get('runtime_version')}"
+                )
+        if labels:
+            runtime_mismatch_projects.append(f"{project['path']} ({', '.join(labels)})")
+        if latest_labels:
+            latest_runtime_mismatch_projects.append(f"{project['path']} ({', '.join(latest_labels)})")
+
+    recommendations: list[str] = []
+    if runtime_mismatch_projects:
+        recommendations.append(
+            "Resolve local dependency runtime mismatches before adoption for: " + "; ".join(runtime_mismatch_projects)
+        )
+    if latest_runtime_mismatch_projects:
+        recommendations.append(
+            "Defer latest binary dependency candidates with known runtime mismatch for: "
+            + "; ".join(latest_runtime_mismatch_projects)
+        )
+    return recommendations, runtime_deferred_count + latest_runtime_deferred_count
+
+
+def _is_non_runtime_deferred_dependency(dependency: dict[str, Any]) -> bool:
+    return bool(dependency.get("deferred") and dependency.get("classification") not in RUNTIME_BLOCKING_CLASSIFICATIONS)
+
+
+def _non_runtime_deferred_projects(deferred_projects: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        project
+        for project in deferred_projects
+        if any(_is_non_runtime_deferred_dependency(dependency) for dependency in project["dependencies"])
+    ]
+
+
+def _deferred_recommendation_project_groups(
+    non_runtime_deferred_projects: list[dict[str, Any]],
+) -> tuple[list[str], list[str]]:
+    peer_blocked_projects = []
+    other_deferred_projects = []
+    for project in non_runtime_deferred_projects:
+        peer_blocked_dependencies = []
+        other_deferred_dependencies = []
+        for dependency in project["dependencies"]:
+            if not _is_non_runtime_deferred_dependency(dependency):
+                continue
+            if dependency.get("latest_delta") == "major" and dependency.get("peer_blocker_check") == "blocked":
+                peer_blocked_dependencies.append(_peer_blocker_dependency_label(dependency))
+            else:
+                other_deferred_dependencies.append(str(dependency.get("name") or "unknown"))
+
+        if not peer_blocked_dependencies and not other_deferred_dependencies:
+            continue
+        if peer_blocked_dependencies and not other_deferred_dependencies:
+            peer_blocked_projects.append(f"{project['path']} ({', '.join(peer_blocked_dependencies)})")
+        else:
+            other_deferred_projects.append(project["path"])
+    return peer_blocked_projects, other_deferred_projects
+
+
+def _non_runtime_deferred_classifications(non_runtime_deferred_projects: list[dict[str, Any]]) -> set[str]:
+    return {
+        str(dependency.get("classification") or "")
+        for project in non_runtime_deferred_projects
+        for dependency in project["dependencies"]
+        if _is_non_runtime_deferred_dependency(dependency)
+    }
+
+
+def _deferred_recommendation_label(deferred_classifications: set[str]) -> str:
+    has_major = any("major" in classification for classification in deferred_classifications)
+    has_channel = any("channel" in classification for classification in deferred_classifications)
+    if has_major and has_channel:
+        return "major or channel migrations"
+    if has_channel:
+        return "channel migrations"
+    if has_major:
+        return "major migrations"
+    return "manual dependency inspections"
 
 
 def _recommendations(projects: list[dict[str, Any]]) -> list[str]:
@@ -664,36 +988,19 @@ def _recommendations(projects: list[dict[str, Any]]) -> list[str]:
         for project in projects
         if project["deferred_count"] and not project["candidate_count"] and project["status"] != "unavailable"
     ]
-    if deferred_projects and not candidate_projects:
-        peer_blocked_projects = []
-        other_deferred_projects = []
-        for project in deferred_projects:
-            peer_blocked_dependencies = []
-            other_deferred_dependencies = []
-            for dependency in project["dependencies"]:
-                if not dependency.get("deferred"):
-                    continue
-                if dependency.get("latest_delta") == "major" and dependency.get("peer_blocker_check") == "blocked":
-                    blocker_count = int(dependency.get("peer_blocker_count") or 0)
-                    label = f"{dependency['name']}: {blocker_count} peer blocker(s)"
-                    if dependency.get("peer_blocker_latest_check"):
-                        latest_supported = int(dependency.get("peer_blocker_latest_supported_count") or 0)
-                        latest_blocked = int(dependency.get("peer_blocker_latest_blocked_count") or 0)
-                        latest_unavailable = int(dependency.get("peer_blocker_latest_unavailable_count") or 0)
-                        latest_parts = [f"{latest_supported}/{blocker_count} latest-supported"]
-                        if latest_blocked:
-                            latest_parts.append(f"{latest_blocked} still blocked")
-                        if latest_unavailable:
-                            latest_parts.append(f"{latest_unavailable} unavailable")
-                        label += ", " + ", ".join(latest_parts)
-                    peer_blocked_dependencies.append(label)
-                else:
-                    other_deferred_dependencies.append(str(dependency.get("name") or "unknown"))
+    runtime_recommendations, runtime_blocking_count = _runtime_blocking_recommendations(deferred_projects)
+    if not candidate_projects:
+        recommendations.extend(runtime_recommendations)
 
-            if peer_blocked_dependencies and not other_deferred_dependencies:
-                peer_blocked_projects.append(f"{project['path']} ({', '.join(peer_blocked_dependencies)})")
-            else:
-                other_deferred_projects.append(project["path"])
+    if deferred_projects and not candidate_projects:
+        if runtime_blocking_count == sum(project["deferred_count"] for project in deferred_projects):
+            return recommendations
+        non_runtime_deferred_projects = _non_runtime_deferred_projects(deferred_projects)
+        if not non_runtime_deferred_projects:
+            return recommendations
+        peer_blocked_projects, other_deferred_projects = _deferred_recommendation_project_groups(
+            non_runtime_deferred_projects
+        )
 
         if peer_blocked_projects and not other_deferred_projects:
             recommendations.append(
@@ -702,25 +1009,12 @@ def _recommendations(projects: list[dict[str, Any]]) -> list[str]:
             )
             return recommendations
 
-        deferred_classifications = {
-            str(dependency.get("classification") or "")
-            for project in projects
-            for dependency in project["dependencies"]
-            if dependency.get("deferred")
-        }
-        has_major = any("major" in classification for classification in deferred_classifications)
-        has_channel = any("channel" in classification for classification in deferred_classifications)
-        if has_major and has_channel:
-            deferred_label = "major or channel migrations"
-        elif has_channel:
-            deferred_label = "channel migrations"
-        elif has_major:
-            deferred_label = "major migrations"
-        else:
-            deferred_label = "manual dependency inspections"
+        deferred_label = _deferred_recommendation_label(
+            _non_runtime_deferred_classifications(non_runtime_deferred_projects)
+        )
         recommendations.append(
             f"No direct npm patch/minor adoption candidates; defer {deferred_label} for: "
-            + ", ".join(project["path"] for project in deferred_projects)
+            + ", ".join(project["path"] for project in non_runtime_deferred_projects)
         )
     return recommendations
 
@@ -728,6 +1022,7 @@ def _recommendations(projects: list[dict[str, Any]]) -> list[str]:
 OutdatedRunner = Callable[[Path, int], dict[str, Any]]
 DistTagRunner = Callable[[Path, str, int], dict[str, Any]]
 PeerMetadataRunner = Callable[[Path, str, int], dict[str, Any]]
+RuntimeVersionRunner = Callable[[Path, str, int], dict[str, Any]]
 
 
 def build_inventory(
@@ -736,6 +1031,7 @@ def build_inventory(
     runner: OutdatedRunner = _run_npm_outdated,
     tag_runner: DistTagRunner = _run_npm_dist_tags,
     peer_metadata_runner: PeerMetadataRunner = _run_npm_peer_metadata,
+    runtime_runner: RuntimeVersionRunner = _run_binary_runtime_version,
 ) -> dict[str, Any]:
     root = root.resolve()
     projects = [
@@ -746,6 +1042,7 @@ def build_inventory(
             timeout=timeout,
             tag_runner=tag_runner,
             peer_metadata_runner=peer_metadata_runner,
+            runtime_runner=runtime_runner,
         )
         for path in _project_dirs(root)
     ]
@@ -773,6 +1070,18 @@ def build_inventory(
             int(dependency.get("peer_blocker_latest_unavailable_count") or 0)
             for project in projects
             for dependency in project["dependencies"]
+        ),
+        "runtime_mismatch_dependency_count": sum(
+            1
+            for project in projects
+            for dependency in project["dependencies"]
+            if dependency.get("classification") == "runtime_version_mismatch"
+        ),
+        "latest_runtime_mismatch_dependency_count": sum(
+            1
+            for project in projects
+            for dependency in project["dependencies"]
+            if dependency.get("classification") == "defer_latest_runtime_mismatch"
         ),
     }
     return {

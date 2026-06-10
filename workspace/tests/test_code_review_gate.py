@@ -7,6 +7,7 @@ deterministic and do not require a real graph build.
 
 from __future__ import annotations
 
+import ast
 import importlib.util
 import json
 import sys
@@ -17,13 +18,21 @@ import pytest
 
 from execution.code_review_gate import (
     _allows_unqualified_test_source,
+    _change_analysis,
+    _changed_python_test_paths,
     _correct_risk_score,
+    _detect_kwargs,
+    _dynamic_module_aliases,
     _filter_test_gaps,
+    _gate_status,
     _has_tested_source,
+    _load_changed_test_mentions,
     _load_tested_sources,
     _looks_like_test_node,
     _looks_like_test_path,
+    _parse_python_source,
     _tested_source_keys,
+    _test_mentions_from_tree,
     _print_report,
     evaluate,
     filter_graph_relevant_files,
@@ -103,6 +112,56 @@ def _evaluate(tmp_path: Path, tools, **kwargs):
     }
     defaults.update(kwargs)
     return gate.evaluate(tools=tools, **defaults)
+
+
+def test_detect_kwargs_uses_base_or_explicit_changed_files(tmp_path):
+    assert _detect_kwargs(
+        base="HEAD~1",
+        repo_root=tmp_path,
+        detail_level="standard",
+        changed_files=None,
+    ) == {"repo_root": str(tmp_path), "detail_level": "standard", "base": "HEAD~1"}
+
+    assert _detect_kwargs(
+        base="HEAD~1",
+        repo_root=tmp_path,
+        detail_level="brief",
+        changed_files=["a.py"],
+    ) == {"repo_root": str(tmp_path), "detail_level": "brief", "changed_files": ["a.py"]}
+
+
+def test_change_analysis_normalizes_graph_result_summary(tmp_path):
+    analysis = _change_analysis(
+        {
+            "risk_score": 0.4,
+            "changed_files": [{"path": "a.py"}, "b.py", {"other": "ignored"}],
+            "test_gaps": [{"name": "do_thing", "file": "a.py"}],
+            "affected_flows": [{"name": "flow-a"}, "flow-b", {"name": ""}],
+            "review_priorities": ["inspect a.py"],
+        },
+        repo_root=tmp_path,
+    )
+
+    assert analysis.risk_score == 0.4
+    assert analysis.changed_files == ["a.py", "b.py"]
+    assert analysis.affected_flows == ["flow-a", "flow-b"]
+    assert analysis.test_gaps == ["do_thing :: a.py"]
+    assert analysis.review_priorities == ["inspect a.py"]
+
+
+def test_gate_status_combines_risk_gap_and_untracked_reasons():
+    status, reasons = _gate_status(
+        risk_score=0.8,
+        warn_threshold=0.3,
+        fail_threshold=0.7,
+        test_gaps=["do_thing :: a.py"],
+        untracked_graph_files=["execution/new_gate.py"],
+    )
+
+    assert status == "fail"
+    assert "fail-threshold" in reasons[0]
+    assert "test gap" in reasons[1]
+    assert "untracked graph-relevant" in reasons[2]
 
 
 def test_low_risk_clean_change_passes(tmp_path):
@@ -191,6 +250,25 @@ def test_outgoing_tested_by_edges_clear_false_gap_and_correct_risk(tmp_path):
         )
         == 0.1
     )
+    assert (
+        _correct_risk_score(
+            {
+                "affected_flows": [],
+                "changed_functions": [
+                    {
+                        "name": "do_thing",
+                        "qualified_name": qname,
+                        "file_path": str(tmp_path / "src" / "app.py"),
+                        "risk_score": 0.35,
+                    }
+                ],
+            },
+            raw_gap_qnames={qname},
+            tested_sources=tested_sources,
+            filtered_gap_count=0,
+        )
+        == 0.05
+    )
 
     tools, _ = _fake_tools(
         risk_score=0.35,
@@ -209,7 +287,7 @@ def test_outgoing_tested_by_edges_clear_false_gap_and_correct_risk(tmp_path):
     report = _evaluate(tmp_path, tools)
 
     assert report.status == "pass"
-    assert report.risk_score == 0.1
+    assert report.risk_score == 0.05
     assert report.test_gaps == []
 
 
@@ -273,6 +351,208 @@ def test_unqualified_streamlit_page_test_edges_clear_false_gap(tmp_path):
     assert _allows_unqualified_test_source(str(path))
     assert _has_tested_source("_render_release_boundary", str(path), qname, tested_sources)
     assert _filter_test_gaps([raw_gap], tested_sources=tested_sources) == []
+
+
+def test_changed_test_attribute_mentions_clear_dynamic_script_false_gap(tmp_path):
+    source_path = tmp_path / ".agents" / "skills" / "auto-research" / "scripts" / "debug_loop_inventory.py"
+    test_path = tmp_path / "workspace" / "tests" / "test_auto_research_debug_loop_inventory.py"
+    test_path.parent.mkdir(parents=True)
+    test_path.write_text(
+        "\n".join(
+            [
+                "def test_helper_contract(debug_loop_inventory):",
+                "    assert debug_loop_inventory._has_input_error({'_input_error': {}})",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    changed_files = [
+        ".agents/skills/auto-research/scripts/debug_loop_inventory.py",
+        "workspace/tests/test_auto_research_debug_loop_inventory.py",
+    ]
+    qname = str(source_path) + "::_has_input_error"
+    raw_gap = {
+        "name": "_has_input_error",
+        "qualified_name": qname,
+        "file": str(source_path),
+    }
+
+    mentions = _load_changed_test_mentions(tmp_path, changed_files)
+    assert "_has_input_error" in mentions
+    assert _has_tested_source("_has_input_error", str(source_path), qname, mentions)
+    assert _filter_test_gaps([raw_gap], tested_sources=mentions) == []
+
+    tools, _ = _fake_tools(
+        risk_score=0.55,
+        changed_files=changed_files,
+        test_gaps=[raw_gap],
+    )
+    report = _evaluate(tmp_path, tools)
+
+    assert report.status == "pass"
+    assert report.risk_score == 0.0
+    assert report.test_gaps == []
+
+
+def test_changed_test_import_mentions_use_original_private_name(tmp_path):
+    test_path = tmp_path / "workspace" / "tests" / "test_gate.py"
+    test_path.parent.mkdir(parents=True)
+    test_path.write_text(
+        "from execution.code_review_gate import _load_changed_test_mentions as subject\n",
+        encoding="utf-8",
+    )
+
+    mentions = _load_changed_test_mentions(tmp_path, ["workspace/tests/test_gate.py"])
+
+    assert "_load_changed_test_mentions" in mentions
+    assert "subject" not in mentions
+
+
+def test_changed_python_test_paths_filter_to_existing_python_tests(tmp_path):
+    test_path = tmp_path / "workspace" / "tests" / "test_gate.py"
+    test_path.parent.mkdir(parents=True)
+    test_path.write_text("def test_gate():\n    pass\n", encoding="utf-8")
+    helper_path = tmp_path / "workspace" / "tests" / "helper.txt"
+    helper_path.write_text("not python\n", encoding="utf-8")
+
+    paths = _changed_python_test_paths(
+        tmp_path,
+        [
+            "src/app.py",
+            "workspace/tests/test_gate.py",
+            "workspace/tests/helper.txt",
+            "workspace/tests/missing_test.py",
+        ],
+    )
+
+    assert paths == [test_path]
+
+
+def test_parse_python_source_returns_none_for_invalid_test_file(tmp_path):
+    test_path = tmp_path / "workspace" / "tests" / "test_gate.py"
+    test_path.parent.mkdir(parents=True)
+    test_path.write_text("def broken(:\n", encoding="utf-8")
+
+    assert _parse_python_source(test_path) is None
+
+
+def test_changed_test_mentions_include_public_dynamic_script_helpers(tmp_path):
+    source_path = tmp_path / ".agents" / "skills" / "auto-research" / "scripts" / "debug_loop_inventory.py"
+    test_path = tmp_path / "workspace" / "tests" / "test_auto_research_debug_loop_inventory.py"
+    test_path.parent.mkdir(parents=True)
+    test_path.write_text(
+        "\n".join(
+            [
+                "def _load_module():",
+                "    return object()",
+                "",
+                "debug_loop_inventory = _load_module()",
+                "",
+                "def test_completion_gate():",
+                "    assert debug_loop_inventory.completion_is_blocked({'summary': {}})",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    changed_files = [
+        ".agents/skills/auto-research/scripts/debug_loop_inventory.py",
+        "workspace/tests/test_auto_research_debug_loop_inventory.py",
+    ]
+    qname = str(source_path) + "::completion_is_blocked"
+    raw_gap = {
+        "name": "completion_is_blocked",
+        "qualified_name": qname,
+        "file": str(source_path),
+    }
+
+    mentions = _load_changed_test_mentions(tmp_path, changed_files)
+
+    assert "completion_is_blocked" in mentions
+    assert _has_tested_source("completion_is_blocked", str(source_path), qname, mentions)
+    assert _filter_test_gaps([raw_gap], tested_sources=mentions) == []
+
+
+def test_test_mentions_from_tree_combines_dynamic_alias_and_private_imports():
+    tree = ast.parse(
+        "\n".join(
+            [
+                "from execution.code_review_gate import _filter_test_gaps as subject",
+                "",
+                "debug_loop_inventory = _load_module()",
+                "gate = _load_gate()",
+                "",
+                "def test_contract():",
+                "    assert debug_loop_inventory.completion_is_blocked({})",
+                "    assert gate.evaluate({})",
+                "    assert subject",
+            ]
+        )
+    )
+
+    assert _dynamic_module_aliases(tree) == {"debug_loop_inventory", "gate"}
+    assert _test_mentions_from_tree(tree) == {"completion_is_blocked", "evaluate", "_filter_test_gaps"}
+
+
+def test_covered_non_gap_functions_are_damped_only_in_filtered_gap_runs(tmp_path):
+    source_path = tmp_path / "execution" / "code_review_gate.py"
+    qname = str(source_path) + "::_load_changed_test_mentions"
+    raw_gap_qname = str(source_path) + "::_other_helper"
+    changed = {
+        "affected_flows": [],
+        "changed_functions": [
+            {
+                "name": "_load_changed_test_mentions",
+                "qualified_name": qname,
+                "file_path": str(source_path),
+                "risk_score": 0.4,
+            }
+        ],
+    }
+
+    assert (
+        _correct_risk_score(
+            changed,
+            raw_gap_qnames={raw_gap_qname},
+            tested_sources={qname},
+            filtered_gap_count=0,
+        )
+        == 0.05
+    )
+    assert (
+        _correct_risk_score(
+            changed,
+            raw_gap_qnames={raw_gap_qname},
+            tested_sources={qname},
+            filtered_gap_count=1,
+        )
+        == 0.4
+    )
+    assert (
+        _correct_risk_score(
+            changed,
+            raw_gap_qnames={raw_gap_qname},
+            tested_sources=set(),
+            filtered_gap_count=0,
+        )
+        == 0.4
+    )
+
+
+def test_changed_test_mentions_do_not_clear_ordinary_source_false_gap(tmp_path):
+    source_path = tmp_path / "src" / "app.py"
+    test_path = tmp_path / "workspace" / "tests" / "test_app.py"
+    test_path.parent.mkdir(parents=True)
+    test_path.write_text("def test_app(app):\n    app._helper()\n", encoding="utf-8")
+    changed_files = ["src/app.py", "workspace/tests/test_app.py"]
+    qname = str(source_path) + "::_helper"
+    raw_gap = {"name": "_helper", "qualified_name": qname, "file": str(source_path)}
+
+    mentions = _load_changed_test_mentions(tmp_path, changed_files)
+
+    assert "_helper" in mentions
+    assert not _has_tested_source("_helper", str(source_path), qname, mentions)
+    assert _filter_test_gaps([raw_gap], tested_sources=mentions) == [raw_gap]
 
 
 def test_test_nodes_are_not_reported_as_production_gaps(tmp_path):

@@ -192,6 +192,74 @@ def test_blank_screenshot_does_not_cover_browser_app(tmp_path: Path) -> None:
     ]
 
 
+def test_png_chunk_scan_and_support_helpers_parse_valid_png(tmp_path: Path) -> None:
+    screenshot = tmp_path / "valid.png"
+    _write_nonblank_png(screenshot)
+
+    scan = browser_qa_inventory._png_chunk_scan(screenshot.read_bytes())
+
+    assert scan.width == 2
+    assert scan.height == 1
+    assert scan.bit_depth == 8
+    assert scan.color_type == 6
+    assert scan.compression_method == 0
+    assert scan.filter_method == 0
+    assert scan.interlace_method == 0
+    assert scan.idat
+    assert scan.saw_iend is True
+    assert scan.issues == []
+    assert (
+        browser_qa_inventory._png_supported_bytes_per_pixel(
+            scan.bit_depth,
+            scan.color_type,
+            scan.compression_method,
+            scan.filter_method,
+            scan.interlace_method,
+        )
+        == 4
+    )
+    assert browser_qa_inventory._png_supported_bytes_per_pixel(16, 6, 0, 0, 0) is None
+
+
+def test_png_chunk_scan_reports_truncated_chunks() -> None:
+    truncated = browser_qa_inventory.PNG_SIGNATURE + struct.pack(">I", 13) + b"IHDR" + b"\x00\x00\x00"
+
+    scan = browser_qa_inventory._png_chunk_scan(truncated)
+
+    assert scan.width == 0
+    assert scan.height == 0
+    assert scan.idat == b""
+    assert scan.saw_iend is False
+    assert scan.issues == ["png chunk IHDR is truncated"]
+
+
+def test_png_reconstruct_row_applies_sub_filter_and_reports_unsupported_filter() -> None:
+    row, offset, issues = browser_qa_inventory._png_reconstruct_row(
+        bytes([1, 10, 5, 5]),
+        0,
+        3,
+        bytearray([0, 0, 0]),
+        1,
+    )
+
+    assert bytes(row) == bytes([10, 15, 20])
+    assert offset == 4
+    assert issues == []
+    assert browser_qa_inventory._png_row_has_pixel_change(row, 1, bytes([10])) is True
+
+    invalid_row, invalid_offset, invalid_issues = browser_qa_inventory._png_reconstruct_row(
+        bytes([9, 1, 2, 3]),
+        0,
+        3,
+        bytearray([0, 0, 0]),
+        1,
+    )
+
+    assert invalid_row == bytearray()
+    assert invalid_offset == 4
+    assert invalid_issues == ["unsupported png filter type: 9"]
+
+
 def test_browser_app_is_covered_by_verified_log_line(tmp_path: Path) -> None:
     app = tmp_path / "projects" / "word-chain"
     _write_package(app, dependencies={"vite": "1.0.0"})
@@ -325,6 +393,28 @@ def test_cli_output_file_writes_ascii_json_and_preserves_text_stdout(tmp_path: P
     assert "browser QA coverage:" in stdout
     assert payload["root"] == str(root.resolve())
     assert output.read_text(encoding="utf-8").isascii()
+
+
+def test_browser_inventory_args_from_argv_preserves_cli_contract(tmp_path: Path) -> None:
+    output = tmp_path / ".tmp" / "browser-inventory.json"
+
+    args = browser_qa_inventory._browser_inventory_args_from_argv(
+        ["--root", str(tmp_path), "--include-non-browser", "--json", "--output", str(output)]
+    )
+
+    assert args.root == tmp_path
+    assert args.include_non_browser is True
+    assert args.json is True
+    assert args.output == output
+
+
+def test_browser_inventory_args_from_argv_uses_existing_defaults() -> None:
+    args = browser_qa_inventory._browser_inventory_args_from_argv([])
+
+    assert args.root == Path.cwd()
+    assert args.include_non_browser is False
+    assert args.json is False
+    assert args.output is None
 
 
 def test_cli_output_file_can_be_combined_with_json_stdout(tmp_path: Path, capsys) -> None:

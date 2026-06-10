@@ -97,7 +97,10 @@ def test_build_audit_reports_aligned_but_blocked_boundary(tmp_path: Path) -> Non
     assert audit["summary"]["reference_count"] == 3
     assert audit["summary"]["selector_kind"] == "dirty_worktree_handoff_current"
     assert any("explicit scoped staging/commit authorization" in item for item in audit["critical_blockers"])
-    assert any(item["reference"] == "OpenAI Codex" for item in audit["external_comparison"])
+    assert any(item["reference"] == "OpenAI Codex Web" for item in audit["external_comparison"])
+    assert any(item["reference"] == "Cursor Plan Mode" for item in audit["external_comparison"])
+    assert not any(item["reference"] == "Claude Code" for item in audit["external_comparison"])
+    assert any("editable plan" in item["vibe_counter_position"] for item in audit["external_comparison"])
 
 
 def test_build_audit_surfaces_missing_loop_evidence(tmp_path: Path) -> None:

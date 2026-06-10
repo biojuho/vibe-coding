@@ -69,6 +69,16 @@ def _peer_metadata(version: str, peer_dependencies: dict[str, str]) -> dict[str,
     }
 
 
+def test_peer_range_alternative_allows_major_contract() -> None:
+    allows_major = dependency_freshness_inventory._peer_range_alternative_allows_major
+
+    assert allows_major("", 10) is False
+    assert allows_major("*", 10) is True
+    assert allows_major("^10.0.0", 10) is True
+    assert allows_major("<10", 10) is False
+    assert allows_major(">=9 <11", 10) is True
+
+
 def test_patch_minor_wanted_update_is_candidate() -> None:
     result = dependency_freshness_inventory.classify_dependency(
         "react",
@@ -398,6 +408,111 @@ def test_deferred_eslint_major_reports_partial_latest_peer_support(tmp_path: Pat
     ]
 
 
+def test_peer_blocker_dependency_label_includes_latest_status_counts() -> None:
+    dependency = {
+        "name": "eslint",
+        "peer_blocker_count": 3,
+        "peer_blocker_latest_check": "partial_upstream_support",
+        "peer_blocker_latest_supported_count": 1,
+        "peer_blocker_latest_blocked_count": 1,
+        "peer_blocker_latest_unavailable_count": 1,
+    }
+
+    assert (
+        dependency_freshness_inventory._peer_blocker_dependency_label(dependency)
+        == "eslint: 3 peer blocker(s), 1/3 latest-supported, 1 still blocked, 1 unavailable"
+    )
+
+
+def test_runtime_blocking_recommendations_preserve_message_order_and_count() -> None:
+    deferred_projects = [
+        {
+            "path": "projects/root",
+            "dependencies": [
+                {
+                    "name": "turbo",
+                    "classification": "runtime_version_mismatch",
+                    "declared_version": "2.9.17",
+                    "runtime_version": "2.9.16",
+                }
+            ],
+        },
+        {
+            "path": "projects/app",
+            "dependencies": [
+                {
+                    "name": "turbo",
+                    "classification": "defer_latest_runtime_mismatch",
+                    "latest": "2.9.17",
+                    "runtime_version": "2.9.16",
+                }
+            ],
+        },
+    ]
+
+    recommendations, runtime_blocking_count = dependency_freshness_inventory._runtime_blocking_recommendations(
+        deferred_projects
+    )
+
+    assert runtime_blocking_count == 2
+    assert recommendations == [
+        "Resolve local dependency runtime mismatches before adoption for: "
+        "projects/root (turbo: expected 2.9.17, runtime 2.9.16)",
+        "Defer latest binary dependency candidates with known runtime mismatch for: "
+        "projects/app (turbo: latest 2.9.17, runtime 2.9.16)",
+    ]
+
+
+def test_deferred_recommendation_project_groups_skip_runtime_blockers() -> None:
+    projects = [
+        {
+            "path": "projects/peer-only",
+            "dependencies": [
+                {
+                    "name": "eslint",
+                    "deferred": True,
+                    "classification": "defer_major_migration",
+                    "latest_delta": "major",
+                    "peer_blocker_check": "blocked",
+                    "peer_blocker_count": 1,
+                },
+                {
+                    "name": "turbo",
+                    "deferred": True,
+                    "classification": "runtime_version_mismatch",
+                },
+            ],
+        },
+        {
+            "path": "projects/mixed",
+            "dependencies": [
+                {
+                    "name": "next-auth",
+                    "deferred": True,
+                    "classification": "defer_channel_mismatch",
+                    "latest_delta": "major",
+                }
+            ],
+        },
+    ]
+
+    peer_blocked_projects, other_deferred_projects = (
+        dependency_freshness_inventory._deferred_recommendation_project_groups(projects)
+    )
+
+    assert peer_blocked_projects == ["projects/peer-only (eslint: 1 peer blocker(s))"]
+    assert other_deferred_projects == ["projects/mixed"]
+
+
+def test_deferred_recommendation_label_names_classification_mix() -> None:
+    label = dependency_freshness_inventory._deferred_recommendation_label
+
+    assert label({"defer_major_migration", "defer_channel_mismatch"}) == "major or channel migrations"
+    assert label({"defer_channel_mismatch"}) == "channel migrations"
+    assert label({"defer_major_migration"}) == "major migrations"
+    assert label({"inspect_manually"}) == "manual dependency inspections"
+
+
 def test_empty_outdated_payload_marks_project_clean(tmp_path: Path) -> None:
     _write_package(tmp_path / "projects" / "suika-game-v2")
 
@@ -406,6 +521,153 @@ def test_empty_outdated_payload_marks_project_clean(tmp_path: Path) -> None:
     assert result["summary"]["clean_project_count"] == 1
     assert result["projects"][0]["status"] == "clean"
     assert result["recommendations"] == []
+
+
+def test_runtime_version_mismatch_blocks_clean_dependency_adoption(tmp_path: Path) -> None:
+    _write_package(tmp_path, {"turbo": "^2.9.17"})
+
+    result = dependency_freshness_inventory.build_inventory(
+        tmp_path,
+        runner=lambda _path, _timeout: _npm_result({}),
+        runtime_runner=lambda _path, _package_name, _timeout: {
+            "available": True,
+            "returncode": 0,
+            "stdout": "2.9.16",
+            "stderr": "",
+        },
+    )
+
+    project = result["projects"][0]
+    dependency = project["dependencies"][0]
+    assert project["status"] == "deferred_only"
+    assert result["summary"]["runtime_mismatch_dependency_count"] == 1
+    assert dependency["classification"] == "runtime_version_mismatch"
+    assert dependency["runtime_version"] == "2.9.16"
+    assert dependency["declared_version"] == "2.9.17"
+    assert dependency["candidate"] is False
+    assert dependency["deferred"] is True
+    assert result["recommendations"] == [
+        "Resolve local dependency runtime mismatches before adoption for: . (turbo: expected 2.9.17, runtime 2.9.16)"
+    ]
+
+
+def test_matching_runtime_version_keeps_clean_dependency_project_clean(tmp_path: Path) -> None:
+    _write_package(tmp_path, {"turbo": "^2.9.17"})
+
+    result = dependency_freshness_inventory.build_inventory(
+        tmp_path,
+        runner=lambda _path, _timeout: _npm_result({}),
+        runtime_runner=lambda _path, _package_name, _timeout: {
+            "available": True,
+            "returncode": 0,
+            "stdout": "2.9.17",
+            "stderr": "",
+        },
+    )
+
+    assert result["summary"]["runtime_mismatch_dependency_count"] == 0
+    assert result["projects"][0]["status"] == "clean"
+    assert result["projects"][0]["dependencies"] == []
+    assert result["recommendations"] == []
+
+
+def test_runtime_mismatch_is_not_listed_as_major_migration(tmp_path: Path) -> None:
+    _write_package(tmp_path, {"turbo": "^2.9.17"})
+    _write_package(tmp_path / "projects" / "knowledge-dashboard")
+    root = tmp_path.resolve()
+
+    def runner(path: Path, _timeout: int) -> dict[str, object]:
+        if path.resolve() == root:
+            return _npm_result({})
+        return _npm_result(
+            {
+                "typescript": {
+                    "current": "5.9.3",
+                    "wanted": "5.9.3",
+                    "latest": "6.0.3",
+                }
+            }
+        )
+
+    result = dependency_freshness_inventory.build_inventory(
+        tmp_path,
+        runner=runner,
+        runtime_runner=lambda _path, _package_name, _timeout: {
+            "available": True,
+            "returncode": 0,
+            "stdout": "2.9.16",
+            "stderr": "",
+        },
+    )
+
+    assert result["recommendations"] == [
+        "Resolve local dependency runtime mismatches before adoption for: . (turbo: expected 2.9.17, runtime 2.9.16)",
+        "No direct npm patch/minor adoption candidates; defer major migrations for: projects/knowledge-dashboard",
+    ]
+
+
+def test_known_windows_latest_runtime_mismatch_defers_candidate(tmp_path: Path, monkeypatch) -> None:
+    _write_package(tmp_path, {"turbo": "^2.9.16"})
+    monkeypatch.setattr(dependency_freshness_inventory.sys, "platform", "win32")
+    monkeypatch.setattr(dependency_freshness_inventory.platform, "machine", lambda: "AMD64")
+
+    result = dependency_freshness_inventory.build_inventory(
+        tmp_path,
+        runner=lambda _path, _timeout: _npm_result(
+            {
+                "turbo": {
+                    "current": "2.9.16",
+                    "wanted": "2.9.17",
+                    "latest": "2.9.17",
+                }
+            }
+        ),
+    )
+
+    project = result["projects"][0]
+    dependency = project["dependencies"][0]
+    assert project["status"] == "deferred_only"
+    assert project["candidate_count"] == 0
+    assert project["deferred_count"] == 1
+    assert dependency["classification"] == "defer_latest_runtime_mismatch"
+    assert dependency["latest_runtime_check"] == "known_mismatch"
+    assert dependency["platform_package"] == "@turbo/windows-64"
+    assert dependency["runtime_version"] == "2.9.16"
+    assert dependency["expected_latest_version"] == "2.9.17"
+    assert dependency["candidate"] is False
+    assert dependency["deferred"] is True
+    assert result["summary"]["candidate_dependency_count"] == 0
+    assert result["summary"]["latest_runtime_mismatch_dependency_count"] == 1
+    assert result["recommendations"] == [
+        "Defer latest binary dependency candidates with known runtime mismatch for: . "
+        "(turbo: latest 2.9.17, runtime 2.9.16)"
+    ]
+
+
+def test_known_windows_latest_runtime_mismatch_does_not_block_other_platforms(tmp_path: Path, monkeypatch) -> None:
+    _write_package(tmp_path, {"turbo": "^2.9.16"})
+    monkeypatch.setattr(dependency_freshness_inventory.sys, "platform", "linux")
+    monkeypatch.setattr(dependency_freshness_inventory.platform, "machine", lambda: "x86_64")
+
+    result = dependency_freshness_inventory.build_inventory(
+        tmp_path,
+        runner=lambda _path, _timeout: _npm_result(
+            {
+                "turbo": {
+                    "current": "2.9.16",
+                    "wanted": "2.9.17",
+                    "latest": "2.9.17",
+                }
+            }
+        ),
+    )
+
+    dependency = result["projects"][0]["dependencies"][0]
+    assert result["projects"][0]["status"] == "candidate"
+    assert result["summary"]["candidate_dependency_count"] == 1
+    assert result["summary"]["latest_runtime_mismatch_dependency_count"] == 0
+    assert dependency["classification"] == "adopt_patch_minor"
+    assert dependency["candidate"] is True
 
 
 def test_invalid_npm_json_marks_project_unavailable(tmp_path: Path) -> None:

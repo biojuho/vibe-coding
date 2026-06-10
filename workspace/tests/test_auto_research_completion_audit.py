@@ -24,6 +24,51 @@ def _load_module():
 completion_audit = _load_module()
 
 
+def test_audit_item_normalizes_blockers_and_issue_codes():
+    item, issues, passed, blocked = completion_audit._audit_item(
+        2,
+        {
+            "requirement": " Run live Supabase CRUD ",
+            "artifacts": ["projects/hanwoo-dashboard/.env"],
+            "evidence": ["P2010 / XX000 tenant-user mismatch reproduced"],
+            "verified": True,
+            "coverage": "complete",
+            "blockers": ["Supabase password must be reset by user"],
+        },
+    )
+
+    assert item == {
+        "index": 2,
+        "requirement": "Run live Supabase CRUD",
+        "artifacts": ["projects/hanwoo-dashboard/.env"],
+        "evidence": ["P2010 / XX000 tenant-user mismatch reproduced"],
+        "verified": True,
+        "coverage": "complete",
+        "blockers": ["Supabase password must be reset by user"],
+        "passed": False,
+        "issues": ["blocked"],
+    }
+    assert [issue["code"] for issue in issues] == ["blocked"]
+    assert issues[0]["requirement"] == "Run live Supabase CRUD"
+    assert passed is False
+    assert blocked is True
+
+
+def test_audit_item_reports_invalid_non_object_without_normalized_item():
+    item, issues, passed, blocked = completion_audit._audit_item(3, "not an item")
+
+    assert item is None
+    assert issues == [
+        {
+            "index": 3,
+            "code": "invalid_item",
+            "message": "Checklist item must be an object.",
+        }
+    ]
+    assert passed is False
+    assert blocked is False
+
+
 def test_complete_manifest_passes():
     result = completion_audit.audit_manifest(
         {

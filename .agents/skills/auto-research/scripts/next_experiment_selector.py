@@ -30,6 +30,11 @@ DIRTY_HANDOFF_PLAN_GATE = (
     "--output-json .tmp/scoped-dirty-worktree-handoff-plan-current.json "
     "--output-md .tmp/scoped-dirty-worktree-handoff-plan-current.md --json"
 )
+DEBUG_INVENTORY_COMPLETION_BLOCKED_GATE = (
+    "python .agents/skills/auto-research/scripts/debug_loop_inventory.py --root . "
+    "--output-md .tmp/debug-loop-known-bugs-current.md "
+    "--output-json .tmp/debug-loop-known-bugs-current.json --json --fail-on-completion-blocked"
+)
 GITHUB_INVENTORY_CACHE = Path(".tmp") / "github-project-inventory.json"
 BROWSER_INVENTORY_CACHE = Path(".tmp") / "browser-qa-inventory.json"
 DEPENDENCY_INVENTORY_CACHE = Path(".tmp") / "dependency-freshness-inventory.json"
@@ -193,6 +198,14 @@ def _external_task_ids(readiness: dict[str, Any]) -> list[str]:
     return sorted(set(task_ids))
 
 
+def _gate_expectation(*, gate: str, expected_exit_codes: list[int], meaning: str) -> dict[str, Any]:
+    return {
+        "gate": gate,
+        "expected_exit_codes": expected_exit_codes,
+        "meaning": meaning,
+    }
+
+
 def _candidate(
     *,
     kind: str,
@@ -205,6 +218,7 @@ def _candidate(
     blocked: bool = False,
     blockers: list[str] | None = None,
     guardrails: list[str] | None = None,
+    gate_expectations: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     return {
         "kind": kind,
@@ -217,6 +231,7 @@ def _candidate(
         "blocked": blocked,
         "blockers": blockers or [],
         "guardrails": guardrails or [],
+        "gate_expectations": gate_expectations or [],
     }
 
 
@@ -391,18 +406,18 @@ def _dirty_handoff_plan_matches_inventory(
     if not dirty_handoff_plan:
         return False, []
     freshness = _as_dict(dirty_handoff_plan.get("freshness"))
+    previous_freshness = _as_dict(dirty_handoff_plan.get("previous_plan_freshness"))
     signature = _as_dict(dirty_handoff_plan.get("dirty_signature"))
     signature_input = _as_dict(signature.get("input"))
     git = _as_dict(github_inventory.get("git"))
-    evidence = [
-        f"handoff plan status={dirty_handoff_plan.get('status')}",
-        f"handoff plan freshness={freshness.get('status')}",
-    ]
+    evidence = [f"handoff plan status={dirty_handoff_plan.get('status')}"]
     if signature.get("value"):
         evidence.append(f"handoff plan signature={signature.get('value')}")
     if dirty_handoff_plan.get("status") != "handoff_required":
+        evidence.append(f"handoff plan freshness={freshness.get('status')}")
         return False, evidence
     if _count(signature_input.get("dirty_count")) != _count(git.get("dirty_count")):
+        evidence.append(f"handoff plan freshness={freshness.get('status')}")
         evidence.append(
             "handoff plan dirty_count mismatch: "
             f"plan={_count(signature_input.get('dirty_count'))}, inventory={_count(git.get('dirty_count'))}"
@@ -411,11 +426,21 @@ def _dirty_handoff_plan_matches_inventory(
     plan_paths = _normalized_path_list(signature_input.get("dirty_paths"))
     inventory_paths = _dirty_inventory_paths(github_inventory)
     if not plan_paths or not inventory_paths:
+        evidence.append(f"handoff plan freshness={freshness.get('status')}")
         evidence.append("handoff plan dirty_paths unavailable")
         return False, evidence
     if plan_paths != inventory_paths:
+        evidence.append(f"handoff plan freshness={freshness.get('status')}")
         evidence.append("handoff plan dirty_paths mismatch")
         return False, evidence
+    freshness_status = str(freshness.get("status") or "unknown")
+    evidence.append(
+        "handoff plan freshness=current"
+        if freshness_status == "current"
+        else f"handoff plan freshness=current_by_signature (recorded={freshness_status})"
+    )
+    if previous_freshness:
+        evidence.append(f"previous handoff plan freshness={previous_freshness.get('status')}")
     evidence.append("handoff plan signature matches current dirty inventory")
     group_order = [
         str(_as_dict(group).get("key"))
@@ -467,15 +492,28 @@ def _dirty_worktree_candidate(
                 GITHUB_INVENTORY_GATE,
                 "python execution/session_orient.py --json",
                 PRODUCT_READINESS_GATE,
+                DEBUG_INVENTORY_COMPLETION_BLOCKED_GATE,
             ],
             blocked=True,
             blockers=[
-                "Current dirty handoff plan is fresh; explicit scoped staging/commit authorization is required before product changes."
+                "Current dirty handoff plan matches the current dirty inventory; "
+                "explicit scoped staging/commit authorization is required before product changes."
             ],
             guardrails=[
                 "Do not stage, commit, push, or revert without explicit user authorization.",
                 "Do not start unrelated product changes while the dirty handoff boundary remains current.",
                 "Do not retry T-251 until Supabase credentials are reset.",
+                "Treat the debug inventory fail gate exit code 1 as expected proof that completion is still blocked.",
+            ],
+            gate_expectations=[
+                _gate_expectation(
+                    gate=DEBUG_INVENTORY_COMPLETION_BLOCKED_GATE,
+                    expected_exit_codes=[1],
+                    meaning=(
+                        "Completion is still blocked by dirty handoff or external boundaries; this is proof, "
+                        "not a source failure."
+                    ),
+                )
             ],
         )
 
@@ -809,6 +847,13 @@ def _print_text(selection: dict[str, Any]) -> None:
         print(f"blocker: {blocker}")
     for gate in selected["required_gates"]:
         print(f"gate: {gate}")
+    for expectation in selected["gate_expectations"]:
+        expectation_dict = _as_dict(expectation)
+        gate = str(expectation_dict.get("gate") or "unknown")
+        codes = ", ".join(str(code) for code in _as_list(expectation_dict.get("expected_exit_codes")))
+        meaning = str(expectation_dict.get("meaning") or "").strip()
+        suffix = f" meaning={meaning}" if meaning else ""
+        print(f"gate_expectation: {gate} expected_exit_codes={codes or 'unknown'}{suffix}")
 
 
 def main(argv: list[str] | None = None) -> int:

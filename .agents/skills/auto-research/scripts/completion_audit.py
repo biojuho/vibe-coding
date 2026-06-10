@@ -83,6 +83,75 @@ def _item_issue(
     return issue
 
 
+def _audit_item(
+    index: int,
+    raw_item: Any,
+) -> tuple[dict[str, Any] | None, list[dict[str, Any]], bool, bool]:
+    if not isinstance(raw_item, dict):
+        return None, [_item_issue(index, "invalid_item", "Checklist item must be an object.")], False, False
+
+    requirement = raw_item.get("requirement")
+    requirement_text = requirement.strip() if isinstance(requirement, str) else ""
+    artifacts = _string_list(raw_item.get("artifacts"))
+    evidence = _string_list(raw_item.get("evidence"))
+    blockers = _string_list(raw_item.get("blockers"))
+    verified = raw_item.get("verified") is True
+    coverage = str(raw_item.get("coverage", "")).strip().lower()
+    item_issues: list[str] = []
+    issues: list[dict[str, Any]] = []
+
+    if not requirement_text:
+        item_issues.append("missing_requirement")
+        issues.append(_item_issue(index, "missing_requirement", "Requirement text is missing."))
+    if not artifacts:
+        item_issues.append("missing_artifacts")
+        issues.append(_item_issue(index, "missing_artifacts", "Requirement is not mapped to artifacts."))
+    if not evidence:
+        item_issues.append("missing_evidence")
+        issues.append(_item_issue(index, "missing_evidence", "Requirement is not mapped to evidence."))
+    if not verified:
+        item_issues.append("not_verified")
+        issues.append(_item_issue(index, "not_verified", "Requirement has not been verified."))
+    if coverage not in PASSING_COVERAGE:
+        item_issues.append("incomplete_coverage")
+        issues.append(
+            _item_issue(
+                index,
+                "incomplete_coverage",
+                f"Coverage must be one of {sorted(PASSING_COVERAGE)}.",
+            )
+        )
+    if blockers:
+        item_issues.append("blocked")
+        issues.append(
+            _item_issue(
+                index,
+                "blocked",
+                "Requirement has unresolved blocker(s): " + "; ".join(blockers),
+                requirement=requirement_text,
+                blockers=blockers,
+            )
+        )
+
+    passed = not item_issues
+    return (
+        {
+            "index": index,
+            "requirement": requirement_text,
+            "artifacts": artifacts,
+            "evidence": evidence,
+            "verified": verified,
+            "coverage": coverage,
+            "blockers": blockers,
+            "passed": passed,
+            "issues": item_issues,
+        },
+        issues,
+        passed,
+        bool(blockers),
+    )
+
+
 def audit_manifest(data: dict[str, Any]) -> dict[str, Any]:
     objective = data.get("objective")
     if not isinstance(objective, str) or not objective.strip():
@@ -98,69 +167,14 @@ def audit_manifest(data: dict[str, Any]) -> dict[str, Any]:
     blocked_count = 0
 
     for index, raw_item in enumerate(raw_items, start=1):
-        if not isinstance(raw_item, dict):
-            issues.append(_item_issue(index, "invalid_item", "Checklist item must be an object."))
-            continue
-
-        requirement = raw_item.get("requirement")
-        requirement_text = requirement.strip() if isinstance(requirement, str) else ""
-        artifacts = _string_list(raw_item.get("artifacts"))
-        evidence = _string_list(raw_item.get("evidence"))
-        blockers = _string_list(raw_item.get("blockers"))
-        verified = raw_item.get("verified") is True
-        coverage = str(raw_item.get("coverage", "")).strip().lower()
-        item_issues: list[str] = []
-
-        if not requirement_text:
-            item_issues.append("missing_requirement")
-            issues.append(_item_issue(index, "missing_requirement", "Requirement text is missing."))
-        if not artifacts:
-            item_issues.append("missing_artifacts")
-            issues.append(_item_issue(index, "missing_artifacts", "Requirement is not mapped to artifacts."))
-        if not evidence:
-            item_issues.append("missing_evidence")
-            issues.append(_item_issue(index, "missing_evidence", "Requirement is not mapped to evidence."))
-        if not verified:
-            item_issues.append("not_verified")
-            issues.append(_item_issue(index, "not_verified", "Requirement has not been verified."))
-        if coverage not in PASSING_COVERAGE:
-            item_issues.append("incomplete_coverage")
-            issues.append(
-                _item_issue(
-                    index,
-                    "incomplete_coverage",
-                    f"Coverage must be one of {sorted(PASSING_COVERAGE)}.",
-                )
-            )
-        if blockers:
+        normalized_item, item_issues, passed, blocked = _audit_item(index, raw_item)
+        issues.extend(item_issues)
+        if blocked:
             blocked_count += 1
-            item_issues.append("blocked")
-            issues.append(
-                _item_issue(
-                    index,
-                    "blocked",
-                    "Requirement has unresolved blocker(s): " + "; ".join(blockers),
-                    requirement=requirement_text,
-                    blockers=blockers,
-                )
-            )
-
-        passed = not item_issues
         if passed:
             complete_count += 1
-        normalized_items.append(
-            {
-                "index": index,
-                "requirement": requirement_text,
-                "artifacts": artifacts,
-                "evidence": evidence,
-                "verified": verified,
-                "coverage": coverage,
-                "blockers": blockers,
-                "passed": passed,
-                "issues": item_issues,
-            }
-        )
+        if normalized_item is not None:
+            normalized_items.append(normalized_item)
 
     status = "complete" if not issues and complete_count == len(raw_items) else "incomplete"
     return {

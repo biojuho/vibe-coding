@@ -56,6 +56,33 @@ TEST_SCAN_EXCLUDES = {
 }
 MAX_TEST_FILE_SAMPLES = 20
 MAX_DIRTY_GROUP_PATH_SAMPLES = 12
+AUTO_RESEARCH_TEST_PATHS = (
+    "workspace/tests/test_dirty_worktree_handoff_plan.py",
+    "workspace/tests/test_github_project_inventory.py",
+)
+DIRTY_PATH_EXACT_GROUPS = {
+    "execution/llm_wiki_audit.py": "llm-wiki",
+    "execution/code_review_gate.py": "workspace-code-review-gate",
+    "workspace/tests/test_code_review_gate.py": "workspace-code-review-gate",
+}
+DIRTY_PATH_PRIMARY_PREFIX_GROUPS = (
+    ((".ai/",), "ai-context"),
+    ((".agents/skills/auto-research/",), "auto-research"),
+    (
+        (
+            "docs/wiki/llm/",
+            "workspace/tests/test_llm_wiki",
+            "workspace/tests/test_auto_research_llm_wiki",
+        ),
+        "llm-wiki",
+    ),
+)
+DIRTY_PATH_FALLBACK_PREFIX_GROUPS = (
+    (("workspace/execution/pages/", "workspace/tests/test_"), "workspace-dashboard"),
+    (("workspace/",), "workspace"),
+    (("execution/",), "execution"),
+    (("docs/",), "docs"),
+)
 
 
 def _run(args: list[str], cwd: Path, timeout: int = 20) -> dict[str, Any]:
@@ -120,33 +147,47 @@ def _is_test_file_name(name: str) -> bool:
     return is_python_prefix_test or any(name.endswith(suffix) for suffix in TEST_FILE_SUFFIXES)
 
 
+def _test_scan_children(path: Path) -> list[Path]:
+    try:
+        return list(path.iterdir())
+    except (FileNotFoundError, NotADirectoryError, PermissionError, OSError):
+        return []
+
+
+def _should_skip_test_scan_candidate(scan_root: Path, repo_root: Path, current: Path, candidate: Path) -> bool:
+    if current == scan_root and scan_root == repo_root and candidate.name == "projects":
+        return True
+    if candidate.name in TEST_SCAN_EXCLUDES:
+        return True
+    return candidate.name.startswith(".") and not candidate.is_dir()
+
+
+def _test_file_sample(candidate: Path, root: Path) -> str | None:
+    if not candidate.is_file():
+        return None
+    if not _is_test_file_name(candidate.name):
+        return None
+    return _relative(candidate, root)
+
+
 def _test_file_summary(path: Path, root: Path) -> tuple[int, list[str]]:
     count = 0
     samples: list[str] = []
     stack = [path]
     while stack:
         current = stack.pop()
-        try:
-            children = list(current.iterdir())
-        except (FileNotFoundError, NotADirectoryError, PermissionError, OSError):
-            continue
-        for candidate in children:
-            if current == path and path == root and candidate.name == "projects":
-                continue
-            if candidate.name in TEST_SCAN_EXCLUDES:
+        for candidate in _test_scan_children(current):
+            if _should_skip_test_scan_candidate(path, root, current, candidate):
                 continue
             if candidate.is_dir():
                 stack.append(candidate)
                 continue
-            if not candidate.is_file():
+            sample = _test_file_sample(candidate, root)
+            if sample is None:
                 continue
-            name = candidate.name
-            if name.startswith("."):
-                continue
-            if _is_test_file_name(name):
-                count += 1
-                if len(samples) < MAX_TEST_FILE_SAMPLES:
-                    samples.append(_relative(candidate, root))
+            count += 1
+            if len(samples) < MAX_TEST_FILE_SAMPLES:
+                samples.append(sample)
     return count, sorted(samples)
 
 
@@ -203,6 +244,31 @@ def _diff_is_dirty(result: dict[str, Any]) -> bool:
     return result.get("available") is True and result.get("returncode") == 1
 
 
+def _is_auto_research_test_path(normalized_path: str) -> bool:
+    return (
+        normalized_path.startswith("workspace/tests/test_auto_research_") or normalized_path in AUTO_RESEARCH_TEST_PATHS
+    )
+
+
+def _dirty_path_prefixed_group(
+    normalized_path: str,
+    rules: tuple[tuple[tuple[str, ...], str], ...],
+) -> str | None:
+    for prefixes, group_key in rules:
+        if normalized_path.startswith(prefixes):
+            return group_key
+    return None
+
+
+def _dirty_project_group_key(normalized_path: str) -> str | None:
+    if not normalized_path.startswith("projects/"):
+        return None
+    parts = normalized_path.split("/")
+    if len(parts) > 1 and parts[1]:
+        return f"project:{parts[1]}"
+    return "projects"
+
+
 def _confirmed_dirty_count(
     status_dirty_lines: list[str],
     *,
@@ -220,39 +286,27 @@ def _confirmed_dirty_count(
         return len(status_dirty_lines), dirty_paths, "diff_dirty"
 
     if _diff_is_clean(worktree_diff) and _diff_is_clean(cached_diff):
-        return 0, [], "diff_clean_status_stale"
+        return len(status_dirty_lines), dirty_paths, "status_dirty_diff_clean"
 
     return len(status_dirty_lines), dirty_paths, "status_unconfirmed"
 
 
 def _dirty_path_group_key(path: str) -> str:
     normalized = path.replace("\\", "/")
-    if normalized.startswith(".ai/"):
-        return "ai-context"
-    if normalized.startswith(".agents/skills/auto-research/"):
+    exact_group = DIRTY_PATH_EXACT_GROUPS.get(normalized)
+    if exact_group:
+        return exact_group
+    primary_group = _dirty_path_prefixed_group(normalized, DIRTY_PATH_PRIMARY_PREFIX_GROUPS)
+    if primary_group:
+        return primary_group
+    if _is_auto_research_test_path(normalized):
         return "auto-research"
-    if (
-        normalized.startswith("docs/wiki/llm/")
-        or normalized == "execution/llm_wiki_audit.py"
-        or normalized.startswith("workspace/tests/test_llm_wiki")
-        or normalized.startswith("workspace/tests/test_auto_research_llm_wiki")
-    ):
-        return "llm-wiki"
-    if normalized in {"execution/code_review_gate.py", "workspace/tests/test_code_review_gate.py"}:
-        return "workspace-code-review-gate"
-    if normalized.startswith("workspace/execution/pages/") or normalized.startswith("workspace/tests/test_"):
-        return "workspace-dashboard"
-    if normalized.startswith("projects/"):
-        parts = normalized.split("/")
-        if len(parts) > 1 and parts[1]:
-            return f"project:{parts[1]}"
-        return "projects"
-    if normalized.startswith("workspace/"):
-        return "workspace"
-    if normalized.startswith("execution/"):
-        return "execution"
-    if normalized.startswith("docs/"):
-        return "docs"
+    project_group = _dirty_project_group_key(normalized)
+    if project_group:
+        return project_group
+    fallback_group = _dirty_path_prefixed_group(normalized, DIRTY_PATH_FALLBACK_PREFIX_GROUPS)
+    if fallback_group:
+        return fallback_group
     return "root"
 
 

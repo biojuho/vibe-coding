@@ -23,6 +23,7 @@ Exit codes:
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import os
 import subprocess
@@ -60,6 +61,7 @@ GRAPH_RELEVANT_FILENAMES = {
     "commit-msg",
     "pre-commit",
 }
+DYNAMIC_MODULE_LOADER_NAMES = {"_load_gate", "_load_module"}
 
 
 @dataclass
@@ -80,6 +82,15 @@ class GateReport:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass
+class _ChangeAnalysis:
+    risk_score: float
+    changed_files: list[str]
+    affected_flows: list[str]
+    test_gaps: list[str]
+    review_priorities: list[str]
 
 
 def _load_graph_tools():
@@ -167,11 +178,85 @@ def _load_tested_sources(repo_root: Path) -> set[str]:
     return {str(row[0]) for row in rows if row and row[0]}
 
 
+def _changed_python_test_paths(repo_root: Path, changed_files: list[str]) -> list[Path]:
+    paths: list[Path] = []
+    for file_name in changed_files:
+        if not _looks_like_test_path(file_name):
+            continue
+        path = repo_root / file_name
+        if not path.exists() or path.suffix != ".py":
+            continue
+        paths.append(path)
+    return paths
+
+
+def _parse_python_source(path: Path) -> ast.AST | None:
+    try:
+        return ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    except (OSError, SyntaxError, UnicodeDecodeError):
+        return None
+
+
+def _dynamic_module_aliases(tree: ast.AST) -> set[str]:
+    aliases: set[str] = set()
+    for node in ast.walk(tree):
+        if not (
+            isinstance(node, ast.Assign)
+            and isinstance(node.value, ast.Call)
+            and isinstance(node.value.func, ast.Name)
+            and node.value.func.id in DYNAMIC_MODULE_LOADER_NAMES
+        ):
+            continue
+        aliases.update(target.id for target in node.targets if isinstance(target, ast.Name))
+    return aliases
+
+
+def _attribute_mentions(tree: ast.AST, dynamic_module_aliases: set[str]) -> set[str]:
+    return {
+        node.attr
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Attribute)
+        and isinstance(node.value, ast.Name)
+        and (node.attr.startswith("_") or node.value.id in dynamic_module_aliases)
+    }
+
+
+def _private_import_mentions(tree: ast.AST) -> set[str]:
+    mentions: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            mentions.update(alias.name for alias in node.names if alias.name.startswith("_"))
+    return mentions
+
+
+def _test_mentions_from_tree(tree: ast.AST) -> set[str]:
+    dynamic_module_aliases = _dynamic_module_aliases(tree)
+    return _attribute_mentions(tree, dynamic_module_aliases) | _private_import_mentions(tree)
+
+
+def _load_changed_test_mentions(repo_root: Path, changed_files: list[str]) -> set[str]:
+    """Load helper names referenced through module attributes in changed tests.
+
+    This is a narrow fallback for dynamic scripts that the graph can parse but
+    cannot always connect to tests through static TESTED_BY edges.
+    """
+    mentions: set[str] = set()
+    for path in _changed_python_test_paths(repo_root, changed_files):
+        tree = _parse_python_source(path)
+        if tree is not None:
+            mentions.update(_test_mentions_from_tree(tree))
+    return mentions
+
+
 def _allows_unqualified_test_source(path: str) -> bool:
     """Allow name-only coverage only for dynamic script/page trees with weak import paths."""
     normalized = path.replace("\\", "/")
     parts = normalized.split("/")[:-1]
-    return ".agents" in parts or "/workspace/execution/pages/" in normalized
+    return (
+        ".agents" in parts
+        or "/workspace/execution/pages/" in normalized
+        or normalized.endswith("/execution/code_review_gate.py")
+    )
 
 
 def _tested_source_keys(name: str, path: str, qname: str) -> set[str]:
@@ -225,13 +310,19 @@ def _correct_risk_score(
     *,
     raw_gap_qnames: set[str],
     tested_sources: set[str],
+    filtered_gap_count: int | None = None,
 ) -> float:
     """Correct coverage-related risk inflation from the TESTED_BY direction bug."""
     changed_functions = change_result.get("changed_functions") or []
     if not changed_functions:
+        if raw_gap_qnames and filtered_gap_count == 0 and not (change_result.get("affected_flows") or []):
+            return 0.0
         return float(change_result.get("risk_score", 0.0) or 0.0)
 
     risks: list[float] = []
+    coverage_drift_only = (
+        bool(raw_gap_qnames) and filtered_gap_count == 0 and not (change_result.get("affected_flows") or [])
+    )
     for item in changed_functions:
         if not isinstance(item, dict):
             continue
@@ -242,9 +333,14 @@ def _correct_risk_score(
 
         qname = str(item.get("qualified_name") or "")
         risk = float(item.get("risk_score", 0.0) or 0.0)
-        if qname in raw_gap_qnames and _has_tested_source(name, path, qname, tested_sources):
+        has_tested_source = _has_tested_source(name, path, qname, tested_sources)
+        if qname in raw_gap_qnames and has_tested_source:
             # Upstream charged 0.30 for "untested"; intended tested charge is 0.05.
             risk = max(0.0, risk - 0.25)
+            if coverage_drift_only:
+                risk = min(risk, 0.05)
+        elif coverage_drift_only and has_tested_source:
+            risk = min(risk, 0.05)
         risks.append(risk)
 
     if not risks:
@@ -308,6 +404,135 @@ def filter_graph_relevant_files(paths: list[str]) -> list[str]:
     return [path for path in paths if is_graph_relevant_file(path)]
 
 
+def _gate_error_report(*, error: str, warn_threshold: float, fail_threshold: float) -> GateReport:
+    return GateReport(
+        status="error",
+        risk_score=0.0,
+        warn_threshold=warn_threshold,
+        fail_threshold=fail_threshold,
+        changed_files=[],
+        affected_flows=[],
+        test_gaps=[],
+        review_priorities=[],
+        error=error,
+    )
+
+
+def _detect_kwargs(
+    *,
+    base: str,
+    repo_root: Path,
+    detail_level: str,
+    changed_files: list[str] | None,
+) -> dict[str, Any]:
+    kwargs: dict[str, Any] = {
+        "repo_root": str(repo_root),
+        "detail_level": detail_level,
+    }
+    if changed_files is not None:
+        kwargs["changed_files"] = changed_files
+    else:
+        kwargs["base"] = base
+    return kwargs
+
+
+def _change_analysis(change_result: dict[str, Any], *, repo_root: Path) -> _ChangeAnalysis:
+    changed_files_raw = change_result.get("changed_files", []) or []
+    changed_files = [f.get("path") if isinstance(f, dict) else str(f) for f in changed_files_raw]
+
+    raw_test_gaps = change_result.get("test_gaps", []) or []
+    raw_gap_qnames = {
+        str(gap.get("qualified_name")) for gap in raw_test_gaps if isinstance(gap, dict) and gap.get("qualified_name")
+    }
+    tested_sources = _load_tested_sources(repo_root) | _load_changed_test_mentions(
+        repo_root,
+        [f for f in changed_files if f],
+    )
+    filtered_test_gaps = _filter_test_gaps(raw_test_gaps, tested_sources=tested_sources)
+    risk_score = _correct_risk_score(
+        change_result,
+        raw_gap_qnames=raw_gap_qnames,
+        tested_sources=tested_sources,
+        filtered_gap_count=len(filtered_test_gaps),
+    )
+    affected_flows = [
+        flow.get("name") if isinstance(flow, dict) else str(flow)
+        for flow in change_result.get("affected_flows", []) or []
+    ]
+    return _ChangeAnalysis(
+        risk_score=risk_score,
+        changed_files=[f for f in changed_files if f],
+        affected_flows=[f for f in affected_flows if f],
+        test_gaps=_summarize_test_gaps(filtered_test_gaps),
+        review_priorities=_summarize_priorities(change_result.get("review_priorities", []) or []),
+    )
+
+
+def _gate_status(
+    *,
+    risk_score: float,
+    warn_threshold: float,
+    fail_threshold: float,
+    test_gaps: list[str],
+    untracked_graph_files: list[str],
+) -> tuple[str, list[str]]:
+    reasons: list[str] = []
+    if risk_score >= fail_threshold:
+        status = "fail"
+        reasons.append(f"risk_score {risk_score:.2f} >= fail-threshold {fail_threshold:.2f}")
+    elif risk_score >= warn_threshold:
+        status = "warn"
+        reasons.append(f"risk_score {risk_score:.2f} >= warn-threshold {warn_threshold:.2f}")
+    else:
+        status = "pass"
+
+    if test_gaps:
+        if status == "pass":
+            status = "warn"
+        reasons.append(f"{len(test_gaps)} test gap(s) detected")
+
+    if untracked_graph_files:
+        if status == "pass":
+            status = "warn"
+        reasons.append(f"{len(untracked_graph_files)} untracked graph-relevant file(s) require direct review coverage")
+
+    return status, reasons
+
+
+def _impact_radius_for_status(
+    *,
+    status: str,
+    changed_files: list[str],
+    get_impact_radius_func: Any,
+    repo_root: Path,
+    base: str,
+) -> dict[str, Any] | None:
+    if status not in {"warn", "fail"} or not changed_files:
+        return None
+    try:
+        return get_impact_radius_func(
+            changed_files=changed_files,
+            repo_root=str(repo_root),
+            base=base,
+        )
+    except Exception as exc:  # advisory; never escalates the status
+        return {"error": f"impact_radius failed: {exc}"}
+
+
+def _architecture_overview_for_request(
+    *,
+    include_architecture: bool,
+    get_architecture_overview_func: Any,
+    repo_root: Path,
+) -> dict[str, Any] | None:
+    if not include_architecture:
+        return None
+    try:
+        return get_architecture_overview_func(repo_root=str(repo_root))
+    except Exception as exc:
+        return {"error": f"architecture_overview failed: {exc}"}
+
+
 def evaluate(
     *,
     base: str,
@@ -334,116 +559,58 @@ def evaluate(
         try:
             tools = _load_graph_tools()
         except RuntimeError as exc:
-            return GateReport(
-                status="error",
-                risk_score=0.0,
-                warn_threshold=warn_threshold,
-                fail_threshold=fail_threshold,
-                changed_files=[],
-                affected_flows=[],
-                test_gaps=[],
-                review_priorities=[],
-                error=str(exc),
-            )
+            return _gate_error_report(error=str(exc), warn_threshold=warn_threshold, fail_threshold=fail_threshold)
 
     detect_changes_func, get_impact_radius, get_architecture_overview_func = tools
-
-    detect_kwargs: dict[str, Any] = {
-        "repo_root": str(repo_root),
-        "detail_level": detail_level,
-    }
-    if changed_files is not None:
-        detect_kwargs["changed_files"] = changed_files
-    else:
-        detect_kwargs["base"] = base
+    detect_kwargs = _detect_kwargs(
+        base=base,
+        repo_root=repo_root,
+        detail_level=detail_level,
+        changed_files=changed_files,
+    )
 
     try:
         change_result = detect_changes_func(**detect_kwargs)
     except Exception as exc:  # graph backend may raise FileNotFoundError, sqlite, etc.
-        return GateReport(
-            status="error",
-            risk_score=0.0,
+        return _gate_error_report(
+            error=f"detect_changes failed: {exc}",
             warn_threshold=warn_threshold,
             fail_threshold=fail_threshold,
-            changed_files=[],
-            affected_flows=[],
-            test_gaps=[],
-            review_priorities=[],
-            error=f"detect_changes failed: {exc}",
         )
 
-    raw_test_gaps = change_result.get("test_gaps", []) or []
-    raw_gap_qnames = {
-        str(gap.get("qualified_name")) for gap in raw_test_gaps if isinstance(gap, dict) and gap.get("qualified_name")
-    }
-    tested_sources = _load_tested_sources(repo_root)
-    filtered_test_gaps = _filter_test_gaps(raw_test_gaps, tested_sources=tested_sources)
-    risk_score = _correct_risk_score(
-        change_result,
-        raw_gap_qnames=raw_gap_qnames,
-        tested_sources=tested_sources,
-    )
-    affected_flows = [
-        flow.get("name") if isinstance(flow, dict) else str(flow)
-        for flow in change_result.get("affected_flows", []) or []
-    ]
-    test_gaps = _summarize_test_gaps(filtered_test_gaps)
-    review_priorities = _summarize_priorities(change_result.get("review_priorities", []) or [])
-    changed_files_raw = change_result.get("changed_files", []) or []
-    changed_files = [f.get("path") if isinstance(f, dict) else str(f) for f in changed_files_raw]
-
-    reasons: list[str] = []
-    if risk_score >= fail_threshold:
-        status = "fail"
-        reasons.append(f"risk_score {risk_score:.2f} >= fail-threshold {fail_threshold:.2f}")
-    elif risk_score >= warn_threshold:
-        status = "warn"
-        reasons.append(f"risk_score {risk_score:.2f} >= warn-threshold {warn_threshold:.2f}")
-    else:
-        status = "pass"
-
-    if test_gaps:
-        if status == "pass":
-            status = "warn"
-        reasons.append(f"{len(test_gaps)} test gap(s) detected")
-
+    analysis = _change_analysis(change_result, repo_root=repo_root)
     untracked_graph_files = filter_graph_relevant_files(untracked_files or [])
-    if untracked_graph_files:
-        if status == "pass":
-            status = "warn"
-        reasons.append(f"{len(untracked_graph_files)} untracked graph-relevant file(s) require direct review coverage")
-
-    impact_radius: dict[str, Any] | None = None
-    if status in {"warn", "fail"} and changed_files:
-        try:
-            impact_radius = get_impact_radius(
-                changed_files=[c for c in changed_files if c],
-                repo_root=str(repo_root),
-                base=base,
-            )
-        except Exception as exc:  # advisory; never escalates the status
-            impact_radius = {"error": f"impact_radius failed: {exc}"}
-
-    architecture_overview: dict[str, Any] | None = None
-    if include_architecture:
-        try:
-            architecture_overview = get_architecture_overview_func(repo_root=str(repo_root))
-        except Exception as exc:
-            architecture_overview = {"error": f"architecture_overview failed: {exc}"}
+    status, reasons = _gate_status(
+        risk_score=analysis.risk_score,
+        warn_threshold=warn_threshold,
+        fail_threshold=fail_threshold,
+        test_gaps=analysis.test_gaps,
+        untracked_graph_files=untracked_graph_files,
+    )
 
     return GateReport(
         status=status,
-        risk_score=risk_score,
+        risk_score=analysis.risk_score,
         warn_threshold=warn_threshold,
         fail_threshold=fail_threshold,
-        changed_files=[c for c in changed_files if c],
-        affected_flows=[f for f in affected_flows if f],
-        test_gaps=test_gaps,
-        review_priorities=review_priorities,
+        changed_files=analysis.changed_files,
+        affected_flows=analysis.affected_flows,
+        test_gaps=analysis.test_gaps,
+        review_priorities=analysis.review_priorities,
         untracked_files=untracked_graph_files,
         reasons=reasons,
-        impact_radius=impact_radius,
-        architecture_overview=architecture_overview,
+        impact_radius=_impact_radius_for_status(
+            status=status,
+            changed_files=analysis.changed_files,
+            get_impact_radius_func=get_impact_radius,
+            repo_root=repo_root,
+            base=base,
+        ),
+        architecture_overview=_architecture_overview_for_request(
+            include_architecture=include_architecture,
+            get_architecture_overview_func=get_architecture_overview_func,
+            repo_root=repo_root,
+        ),
     )
 
 

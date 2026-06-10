@@ -12,26 +12,26 @@ from typing import Any
 
 
 DEFAULT_DIRECTION = (
-    "Vibe coding should operate as a local-first AI product operations OS that turns vague improvement "
-    "requests into externally benchmarked, evidence-backed experiments while preserving explicit release, "
-    "dirty-worktree, and external-blocker boundaries."
+    "Vibe coding should operate as an evidence-based product operations hub that turns vague improvement "
+    "requests into externally benchmarked, evidence-backed experiments while preserving explicit local-first "
+    "release, dirty-worktree, and external-blocker boundaries."
 )
 
 DEFAULT_REFERENCES = (
     {
-        "label": "OpenAI Codex",
-        "url": "https://openai.com/codex/",
-        "strength": "Agentic coding command center with parallel worktrees, cloud environments, background work, and review.",
+        "label": "OpenAI Codex Web",
+        "url": "https://developers.openai.com/codex/cloud",
+        "strength": "Cloud coding agent for background and parallel code tasks in its own environment.",
     },
     {
-        "label": "Claude Code",
-        "url": "https://code.claude.com/docs/ko/overview",
-        "strength": "Terminal and IDE coding assistant that reads codebases, edits files, runs commands, and integrates tools.",
+        "label": "Cursor Plan Mode",
+        "url": "https://cursor.com/blog/plan-mode",
+        "strength": "Codebase research that creates an editable Markdown plan with file paths and code references before edits.",
     },
     {
         "label": "LangSmith",
         "url": "https://docs.langchain.com/langsmith/observability-concepts",
-        "strength": "LLM observability through projects, traces, runs, threads, feedback, tags, and integrations.",
+        "strength": "LLM observability through traces, runs, production metrics, feedback, tags, and integrations.",
     },
 )
 
@@ -146,8 +146,13 @@ def _comparison_for(reference: dict[str, str]) -> dict[str, str]:
     lower = label.lower()
     if "codex" in lower:
         counter = (
-            "Keep the multi-agent ambition, but add local dirty-worktree signatures, explicit approval gates, "
-            "and completion audits before adoption."
+            "Keep the background-agent ambition, but add local dirty-worktree signatures, explicit approval "
+            "gates, and completion audits before adoption."
+        )
+    elif "cursor" in lower or "plan" in lower:
+        counter = (
+            "Keep editable plan discipline, but bind every plan to current local evidence, A/B scoring, "
+            "and loop records that survive cross-tool handoff."
         )
     elif "claude" in lower:
         counter = (

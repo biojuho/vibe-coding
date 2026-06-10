@@ -262,7 +262,7 @@ def dirty_signature(github_inventory: dict[str, Any], session_orient: dict[str, 
     }
 
 
-def _freshness(current_signature: dict[str, Any], previous_plan: dict[str, Any]) -> dict[str, Any]:
+def _previous_plan_freshness(current_signature: dict[str, Any], previous_plan: dict[str, Any]) -> dict[str, Any]:
     previous_signature = _as_dict(previous_plan.get("dirty_signature"))
     previous_value = previous_signature.get("value")
     if not previous_value:
@@ -285,6 +285,16 @@ def _freshness(current_signature: dict[str, Any], previous_plan: dict[str, Any])
         "previous_generated_at": previous_plan.get("generated_at"),
         "previous_signature": previous_value,
         "reason": "Previous plan dirty signature differs from the current dirty group signature.",
+    }
+
+
+def _current_plan_freshness(previous_freshness: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "status": "current",
+        "current": True,
+        "reason": "Generated plan dirty signature represents the current dirty group signature.",
+        "previous_status": previous_freshness.get("status"),
+        "previous_current": previous_freshness.get("current"),
     }
 
 
@@ -330,6 +340,31 @@ def _summarize_code_review_gate(code_review_gate: dict[str, Any]) -> dict[str, A
     }
 
 
+def _session_dirty_count(session_orient: dict[str, Any]) -> int:
+    session_git = _as_dict(session_orient.get("git"))
+    worktree = _as_dict(session_git.get("worktree"))
+    return _int(worktree.get("staged")) + _int(worktree.get("modified")) + _int(worktree.get("untracked"))
+
+
+def _state_consistency(inventory_dirty_count: int, session_dirty_count: int) -> dict[str, Any]:
+    warnings = []
+    if session_dirty_count and not inventory_dirty_count:
+        warnings.append("session_orient reports dirty worktree while github inventory reports clean")
+    if inventory_dirty_count and not session_dirty_count:
+        warnings.append("github inventory reports dirty worktree while session_orient reports clean")
+    return {
+        "inventory_dirty_count": inventory_dirty_count,
+        "session_dirty_count": session_dirty_count,
+        "effective_dirty_count": max(inventory_dirty_count, session_dirty_count),
+        "warnings": warnings,
+    }
+
+
+def _state_consistency_warning_text(consistency: dict[str, Any]) -> str:
+    warnings = ", ".join(_display(warning) for warning in _as_list(consistency.get("warnings")))
+    return warnings or "none"
+
+
 def build_plan(
     *,
     root: Path,
@@ -345,15 +380,20 @@ def build_plan(
     worktree = _as_dict(session_git.get("worktree"))
     open_prs = _as_dict(github_inventory.get("open_prs"))
     readiness_overall = _as_dict(readiness.get("overall"))
-    dirty_count = _int(git.get("dirty_count"))
+    inventory_dirty_count = _int(git.get("dirty_count"))
+    session_dirty_count = _session_dirty_count(session_orient)
+    consistency = _state_consistency(inventory_dirty_count, session_dirty_count)
+    dirty_count = _int(consistency.get("effective_dirty_count"))
     group_order = _build_group_order(github_inventory)
     status = "clean" if dirty_count == 0 else "handoff_required"
+    previous_freshness = _previous_plan_freshness(signature, previous_plan or {})
     return {
         "generated_at": datetime.now(UTC).isoformat(),
         "root": str(root),
         "status": status,
         "dirty_signature": signature,
-        "freshness": _freshness(signature, previous_plan or {}),
+        "freshness": _current_plan_freshness(previous_freshness),
+        "previous_plan_freshness": previous_freshness,
         "decision": {
             "mode": "none" if dirty_count == 0 else "handoff_only",
             "stage_commit_push_authorized": False,
@@ -374,11 +414,12 @@ def build_plan(
                 "open_prs": _int(_as_dict(session_orient.get("pull_requests")).get("open_count")),
             },
             "github_inventory": {
-                "dirty_count": dirty_count,
+                "dirty_count": inventory_dirty_count,
                 "open_prs_available": open_prs.get("available") is True,
                 "open_pr_count": _int(open_prs.get("count")),
                 "dirty_group_count": len(group_order),
             },
+            "state_consistency": consistency,
             "product_readiness": {
                 "score": readiness_overall.get("score"),
                 "state": readiness_overall.get("state"),
@@ -431,6 +472,7 @@ def render_markdown(plan: dict[str, Any]) -> str:
         f"Status: {_display(plan.get('status'))}",
         f"Dirty signature: `{_display(signature.get('value'))}`",
         f"Freshness: {_display(_as_dict(plan.get('freshness')).get('status'))}",
+        f"Previous plan freshness: {_display(_as_dict(plan.get('previous_plan_freshness')).get('status'))}",
         "",
         "## Decision",
         "",
@@ -460,6 +502,7 @@ def render_markdown(plan: dict[str, Any]) -> str:
     github = _as_dict(inputs.get("github_inventory"))
     readiness = _as_dict(inputs.get("product_readiness"))
     gate = _as_dict(inputs.get("code_review_gate"))
+    consistency = _as_dict(inputs.get("state_consistency"))
     lines.extend(
         [
             "",
@@ -467,6 +510,7 @@ def render_markdown(plan: dict[str, Any]) -> str:
             "",
             f"- Session: branch `{_display(session.get('branch'))}`, ahead `{_display(session.get('ahead'))}`, staged `{_display(session.get('staged'))}`, modified `{_display(session.get('modified'))}`, untracked `{_display(session.get('untracked'))}`, open PRs `{_display(session.get('open_prs'))}`.",
             f"- GitHub inventory: dirty `{_display(github.get('dirty_count'))}`, open PRs `{_display(github.get('open_pr_count'))}`, dirty groups `{_display(github.get('dirty_group_count'))}`.",
+            f"- State consistency: effective dirty `{_display(consistency.get('effective_dirty_count'))}`, warnings `{_state_consistency_warning_text(consistency)}`.",
             f"- Product readiness: score `{_display(readiness.get('score'))}`, state `{_display(readiness.get('state'))}`, local blockers `{_display(readiness.get('local_blocker_count'))}`, publish blockers `{_display(readiness.get('publish_blocker_count'))}`, external blockers `{_display(readiness.get('external_blocker_count'))}`.",
             f"- Code-review gate: status `{_display(gate.get('status'))}`, risk `{_display(gate.get('risk_score'))}`, findings `{_display(gate.get('finding_count'))}`, test gaps `{_display(gate.get('test_gap_count'))}`, untracked graph-relevant files `{_display(gate.get('untracked_graph_relevant_file_count'))}`.",
             "",

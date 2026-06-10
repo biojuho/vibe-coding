@@ -12,7 +12,7 @@ import sys
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 
 DEFAULT_OBJECTIVE = (
@@ -71,7 +71,9 @@ QUALITY_ITERATION_TERMS = (
     "candidate",
     "browser qa",
 )
-AB_MANIFEST_GLOB = "ab-manifest-*.json"
+AB_MANIFEST_GLOBS = ("ab-manifest-*.json", "ab-*.json")
+AB_DECISION_RESULT_FILENAMES = {"ab-decision-result.json"}
+AB_DECISION_RESULT_PREFIXES = ("ab-result-",)
 TASK_ID_RE = re.compile(r"\b[Tt][-_]?(\d{3,6})([a-zA-Z])?\b")
 GOAL_STATUS_RE = re.compile(r"^-\s*Status:\s*(.*?)\s*$", re.IGNORECASE | re.MULTILINE)
 MARKDOWN_CHECKBOX_RE = re.compile(r"^\s*-\s*\[([ xX])\]\s+(.*)$")
@@ -104,6 +106,7 @@ RECENT_INVENTORY_FALLBACKS = {
     "browser_inventory": ".tmp/browser-qa-inventory.json",
 }
 DIRTY_HANDOFF_PLAN_CACHE = Path(".tmp") / "scoped-dirty-worktree-handoff-plan-current.json"
+DIRTY_HANDOFF_PLAN_CACHE_MD = Path(".tmp") / "scoped-dirty-worktree-handoff-plan-current.md"
 GOAL_OBJECTIVE_TERMS = (
     "auto-research",
     "output quality",
@@ -118,6 +121,21 @@ GOAL_OBJECTIVE_TERMS = (
     "고품질 결과물",
     "실사용 가능한 결과물",
 )
+
+
+class AbManifestCandidate(NamedTuple):
+    path: Path
+    data: dict[str, Any]
+    sort_key: tuple[int, str]
+    task_id: tuple[int, str] | None
+
+
+class ProjectReadinessValues(NamedTuple):
+    score: int
+    state: str
+    qc_status: str
+    qc_failed: int
+    qc_stale: bool
 
 
 def _exists(root: Path, rel_path: str) -> bool:
@@ -141,7 +159,7 @@ def _rel(root: Path, path: Path) -> str:
 def _load_json_object(path: Path) -> dict[str, Any] | None:
     try:
         parsed = json.loads(path.read_text(encoding="utf-8-sig"))
-    except (FileNotFoundError, OSError, json.JSONDecodeError):
+    except (FileNotFoundError, OSError, UnicodeError, json.JSONDecodeError):
         return None
     return parsed if isinstance(parsed, dict) else None
 
@@ -203,6 +221,27 @@ def _ab_manifest_sort_key(path: Path) -> tuple[int, str] | None:
         return None
 
 
+def _ab_manifest_paths(tmp_dir: Path) -> list[Path]:
+    paths: dict[Path, None] = {}
+    for pattern in AB_MANIFEST_GLOBS:
+        for path in tmp_dir.glob(pattern):
+            if not _is_auto_ab_manifest_path(path):
+                continue
+            paths[path] = None
+    return sorted(paths)
+
+
+def _is_auto_ab_manifest_path(path: Path) -> bool:
+    name = path.name.lower()
+    if name in AB_DECISION_RESULT_FILENAMES:
+        return False
+    return not name.startswith(AB_DECISION_RESULT_PREFIXES)
+
+
+def _is_ab_manifest_artifact(manifest: dict[str, Any]) -> bool:
+    return isinstance(manifest.get("baseline"), dict) and isinstance(manifest.get("candidate"), dict)
+
+
 def _ab_manifest_task_id_parts(path: Path, manifest: dict[str, Any]) -> tuple[int, str] | None:
     texts = [path.name, path.stem]
     for key in ("experiment", "task_id", "id"):
@@ -224,6 +263,68 @@ def _ab_manifest_task_id(path: Path, manifest: dict[str, Any]) -> str | None:
         return None
     number, suffix = task_id
     return f"{number}{suffix}"
+
+
+def _ab_manifest_recency_key(candidate: AbManifestCandidate) -> tuple[int, str]:
+    return candidate.sort_key
+
+
+def _ab_manifest_task_key(candidate: AbManifestCandidate) -> tuple[int, str, int, str]:
+    task_number, task_suffix = candidate.task_id or (-1, "")
+    return task_number, task_suffix, candidate.sort_key[0], candidate.sort_key[1]
+
+
+def _select_latest_ab_manifest_candidate(candidates: list[AbManifestCandidate]) -> AbManifestCandidate:
+    task_candidates = [candidate for candidate in candidates if candidate.task_id is not None]
+    if task_candidates:
+        selected = max(task_candidates, key=_ab_manifest_task_key)
+        non_task_candidates = [candidate for candidate in candidates if candidate.task_id is None]
+        if non_task_candidates:
+            recent = max(non_task_candidates, key=_ab_manifest_recency_key)
+            if recent.sort_key[0] > selected.sort_key[0]:
+                return recent
+        return selected
+
+    return max(candidates, key=_ab_manifest_recency_key)
+
+
+def _requested_ab_manifest(
+    root: Path,
+    ab_manifest_path: Path,
+) -> tuple[str | None, dict[str, Any] | None, list[str]]:
+    errors: list[str] = []
+    requested_path = ab_manifest_path if ab_manifest_path.is_absolute() else root / ab_manifest_path
+    if _ab_manifest_sort_key(requested_path) is None:
+        errors.append(f"Requested A/B manifest artifact is unreadable: {_rel(root, requested_path)}")
+        return None, None, errors
+    data = _load_json_object(requested_path)
+    if data is None:
+        errors.append(f"Requested A/B manifest artifact is invalid: {_rel(root, requested_path)}")
+        return None, None, errors
+    if not _is_ab_manifest_artifact(data):
+        errors.append(f"Requested non-manifest A/B artifact: {_rel(root, requested_path)}")
+        return None, None, errors
+    return _rel(root, requested_path), data, errors
+
+
+def _ab_manifest_candidates(root: Path, tmp_dir: Path) -> tuple[list[AbManifestCandidate], list[str]]:
+    errors: list[str] = []
+    candidates: list[AbManifestCandidate] = []
+    for path in _ab_manifest_paths(tmp_dir):
+        sort_key = _ab_manifest_sort_key(path)
+        if sort_key is None:
+            errors.append(f"Ignored unreadable A/B manifest artifact: {_rel(root, path)}")
+            continue
+        data = _load_json_object(path)
+        if data is None:
+            errors.append(f"Ignored invalid A/B manifest artifact: {_rel(root, path)}")
+            continue
+        if not _is_ab_manifest_artifact(data):
+            errors.append(f"Ignored non-manifest A/B artifact: {_rel(root, path)}")
+            continue
+        task_id = _ab_manifest_task_id_parts(path, data)
+        candidates.append(AbManifestCandidate(path=path, data=data, sort_key=sort_key, task_id=task_id))
+    return candidates, errors
 
 
 def _run_json(root: Path, args: list[str], timeout: int) -> dict[str, Any]:
@@ -344,6 +445,24 @@ def _select_next_experiment_from_inputs(root: Path, inputs: dict[str, dict[str, 
         "stderr": "",
         "data": selection,
     }
+
+
+def _dirty_handoff_plan_command() -> list[str]:
+    return [
+        sys.executable,
+        ".agents/skills/auto-research/scripts/dirty_worktree_handoff_plan.py",
+        "--root",
+        ".",
+        "--output-json",
+        str(DIRTY_HANDOFF_PLAN_CACHE),
+        "--output-md",
+        str(DIRTY_HANDOFF_PLAN_CACHE_MD),
+        "--json",
+    ]
+
+
+def _refresh_dirty_handoff_plan_cache(root: Path, timeout: int) -> dict[str, Any]:
+    return _run_json(root, _dirty_handoff_plan_command(), timeout)
 
 
 def _release_authorization_packet_from_inputs(root: Path, readiness: dict[str, Any]) -> dict[str, Any]:
@@ -595,18 +714,61 @@ def _github_item(github_inventory: dict[str, Any]) -> dict[str, Any]:
     )
 
 
-def _target_blind_to_x_item(readiness: dict[str, Any]) -> dict[str, Any]:
+def _find_readiness_project(readiness: dict[str, Any], *, name: str, path: str) -> dict[str, Any] | None:
     projects = readiness.get("projects") if isinstance(readiness.get("projects"), list) else []
-    target: dict[str, Any] | None = None
     for project in projects:
         if not isinstance(project, dict):
             continue
-        if (
-            project.get("name") == "blind-to-x"
-            or str(project.get("path") or "").replace("\\", "/") == "projects/blind-to-x"
-        ):
-            target = project
-            break
+        normalized_path = str(project.get("path") or "").replace("\\", "/")
+        if project.get("name") == name or normalized_path == path:
+            return project
+    return None
+
+
+def _split_present_missing_docs(docs: list[Any]) -> tuple[list[str], list[str]]:
+    present_docs = [str(doc.get("path") or "unknown") for doc in docs if isinstance(doc, dict) and doc.get("present")]
+    missing_docs = [
+        str(doc.get("path") or "unknown") for doc in docs if isinstance(doc, dict) and not doc.get("present")
+    ]
+    return present_docs, missing_docs
+
+
+def _env_check_summary(env_checks: list[Any]) -> tuple[int, int, list[str]]:
+    env_ok_count = sum(1 for check in env_checks if isinstance(check, dict) and check.get("ok") is True)
+    env_check_count = len([check for check in env_checks if isinstance(check, dict)])
+    env_names = [
+        str(check.get("name") or "unknown")
+        for check in env_checks
+        if isinstance(check, dict) and check.get("ok") is True
+    ]
+    return env_ok_count, env_check_count, env_names
+
+
+def _project_readiness_values(target: dict[str, Any], qc: dict[str, Any]) -> ProjectReadinessValues:
+    return ProjectReadinessValues(
+        score=int(target.get("score") or 0),
+        state=str(target.get("state") or "unknown"),
+        qc_status=str(qc.get("status") or "unknown"),
+        qc_failed=int(qc.get("failed") or 0),
+        qc_stale=qc.get("stale") is True,
+    )
+
+
+def _append_launch_doc_blockers(
+    blockers: list[str],
+    *,
+    project_name: str,
+    missing_docs: list[str],
+    present_docs: list[str],
+) -> None:
+    if missing_docs:
+        blockers.append(f"Missing {project_name} launch doc artifact(s): " + ", ".join(missing_docs))
+    if not present_docs:
+        blockers.append(f"No {project_name} launch doc artifacts were reported present.")
+
+
+def _target_blind_to_x_item(readiness: dict[str, Any]) -> dict[str, Any]:
+    target = _find_readiness_project(readiness, name="blind-to-x", path="projects/blind-to-x")
 
     artifacts = [
         "projects/blind-to-x",
@@ -633,29 +795,16 @@ def _target_blind_to_x_item(readiness: dict[str, Any]) -> dict[str, Any]:
     tasks = target.get("tasks") if isinstance(target.get("tasks"), list) else []
     dirty_paths = target.get("dirty_paths") if isinstance(target.get("dirty_paths"), list) else []
 
-    score = int(target.get("score") or 0)
-    state = str(target.get("state") or "unknown")
-    qc_status = str(qc.get("status") or "unknown")
-    qc_failed = int(qc.get("failed") or 0)
-    qc_stale = qc.get("stale") is True
-    present_docs = [str(doc.get("path") or "unknown") for doc in docs if isinstance(doc, dict) and doc.get("present")]
-    missing_docs = [
-        str(doc.get("path") or "unknown") for doc in docs if isinstance(doc, dict) and not doc.get("present")
-    ]
-    env_ok_count = sum(1 for check in env_checks if isinstance(check, dict) and check.get("ok") is True)
-    env_check_count = len([check for check in env_checks if isinstance(check, dict)])
-    env_names = [
-        str(check.get("name") or "unknown")
-        for check in env_checks
-        if isinstance(check, dict) and check.get("ok") is True
-    ]
+    values = _project_readiness_values(target, qc)
+    present_docs, missing_docs = _split_present_missing_docs(docs)
+    env_ok_count, env_check_count, env_names = _env_check_summary(env_checks)
 
     complete = (
-        score >= 100
-        and state == "ready"
-        and qc_status == "PASS"
-        and qc_failed == 0
-        and not qc_stale
+        values.score >= 100
+        and values.state == "ready"
+        and values.qc_status == "PASS"
+        and values.qc_failed == 0
+        and not values.qc_stale
         and not missing_docs
         and bool(present_docs)
         and env_check_count > 0
@@ -664,14 +813,17 @@ def _target_blind_to_x_item(readiness: dict[str, Any]) -> dict[str, Any]:
         and not dirty_paths
     )
     blockers: list[str] = []
-    if score < 100 or state != "ready":
-        blockers.append(f"blind-to-x readiness is score={score}, state={state}; expected score>=100 and ready.")
-    if qc_status != "PASS" or qc_failed or qc_stale:
-        blockers.append(f"blind-to-x QC is status={qc_status}, failed={qc_failed}, stale={qc_stale}.")
-    if missing_docs:
-        blockers.append("Missing blind-to-x launch doc artifact(s): " + ", ".join(missing_docs))
-    if not present_docs:
-        blockers.append("No blind-to-x launch doc artifacts were reported present.")
+    if values.score < 100 or values.state != "ready":
+        blockers.append(
+            f"blind-to-x readiness is score={values.score}, state={values.state}; expected score>=100 and ready."
+        )
+    if values.qc_status != "PASS" or values.qc_failed or values.qc_stale:
+        blockers.append(
+            f"blind-to-x QC is status={values.qc_status}, failed={values.qc_failed}, stale={values.qc_stale}."
+        )
+    _append_launch_doc_blockers(
+        blockers, project_name="blind-to-x", missing_docs=missing_docs, present_docs=present_docs
+    )
     if env_check_count == 0 or env_ok_count != env_check_count:
         blockers.append(f"blind-to-x env checks ok {env_ok_count}/{env_check_count}.")
     if tasks:
@@ -683,9 +835,9 @@ def _target_blind_to_x_item(readiness: dict[str, Any]) -> dict[str, Any]:
         "Prove blind-to-x target product launch readiness with direct project evidence.",
         artifacts,
         [
-            f"blind-to-x readiness score={score}, state={state}.",
-            f"blind-to-x QC status={qc_status}, passed={qc.get('passed')}, failed={qc_failed}, "
-            f"skipped={qc.get('skipped')}, stale={qc_stale}.",
+            f"blind-to-x readiness score={values.score}, state={values.state}.",
+            f"blind-to-x QC status={values.qc_status}, passed={qc.get('passed')}, failed={values.qc_failed}, "
+            f"skipped={qc.get('skipped')}, stale={values.qc_stale}.",
             f"blind-to-x docs present {len(present_docs)}/{len(docs)}: {', '.join(present_docs) or 'none'}.",
             f"blind-to-x env checks ok {env_ok_count}/{env_check_count}: {', '.join(env_names) or 'none'}.",
             f"blind-to-x tasks={len(tasks)}, dirty_paths={len(dirty_paths)}.",
@@ -697,17 +849,7 @@ def _target_blind_to_x_item(readiness: dict[str, Any]) -> dict[str, Any]:
 
 
 def _target_shorts_maker_v2_item(root: Path, readiness: dict[str, Any]) -> dict[str, Any]:
-    projects = readiness.get("projects") if isinstance(readiness.get("projects"), list) else []
-    target: dict[str, Any] | None = None
-    for project in projects:
-        if not isinstance(project, dict):
-            continue
-        if (
-            project.get("name") == "shorts-maker-v2"
-            or str(project.get("path") or "").replace("\\", "/") == "projects/shorts-maker-v2"
-        ):
-            target = project
-            break
+    target = _find_readiness_project(readiness, name="shorts-maker-v2", path="projects/shorts-maker-v2")
 
     artifacts = [
         "projects/shorts-maker-v2",
@@ -736,22 +878,9 @@ def _target_shorts_maker_v2_item(root: Path, readiness: dict[str, Any]) -> dict[
     tasks = target.get("tasks") if isinstance(target.get("tasks"), list) else []
     dirty_paths = target.get("dirty_paths") if isinstance(target.get("dirty_paths"), list) else []
 
-    score = int(target.get("score") or 0)
-    state = str(target.get("state") or "unknown")
-    qc_status = str(qc.get("status") or "unknown")
-    qc_failed = int(qc.get("failed") or 0)
-    qc_stale = qc.get("stale") is True
-    present_docs = [str(doc.get("path") or "unknown") for doc in docs if isinstance(doc, dict) and doc.get("present")]
-    missing_docs = [
-        str(doc.get("path") or "unknown") for doc in docs if isinstance(doc, dict) and not doc.get("present")
-    ]
-    env_ok_count = sum(1 for check in env_checks if isinstance(check, dict) and check.get("ok") is True)
-    env_check_count = len([check for check in env_checks if isinstance(check, dict)])
-    env_names = [
-        str(check.get("name") or "unknown")
-        for check in env_checks
-        if isinstance(check, dict) and check.get("ok") is True
-    ]
+    values = _project_readiness_values(target, qc)
+    present_docs, missing_docs = _split_present_missing_docs(docs)
+    env_ok_count, env_check_count, env_names = _env_check_summary(env_checks)
     feature_checklist = _markdown_checkbox_summary(root, "projects/shorts-maker-v2/FEATURE.md")
     feature_total = int(feature_checklist["total"])
     feature_completed = int(feature_checklist["completed"])
@@ -759,11 +888,11 @@ def _target_shorts_maker_v2_item(root: Path, readiness: dict[str, Any]) -> dict[
     feature_open_items = [str(item) for item in feature_checklist["open_items"]]
 
     complete = (
-        score >= 100
-        and state == "ready"
-        and qc_status == "PASS"
-        and qc_failed == 0
-        and not qc_stale
+        values.score >= 100
+        and values.state == "ready"
+        and values.qc_status == "PASS"
+        and values.qc_failed == 0
+        and not values.qc_stale
         and not missing_docs
         and bool(present_docs)
         and env_check_count > 0
@@ -774,14 +903,17 @@ def _target_shorts_maker_v2_item(root: Path, readiness: dict[str, Any]) -> dict[
         and feature_open == 0
     )
     blockers: list[str] = []
-    if score < 100 or state != "ready":
-        blockers.append(f"shorts-maker-v2 readiness is score={score}, state={state}; expected score>=100 and ready.")
-    if qc_status != "PASS" or qc_failed or qc_stale:
-        blockers.append(f"shorts-maker-v2 QC is status={qc_status}, failed={qc_failed}, stale={qc_stale}.")
-    if missing_docs:
-        blockers.append("Missing shorts-maker-v2 launch doc artifact(s): " + ", ".join(missing_docs))
-    if not present_docs:
-        blockers.append("No shorts-maker-v2 launch doc artifacts were reported present.")
+    if values.score < 100 or values.state != "ready":
+        blockers.append(
+            f"shorts-maker-v2 readiness is score={values.score}, state={values.state}; expected score>=100 and ready."
+        )
+    if values.qc_status != "PASS" or values.qc_failed or values.qc_stale:
+        blockers.append(
+            f"shorts-maker-v2 QC is status={values.qc_status}, failed={values.qc_failed}, stale={values.qc_stale}."
+        )
+    _append_launch_doc_blockers(
+        blockers, project_name="shorts-maker-v2", missing_docs=missing_docs, present_docs=present_docs
+    )
     if env_check_count == 0 or env_ok_count != env_check_count:
         blockers.append(f"shorts-maker-v2 env checks ok {env_ok_count}/{env_check_count}.")
     if tasks:
@@ -799,9 +931,9 @@ def _target_shorts_maker_v2_item(root: Path, readiness: dict[str, Any]) -> dict[
         "Prove shorts-maker-v2 target product launch readiness with direct project evidence.",
         artifacts,
         [
-            f"shorts-maker-v2 readiness score={score}, state={state}.",
-            f"shorts-maker-v2 QC status={qc_status}, passed={qc.get('passed')}, failed={qc_failed}, "
-            f"skipped={qc.get('skipped')}, stale={qc_stale}.",
+            f"shorts-maker-v2 readiness score={values.score}, state={values.state}.",
+            f"shorts-maker-v2 QC status={values.qc_status}, passed={qc.get('passed')}, failed={values.qc_failed}, "
+            f"skipped={qc.get('skipped')}, stale={values.qc_stale}.",
             f"shorts-maker-v2 docs present {len(present_docs)}/{len(docs)}: {', '.join(present_docs) or 'none'}.",
             f"shorts-maker-v2 env checks ok {env_ok_count}/{env_check_count}: {', '.join(env_names) or 'none'}.",
             f"shorts-maker-v2 tasks={len(tasks)}, dirty_paths={len(dirty_paths)}.",
@@ -814,17 +946,7 @@ def _target_shorts_maker_v2_item(root: Path, readiness: dict[str, Any]) -> dict[
 
 
 def _target_hanwoo_dashboard_item(readiness: dict[str, Any]) -> dict[str, Any]:
-    projects = readiness.get("projects") if isinstance(readiness.get("projects"), list) else []
-    target: dict[str, Any] | None = None
-    for project in projects:
-        if not isinstance(project, dict):
-            continue
-        if (
-            project.get("name") == "hanwoo-dashboard"
-            or str(project.get("path") or "").replace("\\", "/") == "projects/hanwoo-dashboard"
-        ):
-            target = project
-            break
+    target = _find_readiness_project(readiness, name="hanwoo-dashboard", path="projects/hanwoo-dashboard")
 
     artifacts = [
         "projects/hanwoo-dashboard",
@@ -852,30 +974,17 @@ def _target_hanwoo_dashboard_item(readiness: dict[str, Any]) -> dict[str, Any]:
     tasks = target.get("tasks") if isinstance(target.get("tasks"), list) else []
     dirty_paths = target.get("dirty_paths") if isinstance(target.get("dirty_paths"), list) else []
 
-    score = int(target.get("score") or 0)
-    state = str(target.get("state") or "unknown")
-    qc_status = str(qc.get("status") or "unknown")
-    qc_failed = int(qc.get("failed") or 0)
-    qc_stale = qc.get("stale") is True
-    present_docs = [str(doc.get("path") or "unknown") for doc in docs if isinstance(doc, dict) and doc.get("present")]
-    missing_docs = [
-        str(doc.get("path") or "unknown") for doc in docs if isinstance(doc, dict) and not doc.get("present")
-    ]
-    env_ok_count = sum(1 for check in env_checks if isinstance(check, dict) and check.get("ok") is True)
-    env_check_count = len([check for check in env_checks if isinstance(check, dict)])
-    env_names = [
-        str(check.get("name") or "unknown")
-        for check in env_checks
-        if isinstance(check, dict) and check.get("ok") is True
-    ]
+    values = _project_readiness_values(target, qc)
+    present_docs, missing_docs = _split_present_missing_docs(docs)
+    env_ok_count, env_check_count, env_names = _env_check_summary(env_checks)
     task_ids = [str(task.get("id") or "unknown") for task in tasks if isinstance(task, dict)]
 
     complete = (
-        score >= 100
-        and state == "ready"
-        and qc_status == "PASS"
-        and qc_failed == 0
-        and not qc_stale
+        values.score >= 100
+        and values.state == "ready"
+        and values.qc_status == "PASS"
+        and values.qc_failed == 0
+        and not values.qc_stale
         and not missing_docs
         and bool(present_docs)
         and env_check_count > 0
@@ -884,14 +993,17 @@ def _target_hanwoo_dashboard_item(readiness: dict[str, Any]) -> dict[str, Any]:
         and not dirty_paths
     )
     blockers: list[str] = []
-    if score < 100 or state != "ready":
-        blockers.append(f"hanwoo-dashboard readiness is score={score}, state={state}; expected score>=100 and ready.")
-    if qc_status != "PASS" or qc_failed or qc_stale:
-        blockers.append(f"hanwoo-dashboard QC is status={qc_status}, failed={qc_failed}, stale={qc_stale}.")
-    if missing_docs:
-        blockers.append("Missing hanwoo-dashboard launch doc artifact(s): " + ", ".join(missing_docs))
-    if not present_docs:
-        blockers.append("No hanwoo-dashboard launch doc artifacts were reported present.")
+    if values.score < 100 or values.state != "ready":
+        blockers.append(
+            f"hanwoo-dashboard readiness is score={values.score}, state={values.state}; expected score>=100 and ready."
+        )
+    if values.qc_status != "PASS" or values.qc_failed or values.qc_stale:
+        blockers.append(
+            f"hanwoo-dashboard QC is status={values.qc_status}, failed={values.qc_failed}, stale={values.qc_stale}."
+        )
+    _append_launch_doc_blockers(
+        blockers, project_name="hanwoo-dashboard", missing_docs=missing_docs, present_docs=present_docs
+    )
     if env_check_count == 0 or env_ok_count != env_check_count:
         blockers.append(f"hanwoo-dashboard env checks ok {env_ok_count}/{env_check_count}.")
     if tasks:
@@ -910,9 +1022,9 @@ def _target_hanwoo_dashboard_item(readiness: dict[str, Any]) -> dict[str, Any]:
         "Prove hanwoo-dashboard target product launch readiness with direct project evidence.",
         artifacts,
         [
-            f"hanwoo-dashboard readiness score={score}, state={state}.",
-            f"hanwoo-dashboard QC status={qc_status}, passed={qc.get('passed')}, failed={qc_failed}, "
-            f"skipped={qc.get('skipped')}, stale={qc_stale}.",
+            f"hanwoo-dashboard readiness score={values.score}, state={values.state}.",
+            f"hanwoo-dashboard QC status={values.qc_status}, passed={qc.get('passed')}, failed={values.qc_failed}, "
+            f"skipped={qc.get('skipped')}, stale={values.qc_stale}.",
             f"hanwoo-dashboard docs present {len(present_docs)}/{len(docs)}: {', '.join(present_docs) or 'none'}.",
             f"hanwoo-dashboard env checks ok {env_ok_count}/{env_check_count}: {', '.join(env_names) or 'none'}.",
             f"hanwoo-dashboard tasks={len(tasks)} ({', '.join(task_ids) or 'none'}), dirty_paths={len(dirty_paths)}.",
@@ -925,17 +1037,7 @@ def _target_hanwoo_dashboard_item(readiness: dict[str, Any]) -> dict[str, Any]:
 
 
 def _target_knowledge_dashboard_item(readiness: dict[str, Any]) -> dict[str, Any]:
-    projects = readiness.get("projects") if isinstance(readiness.get("projects"), list) else []
-    target: dict[str, Any] | None = None
-    for project in projects:
-        if not isinstance(project, dict):
-            continue
-        if (
-            project.get("name") == "knowledge-dashboard"
-            or str(project.get("path") or "").replace("\\", "/") == "projects/knowledge-dashboard"
-        ):
-            target = project
-            break
+    target = _find_readiness_project(readiness, name="knowledge-dashboard", path="projects/knowledge-dashboard")
 
     artifacts = [
         "projects/knowledge-dashboard",
@@ -962,29 +1064,16 @@ def _target_knowledge_dashboard_item(readiness: dict[str, Any]) -> dict[str, Any
     tasks = target.get("tasks") if isinstance(target.get("tasks"), list) else []
     dirty_paths = target.get("dirty_paths") if isinstance(target.get("dirty_paths"), list) else []
 
-    score = int(target.get("score") or 0)
-    state = str(target.get("state") or "unknown")
-    qc_status = str(qc.get("status") or "unknown")
-    qc_failed = int(qc.get("failed") or 0)
-    qc_stale = qc.get("stale") is True
-    present_docs = [str(doc.get("path") or "unknown") for doc in docs if isinstance(doc, dict) and doc.get("present")]
-    missing_docs = [
-        str(doc.get("path") or "unknown") for doc in docs if isinstance(doc, dict) and not doc.get("present")
-    ]
-    env_ok_count = sum(1 for check in env_checks if isinstance(check, dict) and check.get("ok") is True)
-    env_check_count = len([check for check in env_checks if isinstance(check, dict)])
-    env_names = [
-        str(check.get("name") or "unknown")
-        for check in env_checks
-        if isinstance(check, dict) and check.get("ok") is True
-    ]
+    values = _project_readiness_values(target, qc)
+    present_docs, missing_docs = _split_present_missing_docs(docs)
+    env_ok_count, env_check_count, env_names = _env_check_summary(env_checks)
 
     complete = (
-        score >= 100
-        and state == "ready"
-        and qc_status == "PASS"
-        and qc_failed == 0
-        and not qc_stale
+        values.score >= 100
+        and values.state == "ready"
+        and values.qc_status == "PASS"
+        and values.qc_failed == 0
+        and not values.qc_stale
         and not missing_docs
         and bool(present_docs)
         and env_check_count > 0
@@ -993,16 +1082,18 @@ def _target_knowledge_dashboard_item(readiness: dict[str, Any]) -> dict[str, Any
         and not dirty_paths
     )
     blockers: list[str] = []
-    if score < 100 or state != "ready":
+    if values.score < 100 or values.state != "ready":
         blockers.append(
-            f"knowledge-dashboard readiness is score={score}, state={state}; expected score>=100 and ready."
+            "knowledge-dashboard readiness is "
+            f"score={values.score}, state={values.state}; expected score>=100 and ready."
         )
-    if qc_status != "PASS" or qc_failed or qc_stale:
-        blockers.append(f"knowledge-dashboard QC is status={qc_status}, failed={qc_failed}, stale={qc_stale}.")
-    if missing_docs:
-        blockers.append("Missing knowledge-dashboard launch doc artifact(s): " + ", ".join(missing_docs))
-    if not present_docs:
-        blockers.append("No knowledge-dashboard launch doc artifacts were reported present.")
+    if values.qc_status != "PASS" or values.qc_failed or values.qc_stale:
+        blockers.append(
+            f"knowledge-dashboard QC is status={values.qc_status}, failed={values.qc_failed}, stale={values.qc_stale}."
+        )
+    _append_launch_doc_blockers(
+        blockers, project_name="knowledge-dashboard", missing_docs=missing_docs, present_docs=present_docs
+    )
     if env_check_count == 0 or env_ok_count != env_check_count:
         blockers.append(f"knowledge-dashboard env checks ok {env_ok_count}/{env_check_count}.")
     if tasks:
@@ -1014,9 +1105,9 @@ def _target_knowledge_dashboard_item(readiness: dict[str, Any]) -> dict[str, Any
         "Prove knowledge-dashboard target product launch readiness with direct project evidence.",
         artifacts,
         [
-            f"knowledge-dashboard readiness score={score}, state={state}.",
-            f"knowledge-dashboard QC status={qc_status}, passed={qc.get('passed')}, failed={qc_failed}, "
-            f"skipped={qc.get('skipped')}, stale={qc_stale}.",
+            f"knowledge-dashboard readiness score={values.score}, state={values.state}.",
+            f"knowledge-dashboard QC status={values.qc_status}, passed={qc.get('passed')}, failed={values.qc_failed}, "
+            f"skipped={qc.get('skipped')}, stale={values.qc_stale}.",
             f"knowledge-dashboard docs present {len(present_docs)}/{len(docs)}: {', '.join(present_docs) or 'none'}.",
             f"knowledge-dashboard env checks ok {env_ok_count}/{env_check_count}: {', '.join(env_names) or 'none'}.",
             f"knowledge-dashboard tasks={len(tasks)}, dirty_paths={len(dirty_paths)}.",
@@ -1287,6 +1378,76 @@ def _readiness_item(readiness: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+def _current_head_actions_evidence(
+    current_head_actions: dict[str, Any],
+    workflows: list[Any],
+) -> str | None:
+    if not current_head_actions:
+        return None
+
+    required_names = [
+        str(name) for name in current_head_actions.get("required_workflow_names") or [] if str(name).strip()
+    ]
+    if not required_names:
+        required_names = [
+            str(workflow.get("name")) for workflow in workflows if isinstance(workflow, dict) and workflow.get("name")
+        ]
+    missing = [str(name) for name in current_head_actions.get("missing_required_workflows") or [] if str(name).strip()]
+    if current_head_actions.get("available"):
+        return (
+            "Current-head Actions lookup: "
+            f"available=True, run_count={int(current_head_actions.get('run_count') or 0)}, "
+            f"required_success={int(current_head_actions.get('required_success_count') or 0)}/{len(required_names)}, "
+            f"missing={', '.join(missing) if missing else 'none'}."
+        )
+    return (
+        "Current-head Actions lookup: "
+        "available=False, "
+        f"reason={current_head_actions.get('reason') or 'unknown'}, "
+        f"run_count={int(current_head_actions.get('run_count') or 0)}."
+    )
+
+
+def _release_packet_status_blockers(status: str, *, dirty_count: int) -> list[str]:
+    if status == "ready_for_authorization":
+        return [
+            "release authorization packet is ready, but explicit push authorization and current-head Actions are still required."
+        ]
+    if status == "blocked_dirty_worktree":
+        return [f"release authorization packet blocked by dirty worktree paths: {dirty_count}."]
+    if status == "git_unavailable":
+        return ["release authorization packet could not inspect git state."]
+    if status not in {"not_required", "already_verified"}:
+        return [f"release authorization packet returned unexpected status={status}."]
+    return []
+
+
+def _llm_wiki_strict_evidence_blockers(llm_wiki_evidence: dict[str, Any]) -> list[str]:
+    if not llm_wiki_evidence:
+        return []
+    if not llm_wiki_evidence.get("available"):
+        return ["release authorization packet is missing LLM Wiki strict release evidence."]
+    if llm_wiki_evidence.get("status") != "pass":
+        return [f"LLM Wiki strict release evidence status={llm_wiki_evidence.get('status')}; expected pass."]
+    if llm_wiki_evidence.get("head_matches_current") is False:
+        return ["LLM Wiki strict release evidence is not for the current HEAD."]
+    return []
+
+
+def _llm_wiki_strict_evidence_summary(llm_wiki_evidence: dict[str, Any]) -> str | None:
+    if not llm_wiki_evidence:
+        return None
+    return (
+        "LLM Wiki strict evidence: "
+        f"status={llm_wiki_evidence.get('status')}, "
+        f"path={llm_wiki_evidence.get('path')}, "
+        f"head_matches_current={llm_wiki_evidence.get('head_matches_current')}, "
+        f"unexpected={llm_wiki_evidence.get('unexpected_manifest_warning_count')}, "
+        f"generated_at={llm_wiki_evidence.get('generated_at')}, "
+        f"command={llm_wiki_evidence.get('command') or 'unknown'}."
+    )
+
+
 def _release_authorization_packet_item(packet: dict[str, Any]) -> dict[str, Any]:
     status = str(packet.get("status") or "unknown")
     git = packet.get("git") if isinstance(packet.get("git"), dict) else {}
@@ -1294,6 +1455,9 @@ def _release_authorization_packet_item(packet: dict[str, Any]) -> dict[str, Any]
     workflows = packet.get("required_workflows") if isinstance(packet.get("required_workflows"), list) else []
     llm_wiki_evidence = (
         packet.get("llm_wiki_strict_evidence") if isinstance(packet.get("llm_wiki_strict_evidence"), dict) else {}
+    )
+    current_head_actions = (
+        packet.get("current_head_actions") if isinstance(packet.get("current_head_actions"), dict) else {}
     )
     packet_blockers = [str(blocker) for blocker in packet.get("blockers") or [] if str(blocker).strip()]
     unproven = [str(workflow) for workflow in packet.get("unproven_workflows") or [] if str(workflow).strip()]
@@ -1305,30 +1469,12 @@ def _release_authorization_packet_item(packet: dict[str, Any]) -> dict[str, Any]
     head_label = head_sha[:8] if head_sha != "unknown" else head_sha
     allowed_without_authorization = authorization.get("allowed_without_explicit_user_authorization")
 
-    blockers: list[str] = []
-    if status == "ready_for_authorization":
-        blockers.append(
-            "release authorization packet is ready, but explicit push authorization and current-head Actions are still required."
-        )
-    elif status == "blocked_dirty_worktree":
-        blockers.append(f"release authorization packet blocked by dirty worktree paths: {dirty_count}.")
-    elif status == "git_unavailable":
-        blockers.append("release authorization packet could not inspect git state.")
-    elif status not in {"not_required", "already_verified"}:
-        blockers.append(f"release authorization packet returned unexpected status={status}.")
+    blockers = _release_packet_status_blockers(status, dirty_count=dirty_count)
     if allowed_without_authorization is not False:
         blockers.append("release authorization packet did not enforce explicit user authorization.")
     if status == "ready_for_authorization" and ahead_count > 0 and not authorization.get("suggested_command"):
         blockers.append("release authorization packet omitted the suggested push command for a clean ahead head.")
-    if llm_wiki_evidence:
-        if not llm_wiki_evidence.get("available"):
-            blockers.append("release authorization packet is missing LLM Wiki strict release evidence.")
-        elif llm_wiki_evidence.get("status") != "pass":
-            blockers.append(
-                f"LLM Wiki strict release evidence status={llm_wiki_evidence.get('status')}; expected pass."
-            )
-        elif llm_wiki_evidence.get("head_matches_current") is False:
-            blockers.append("LLM Wiki strict release evidence is not for the current HEAD.")
+    blockers.extend(_llm_wiki_strict_evidence_blockers(llm_wiki_evidence))
 
     workflow_evidence = ", ".join(
         f"{workflow.get('name')}={workflow.get('status') or workflow.get('conclusion')}"
@@ -1345,16 +1491,12 @@ def _release_authorization_packet_item(packet: dict[str, Any]) -> dict[str, Any]
         f"{bool(authorization.get('suggested_command'))}; "
         f"allowed_without_explicit_user_authorization={allowed_without_authorization}.",
     ]
-    if llm_wiki_evidence:
-        evidence.append(
-            "LLM Wiki strict evidence: "
-            f"status={llm_wiki_evidence.get('status')}, "
-            f"path={llm_wiki_evidence.get('path')}, "
-            f"head_matches_current={llm_wiki_evidence.get('head_matches_current')}, "
-            f"unexpected={llm_wiki_evidence.get('unexpected_manifest_warning_count')}, "
-            f"generated_at={llm_wiki_evidence.get('generated_at')}, "
-            f"command={llm_wiki_evidence.get('command') or 'unknown'}."
-        )
+    llm_wiki_summary = _llm_wiki_strict_evidence_summary(llm_wiki_evidence)
+    if llm_wiki_summary:
+        evidence.append(llm_wiki_summary)
+    current_head_evidence = _current_head_actions_evidence(current_head_actions, workflows)
+    if current_head_evidence:
+        evidence.append(current_head_evidence)
     if guardrails:
         evidence.append(f"Release authorization guardrails: {' '.join(guardrails)}")
     if packet_blockers:
@@ -1369,6 +1511,16 @@ def _release_authorization_packet_item(packet: dict[str, Any]) -> dict[str, Any]
         verified=bool(packet),
         coverage="complete" if packet else "partial",
     )
+
+
+def _selector_evidence_summary(status: str, *, publish_boundary_selected: bool) -> str:
+    if status == "blocked_external_only":
+        return "Selector confirms only external/user-owned work remains."
+    if status == "ready_for_completion_audit":
+        return "Selector reports no remaining local experiment candidate."
+    if publish_boundary_selected:
+        return "Selector reports a publish-boundary check before launch completion can be claimed."
+    return "Selector reports local follow-up work before launch completion can be claimed."
 
 
 def _selector_item(selection: dict[str, Any]) -> dict[str, Any]:
@@ -1397,19 +1549,10 @@ def _selector_item(selection: dict[str, Any]) -> dict[str, Any]:
     elif status == "ready_for_completion_audit" and blocked:
         blockers.append("next_experiment_selector reported ready status with a blocked selected candidate.")
 
-    if status == "blocked_external_only":
-        selector_evidence = "Selector confirms only external/user-owned work remains."
-    elif status == "ready_for_completion_audit":
-        selector_evidence = "Selector reports no remaining local experiment candidate."
-    elif publish_boundary_selected:
-        selector_evidence = "Selector reports a publish-boundary check before launch completion can be claimed."
-    else:
-        selector_evidence = "Selector reports local follow-up work before launch completion can be claimed."
-
     evidence = [
         f"next_experiment_selector status={status}, selected_kind={selected_kind}, project={selected_project}.",
         _evidence_sentence("Selected action", action),
-        selector_evidence,
+        _selector_evidence_summary(status, publish_boundary_selected=publish_boundary_selected),
     ]
     if guardrails:
         evidence.append(f"Selector guardrails: {' '.join(guardrails)}")
@@ -1465,45 +1608,17 @@ def _latest_ab_manifest(
     ab_manifest_path: Path | None = None,
 ) -> tuple[str | None, dict[str, Any] | None, list[str]]:
     tmp_dir = root / ".tmp"
-    errors: list[str] = []
 
     if ab_manifest_path is not None:
-        requested_path = ab_manifest_path if ab_manifest_path.is_absolute() else root / ab_manifest_path
-        if _ab_manifest_sort_key(requested_path) is None:
-            errors.append(f"Requested A/B manifest artifact is unreadable: {_rel(root, requested_path)}")
-            return None, None, errors
-        data = _load_json_object(requested_path)
-        if data is None:
-            errors.append(f"Requested A/B manifest artifact is invalid: {_rel(root, requested_path)}")
-            return None, None, errors
-        return _rel(root, requested_path), data, errors
+        return _requested_ab_manifest(root, ab_manifest_path)
 
     if not tmp_dir.exists():
-        return None, None, errors
+        return None, None, []
 
-    scored_candidates: list[tuple[tuple[int, int, str, int, str], Path, dict[str, Any]]] = []
-    for path in tmp_dir.glob(AB_MANIFEST_GLOB):
-        sort_key = _ab_manifest_sort_key(path)
-        if sort_key is None:
-            errors.append(f"Ignored unreadable A/B manifest artifact: {_rel(root, path)}")
-            continue
-        data = _load_json_object(path)
-        if data is None:
-            errors.append(f"Ignored invalid A/B manifest artifact: {_rel(root, path)}")
-            continue
-        task_id = _ab_manifest_task_id_parts(path, data)
-        candidate_key = (
-            1 if task_id is not None else 0,
-            task_id[0] if task_id is not None else -1,
-            task_id[1] if task_id is not None else "",
-            sort_key[0],
-            sort_key[1],
-        )
-        scored_candidates.append((candidate_key, path, data))
-
-    if scored_candidates:
-        _, path, data = max(scored_candidates, key=lambda item: item[0])
-        return _rel(root, path), data, errors
+    candidates, errors = _ab_manifest_candidates(root, tmp_dir)
+    if candidates:
+        selected = _select_latest_ab_manifest_candidate(candidates)
+        return _rel(root, selected.path), selected.data, errors
     return None, None, errors
 
 
@@ -1515,7 +1630,13 @@ def _ab_manifest_evidence(
     blockers: list[str] = []
     artifacts: list[str] = []
     if manifest_path is None or manifest is None:
-        evidence.append("No local A/B manifest artifact found; relying on .ai relay evidence.")
+        if ab_manifest_path is not None:
+            requested_path = ab_manifest_path if ab_manifest_path.is_absolute() else root / ab_manifest_path
+            requested_display = _rel(root, requested_path)
+            evidence.append(f"Requested A/B manifest artifact was not usable: {requested_display}.")
+            blockers.append(f"Requested A/B manifest artifact could not be used: {requested_display}")
+        else:
+            evidence.append("No local A/B manifest artifact found; relying on .ai relay evidence.")
         return artifacts, evidence, blockers
 
     artifacts.append(manifest_path)
@@ -1704,6 +1825,7 @@ def collect_current_inputs(root: Path, timeout: int) -> dict[str, dict[str, Any]
         root,
         readiness_data if isinstance(readiness_data, dict) else {},
     )
+    collected["dirty_handoff_plan"] = _refresh_dirty_handoff_plan_cache(root, timeout)
     collected["next_experiment_selection"] = _select_next_experiment_from_inputs(root, collected)
     return collected
 

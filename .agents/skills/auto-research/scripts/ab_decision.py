@@ -70,19 +70,29 @@ def _weighted_delta(baseline: float, candidate: float, direction: str) -> float:
     raise SystemExit(f"invalid metric direction: {direction}")
 
 
-def decide(data: dict[str, Any]) -> dict[str, Any]:
-    baseline_section = _section(data, "baseline")
-    candidate_section = _section(data, "candidate")
-    baseline_metrics = _metrics(baseline_section, "baseline")
-    candidate_metrics = _metrics(candidate_section, "candidate")
+def _metric_direction(metric: str, directions: dict[str, Any]) -> str:
+    direction = str(directions.get(metric, "higher")).lower()
+    if direction not in VALID_DIRECTIONS:
+        raise SystemExit(f"{metric} direction must be one of: {', '.join(sorted(VALID_DIRECTIONS))}")
+    return direction
 
-    directions = data.get("directions") or {}
-    weights = data.get("weights") or {}
-    if not isinstance(directions, dict):
-        raise SystemExit("directions must be an object when provided")
-    if not isinstance(weights, dict):
-        raise SystemExit("weights must be an object when provided")
 
+def _metric_weight(metric: str, weights: dict[str, Any]) -> float:
+    weight_value = weights.get(metric, 1.0)
+    if isinstance(weight_value, bool) or not isinstance(weight_value, (int, float)):
+        raise SystemExit(f"{metric} weight must be numeric")
+    weight = float(weight_value)
+    if weight < 0 or not math.isfinite(weight):
+        raise SystemExit(f"{metric} weight must be a finite non-negative number")
+    return weight
+
+
+def _metric_score(
+    baseline_metrics: dict[str, float],
+    candidate_metrics: dict[str, float],
+    directions: dict[str, Any],
+    weights: dict[str, Any],
+) -> tuple[dict[str, dict[str, float | str]], float, list[str]]:
     common = sorted(set(baseline_metrics) & set(candidate_metrics))
     if not common:
         raise SystemExit("baseline and candidate must share at least one numeric metric")
@@ -93,15 +103,8 @@ def decide(data: dict[str, Any]) -> dict[str, Any]:
     warnings: list[str] = []
 
     for metric in common:
-        direction = str(directions.get(metric, "higher")).lower()
-        if direction not in VALID_DIRECTIONS:
-            raise SystemExit(f"{metric} direction must be one of: {', '.join(sorted(VALID_DIRECTIONS))}")
-        weight_value = weights.get(metric, 1.0)
-        if isinstance(weight_value, bool) or not isinstance(weight_value, (int, float)):
-            raise SystemExit(f"{metric} weight must be numeric")
-        weight = float(weight_value)
-        if weight < 0 or not math.isfinite(weight):
-            raise SystemExit(f"{metric} weight must be a finite non-negative number")
+        direction = _metric_direction(metric, directions)
+        weight = _metric_weight(metric, weights)
         if weight == 0:
             warnings.append(f"{metric} has zero weight")
             continue
@@ -121,29 +124,65 @@ def decide(data: dict[str, Any]) -> dict[str, Any]:
 
     if total_weight <= 0:
         raise SystemExit("at least one shared metric must have a positive weight")
+    return contributions, score_delta / total_weight, warnings
 
-    normalized_delta = score_delta / total_weight
-    min_delta = float(data.get("min_delta", 0.0))
+
+def _required_gates(data: dict[str, Any]) -> list[Any]:
     required_gates = data.get("required_gates") or []
     if not isinstance(required_gates, list):
         raise SystemExit("required_gates must be a list when provided")
+    return required_gates
 
-    candidate_gates = _gate_map(data, "candidate", candidate_section)
-    baseline_gates = _gate_map(data, "baseline", baseline_section)
+
+def _gate_failures(
+    required_gates: list[Any],
+    candidate_gates: dict[str, bool],
+    baseline_gates: dict[str, bool],
+) -> tuple[list[str], list[str]]:
     failed_gates = [str(gate) for gate in required_gates if not candidate_gates.get(str(gate), False)]
     baseline_failed = [str(gate) for gate in required_gates if gate in baseline_gates and not baseline_gates[str(gate)]]
+    warnings = []
     if baseline_failed:
         warnings.append("baseline failed gates: " + ", ".join(baseline_failed))
+    return failed_gates, warnings
 
+
+def _decision_reason(failed_gates: list[str], normalized_delta: float, min_delta: float) -> tuple[str, str]:
     if failed_gates:
-        decision = "reject_candidate"
-        reason = "candidate failed required gates"
-    elif normalized_delta > min_delta:
-        decision = "adopt_candidate"
-        reason = "candidate improved weighted score"
-    else:
-        decision = "keep_baseline"
-        reason = "candidate did not clear min_delta"
+        return "reject_candidate", "candidate failed required gates"
+    if normalized_delta > min_delta:
+        return "adopt_candidate", "candidate improved weighted score"
+    return "keep_baseline", "candidate did not clear min_delta"
+
+
+def decide(data: dict[str, Any]) -> dict[str, Any]:
+    baseline_section = _section(data, "baseline")
+    candidate_section = _section(data, "candidate")
+    baseline_metrics = _metrics(baseline_section, "baseline")
+    candidate_metrics = _metrics(candidate_section, "candidate")
+
+    directions = data.get("directions") or {}
+    weights = data.get("weights") or {}
+    if not isinstance(directions, dict):
+        raise SystemExit("directions must be an object when provided")
+    if not isinstance(weights, dict):
+        raise SystemExit("weights must be an object when provided")
+
+    contributions, normalized_delta, warnings = _metric_score(
+        baseline_metrics,
+        candidate_metrics,
+        directions,
+        weights,
+    )
+    min_delta = float(data.get("min_delta", 0.0))
+    required_gates = _required_gates(data)
+    failed_gates, gate_warnings = _gate_failures(
+        required_gates,
+        _gate_map(data, "candidate", candidate_section),
+        _gate_map(data, "baseline", baseline_section),
+    )
+    warnings.extend(gate_warnings)
+    decision, reason = _decision_reason(failed_gates, normalized_delta, min_delta)
 
     return {
         "decision": decision,
