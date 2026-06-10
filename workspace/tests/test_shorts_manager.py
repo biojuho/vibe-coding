@@ -122,6 +122,14 @@ class _FakeStreamlit(types.ModuleType):
         return False
 
 
+def _click_only(fake_streamlit: _FakeStreamlit, clicked_key: str):
+    def button(*args, **kwargs) -> bool:
+        fake_streamlit._record("button", {"label": args[0] if args else "", "kwargs": kwargs})
+        return kwargs.get("key") == clicked_key
+
+    return button
+
+
 def _make_path_contract_module(tmp_path: Path) -> types.ModuleType:
     module = types.ModuleType("path_contract")
 
@@ -564,6 +572,70 @@ def test_channel_aliases_share_display_readiness_and_filters(shorts_manager) -> 
     assert merged["style_preset"] == "bold"
 
 
+def test_readiness_display_group_helpers_preserve_alias_preference(shorts_manager) -> None:
+    canonical_ai = shorts_manager._CHANNEL_LABEL_ALIASES["ai-tech"]
+    items = [
+        {
+            "channel": "ai-tech",
+            "total_count": 1,
+            "pending_count": 1,
+            "running_count": 0,
+            "failed_count": 0,
+            "success_count": 0,
+            "voice": "",
+            "style_preset": "",
+        },
+        {
+            "channel": canonical_ai,
+            "total_count": 2,
+            "pending_count": 0,
+            "running_count": 1,
+            "failed_count": 0,
+            "success_count": 1,
+            "voice": "nova",
+            "style_preset": "bold",
+        },
+    ]
+
+    grouped = shorts_manager._readiness_items_by_display_channel(items)
+    assert list(grouped) == [canonical_ai]
+    assert shorts_manager._preferred_readiness_item(canonical_ai, grouped[canonical_ai]) is items[1]
+    assert shorts_manager._has_display_channel_item(canonical_ai, grouped[canonical_ai]) is True
+    assert shorts_manager._readiness_count_totals(grouped[canonical_ai]) == {
+        "total_count": 3,
+        "pending_count": 1,
+        "running_count": 1,
+        "failed_count": 0,
+        "success_count": 1,
+    }
+
+    merged = {"voice": "", "style_preset": ""}
+    shorts_manager._fill_missing_readiness_style_fields(merged, grouped[canonical_ai])
+    assert merged["voice"] == "nova"
+    assert merged["style_preset"] == "bold"
+
+
+def test_readiness_display_issues_filter_duplicate_alias_setup_noise(shorts_manager) -> None:
+    canonical_ai = shorts_manager._CHANNEL_LABEL_ALIASES["ai-tech"]
+    issues = shorts_manager._readiness_display_issues(
+        canonical_ai,
+        [
+            {"channel": canonical_ai, "issues": ["runtime:missing_bgm"]},
+            {
+                "channel": "ai-tech",
+                "issues": [
+                    "setup:channel_settings_missing",
+                    "warning:brand_asset_missing",
+                    "runtime:missing_bgm",
+                ],
+            },
+        ],
+        has_display_channel_item=True,
+    )
+
+    assert issues == ["runtime:missing_bgm"]
+
+
 def test_generation_run_block_reason_accepts_channel_alias(shorts_manager) -> None:
     canonical_ai = shorts_manager._CHANNEL_LABEL_ALIASES["ai-tech"]
     blockers = shorts_manager._build_generation_run_blockers(
@@ -651,6 +723,111 @@ def test_generation_run_block_reason_uses_canonical_channel_alias(shorts_manager
         )
         == "채널 설정 저장 후 실행 가능"
     )
+
+
+def test_run_action_button_launches_v2_and_reruns(shorts_manager, monkeypatch: pytest.MonkeyPatch) -> None:
+    launched: list[tuple[int, str, str]] = []
+    monkeypatch.setattr(shorts_manager.st, "button", _click_only(shorts_manager.st, "run_card_7"))
+
+    def launch(item_id: int, topic: str, channel: str) -> str:
+        launched.append((item_id, topic, channel))
+        return "321"
+
+    monkeypatch.setattr(shorts_manager, "_launch_v2", launch)
+    item = {"id": 7, "status": "pending", "topic": "Topic", "channel": "ai-tech"}
+
+    shorts_manager._render_run_action_button(
+        item,
+        "card",
+        generation_run_blockers={},
+        v2_available=True,
+    )
+
+    assert launched == [(7, "Topic", shorts_manager._CHANNEL_LABEL_ALIASES["ai-tech"])]
+    assert shorts_manager.st.session_state[shorts_manager._FLASH_KEY] == {
+        "level": "success",
+        "message": "실행됨 (PID 321)",
+    }
+    assert ("rerun", None) in shorts_manager.st.events
+
+
+def test_youtube_upload_action_button_preserves_success_flow(
+    shorts_manager,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    uploaded: list[tuple[int, bool]] = []
+    monkeypatch.setattr(shorts_manager.st, "button", _click_only(shorts_manager.st, "yt_card_8"))
+
+    def upload(item: dict[str, object], retry: bool = False) -> dict[str, str]:
+        uploaded.append((int(item["id"]), retry))
+        return {"youtube_url": "https://youtube.test/watch?v=video-8"}
+
+    monkeypatch.setattr(shorts_manager, "_upload_single", upload)
+    item = {"id": 8, "status": "success", "video_path": "out.mp4", "youtube_status": ""}
+
+    shorts_manager._render_youtube_upload_action_button(
+        item,
+        "card",
+        {"has_credentials_file": True},
+    )
+
+    assert uploaded == [(8, False)]
+    assert shorts_manager.st.session_state[shorts_manager._FLASH_KEY] == {
+        "level": "success",
+        "message": "업로드 완료: https://youtube.test/watch?v=video-8",
+    }
+    assert ("rerun", None) in shorts_manager.st.events
+
+
+def test_upload_and_flash_preserves_failure_update(shorts_manager, monkeypatch: pytest.MonkeyPatch) -> None:
+    updates: list[tuple[tuple[object, ...], dict[str, object]]] = []
+
+    def fail_upload(item: dict[str, object], retry: bool = False) -> dict[str, str]:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(shorts_manager, "_upload_single", fail_upload)
+    monkeypatch.setattr(shorts_manager, "update_job", lambda *args, **kwargs: updates.append((args, kwargs)))
+
+    shorts_manager._upload_and_flash(
+        {"id": 9},
+        retry=True,
+        success_label="재업로드 완료",
+        error_label="재업로드 실패",
+    )
+
+    assert updates == [((9,), {"youtube_status": "failed", "youtube_error": "boom"})]
+    assert shorts_manager.st.session_state[shorts_manager._FLASH_KEY] == {
+        "level": "error",
+        "message": "재업로드 실패: boom",
+    }
+
+
+def test_notion_action_button_preserves_success_flow(shorts_manager, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(shorts_manager.st, "button", _click_only(shorts_manager.st, "notion_card_10"))
+    monkeypatch.setattr(shorts_manager, "_notion_sync_block_reason", lambda: "")
+    monkeypatch.setattr(
+        shorts_manager,
+        "notion_sync_item",
+        lambda item_id: {"action": "updated", "page_id": "page-abcdef", "error": ""},
+    )
+
+    shorts_manager._render_notion_action_button({"id": 10, "notion_page_id": "page-old"}, "card")
+
+    assert shorts_manager.st.session_state[shorts_manager._FLASH_KEY] == {
+        "level": "success",
+        "message": "Notion updated: page-abc",
+    }
+    assert ("rerun", None) in shorts_manager.st.events
+
+
+def test_delete_action_button_requests_confirmation(shorts_manager, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(shorts_manager.st, "button", _click_only(shorts_manager.st, "del_card_11"))
+
+    shorts_manager._render_delete_action_buttons({"id": 11}, "card")
+
+    assert shorts_manager._get_pending_delete_id() == 11
+    assert shorts_manager.st.session_state[shorts_manager._FLASH_KEY]["level"] == "warning"
+    assert ("rerun", None) in shorts_manager.st.events
 
 
 def test_shorts_manager_source_wires_generation_lock_to_run_button() -> None:

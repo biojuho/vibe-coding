@@ -486,50 +486,87 @@ def _readiness_display_issue_allowed(
     return True
 
 
-def _channel_readiness_for_display(summary: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _readiness_items_by_display_channel(summary: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
     grouped: dict[str, list[dict[str, Any]]] = {}
     for item in summary:
         display_channel = _display_channel_label(item.get("channel", ""))
         grouped.setdefault(display_channel, []).append(item)
+    return grouped
 
-    merged_summary: list[dict[str, Any]] = []
-    for display_channel, items in grouped.items():
-        preferred = next(
-            (item for item in items if str(item.get("channel", "")).strip() == display_channel),
-            items[0],
-        )
-        has_display_channel_item = any(str(item.get("channel", "")).strip() == display_channel for item in items)
-        merged = dict(preferred)
-        merged["channel"] = display_channel
-        for field in _CHANNEL_READINESS_COUNT_FIELDS:
-            merged[field] = sum(int(item.get(field, 0) or 0) for item in items)
 
-        issues: list[str] = []
-        for item in items:
-            raw_channel = str(item.get("channel", "")).strip()
-            for issue in list(item.get("issues") or []):
-                if not _readiness_display_issue_allowed(
-                    str(issue),
-                    raw_channel=raw_channel,
-                    display_channel=display_channel,
-                    has_display_channel_item=has_display_channel_item,
-                ):
-                    continue
-                if issue not in issues:
-                    issues.append(str(issue))
+def _preferred_readiness_item(display_channel: str, items: list[dict[str, Any]]) -> dict[str, Any]:
+    return next(
+        (item for item in items if str(item.get("channel", "")).strip() == display_channel),
+        items[0],
+    )
 
-        merged["issues"] = issues
-        merged["status"] = _derive_display_ops_status(issues)
-        merged["next_action"] = _derive_display_next_action(
-            issues,
-            str(preferred.get("next_action") or ""),
-        )
-        for field in ("voice", "style_preset", "font_color", "image_style_prefix"):
-            if not merged.get(field):
-                merged[field] = next((item.get(field, "") for item in items if item.get(field)), "")
-        merged_summary.append(merged)
 
-    return merged_summary
+def _has_display_channel_item(display_channel: str, items: list[dict[str, Any]]) -> bool:
+    return any(str(item.get("channel", "")).strip() == display_channel for item in items)
+
+
+def _readiness_count_totals(items: list[dict[str, Any]]) -> dict[str, int]:
+    return {field: sum(int(item.get(field, 0) or 0) for item in items) for field in _CHANNEL_READINESS_COUNT_FIELDS}
+
+
+def _readiness_display_issues(
+    display_channel: str,
+    items: list[dict[str, Any]],
+    *,
+    has_display_channel_item: bool,
+) -> list[str]:
+    issues: list[str] = []
+    for item in items:
+        raw_channel = str(item.get("channel", "")).strip()
+        for issue in list(item.get("issues") or []):
+            if not _readiness_display_issue_allowed(
+                str(issue),
+                raw_channel=raw_channel,
+                display_channel=display_channel,
+                has_display_channel_item=has_display_channel_item,
+            ):
+                continue
+            if issue not in issues:
+                issues.append(str(issue))
+    return issues
+
+
+def _fill_missing_readiness_style_fields(
+    merged: dict[str, Any],
+    items: list[dict[str, Any]],
+) -> None:
+    for field in ("voice", "style_preset", "font_color", "image_style_prefix"):
+        if not merged.get(field):
+            merged[field] = next((item.get(field, "") for item in items if item.get(field)), "")
+
+
+def _merged_readiness_display_item(display_channel: str, items: list[dict[str, Any]]) -> dict[str, Any]:
+    preferred = _preferred_readiness_item(display_channel, items)
+    has_display_channel_item = _has_display_channel_item(display_channel, items)
+    issues = _readiness_display_issues(
+        display_channel,
+        items,
+        has_display_channel_item=has_display_channel_item,
+    )
+
+    merged = dict(preferred)
+    merged["channel"] = display_channel
+    merged.update(_readiness_count_totals(items))
+    merged["issues"] = issues
+    merged["status"] = _derive_display_ops_status(issues)
+    merged["next_action"] = _derive_display_next_action(
+        issues,
+        str(preferred.get("next_action") or ""),
+    )
+    _fill_missing_readiness_style_fields(merged, items)
+    return merged
+
+
+def _channel_readiness_for_display(summary: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        _merged_readiness_display_item(display_channel, items)
+        for display_channel, items in _readiness_items_by_display_channel(summary).items()
+    ]
 
 
 def _build_generation_run_blockers(readiness_summary: list[dict[str, Any]]) -> dict[str, str]:
@@ -773,6 +810,166 @@ def _upload_single(item: dict[str, Any], retry: bool = False) -> dict[str, Any]:
     return result
 
 
+def _upload_and_flash(
+    item: dict[str, Any],
+    *,
+    retry: bool,
+    success_label: str,
+    error_label: str,
+) -> None:
+    try:
+        result = _upload_single(item, retry=retry)
+        _set_flash("success", f"{success_label}: {result['youtube_url']}")
+    except Exception as exc:
+        update_job(item["id"], youtube_status="failed", youtube_error=str(exc)[:300])
+        _set_flash("error", f"{error_label}: {exc}")
+
+
+def _render_run_action_button(
+    item: dict[str, Any],
+    key_prefix: str,
+    *,
+    generation_run_blockers: dict[str, str],
+    v2_available: bool,
+) -> None:
+    run_block_reason = _generation_run_block_reason(
+        item,
+        generation_run_blockers,
+        v2_available=v2_available,
+    )
+    can_run = item["status"] in ("pending", "failed") and not run_block_reason
+    if st.button(
+        "실행",
+        key=f"run_{key_prefix}_{item['id']}",
+        disabled=not can_run,
+        help=run_block_reason or "v2 파이프라인 실행",
+        **_stretch_button_kwargs(),
+    ):
+        pid = _launch_v2(
+            item["id"],
+            item["topic"],
+            _canonical_channel_label(item.get("channel", "")),
+        )
+        if pid:
+            _set_flash("success", f"실행됨 (PID {pid})")
+        else:
+            _set_flash("error", "실행 실패")
+        st.rerun()
+    if run_block_reason:
+        st.caption(f"생성 잠금: {run_block_reason}")
+
+
+def _render_youtube_upload_action_button(
+    item: dict[str, Any],
+    key_prefix: str,
+    auth_status: dict[str, Any],
+) -> None:
+    upload_block_reason = _youtube_item_upload_block_reason(item, auth_status, retry=False)
+    can_upload = not upload_block_reason
+    if st.button(
+        "YT 업로드",
+        key=f"yt_{key_prefix}_{item['id']}",
+        disabled=not can_upload,
+        help=upload_block_reason or "YouTube 업로드",
+        **_stretch_button_kwargs(),
+    ):
+        _upload_and_flash(
+            item,
+            retry=False,
+            success_label="업로드 완료",
+            error_label="업로드 실패",
+        )
+        st.rerun()
+
+
+def _render_youtube_retry_action_button(
+    item: dict[str, Any],
+    key_prefix: str,
+    auth_status: dict[str, Any],
+) -> None:
+    retry_block_reason = _youtube_item_upload_block_reason(item, auth_status, retry=True)
+    can_retry = not retry_block_reason
+    if st.button(
+        "YT 재시도",
+        key=f"ytretry_{key_prefix}_{item['id']}",
+        disabled=not can_retry,
+        help=retry_block_reason or "업로드 실패 건 재시도",
+        **_stretch_button_kwargs(),
+    ):
+        _upload_and_flash(
+            item,
+            retry=True,
+            success_label="재업로드 완료",
+            error_label="재업로드 실패",
+        )
+        st.rerun()
+
+
+def _render_notion_action_button(item: dict[str, Any], key_prefix: str) -> None:
+    notion_synced = bool(item.get("notion_page_id", ""))
+    notion_btn_label = "📋 Notion↑" if not notion_synced else "📋 Notion↻"
+    item_notion_block_reason = _notion_sync_block_reason()
+    if st.button(
+        notion_btn_label,
+        key=f"notion_{key_prefix}_{item['id']}",
+        disabled=bool(item_notion_block_reason),
+        help=item_notion_block_reason or ("Notion에 동기화" if not notion_synced else "Notion 업데이트"),
+        **_stretch_button_kwargs(),
+    ):
+        result = notion_sync_item(item["id"])
+        action = result["action"]
+        if action in ("created", "updated"):
+            _set_flash("success", f"Notion {action}: {result.get('page_id', '')[:8]}")
+        else:
+            _set_flash("error", f"Notion 오류: {result.get('error', '')}")
+        st.rerun()
+
+
+def _render_delete_confirmation_buttons(item: dict[str, Any], key_prefix: str) -> None:
+    st.caption("삭제 확인 필요")
+    if st.button(
+        "삭제 확인",
+        key=f"del_confirm_{key_prefix}_{item['id']}",
+        help="이 항목을 영구 삭제합니다",
+        type="primary",
+        **_stretch_button_kwargs(),
+    ):
+        _delete_item_with_confirmation(item["id"])
+        st.rerun()
+    if st.button(
+        "취소",
+        key=f"del_cancel_{key_prefix}_{item['id']}",
+        help="삭제 확인을 취소합니다",
+        **_stretch_button_kwargs(),
+    ):
+        _cancel_delete_confirmation(item["id"])
+        _set_flash("info", "삭제 취소됨")
+        st.rerun()
+
+
+def _render_delete_request_button(item: dict[str, Any], key_prefix: str) -> None:
+    if st.button(
+        "삭제",
+        key=f"del_{key_prefix}_{item['id']}",
+        help="삭제 확인을 엽니다",
+        **_stretch_button_kwargs(),
+    ):
+        _request_delete_confirmation(item["id"])
+        st.rerun()
+
+
+def _render_delete_action_buttons(item: dict[str, Any], key_prefix: str) -> None:
+    if _get_pending_delete_id() == item["id"]:
+        _render_delete_confirmation_buttons(item, key_prefix)
+    else:
+        _render_delete_request_button(item, key_prefix)
+
+
+def _render_card_external_action_reasons(item: dict[str, Any], auth_status: dict[str, Any]) -> None:
+    for reason in _card_external_action_reasons(item, auth_status):
+        st.caption(reason)
+
+
 def _render_item_action_buttons(
     item: dict[str, Any],
     key_prefix: str,
@@ -782,117 +979,24 @@ def _render_item_action_buttons(
     auth_status: dict[str, Any],
 ) -> None:
     """실행·업로드·재시도·Notion·삭제 버튼 영역을 렌더링한다."""
-    btn_col1, btn_col2, btn_col3, btn_col4, btn_col5 = st.columns(5)
-    with btn_col1:
-        run_block_reason = _generation_run_block_reason(
+    run_col, upload_col, retry_col, notion_col, delete_col = st.columns(5)
+    with run_col:
+        _render_run_action_button(
             item,
-            generation_run_blockers,
+            key_prefix,
+            generation_run_blockers=generation_run_blockers,
             v2_available=v2_available,
         )
-        can_run = item["status"] in ("pending", "failed") and not run_block_reason
-        if st.button(
-            "실행",
-            key=f"run_{key_prefix}_{item['id']}",
-            disabled=not can_run,
-            help=run_block_reason or "v2 파이프라인 실행",
-            **_stretch_button_kwargs(),
-        ):
-            pid = _launch_v2(
-                item["id"],
-                item["topic"],
-                _canonical_channel_label(item.get("channel", "")),
-            )
-            if pid:
-                _set_flash("success", f"실행됨 (PID {pid})")
-            else:
-                _set_flash("error", "실행 실패")
-            st.rerun()
-        if run_block_reason:
-            st.caption(f"생성 잠금: {run_block_reason}")
-    with btn_col2:
-        upload_block_reason = _youtube_item_upload_block_reason(item, auth_status, retry=False)
-        can_upload = not upload_block_reason
-        if st.button(
-            "YT 업로드",
-            key=f"yt_{key_prefix}_{item['id']}",
-            disabled=not can_upload,
-            help=upload_block_reason or "YouTube 업로드",
-            **_stretch_button_kwargs(),
-        ):
-            try:
-                result = _upload_single(item, retry=False)
-                _set_flash("success", f"업로드 완료: {result['youtube_url']}")
-            except Exception as exc:
-                update_job(item["id"], youtube_status="failed", youtube_error=str(exc)[:300])
-                _set_flash("error", f"업로드 실패: {exc}")
-            st.rerun()
-    with btn_col3:
-        retry_block_reason = _youtube_item_upload_block_reason(item, auth_status, retry=True)
-        can_retry = not retry_block_reason
-        if st.button(
-            "YT 재시도",
-            key=f"ytretry_{key_prefix}_{item['id']}",
-            disabled=not can_retry,
-            help=retry_block_reason or "업로드 실패 건 재시도",
-            **_stretch_button_kwargs(),
-        ):
-            try:
-                result = _upload_single(item, retry=True)
-                _set_flash("success", f"재업로드 완료: {result['youtube_url']}")
-            except Exception as exc:
-                update_job(item["id"], youtube_status="failed", youtube_error=str(exc)[:300])
-                _set_flash("error", f"재업로드 실패: {exc}")
-            st.rerun()
-    with btn_col4:
-        notion_synced = bool(item.get("notion_page_id", ""))
-        notion_btn_label = "📋 Notion↑" if not notion_synced else "📋 Notion↻"
-        item_notion_block_reason = _notion_sync_block_reason()
-        if st.button(
-            notion_btn_label,
-            key=f"notion_{key_prefix}_{item['id']}",
-            disabled=bool(item_notion_block_reason),
-            help=item_notion_block_reason or ("Notion에 동기화" if not notion_synced else "Notion 업데이트"),
-            **_stretch_button_kwargs(),
-        ):
-            result = notion_sync_item(item["id"])
-            action = result["action"]
-            if action in ("created", "updated"):
-                _set_flash("success", f"Notion {action}: {result.get('page_id', '')[:8]}")
-            else:
-                _set_flash("error", f"Notion 오류: {result.get('error', '')}")
-            st.rerun()
-    with btn_col5:
-        if _get_pending_delete_id() == item["id"]:
-            st.caption("삭제 확인 필요")
-            if st.button(
-                "삭제 확인",
-                key=f"del_confirm_{key_prefix}_{item['id']}",
-                help="이 항목을 영구 삭제합니다",
-                type="primary",
-                **_stretch_button_kwargs(),
-            ):
-                _delete_item_with_confirmation(item["id"])
-                st.rerun()
-            if st.button(
-                "취소",
-                key=f"del_cancel_{key_prefix}_{item['id']}",
-                help="삭제 확인을 취소합니다",
-                **_stretch_button_kwargs(),
-            ):
-                _cancel_delete_confirmation(item["id"])
-                _set_flash("info", "삭제 취소됨")
-                st.rerun()
-        elif st.button(
-            "삭제",
-            key=f"del_{key_prefix}_{item['id']}",
-            help="삭제 확인을 엽니다",
-            **_stretch_button_kwargs(),
-        ):
-            _request_delete_confirmation(item["id"])
-            st.rerun()
+    with upload_col:
+        _render_youtube_upload_action_button(item, key_prefix, auth_status)
+    with retry_col:
+        _render_youtube_retry_action_button(item, key_prefix, auth_status)
+    with notion_col:
+        _render_notion_action_button(item, key_prefix)
+    with delete_col:
+        _render_delete_action_buttons(item, key_prefix)
 
-    for reason in _card_external_action_reasons(item, auth_status):
-        st.caption(reason)
+    _render_card_external_action_reasons(item, auth_status)
 
 
 def _voice_index(settings: dict[str, Any] | None) -> int:
