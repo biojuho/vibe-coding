@@ -556,12 +556,7 @@ def summarize_project(name: str, file_scores: List[FileDebtScore]) -> ProjectDeb
     dev_cost_minutes = max(total_code * 0.5, 1)
     tdr = (total_principal / dev_cost_minutes) * 100
 
-    if tdr < TDR_GREEN:
-        grade = "GREEN"
-    elif tdr < TDR_YELLOW:
-        grade = "YELLOW"
-    else:
-        grade = "RED"
+    grade = _tdr_grade(tdr)
 
     top_debtors = sorted(file_scores, key=lambda f: f.total_score, reverse=True)[:10]
 
@@ -600,6 +595,47 @@ SCAN_TARGETS = {
 }
 
 
+def _tdr_grade(tdr: float) -> str:
+    if tdr < TDR_GREEN:
+        return "GREEN"
+    if tdr < TDR_YELLOW:
+        return "YELLOW"
+    return "RED"
+
+
+def _default_audit_targets() -> Dict[str, Path]:
+    targets = {"workspace": WORKSPACE_DIR / "execution"}
+    for proj_name in ["blind-to-x", "shorts-maker-v2"]:
+        resolved = resolve_project_dir(proj_name)
+        if resolved.exists():
+            targets[proj_name] = resolved
+    return targets
+
+
+def _audit_targets(project_filter: Optional[str]) -> Dict[str, Path]:
+    if not project_filter:
+        return _default_audit_targets()
+    if project_filter == "workspace":
+        return {"workspace": WORKSPACE_DIR / "execution"}
+
+    resolved = resolve_project_dir(project_filter)
+    if resolved.exists():
+        return {project_filter: resolved}
+
+    print(f"Project not found: {project_filter}", file=sys.stderr)
+    sys.exit(1)
+
+
+def _scan_project(
+    proj_name: str,
+    proj_dir: Path,
+    mapped_scripts: set[str],
+) -> Tuple[List[FileDebtScore], ProjectDebtSummary]:
+    files = collect_python_files(proj_dir, proj_name)
+    scores = [scan_file(fpath, pname, mapped_scripts) for fpath, pname in files]
+    return scores, summarize_project(proj_name, scores)
+
+
 def run_audit(project_filter: Optional[str] = None, top_n: int = 10) -> AuditResult:
     """Run full debt audit across all (or filtered) projects."""
     start = time.time()
@@ -607,33 +643,9 @@ def run_audit(project_filter: Optional[str] = None, top_n: int = 10) -> AuditRes
     all_file_scores: List[FileDebtScore] = []
     project_summaries: List[ProjectDebtSummary] = []
 
-    targets = {}
-    if project_filter:
-        if project_filter == "workspace":
-            targets["workspace"] = WORKSPACE_DIR / "execution"
-        else:
-            resolved = resolve_project_dir(project_filter)
-            if resolved.exists():
-                targets[project_filter] = resolved
-            else:
-                print(f"Project not found: {project_filter}", file=sys.stderr)
-                sys.exit(1)
-    else:
-        targets["workspace"] = WORKSPACE_DIR / "execution"
-        for proj_name in ["blind-to-x", "shorts-maker-v2"]:
-            resolved = resolve_project_dir(proj_name)
-            if resolved.exists():
-                targets[proj_name] = resolved
-
-    for proj_name, proj_dir in targets.items():
-        files = collect_python_files(proj_dir, proj_name)
-        scores = []
-        for fpath, pname in files:
-            score = scan_file(fpath, pname, mapped_scripts)
-            scores.append(score)
-
+    for proj_name, proj_dir in _audit_targets(project_filter).items():
+        scores, summary = _scan_project(proj_name, proj_dir, mapped_scripts)
         all_file_scores.extend(scores)
-        summary = summarize_project(proj_name, scores)
         project_summaries.append(summary)
 
     # Overall metrics
@@ -643,12 +655,7 @@ def run_audit(project_filter: Optional[str] = None, top_n: int = 10) -> AuditRes
     dev_cost = max(total_code * 0.5, 1)
     overall_tdr = (total_principal / dev_cost) * 100
 
-    if overall_tdr < TDR_GREEN:
-        overall_grade = "GREEN"
-    elif overall_tdr < TDR_YELLOW:
-        overall_grade = "YELLOW"
-    else:
-        overall_grade = "RED"
+    overall_grade = _tdr_grade(overall_tdr)
 
     duration = time.time() - start
 

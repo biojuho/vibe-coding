@@ -15,6 +15,8 @@ if str(WORKSPACE_ROOT) not in sys.path:
 
 from execution.vibe_debt_auditor import (
     FunctionInfo,
+    _audit_targets,
+    _tdr_grade,
     analyze_python_file,
     detect_duplicate_blocks,
     find_debt_markers,
@@ -272,6 +274,11 @@ class TestScanFile:
 
 
 class TestProjectSummary:
+    def test_tdr_grade_thresholds(self):
+        assert _tdr_grade(0.0) == "GREEN"
+        assert _tdr_grade(5.0) == "YELLOW"
+        assert _tdr_grade(10.0) == "RED"
+
     def test_summary_basic(self, simple_py: Path):
         scores = [scan_file(simple_py, "test", set())]
         summary = summarize_project("test", scores)
@@ -291,6 +298,9 @@ class TestProjectSummary:
 
 
 class TestFullAudit:
+    def test_audit_targets_workspace_filter(self):
+        assert _audit_targets("workspace") == {"workspace": WORKSPACE_ROOT / "execution"}
+
     def test_run_audit_workspace(self):
         result = run_audit(project_filter="workspace")
         assert result.total_files > 0
