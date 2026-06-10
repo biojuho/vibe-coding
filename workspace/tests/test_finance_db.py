@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import csv
+import importlib
 import io
+import sys
+import types
 
 
 import execution.finance_db as fdb
@@ -250,94 +253,101 @@ def test_export_csv_format(monkeypatch, tmp_path):
 # ---------------------------------------------------------------------------
 
 
-def _install_finance_tracker_page_stubs():
-    import importlib
-    import sys
-    import types
+class _FinanceTrackerFakeContext:
+    def __init__(self, streamlit_module):
+        self._streamlit = streamlit_module
 
-    class FakeContext:
-        def __init__(self, streamlit_module):
-            self._streamlit = streamlit_module
+    def __enter__(self):
+        return self
 
-        def __enter__(self):
-            return self
+    def __exit__(self, *_args):
+        return None
 
-        def __exit__(self, *_args):
-            return None
+    def __getattr__(self, name):
+        return getattr(self._streamlit, name)
 
-        def __getattr__(self, name):
-            return getattr(self._streamlit, name)
 
-    class FakeStreamlit(types.ModuleType):
-        def __init__(self):
-            super().__init__("streamlit")
-            self.events = []
+class _FinanceTrackerFakeStreamlit(types.ModuleType):
+    def __init__(self):
+        super().__init__("streamlit")
+        self.events = []
 
-        def _record(self, name, payload=None, **kwargs):
-            self.events.append((name, payload, kwargs))
+    def _record(self, name, payload=None, **kwargs):
+        self.events.append((name, payload, kwargs))
 
-        def set_page_config(self, **kwargs):
-            self._record("set_page_config", kwargs)
+    def set_page_config(self, **kwargs):
+        self._record("set_page_config", kwargs)
 
-        def markdown(self, payload, **kwargs):
-            self._record("markdown", payload, **kwargs)
+    def markdown(self, payload, **kwargs):
+        self._record("markdown", payload, **kwargs)
 
-        def plotly_chart(self, payload, **kwargs):
-            self._record("plotly_chart", payload, **kwargs)
+    def plotly_chart(self, payload, **kwargs):
+        self._record("plotly_chart", payload, **kwargs)
 
-        def columns(self, spec):
-            count = spec if isinstance(spec, int) else len(spec)
-            return [FakeContext(self) for _ in range(count)]
+    def columns(self, spec):
+        count = spec if isinstance(spec, int) else len(spec)
+        return [_FinanceTrackerFakeContext(self) for _ in range(count)]
 
-        def form(self, _key):
-            return FakeContext(self)
+    def form(self, _key):
+        return _FinanceTrackerFakeContext(self)
 
-        def text_input(self, _label, value="", **_kwargs):
-            return value
+    def text_input(self, _label, value="", **_kwargs):
+        return value
 
-        def selectbox(self, _label, options, **_kwargs):
-            return options[0]
+    def selectbox(self, _label, options, **_kwargs):
+        return options[0]
 
-        def number_input(self, _label, **kwargs):
-            return int(kwargs.get("value", kwargs.get("min_value", 0)) or 0)
+    def number_input(self, _label, **kwargs):
+        return int(kwargs.get("value", kwargs.get("min_value", 0)) or 0)
 
-        def form_submit_button(self, *_args, **_kwargs):
-            return False
+    def form_submit_button(self, *_args, **_kwargs):
+        return False
 
-        def button(self, *_args, **_kwargs):
-            return False
+    def button(self, *_args, **_kwargs):
+        return False
 
-        def checkbox(self, *_args, **_kwargs):
-            return False
+    def checkbox(self, *_args, **_kwargs):
+        return False
 
-        def download_button(self, *args, **kwargs):
-            self._record("download_button", args[0] if args else None, **kwargs)
+    def download_button(self, *args, **kwargs):
+        self._record("download_button", args[0] if args else None, **kwargs)
 
-        def stop(self):
-            raise RuntimeError("streamlit stop called")
+    def stop(self):
+        raise RuntimeError("streamlit stop called")
 
-        def __getattr__(self, name):
-            def fallback(payload=None, *args, **kwargs):
-                if args:
-                    kwargs["_args"] = args
-                self._record(name, payload, **kwargs)
+    def __getattr__(self, name):
+        def fallback(payload=None, *args, **kwargs):
+            if args:
+                kwargs["_args"] = args
+            self._record(name, payload, **kwargs)
 
-            return fallback
+        return fallback
 
-    class FakeFigure:
-        def add_trace(self, *_args, **_kwargs):
-            return None
 
-        def update_layout(self, **_kwargs):
-            return None
+class _FinanceTrackerFakeFigure:
+    def add_trace(self, *_args, **_kwargs):
+        return None
 
-        def update_xaxes(self, **_kwargs):
-            return None
+    def update_layout(self, **_kwargs):
+        return None
 
-        def update_yaxes(self, **_kwargs):
-            return None
+    def update_xaxes(self, **_kwargs):
+        return None
 
-    fake_streamlit = FakeStreamlit()
+    def update_yaxes(self, **_kwargs):
+        return None
+
+
+_FINANCE_TRACKER_STUB_MODULES = (
+    "streamlit",
+    "execution.finance_db",
+    "plotly",
+    "plotly.express",
+    "plotly.graph_objects",
+)
+
+
+def _fake_finance_db_module():
     fake_finance_db = types.ModuleType("execution.finance_db")
     fake_finance_db.CATEGORIES = {"expense": ["food"], "income": ["salary"]}
     fake_finance_db.init_db = lambda: None
@@ -351,26 +361,35 @@ def _install_finance_tracker_page_stubs():
     fake_finance_db.add_transaction = lambda *_args, **_kwargs: 1
     fake_finance_db.delete_transaction = lambda *_args, **_kwargs: True
     fake_finance_db.set_budget = lambda *_args, **_kwargs: None
+    return fake_finance_db
 
+
+def _fake_plotly_modules():
     plotly = types.ModuleType("plotly")
     express = types.ModuleType("plotly.express")
     graph_objects = types.ModuleType("plotly.graph_objects")
-    express.pie = lambda **_kwargs: FakeFigure()
-    graph_objects.Figure = FakeFigure
+    express.pie = lambda **_kwargs: _FinanceTrackerFakeFigure()
+    graph_objects.Figure = _FinanceTrackerFakeFigure
     graph_objects.Scatter = lambda **kwargs: ("scatter", kwargs)
     plotly.express = express
     plotly.graph_objects = graph_objects
+    return plotly, express, graph_objects
 
-    originals = {
-        name: sys.modules.get(name)
-        for name in (
-            "streamlit",
-            "execution.finance_db",
-            "plotly",
-            "plotly.express",
-            "plotly.graph_objects",
-        )
-    }
+
+def _restore_modules(originals):
+    for name, original in originals.items():
+        if original is None:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = original
+
+
+def _install_finance_tracker_page_stubs():
+    fake_streamlit = _FinanceTrackerFakeStreamlit()
+    fake_finance_db = _fake_finance_db_module()
+    plotly, express, graph_objects = _fake_plotly_modules()
+
+    originals = {name: sys.modules.get(name) for name in _FINANCE_TRACKER_STUB_MODULES}
     sys.modules["streamlit"] = fake_streamlit
     sys.modules["execution.finance_db"] = fake_finance_db
     sys.modules["plotly"] = plotly
@@ -378,11 +397,7 @@ def _install_finance_tracker_page_stubs():
     sys.modules["plotly.graph_objects"] = graph_objects
     sys.modules.pop("execution.pages.finance_tracker", None)
     module = importlib.import_module("execution.pages.finance_tracker")
-    for name, original in originals.items():
-        if original is None:
-            sys.modules.pop(name, None)
-        else:
-            sys.modules[name] = original
+    _restore_modules(originals)
     return module, fake_streamlit
 
 
