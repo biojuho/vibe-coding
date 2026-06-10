@@ -4,6 +4,8 @@ import json
 import sys
 from types import ModuleType, SimpleNamespace
 
+import pytest
+
 import execution.content_writer as content_writer
 
 
@@ -82,6 +84,16 @@ def test_write_with_gemini_uses_configured_model(monkeypatch) -> None:
     assert calls["closed"] is True
 
 
+def test_write_with_gemini_missing_key_does_not_import_google(monkeypatch) -> None:
+    monkeypatch.delenv("GOOGLE_AI_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.setitem(sys.modules, "google.genai", None)
+    monkeypatch.setitem(sys.modules, "google.genai.types", None)
+
+    with pytest.raises(ValueError, match="GOOGLE_AI_API_KEY"):
+        content_writer._write_with_gemini("source text", {"system": "system"})
+
+
 def test_write_with_claude_uses_messages_api(monkeypatch) -> None:
     calls: dict[str, object] = {}
     fake_anthropic = ModuleType("anthropic")
@@ -105,6 +117,14 @@ def test_write_with_claude_uses_messages_api(monkeypatch) -> None:
     assert result == "# Claude Title\nText"
     assert calls["api_key"] == "claude-key"
     assert calls["model"] == "claude-opus-4-7"
+
+
+def test_write_with_claude_missing_key_does_not_import_anthropic(monkeypatch) -> None:
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setitem(sys.modules, "anthropic", None)
+
+    with pytest.raises(ValueError, match="ANTHROPIC_API_KEY"):
+        content_writer._write_with_claude("source text", {"system": "system"})
 
 
 def test_write_with_gpt_uses_chat_completions(monkeypatch) -> None:
@@ -132,7 +152,7 @@ def test_write_with_gpt_uses_chat_completions(monkeypatch) -> None:
     assert calls["model"] == "gpt-4o"
 
 
-def test_write_article_falls_back_and_extracts_title(monkeypatch) -> None:
+def test_write_article_falls_back_and_extracts_title(monkeypatch, recwarn) -> None:
     monkeypatch.setattr(content_writer, "load_prompt_template", lambda project: {"system": "ok"})
 
     def fail(*args, **kwargs):
@@ -146,6 +166,8 @@ def test_write_article_falls_back_and_extracts_title(monkeypatch) -> None:
     assert result["provider"] == "claude"
     assert result["title"] == "Final Title"
     assert result["char_count"] == len("# Final Title\nBody")
+    assert result["generated_at"].endswith("Z")
+    assert not [warning for warning in recwarn if issubclass(warning.category, DeprecationWarning)]
 
 
 def test_write_article_raises_when_all_providers_fail(monkeypatch) -> None:

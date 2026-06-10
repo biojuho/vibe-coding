@@ -21,7 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import yaml
@@ -95,15 +95,15 @@ def _default_template() -> dict:
 
 def _write_with_gemini(text: str, template: dict) -> str:
     """Google Gemini API로 아티클을 생성합니다."""
+    api_key = os.environ.get("GOOGLE_AI_API_KEY") or os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("GOOGLE_AI_API_KEY 또는 GEMINI_API_KEY 환경 변수 필요")
+
     try:
         from google import genai
         from google.genai import types
     except ImportError:
         raise ImportError("google-genai 미설치. pip install google-genai")
-
-    api_key = os.environ.get("GOOGLE_AI_API_KEY") or os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        raise ValueError("GOOGLE_AI_API_KEY 또는 GEMINI_API_KEY 환경 변수 필요")
 
     client = genai.Client(api_key=api_key)
     user_message = _build_user_message(text, template)
@@ -126,14 +126,14 @@ def _write_with_gemini(text: str, template: dict) -> str:
 
 def _write_with_claude(text: str, template: dict) -> str:
     """Anthropic Claude API로 아티클을 생성합니다."""
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise ValueError("ANTHROPIC_API_KEY 환경 변수 필요")
+
     try:
         import anthropic
     except ImportError:
         raise ImportError("anthropic 미설치. pip install anthropic")
-
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise ValueError("ANTHROPIC_API_KEY 환경 변수 필요")
 
     client = anthropic.Anthropic(api_key=api_key)
     user_message = _build_user_message(text, template)
@@ -276,7 +276,7 @@ def write_article(
                 "provider": p,
                 "project": project,
                 "char_count": len(article),
-                "generated_at": datetime.utcnow().isoformat() + "Z",
+                "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             }
         except Exception as exc:
             logger.warning("[ContentWriter] %s 실패: %s → 다음 provider 시도", p, exc)
