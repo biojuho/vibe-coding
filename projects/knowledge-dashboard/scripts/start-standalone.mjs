@@ -1,11 +1,14 @@
 import { spawn } from "node:child_process";
 import { cp, mkdir, readdir, stat } from "node:fs/promises";
 import path from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 
 const projectRoot = process.cwd();
 const standaloneRoot = path.join(projectRoot, ".next", "standalone");
 const appSlug = "knowledge-dashboard";
+export const COPY_RETRY_ATTEMPTS = 3;
+const COPY_RETRY_DELAY_MS = 250;
 
 async function exists(filePath) {
 	try {
@@ -57,13 +60,36 @@ async function findStandaloneServer() {
 	throw new Error("Standalone server not found. Run `npm run build` first.");
 }
 
+export function isMissingSourceDuringCopy(error) {
+	return (
+		typeof error === "object" &&
+		error !== null &&
+		"code" in error &&
+		error.code === "ENOENT"
+	);
+}
+
 async function copyIfExists(source, destination) {
 	if (!(await exists(source))) {
 		return false;
 	}
 
 	await mkdir(path.dirname(destination), { recursive: true });
-	await cp(source, destination, { recursive: true, force: true });
+	for (let attempt = 1; attempt <= COPY_RETRY_ATTEMPTS; attempt += 1) {
+		try {
+			await cp(source, destination, { recursive: true, force: true });
+			return true;
+		} catch (error) {
+			if (
+				!isMissingSourceDuringCopy(error) ||
+				attempt === COPY_RETRY_ATTEMPTS ||
+				!(await exists(source))
+			) {
+				throw error;
+			}
+			await sleep(COPY_RETRY_DELAY_MS);
+		}
+	}
 	return true;
 }
 
@@ -84,6 +110,14 @@ async function prepareRuntimeDependencies(serverPath) {
 	await copyIfExists(
 		path.join(projectRoot, "node_modules", "@swc", "helpers"),
 		path.join(serverDir, "node_modules", "@swc", "helpers"),
+	);
+	await copyIfExists(
+		path.join(projectRoot, "node_modules", "next", "dist", "lib"),
+		path.join(serverDir, "node_modules", "next", "dist", "lib"),
+	);
+	await copyIfExists(
+		path.join(projectRoot, "node_modules", "@next", "env"),
+		path.join(serverDir, "node_modules", "@next", "env"),
 	);
 }
 
