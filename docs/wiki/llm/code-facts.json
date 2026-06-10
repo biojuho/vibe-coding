@@ -426,12 +426,20 @@
           "_model_for_provider",
           "_provider_enabled",
           "_resolve_provider_order",
-          "_timeout_for"
+          "_timeout_for",
+          "anthropic_client",
+          "anthropic_client",
+          "ollama_client",
+          "ollama_client",
+          "openai_client",
+          "openai_client",
+          "xai_client",
+          "xai_client"
         ]
       },
       "constant_lines": {
-        "DEFAULT_PROVIDER_ORDER": 31,
-        "PROVIDER_ALIASES": 20
+        "DEFAULT_PROVIDER_ORDER": 32,
+        "PROVIDER_ALIASES": 21
       },
       "constants": {
         "DEFAULT_PROVIDER_ORDER": [
@@ -481,6 +489,7 @@
       },
       "functions": [
         "_emit_workspace_langfuse_trace",
+        "_load_async_anthropic",
         "init_provider_clients"
       ],
       "id": "blind_to_x_draft_providers",
@@ -493,7 +502,7 @@
       "status": "ok"
     }
   ],
-  "generated_at": "2026-06-10",
+  "generated_at": "2026-06-11",
   "policy": {
     "method": "Python AST parse plus ast.literal_eval for module-level literal constants.",
     "non_goal": "This manifest does not prove that prose claims are semantically correct; it makes code drift visible before review.",
