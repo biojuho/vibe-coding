@@ -1,0 +1,3 @@
+## Rotation 2026-06-11 (archived DONE rows beyond the newest 5)
+
+| T-2123b | `[auto-research/debug-inventory-reproduction-unclear-inventory-lines]` Extracted `_markdown_reproduction_unclear_inventory_lines(...)` from `_append_markdown_reproduction_unclear_items(...)` and `_markdown_inventory_body_lines(...)`, naming the inventory-dict to reproduction-unclear Markdown section boundary while preserving exact empty/populated section output and body line order. Verification passed focused debug inventory pytest (`27 passed`), broad auto-research/code-review pytest (`197 passed`), Ruff check/format, py_compile, diff-check with LF/CRLF warnings only, graph risk `0.00`, and A/B `adopt_candidate` (`score_delta=1.428571`). | Codex | 2026-06-10 |
