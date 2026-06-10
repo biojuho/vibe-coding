@@ -482,18 +482,28 @@ def _self_assignment_expression(tree: ast.Module, class_name: str, attribute_nam
     return None
 
 
-def _derive_code_facts(target_id: str, tree: ast.Module, constants: dict[str, object]) -> dict:
-    derived: dict[str, object] = {}
+def _derived_default_provider_order(constants: dict[str, object]) -> dict[str, object]:
     default_order = constants.get("DEFAULT_PROVIDER_ORDER")
-    if isinstance(default_order, list):
-        derived["default_provider_order"] = default_order
-        derived["default_provider_count"] = len(default_order)
+    if not isinstance(default_order, list):
+        return {}
+    return {
+        "default_provider_order": default_order,
+        "default_provider_count": len(default_order),
+    }
 
+
+def _derived_default_models(constants: dict[str, object]) -> dict[str, object]:
     default_models = constants.get("DEFAULT_MODELS")
-    if isinstance(default_models, dict):
-        derived["default_model_providers"] = sorted(default_models)
-        derived["default_model_count"] = len(default_models)
+    if not isinstance(default_models, dict):
+        return {}
+    return {
+        "default_model_providers": sorted(default_models),
+        "default_model_count": len(default_models),
+    }
 
+
+def _derived_provider_metadata(constants: dict[str, object]) -> dict[str, object]:
+    derived: dict[str, object] = {}
     aliases = constants.get("PROVIDER_ALIASES")
     if isinstance(aliases, dict):
         derived["alias_count"] = len(aliases)
@@ -510,30 +520,58 @@ def _derive_code_facts(target_id: str, tree: ast.Module, constants: dict[str, ob
     pricing = constants.get("PRICING")
     if isinstance(pricing, dict):
         derived["pricing_models"] = sorted(pricing)
+    return derived
 
+
+def _derived_generation_helper_metadata(tree: ast.Module, default_order: list | None) -> dict[str, object]:
     helper_providers = _generation_helper_providers(tree)
-    if helper_providers:
-        derived["generation_helper_providers"] = helper_providers
-        if isinstance(default_order, list):
-            derived["default_providers_without_generation_helper"] = sorted(
-                provider for provider in default_order if provider not in helper_providers
-            )
-            derived["generation_helpers_outside_default_order"] = sorted(
-                provider for provider in helper_providers if provider not in default_order
-            )
+    if not helper_providers:
+        return {}
+    derived: dict[str, object] = {"generation_helper_providers": helper_providers}
+    if default_order is None:
+        return derived
 
+    derived["default_providers_without_generation_helper"] = sorted(
+        provider for provider in default_order if provider not in helper_providers
+    )
+    derived["generation_helpers_outside_default_order"] = sorted(
+        provider for provider in helper_providers if provider not in default_order
+    )
+    return derived
+
+
+def _derived_constructor_assignments(target_id: str, tree: ast.Module) -> dict[str, object]:
     class_name = {
         "workspace_llm_client": "LLMClient",
         "shorts_llm_router": "LLMRouter",
     }.get(target_id)
-    if class_name:
-        providers_expr = _self_assignment_expression(tree, class_name, "providers")
-        if providers_expr:
-            derived["constructor_providers_expression"] = providers_expr
-        models_expr = _self_assignment_expression(tree, class_name, "models")
-        if models_expr:
-            derived["constructor_models_expression"] = models_expr
+    if not class_name:
+        return {}
 
+    derived: dict[str, object] = {}
+    providers_expr = _self_assignment_expression(tree, class_name, "providers")
+    if providers_expr:
+        derived["constructor_providers_expression"] = providers_expr
+    models_expr = _self_assignment_expression(tree, class_name, "models")
+    if models_expr:
+        derived["constructor_models_expression"] = models_expr
+    return derived
+
+
+def _derive_code_facts(target_id: str, tree: ast.Module, constants: dict[str, object]) -> dict:
+    derived: dict[str, object] = {}
+    derived.update(_derived_default_provider_order(constants))
+    derived.update(_derived_default_models(constants))
+    derived.update(_derived_provider_metadata(constants))
+
+    default_order = constants.get("DEFAULT_PROVIDER_ORDER")
+    derived.update(
+        _derived_generation_helper_metadata(
+            tree,
+            default_order if isinstance(default_order, list) else None,
+        )
+    )
+    derived.update(_derived_constructor_assignments(target_id, tree))
     return derived
 
 
@@ -1109,7 +1147,7 @@ def _audit_local_links(repo_root: Path, markdown_files: Iterable[Path]) -> list[
     return issues
 
 
-def _audit_release_summary_contract(repo_root: Path, markdown_files: Iterable[Path]) -> list[Issue]:
+def _release_summary_docs(markdown_files: Iterable[Path]) -> list[tuple[Path, str]]:
     docs: list[tuple[Path, str]] = []
     for path in markdown_files:
         text, error = _read_text(path)
@@ -1117,60 +1155,76 @@ def _audit_release_summary_contract(repo_root: Path, markdown_files: Iterable[Pa
             continue
         if any(marker in text for marker in RELEASE_SUMMARY_TRIGGER_MARKERS):
             docs.append((path, text))
+    return docs
 
+
+def _missing_release_summary_marker_issues(path: str, combined_text: str) -> list[Issue]:
+    issues: list[Issue] = []
+    for marker, code in RELEASE_SUMMARY_REQUIRED_MARKERS.items():
+        if marker in combined_text:
+            continue
+        issues.append(
+            Issue(
+                severity="error",
+                code=code,
+                path=path,
+                message=f"Release-summary workflow docs must mention `{marker}`.",
+            )
+        )
+    return issues
+
+
+def _release_summary_doc_issues(repo_root: Path, path: Path, text: str) -> list[Issue]:
+    rel = _repo_rel(repo_root, path)
+    issues: list[Issue] = []
+    stale_versions = sorted({f"v{match.group(1)}" for match in STALE_UPLOAD_ARTIFACT_RE.finditer(text)})
+    if stale_versions:
+        issues.append(
+            Issue(
+                severity="error",
+                code="release_summary_stale_upload_artifact_action",
+                path=rel,
+                message=(
+                    "Release-summary workflow docs must use actions/upload-artifact@v7, "
+                    f"not {', '.join(stale_versions)}."
+                ),
+            )
+        )
+    if HIDDEN_TMP_ARTIFACT_PATH_RE.search(text):
+        issues.append(
+            Issue(
+                severity="error",
+                code="release_summary_hidden_tmp_artifact_upload",
+                path=rel,
+                message="Upload examples must use visible `release-evidence/llm-wiki`, not direct `.tmp` paths.",
+            )
+        )
+    if MANUAL_STEP_SUMMARY_ECHO_RE.search(text):
+        issues.append(
+            Issue(
+                severity="error",
+                code="release_summary_manual_step_summary_echo",
+                path=rel,
+                message=(
+                    "Release-summary docs must use `llm_wiki_release_summary.py` instead of manual "
+                    "`GITHUB_STEP_SUMMARY` shell echoing."
+                ),
+            )
+        )
+    return issues
+
+
+def _audit_release_summary_contract(repo_root: Path, markdown_files: Iterable[Path]) -> list[Issue]:
+    docs = _release_summary_docs(markdown_files)
     if not docs:
         return []
 
-    issues: list[Issue] = []
-    combined = "\n".join(text for _, text in docs)
-    primary_path = _repo_rel(repo_root, docs[0][0])
-    for marker, code in RELEASE_SUMMARY_REQUIRED_MARKERS.items():
-        if marker not in combined:
-            issues.append(
-                Issue(
-                    severity="error",
-                    code=code,
-                    path=primary_path,
-                    message=f"Release-summary workflow docs must mention `{marker}`.",
-                )
-            )
-
+    issues = _missing_release_summary_marker_issues(
+        _repo_rel(repo_root, docs[0][0]),
+        "\n".join(text for _, text in docs),
+    )
     for path, text in docs:
-        rel = _repo_rel(repo_root, path)
-        stale_versions = sorted({f"v{match.group(1)}" for match in STALE_UPLOAD_ARTIFACT_RE.finditer(text)})
-        if stale_versions:
-            issues.append(
-                Issue(
-                    severity="error",
-                    code="release_summary_stale_upload_artifact_action",
-                    path=rel,
-                    message=(
-                        "Release-summary workflow docs must use actions/upload-artifact@v7, "
-                        f"not {', '.join(stale_versions)}."
-                    ),
-                )
-            )
-        if HIDDEN_TMP_ARTIFACT_PATH_RE.search(text):
-            issues.append(
-                Issue(
-                    severity="error",
-                    code="release_summary_hidden_tmp_artifact_upload",
-                    path=rel,
-                    message="Upload examples must use visible `release-evidence/llm-wiki`, not direct `.tmp` paths.",
-                )
-            )
-        if MANUAL_STEP_SUMMARY_ECHO_RE.search(text):
-            issues.append(
-                Issue(
-                    severity="error",
-                    code="release_summary_manual_step_summary_echo",
-                    path=rel,
-                    message=(
-                        "Release-summary docs must use `llm_wiki_release_summary.py` instead of manual "
-                        "`GITHUB_STEP_SUMMARY` shell echoing."
-                    ),
-                )
-            )
+        issues.extend(_release_summary_doc_issues(repo_root, path, text))
     return issues
 
 
@@ -1182,6 +1236,180 @@ def _release_summary_contract_status(markdown_files: Iterable[Path], issues: lis
         if any(marker in text for marker in RELEASE_SUMMARY_TRIGGER_MARKERS):
             return "fail" if issues else "pass"
     return "not_applicable"
+
+
+def _source_inventory_schema_issues(manifest: dict, rel_manifest: str) -> tuple[list[Issue], list | None]:
+    issues: list[Issue] = []
+    if manifest.get("schema_version") != SOURCE_INVENTORY_SCHEMA_VERSION:
+        issues.append(
+            Issue(
+                severity="error",
+                code="source_inventory_schema_mismatch",
+                path=rel_manifest,
+                message=f"Expected schema_version {SOURCE_INVENTORY_SCHEMA_VERSION}.",
+            )
+        )
+
+    sources = manifest.get("sources")
+    if not isinstance(sources, list):
+        issues.append(
+            Issue(
+                severity="error",
+                code="invalid_source_inventory",
+                path=rel_manifest,
+                message="sources must be a list.",
+            )
+        )
+        return issues, None
+    return issues, sources
+
+
+def _source_inventory_manifest_sources(
+    sources: list,
+    rel_manifest: str,
+) -> tuple[dict[str, dict], list[Issue]]:
+    issues: list[Issue] = []
+    manifest_sources: dict[str, dict] = {}
+    for index, entry in enumerate(sources):
+        if not isinstance(entry, dict):
+            issues.append(
+                Issue("error", "invalid_source_inventory_entry", rel_manifest, f"sources[{index}] must be an object.")
+            )
+            continue
+        url = entry.get("url")
+        if not isinstance(url, str) or not url.startswith(("http://", "https://")):
+            issues.append(
+                Issue("error", "invalid_source_inventory_entry", rel_manifest, f"sources[{index}] has invalid url.")
+            )
+            continue
+        if url in manifest_sources:
+            issues.append(Issue("error", "duplicate_source_inventory_url", rel_manifest, f"Duplicate URL: {url}"))
+        manifest_sources[url] = entry
+    return manifest_sources, issues
+
+
+def _source_inventory_drift_issues(actual_urls: set[str], manifest_urls: set[str], rel_manifest: str) -> list[Issue]:
+    issues: list[Issue] = []
+    for url in sorted(actual_urls - manifest_urls):
+        issues.append(
+            Issue(
+                severity="error",
+                code="source_inventory_missing_url",
+                path=rel_manifest,
+                message=f"External URL is used in markdown but missing from source inventory: {url}",
+            )
+        )
+    for url in sorted(manifest_urls - actual_urls):
+        issues.append(
+            Issue(
+                severity="error",
+                code="source_inventory_stale_url",
+                path=rel_manifest,
+                message=f"Source inventory URL is no longer used in markdown: {url}",
+            )
+        )
+    return issues
+
+
+def _source_inventory_date_field(
+    entry: dict, field_name: str, url: str, rel_manifest: str
+) -> tuple[date | None, Issue | None]:
+    try:
+        return date.fromisoformat(str(entry.get(field_name))), None
+    except ValueError:
+        return (
+            None,
+            Issue(
+                severity="error",
+                code=f"invalid_source_{field_name}",
+                path=rel_manifest,
+                message=f"{url} has invalid {field_name} {entry.get(field_name)!r}.",
+            ),
+        )
+
+
+def _source_inventory_date_issues(
+    url: str,
+    last_verified: date | None,
+    review_after: date | None,
+    *,
+    today: date,
+    rel_manifest: str,
+) -> list[Issue]:
+    issues: list[Issue] = []
+    if last_verified is not None and review_after is not None and review_after < last_verified:
+        issues.append(
+            Issue(
+                severity="error",
+                code="invalid_source_review_after",
+                path=rel_manifest,
+                message=f"{url} review_after is before last_verified.",
+            )
+        )
+    if review_after is not None and today > review_after:
+        issues.append(
+            Issue(
+                severity="error",
+                code="source_review_due",
+                path=rel_manifest,
+                message=f"{url} review_after {review_after.isoformat()} is past due.",
+            )
+        )
+    return issues
+
+
+def _source_inventory_entry_issues(
+    url: str,
+    entry: dict,
+    expected_pages: list[str],
+    rel_manifest: str,
+    *,
+    today: date,
+) -> list[Issue]:
+    issues: list[Issue] = []
+    pages = entry.get("pages")
+    if pages != expected_pages:
+        issues.append(
+            Issue(
+                severity="error",
+                code="source_inventory_page_mismatch",
+                path=rel_manifest,
+                message=f"{url} pages are {pages!r}; expected {expected_pages!r}.",
+            )
+        )
+
+    source_type = entry.get("source_type")
+    if source_type not in SOURCE_TYPES:
+        issues.append(
+            Issue(
+                severity="error",
+                code="invalid_source_type",
+                path=rel_manifest,
+                message=f"{url} has invalid source_type {source_type!r}.",
+            )
+        )
+
+    volatility = entry.get("volatility")
+    if volatility not in VOLATILITY_CADENCE_DAYS:
+        issues.append(
+            Issue(
+                severity="error",
+                code="invalid_source_volatility",
+                path=rel_manifest,
+                message=f"{url} has invalid volatility {volatility!r}.",
+            )
+        )
+
+    last_verified, last_verified_issue = _source_inventory_date_field(entry, "last_verified", url, rel_manifest)
+    if last_verified_issue is not None:
+        issues.append(last_verified_issue)
+    review_after, review_after_issue = _source_inventory_date_field(entry, "review_after", url, rel_manifest)
+    if review_after_issue is not None:
+        issues.append(review_after_issue)
+    issues.extend(
+        _source_inventory_date_issues(url, last_verified, review_after, today=today, rel_manifest=rel_manifest)
+    )
+    return issues
 
 
 def _audit_source_inventory(
@@ -1220,145 +1448,27 @@ def _audit_source_inventory(
             )
         ]
 
-    if manifest.get("schema_version") != SOURCE_INVENTORY_SCHEMA_VERSION:
-        issues.append(
-            Issue(
-                severity="error",
-                code="source_inventory_schema_mismatch",
-                path=rel_manifest,
-                message=f"Expected schema_version {SOURCE_INVENTORY_SCHEMA_VERSION}.",
-            )
-        )
+    schema_issues, sources = _source_inventory_schema_issues(manifest, rel_manifest)
+    issues.extend(schema_issues)
+    if sources is None:
+        return issues
 
-    sources = manifest.get("sources")
-    if not isinstance(sources, list):
-        return [
-            *issues,
-            Issue(
-                severity="error",
-                code="invalid_source_inventory",
-                path=rel_manifest,
-                message="sources must be a list.",
-            ),
-        ]
-
-    manifest_sources: dict[str, dict] = {}
-    for index, entry in enumerate(sources):
-        if not isinstance(entry, dict):
-            issues.append(
-                Issue("error", "invalid_source_inventory_entry", rel_manifest, f"sources[{index}] must be an object.")
-            )
-            continue
-        url = entry.get("url")
-        if not isinstance(url, str) or not url.startswith(("http://", "https://")):
-            issues.append(
-                Issue("error", "invalid_source_inventory_entry", rel_manifest, f"sources[{index}] has invalid url.")
-            )
-            continue
-        if url in manifest_sources:
-            issues.append(Issue("error", "duplicate_source_inventory_url", rel_manifest, f"Duplicate URL: {url}"))
-        manifest_sources[url] = entry
+    manifest_sources, source_issues = _source_inventory_manifest_sources(sources, rel_manifest)
+    issues.extend(source_issues)
 
     manifest_urls = set(manifest_sources)
-    for url in sorted(actual_urls - manifest_urls):
-        issues.append(
-            Issue(
-                severity="error",
-                code="source_inventory_missing_url",
-                path=rel_manifest,
-                message=f"External URL is used in markdown but missing from source inventory: {url}",
-            )
-        )
-    for url in sorted(manifest_urls - actual_urls):
-        issues.append(
-            Issue(
-                severity="error",
-                code="source_inventory_stale_url",
-                path=rel_manifest,
-                message=f"Source inventory URL is no longer used in markdown: {url}",
-            )
-        )
+    issues.extend(_source_inventory_drift_issues(actual_urls, manifest_urls, rel_manifest))
 
     for url in sorted(manifest_urls & actual_urls):
-        entry = manifest_sources[url]
-        pages = entry.get("pages")
-        expected_pages = refs[url]["pages"]
-        if pages != expected_pages:
-            issues.append(
-                Issue(
-                    severity="error",
-                    code="source_inventory_page_mismatch",
-                    path=rel_manifest,
-                    message=f"{url} pages are {pages!r}; expected {expected_pages!r}.",
-                )
+        issues.extend(
+            _source_inventory_entry_issues(
+                url,
+                manifest_sources[url],
+                refs[url]["pages"],
+                rel_manifest,
+                today=today,
             )
-
-        source_type = entry.get("source_type")
-        if source_type not in SOURCE_TYPES:
-            issues.append(
-                Issue(
-                    severity="error",
-                    code="invalid_source_type",
-                    path=rel_manifest,
-                    message=f"{url} has invalid source_type {source_type!r}.",
-                )
-            )
-
-        volatility = entry.get("volatility")
-        if volatility not in VOLATILITY_CADENCE_DAYS:
-            issues.append(
-                Issue(
-                    severity="error",
-                    code="invalid_source_volatility",
-                    path=rel_manifest,
-                    message=f"{url} has invalid volatility {volatility!r}.",
-                )
-            )
-
-        try:
-            last_verified = date.fromisoformat(str(entry.get("last_verified")))
-        except ValueError:
-            issues.append(
-                Issue(
-                    severity="error",
-                    code="invalid_source_last_verified",
-                    path=rel_manifest,
-                    message=f"{url} has invalid last_verified {entry.get('last_verified')!r}.",
-                )
-            )
-            last_verified = None
-
-        try:
-            review_after = date.fromisoformat(str(entry.get("review_after")))
-        except ValueError:
-            issues.append(
-                Issue(
-                    severity="error",
-                    code="invalid_source_review_after",
-                    path=rel_manifest,
-                    message=f"{url} has invalid review_after {entry.get('review_after')!r}.",
-                )
-            )
-            review_after = None
-
-        if last_verified is not None and review_after is not None and review_after < last_verified:
-            issues.append(
-                Issue(
-                    severity="error",
-                    code="invalid_source_review_after",
-                    path=rel_manifest,
-                    message=f"{url} review_after is before last_verified.",
-                )
-            )
-        if review_after is not None and today > review_after:
-            issues.append(
-                Issue(
-                    severity="error",
-                    code="source_review_due",
-                    path=rel_manifest,
-                    message=f"{url} review_after {review_after.isoformat()} is past due.",
-                )
-            )
+        )
 
     return issues
 
@@ -1719,7 +1829,7 @@ def build_strict_release_evidence(
     }
 
 
-def main(argv: list[str] | None = None) -> int:
+def _llm_wiki_audit_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Audit docs/wiki/llm for maintainability regressions.")
     parser.add_argument("--repo-root", type=Path, default=REPO_ROOT_DEFAULT)
     parser.add_argument("--wiki-dir", type=Path, default=WIKI_DIR_DEFAULT)
@@ -1766,24 +1876,146 @@ def main(argv: list[str] | None = None) -> int:
         default=STRICT_RELEASE_EVIDENCE_DEFAULT,
         help=f"Output path for --write-strict-release-evidence (default: {STRICT_RELEASE_EVIDENCE_DEFAULT}).",
     )
-    args = parser.parse_args(argv)
+    return parser
+
+
+def _parse_llm_wiki_audit_args(argv: list[str] | None = None) -> argparse.Namespace:
+    return _llm_wiki_audit_parser().parse_args(argv)
+
+
+def _wiki_dir_path(repo_root: Path, wiki_dir: Path) -> Path:
+    return wiki_dir if wiki_dir.is_absolute() else repo_root / wiki_dir
+
+
+def _write_json_file(path: Path, payload: dict, *, sort_keys: bool = False) -> None:
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=sort_keys) + "\n", encoding="utf-8")
+
+
+def _write_requested_audit_artifacts(args: argparse.Namespace, *, today: date) -> None:
+    wiki_dir = _wiki_dir_path(args.repo_root, args.wiki_dir)
+    if args.write_source_inventory:
+        inventory = build_source_inventory(args.repo_root, wiki_dir=args.wiki_dir, today=today)
+        _write_json_file(wiki_dir / SOURCE_INVENTORY_NAME, inventory)
+    if args.write_code_facts:
+        facts = build_code_facts(args.repo_root, today=today)
+        _write_json_file(wiki_dir / CODE_FACTS_NAME, facts, sort_keys=True)
+    if args.write_config_facts:
+        facts = build_config_facts(args.repo_root, today=today)
+        _write_json_file(wiki_dir / CONFIG_FACTS_NAME, facts, sort_keys=True)
+
+
+def _apply_strict_manifest_warning_summary(report: dict, args: argparse.Namespace) -> tuple[int, bool, bool]:
+    unexpected_count = report["summary"].get("manifest_check_unexpected_warning_count", 0)
+    strict_mode = bool(args.fail_on_unexpected_manifest_warnings or args.write_strict_release_evidence)
+    strict_failure = bool(strict_mode and unexpected_count)
+    report["summary"]["strict_manifest_warning_mode"] = strict_mode
+    report["summary"]["strict_manifest_warning_failure"] = strict_failure
+    return unexpected_count, strict_mode, strict_failure
+
+
+def _write_strict_release_evidence(args: argparse.Namespace, report: dict, *, today: date) -> None:
+    if not args.write_strict_release_evidence:
+        return
+
+    repo_root = args.repo_root.resolve()
+    evidence_path = _repo_output_path(repo_root, args.strict_release_evidence_path)
+    evidence_path.parent.mkdir(parents=True, exist_ok=True)
+    strict_failure = bool(report["summary"].get("strict_manifest_warning_failure"))
+    evidence_status = "fail" if report["summary"]["status"] == "fail" or strict_failure else "pass"
+    report["summary"]["strict_release_evidence_path"] = _repo_rel(repo_root, evidence_path.resolve())
+    report["summary"]["strict_release_evidence_status"] = evidence_status
+    evidence = build_strict_release_evidence(
+        report,
+        repo_root=args.repo_root,
+        evidence_path=evidence_path,
+        today=today,
+    )
+    _write_json_file(evidence_path, evidence)
+
+
+def _manifest_warning_counts(summary: dict) -> tuple[int, int, int]:
+    warning_count = summary.get("manifest_check_warning_count", 0)
+    classification_counts = summary.get("manifest_check_warning_classification_counts", {})
+    if not isinstance(classification_counts, dict):
+        return warning_count, 0, 0
+    return (
+        warning_count,
+        classification_counts.get("accepted_known", 0),
+        classification_counts.get("unexpected", 0),
+    )
+
+
+def _emit_manifest_warnings(summary: dict) -> None:
+    warning_count, accepted_count, unexpected_count = _manifest_warning_counts(summary)
+    if not warning_count:
+        return
+
+    print(
+        f"Manifest checks: {summary.get('manifest_check_count', 0)} checks, "
+        f"{warning_count} warnings "
+        f"({accepted_count} accepted known, {unexpected_count} unexpected; non-failing)"
+    )
+    for warning in summary.get("manifest_check_warnings", []):
+        print(_format_manifest_warning(warning))
+
+
+def _emit_text_report(
+    report: dict,
+    *,
+    strict_manifest_warning_failure: bool,
+    unexpected_manifest_warning_count: int,
+    write_strict_release_evidence: bool,
+) -> None:
+    summary = report["summary"]
+    manifest_warning_count = summary.get("manifest_check_warning_count", 0)
+    print(
+        f"LLM wiki audit: {summary['status']} "
+        f"({summary['page_count']} pages, {summary['error_count']} errors, "
+        f"{summary['warning_count']} audit warnings, "
+        f"{manifest_warning_count} manifest warnings)"
+    )
+    _emit_manifest_warnings(summary)
+    if strict_manifest_warning_failure:
+        print(f"Strict manifest warning gate: fail ({unexpected_manifest_warning_count} unexpected manifest warnings)")
+    if write_strict_release_evidence:
+        print(
+            "Strict release evidence: "
+            f"{summary.get('strict_release_evidence_path')} "
+            f"({summary.get('strict_release_evidence_status')})"
+        )
+    for issue in report["issues"]:
+        print(f"- [{issue['severity']}] {issue['path']}: {issue['code']} - {issue['message']}")
+
+
+def _emit_report(
+    report: dict,
+    *,
+    json_output: bool,
+    strict_manifest_warning_failure: bool,
+    unexpected_manifest_warning_count: int,
+    write_strict_release_evidence: bool,
+) -> None:
+    if json_output:
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        return
+
+    _emit_text_report(
+        report,
+        strict_manifest_warning_failure=strict_manifest_warning_failure,
+        unexpected_manifest_warning_count=unexpected_manifest_warning_count,
+        write_strict_release_evidence=write_strict_release_evidence,
+    )
+
+
+def _audit_exit_code(report: dict, *, strict_manifest_warning_failure: bool) -> int:
+    return 1 if report["summary"]["status"] == "fail" or strict_manifest_warning_failure else 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parse_llm_wiki_audit_args(argv)
 
     today = date.fromisoformat(args.today) if args.today else date.today()
-    if args.write_source_inventory:
-        wiki_dir = args.wiki_dir if args.wiki_dir.is_absolute() else args.repo_root / args.wiki_dir
-        inventory = build_source_inventory(args.repo_root, wiki_dir=args.wiki_dir, today=today)
-        inventory_path = wiki_dir / SOURCE_INVENTORY_NAME
-        inventory_path.write_text(json.dumps(inventory, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    if args.write_code_facts:
-        wiki_dir = args.wiki_dir if args.wiki_dir.is_absolute() else args.repo_root / args.wiki_dir
-        facts = build_code_facts(args.repo_root, today=today)
-        facts_path = wiki_dir / CODE_FACTS_NAME
-        facts_path.write_text(json.dumps(facts, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    if args.write_config_facts:
-        wiki_dir = args.wiki_dir if args.wiki_dir.is_absolute() else args.repo_root / args.wiki_dir
-        facts = build_config_facts(args.repo_root, today=today)
-        facts_path = wiki_dir / CONFIG_FACTS_NAME
-        facts_path.write_text(json.dumps(facts, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    _write_requested_audit_artifacts(args, today=today)
 
     report = build_report(
         args.repo_root,
@@ -1791,63 +2023,19 @@ def main(argv: list[str] | None = None) -> int:
         today=today,
         max_source_age_days=args.max_source_age_days,
     )
-    unexpected_manifest_warning_count = report["summary"].get("manifest_check_unexpected_warning_count", 0)
-    strict_manifest_warning_mode = bool(args.fail_on_unexpected_manifest_warnings or args.write_strict_release_evidence)
-    strict_manifest_warning_failure = bool(strict_manifest_warning_mode and unexpected_manifest_warning_count)
-    report["summary"]["strict_manifest_warning_mode"] = strict_manifest_warning_mode
-    report["summary"]["strict_manifest_warning_failure"] = strict_manifest_warning_failure
-    if args.write_strict_release_evidence:
-        evidence_path = _repo_output_path(args.repo_root.resolve(), args.strict_release_evidence_path)
-        evidence_path.parent.mkdir(parents=True, exist_ok=True)
-        evidence_status = "fail" if report["summary"]["status"] == "fail" or strict_manifest_warning_failure else "pass"
-        report["summary"]["strict_release_evidence_path"] = _repo_rel(args.repo_root.resolve(), evidence_path.resolve())
-        report["summary"]["strict_release_evidence_status"] = evidence_status
-        evidence = build_strict_release_evidence(
-            report,
-            repo_root=args.repo_root,
-            evidence_path=evidence_path,
-            today=today,
-        )
-        evidence_path.write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    if args.json:
-        print(json.dumps(report, ensure_ascii=False, indent=2))
-    else:
-        summary = report["summary"]
-        manifest_warning_count = summary.get("manifest_check_warning_count", 0)
-        print(
-            f"LLM wiki audit: {summary['status']} "
-            f"({summary['page_count']} pages, {summary['error_count']} errors, "
-            f"{summary['warning_count']} audit warnings, "
-            f"{manifest_warning_count} manifest warnings)"
-        )
-        if manifest_warning_count:
-            classification_counts = summary.get("manifest_check_warning_classification_counts", {})
-            accepted_count = (
-                classification_counts.get("accepted_known", 0) if isinstance(classification_counts, dict) else 0
-            )
-            unexpected_count = (
-                classification_counts.get("unexpected", 0) if isinstance(classification_counts, dict) else 0
-            )
-            print(
-                f"Manifest checks: {summary.get('manifest_check_count', 0)} checks, "
-                f"{manifest_warning_count} warnings "
-                f"({accepted_count} accepted known, {unexpected_count} unexpected; non-failing)"
-            )
-            for warning in summary.get("manifest_check_warnings", []):
-                print(_format_manifest_warning(warning))
-        if strict_manifest_warning_failure:
-            print(
-                f"Strict manifest warning gate: fail ({unexpected_manifest_warning_count} unexpected manifest warnings)"
-            )
-        if args.write_strict_release_evidence:
-            print(
-                "Strict release evidence: "
-                f"{summary.get('strict_release_evidence_path')} "
-                f"({summary.get('strict_release_evidence_status')})"
-            )
-        for issue in report["issues"]:
-            print(f"- [{issue['severity']}] {issue['path']}: {issue['code']} - {issue['message']}")
-    return 1 if report["summary"]["status"] == "fail" or strict_manifest_warning_failure else 0
+    unexpected_manifest_warning_count, _, strict_manifest_warning_failure = _apply_strict_manifest_warning_summary(
+        report,
+        args,
+    )
+    _write_strict_release_evidence(args, report, today=today)
+    _emit_report(
+        report,
+        json_output=args.json,
+        strict_manifest_warning_failure=strict_manifest_warning_failure,
+        unexpected_manifest_warning_count=unexpected_manifest_warning_count,
+        write_strict_release_evidence=args.write_strict_release_evidence,
+    )
+    return _audit_exit_code(report, strict_manifest_warning_failure=strict_manifest_warning_failure)
 
 
 if __name__ == "__main__":

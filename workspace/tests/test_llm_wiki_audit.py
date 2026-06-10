@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import importlib.util
 import json
 import sys
@@ -238,6 +239,205 @@ def _write_minimal_healthy_wiki(root: Path) -> None:
 
 def _codes(report: dict) -> set[str]:
     return {issue["code"] for issue in report["issues"]}
+
+
+def test_derived_provider_metadata_records_aliases_urls_keys_and_pricing() -> None:
+    derived = audit._derived_provider_metadata(
+        {
+            "PROVIDER_ALIASES": {"chatgpt": "openai", "gemini": "google"},
+            "OPENAI_COMPATIBLE_BASE_URLS": {"xai": "https://api.x.ai/v1"},
+            "API_KEY_ENV_VARS": {"openai": "OPENAI_API_KEY", "google": "GEMINI_API_KEY"},
+            "PRICING": {"gpt-test": {"input": 1.0}, "gemini-test": {"input": 0.0}},
+        }
+    )
+
+    assert derived == {
+        "alias_count": 2,
+        "alias_canonical_providers": ["google", "openai"],
+        "openai_compatible_providers": ["xai"],
+        "api_key_providers": ["google", "openai"],
+        "pricing_models": ["gemini-test", "gpt-test"],
+    }
+
+
+def test_derived_generation_helper_metadata_compares_helpers_to_default_order() -> None:
+    tree = ast.parse(
+        "\n".join(
+            (
+                "class Router:",
+                "    def _generate_with_openai(self): pass",
+                "    def _generate_with_google(self): pass",
+                "def _generate_with_xai(): pass",
+            )
+        )
+    )
+
+    derived = audit._derived_generation_helper_metadata(tree, ["openai", "anthropic"])
+
+    assert derived == {
+        "generation_helper_providers": ["google", "openai", "xai"],
+        "default_providers_without_generation_helper": ["anthropic"],
+        "generation_helpers_outside_default_order": ["google", "xai"],
+    }
+
+
+def test_derived_constructor_assignments_records_target_constructor_defaults() -> None:
+    tree = ast.parse(
+        "\n".join(
+            (
+                "DEFAULT_PROVIDER_ORDER = ['openai']",
+                "DEFAULT_MODELS = {'openai': 'gpt-test'}",
+                "class LLMClient:",
+                "    def __init__(self, providers=None):",
+                "        self.providers = list(providers or DEFAULT_PROVIDER_ORDER)",
+                "        self.models = DEFAULT_MODELS.copy()",
+            )
+        )
+    )
+
+    assert audit._derived_constructor_assignments("workspace_llm_client", tree) == {
+        "constructor_providers_expression": "list(providers or DEFAULT_PROVIDER_ORDER)",
+        "constructor_models_expression": "DEFAULT_MODELS.copy()",
+    }
+
+
+def test_release_summary_docs_collects_only_triggered_pages(tmp_path: Path) -> None:
+    plain_page = _write_wiki_file(tmp_path, "01-plain.md", "# 01\n\nNo release evidence here.\n")
+    release_page = _write_wiki_file(
+        tmp_path,
+        "14-maintenance.md",
+        "# 14\n\n`llm_wiki_release_summary.py` writes to `GITHUB_STEP_SUMMARY`.\n",
+    )
+
+    docs = audit._release_summary_docs([plain_page, release_page])
+
+    assert docs == [(release_page, release_page.read_text(encoding="utf-8"))]
+
+
+def test_missing_release_summary_marker_issues_reports_required_markers() -> None:
+    issues = audit._missing_release_summary_marker_issues(
+        "docs/wiki/llm/14-maintenance.md",
+        "`llm_wiki_release_summary.py` writes to `GITHUB_STEP_SUMMARY`.",
+    )
+
+    assert [issue.code for issue in issues] == [
+        "release_summary_visible_artifact_missing",
+        "release_summary_upload_artifact_action_missing",
+    ]
+    assert {issue.path for issue in issues} == {"docs/wiki/llm/14-maintenance.md"}
+
+
+def test_release_summary_doc_issues_flags_unsafe_workflow_examples(tmp_path: Path) -> None:
+    page = _write_wiki_file(
+        tmp_path,
+        "14-maintenance.md",
+        "\n".join(
+            [
+                "# 14",
+                "",
+                "- run: echo 'LLM Wiki ok' >> \"$GITHUB_STEP_SUMMARY\"",
+                "- uses: actions/upload-artifact@v4",
+                "  with:",
+                "    path: .tmp/llm-wiki-strict-audit-current.json",
+                "",
+            ]
+        ),
+    )
+
+    issues = audit._release_summary_doc_issues(tmp_path, page, page.read_text(encoding="utf-8"))
+
+    assert [issue.code for issue in issues] == [
+        "release_summary_stale_upload_artifact_action",
+        "release_summary_hidden_tmp_artifact_upload",
+        "release_summary_manual_step_summary_echo",
+    ]
+    assert issues[0].message.endswith("not v4.")
+
+
+def test_source_inventory_manifest_sources_reports_entry_shape_and_duplicates() -> None:
+    first_entry = {"url": "https://one.test", "pages": ["01.md"]}
+    duplicate_entry = {"url": "https://one.test", "pages": ["02.md"]}
+
+    manifest_sources, issues = audit._source_inventory_manifest_sources(
+        [
+            first_entry,
+            duplicate_entry,
+            [],
+            {"url": "ftp://bad.test"},
+        ],
+        "docs/wiki/llm/source-inventory.json",
+    )
+
+    assert manifest_sources == {"https://one.test": duplicate_entry}
+    assert [issue.code for issue in issues] == [
+        "duplicate_source_inventory_url",
+        "invalid_source_inventory_entry",
+        "invalid_source_inventory_entry",
+    ]
+
+
+def test_source_inventory_drift_issues_reports_missing_then_stale_urls() -> None:
+    issues = audit._source_inventory_drift_issues(
+        {"https://used.test"},
+        {"https://stale.test"},
+        "docs/wiki/llm/source-inventory.json",
+    )
+
+    assert [issue.code for issue in issues] == [
+        "source_inventory_missing_url",
+        "source_inventory_stale_url",
+    ]
+    assert "https://used.test" in issues[0].message
+    assert "https://stale.test" in issues[1].message
+
+
+def test_source_inventory_entry_issues_validate_metadata_and_dates() -> None:
+    entry = {
+        "pages": ["01-wrong.md"],
+        "source_type": "forum",
+        "volatility": "weekly",
+        "last_verified": "not-a-date",
+        "review_after": "2026-06-01",
+    }
+
+    issues = audit._source_inventory_entry_issues(
+        "https://docs.test/source",
+        entry,
+        ["02-providers.md"],
+        "docs/wiki/llm/source-inventory.json",
+        today=date(2026, 6, 8),
+    )
+
+    assert [issue.code for issue in issues] == [
+        "source_inventory_page_mismatch",
+        "invalid_source_type",
+        "invalid_source_volatility",
+        "invalid_source_last_verified",
+        "source_review_due",
+    ]
+
+
+def test_source_inventory_entry_issues_flag_review_before_verified() -> None:
+    entry = {
+        "pages": ["02-providers.md"],
+        "source_type": "official-docs",
+        "volatility": "high",
+        "last_verified": "2026-06-08",
+        "review_after": "2026-06-01",
+    }
+
+    issues = audit._source_inventory_entry_issues(
+        "https://docs.test/source",
+        entry,
+        ["02-providers.md"],
+        "docs/wiki/llm/source-inventory.json",
+        today=date(2026, 6, 8),
+    )
+
+    assert [issue.code for issue in issues] == [
+        "invalid_source_review_after",
+        "source_review_due",
+    ]
 
 
 def test_healthy_wiki_passes(tmp_path: Path):
@@ -688,6 +888,83 @@ def test_default_cli_keeps_unexpected_manifest_warnings_non_failing(monkeypatch,
     assert "1 manifest warnings" in output
     assert "0 accepted known, 1 unexpected; non-failing" in output
     assert "[manifest-warning:unexpected]" in output
+
+
+def test_cli_parser_helper_preserves_flags_and_paths():
+    args = audit._parse_llm_wiki_audit_args(
+        [
+            "--repo-root",
+            "repo",
+            "--wiki-dir",
+            "wiki",
+            "--today",
+            "2026-06-08",
+            "--write-source-inventory",
+            "--write-code-facts",
+            "--write-config-facts",
+            "--strict-manifest-warnings",
+            "--write-strict-release-evidence",
+            "--strict-release-evidence-path",
+            ".tmp/evidence.json",
+            "--json",
+        ]
+    )
+
+    assert args.repo_root == Path("repo")
+    assert args.wiki_dir == Path("wiki")
+    assert args.today == "2026-06-08"
+    assert args.write_source_inventory is True
+    assert args.write_code_facts is True
+    assert args.write_config_facts is True
+    assert args.fail_on_unexpected_manifest_warnings is True
+    assert args.write_strict_release_evidence is True
+    assert args.strict_release_evidence_path == Path(".tmp/evidence.json")
+    assert args.json is True
+
+
+def test_strict_manifest_summary_helper_sets_mode_and_failure():
+    args = audit._parse_llm_wiki_audit_args(["--write-strict-release-evidence"])
+    report = {"summary": {"manifest_check_unexpected_warning_count": 2}}
+
+    unexpected_count, strict_mode, strict_failure = audit._apply_strict_manifest_warning_summary(report, args)
+
+    assert unexpected_count == 2
+    assert strict_mode is True
+    assert strict_failure is True
+    assert report["summary"]["strict_manifest_warning_mode"] is True
+    assert report["summary"]["strict_manifest_warning_failure"] is True
+
+
+def test_write_requested_audit_artifacts_uses_resolved_wiki_dir(monkeypatch, tmp_path: Path):
+    wiki_dir = tmp_path / "custom" / "wiki"
+    wiki_dir.mkdir(parents=True)
+    args = audit._parse_llm_wiki_audit_args(
+        [
+            "--repo-root",
+            str(tmp_path),
+            "--wiki-dir",
+            "custom/wiki",
+            "--write-source-inventory",
+        ]
+    )
+
+    def fake_source_inventory(repo_root: Path, *, wiki_dir: Path, today: date) -> dict:
+        return {
+            "repo_root": repo_root.name,
+            "wiki_dir": wiki_dir.as_posix(),
+            "today": today.isoformat(),
+        }
+
+    monkeypatch.setattr(audit, "build_source_inventory", fake_source_inventory)
+
+    audit._write_requested_audit_artifacts(args, today=date(2026, 6, 8))
+
+    payload = json.loads((wiki_dir / audit.SOURCE_INVENTORY_NAME).read_text(encoding="utf-8"))
+    assert payload == {
+        "repo_root": tmp_path.name,
+        "wiki_dir": "custom/wiki",
+        "today": "2026-06-08",
+    }
 
 
 def test_strict_manifest_warning_cli_fails_on_unexpected_warnings(monkeypatch, capsys):

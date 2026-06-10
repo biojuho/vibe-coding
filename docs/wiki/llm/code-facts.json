@@ -16,6 +16,8 @@
           "_bridged_attempt_provider",
           "_bridged_generate",
           "_bridged_repair_loop",
+          "_cache_simple_loop_result",
+          "_cached_simple_loop_result",
           "_clean_json",
           "_enabled_from_order",
           "_generate_once",
@@ -27,7 +29,10 @@
           "_no_providers_error_message",
           "_normalize_providers",
           "_parse_json_response",
+          "_retry_wait_seconds",
+          "_run_simple_attempt",
           "_run_simple_loop",
+          "_simple_loop_cache_key",
           "_validate_bridged_content",
           "_validate_json_candidate",
           "all_provider_status",
@@ -488,7 +493,7 @@
       "status": "ok"
     }
   ],
-  "generated_at": "2026-06-08",
+  "generated_at": "2026-06-10",
   "policy": {
     "method": "Python AST parse plus ast.literal_eval for module-level literal constants.",
     "non_goal": "This manifest does not prove that prose claims are semantically correct; it makes code drift visible before review.",

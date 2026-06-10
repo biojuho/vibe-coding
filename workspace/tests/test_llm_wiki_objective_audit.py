@@ -49,6 +49,30 @@ def _fake_report(**overrides):
     return {"summary": summary, "issues": []}
 
 
+def test_manifest_item_counts_exclude_blocked_complete_items():
+    items = [
+        {"coverage": "complete", "blockers": []},
+        {"coverage": "complete", "blockers": ["still running"]},
+        {"coverage": "missing", "blockers": ["missing evidence"]},
+    ]
+
+    complete_count, blocked_count = objective_audit._manifest_item_counts(items)
+
+    assert complete_count == 1
+    assert blocked_count == 2
+
+
+def test_active_loop_blockers_surface_selector_and_external_boundary():
+    blockers = objective_audit._active_loop_blockers(
+        "dirty_worktree_handoff_current",
+        "Current relay includes T-251.",
+    )
+
+    assert blockers[0].startswith("Objective is an active autonomous loop")
+    assert any("dirty_worktree_handoff_current" in blocker for blocker in blockers)
+    assert any("T-251" in blocker for blocker in blockers)
+
+
 def _write_complete_fixture(root: Path) -> None:
     _write(
         root,
