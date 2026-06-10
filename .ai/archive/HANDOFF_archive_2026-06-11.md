@@ -1,0 +1,227 @@
+## Rotation 2026-06-11 (archived addenda older than 2026-06-04)
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-10 |
+| Tool | Codex |
+| Work | **T-2225 dirty handoff and D1 evidence resync**. Continued the root `/goal` auto-research loop from live workspace state. Final verification surfaced two additional Blind-to-X dirty paths, `projects/blind-to-x/scripts/tune_best_of_n_weight.py` and `projects/blind-to-x/tests/unit/test_tune_best_of_n_weight.py`, moving the dirty boundary from `89` to `91` paths before relay update. After adding this `.ai` relay and rotating HANDOFF, the current boundary is `92` paths with dirty signature `5ef510efb93291272ed857a07624c816862ba3e9704beb933c6f7b60f785fbc5`. No product/code edits, staging, commit, push, revert, `update_goal`, graph process kill, or Hanwoo T-251 retry was performed. |
+| Next Priorities | Refreshed `.tmp/scoped-dirty-worktree-handoff-plan-current.{json,md}` and current authorization/D1 evidence surfaces for dirty count `92`, staged `0`, ahead `901`, project:blind-to-x group count `26`, selector `blocked / dirty_worktree_handoff_current / adoptable_candidate_count=0`, and D1 virtual index `9 files changed, 1980 insertions(+), 13 deletions(-)`. D1 now matches tree `ac9db472590aadc035c491f430ba6c1310d03f2e`, digest `d90d6cd07b69ef05fd7f1372b0290f75d85fa8d5ddd8e7c9492a9e2edec18254`, and focused project `.venv` pytest `46 passed`. Initial global pytest attempts failed from environment mismatch (`pytest-cov` addopts, Windows temp permission, then missing `cloudinary`), so the verified runner is `projects/blind-to-x/.venv/Scripts/python.exe -m pytest -o addopts= --basetemp ...`. After this relay update, recompute AIC1 shortstat before using `APPROVE_AIC1`; otherwise continue only with explicit scoped staging/commit authorization, explicit push/user push, or user-reported Supabase credential reset/resync before T-251. |
+
+## Rotation 2026-06-11 (archived addenda older than 2026-06-04)
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-10 |
+| Tool | Codex |
+| Work | **claude-goal POSIX builtin pwd detector loop**. Continued only the nested `claude-goal/` autonomous debugging loop while root `/goal` launch work remains blocked by the current dirty handoff boundary. Fresh WSL marker probes reproduced the false positive: `builtin pwd || python3 /tmp/claude_goal.py stop-hook`, `builtin pwd -LP || python3 /tmp/claude_goal.py stop-hook`, and `bash -lc 'builtin pwd -LP || python3 /tmp/claude_goal.py stop-hook'` returned `0`, printed the working directory, and wrote no marker, while both detector copies returned true. Controls stayed aligned: invalid `builtin pwd --bad-option || ...` and `builtin pwd -LP && python3 ...` remain reachable/detected, while `builtin python3 ...` stays ignored. |
+| Next Priorities | Fixed both detector copies in `claude-goal/goal/scripts/claude_goal.py` and `claude-goal/goal/scripts/install_goal.py`: `_strip_posix_builtin_dispatch(...)` now forwards only the additional real Bash builtin `pwd`, preserving conservative behavior for non-builtin `builtin python3`. Updated `claude-goal/tests/test_claude_goal.py` and `claude-goal/tests/test_install_goal.py` with builtin pwd OR-list negatives plus invalid/AND controls. Verification passed marker probe, direct detector probe, focused pytest (`64 passed`), related wrapper pytest (`84 passed`), Ruff check, Ruff format check, `py_compile`, path-limited nested `git diff --check`, full nested pytest (`612 passed` in 10m33s), and cleanup of this loop's basetemps. The pathless nested `code_review_gate.py --repo-root claude-goal --base HEAD --json` run returned broad dirty-tree heuristic FAIL (`risk_score=0.70`) from pre-existing nested dirty/untracked work, so this slice is covered by direct scoped tests/static gates. Evidence note: `claude-goal/.tmp/claude-goal-posix-builtin-pwd-current.md`. No stage, commit, push, revert, root product/browser edit, `update_goal`, graph process kill, or Hanwoo T-251 retry was performed. |
+
+## Rotation 2026-06-11 (archived addenda older than 2026-06-04)
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-10 |
+| Tool | Codex |
+| Work | **T-2226 dirty handoff drift resync**. Continued the root `/goal` auto-research loop from live workspace state after one more Blind-to-X dirty path appeared: `projects/blind-to-x/tests/unit/test_scrapers_base.py`. No product/code edits, staging, commit, push, revert, `update_goal`, graph process kill, or Hanwoo T-251 retry was performed. |
+| Next Priorities | Refreshed `.tmp/scoped-dirty-worktree-handoff-plan-current.{json,md}` and `.tmp/github-project-inventory-current.json`; current boundary is dirty signature `aab5f34297cd92c7813509af58df65aa72b3be8243749c45526604dcada1767f`, dirty count `93`, staged `0`, ahead `901`, and project:blind-to-x group count `27`. Keep selector at `blocked / dirty_worktree_handoff_current / adoptable_candidate_count=0`; D1 remains the current 9-path source-preflight scope unless one of those D1 paths changes. After this relay update and rotator pass, recompute AIC1 shortstat before using `APPROVE_AIC1`; otherwise continue only with explicit scoped staging/commit authorization, explicit push/user push, or user-reported Supabase credential reset/resync before T-251. |
+
+## Rotation 2026-06-11 (archived addenda older than 2026-06-04)
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-10 |
+| Tool | Codex |
+| Work | **claude-goal POSIX case static branch detector loop**. Continued only the nested `claude-goal/` autonomous debugging loop while root `/goal` launch work remains blocked by the current dirty handoff boundary. Fresh WSL marker probes confirmed reachable `case` branches execute the marker for direct, shell-form, default `*`, second-clause, and `|` alternative patterns, while unmatched branches and `echo ... stop-hook` lookalikes do not. Both detector copies now agree with that runtime behavior. |
+| Next Priorities | Fixed both detector copies in `claude-goal/goal/scripts/claude_goal.py` and `claude-goal/goal/scripts/install_goal.py`: POSIX shell-list detection now parses narrow `case WORD in PATTERN) BODY ;; ... esac` statements before generic shell splitting, matches literal alternatives and `*`, inspects only the first statically matched body, and conservatively scans unknown pattern bodies. Updated `claude-goal/tests/test_claude_goal.py` and `claude-goal/tests/test_install_goal.py` with skipped and reachable case branch coverage. Verification passed WSL marker plus direct detector probe, focused pytest (`74 passed`), Ruff check, Ruff format check, `py_compile`, path-limited nested `git diff --check`, graph risk `0.00`, full nested pytest (`622 passed in 587.96s`), and evidence note `claude-goal/.tmp/claude-goal-posix-case-static-current.md`. No stage, commit, push, revert, root product/browser edit, `update_goal`, graph process kill, or Hanwoo T-251 retry was performed. |
+
+## Rotation 2026-06-11 (archived addenda older than 2026-06-04)
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-10 |
+| Tool | Codex |
+| Work | **T-2227 dirty handoff no-drift recheck**. Continued the root `/goal` auto-research loop from live workspace state while preserving the separate nested `claude-goal/` detector work already at the top of the relay. Rehydrated the auto-research skill and shared `.ai` state, refreshed GitHub inventory, dirty handoff plan, product readiness, browser QA inventory, dependency freshness, and selector. No product/code edits, staging, commit, push, revert, `update_goal`, graph process kill, or Hanwoo T-251 retry was performed. |
+| Next Priorities | Current root boundary remains unchanged: dirty signature `aab5f34297cd92c7813509af58df65aa72b3be8243749c45526604dcada1767f`, dirty count `93`, staged `0`, ahead `901`, and project:blind-to-x group count `27`. Selector remains `blocked / dirty_worktree_handoff_current / adoptable_candidate_count=0`; the handoff plan reports previous/current freshness both `current`, so no new product experiment is authorized. Browser QA remains `4/4` fresh usable nonblank, dependency direct candidates remain `0`, product readiness remains `94/blocked`, and Hanwoo T-251 remains user-owned external. Recompute AIC1 shortstat after this relay update before using `APPROVE_AIC1`; otherwise continue only with explicit scoped staging/commit authorization, explicit push/user push, or user-reported Supabase credential reset/resync before T-251. |
+
+## Rotation 2026-06-11 (archived addenda older than 2026-06-04)
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-10 |
+| Tool | Codex |
+| Work | **T-2227 dirty handoff drift resync after claude-goal loop**. Continued the root `/goal` auto-research loop from live workspace state after the nested `claude-goal` case detector cycle. No product/root code edit, staging, commit, push, revert, `update_goal`, graph process kill, or Hanwoo T-251 retry was performed. Fresh live status surfaced two additional workspace dirty paths, `workspace/execution/content_writer.py` and `workspace/tests/test_content_writer.py`, moving the current root dirty boundary from `93` to `95` paths. |
+| Next Priorities | Refreshed `.tmp/scoped-dirty-worktree-handoff-plan-current.{json,md}`, `.tmp/github-project-inventory-current.json`, `.tmp/product-readiness-current.json`, `.tmp/release-authorization-packet-current.json`, `.tmp/debug-loop-known-bugs-current.{json,md}`, `.tmp/launch-objective-audit-current.json`, `.tmp/completion-audit-current.json`, and `.tmp/next-experiment-current.json`. Current selector is `blocked / dirty_worktree_handoff_current / adoptable_candidate_count=0`; dirty signature is `f21fd28265a4109d17cb2df395c79ab3066dd680074cb2a3ee768dcafa4b8090`, dirty count `95`, staged `0`, ahead `901`, groups `project:blind-to-x=27`, `workspace-dashboard=26`, `workspace=19`, `root=12`, `execution=7`, `ai-context=4`. Product readiness remains `94/blocked`; release packet remains `blocked_dirty_worktree`; debug inventory reports `5` blocked, `0` actionable; completion audit is `incomplete` (`15` items, `7` complete, `14` issues, `8` blocked). Continue only with explicit scoped staging/commit authorization, explicit push/user push, or user-reported Supabase credential reset/resync before T-251. |
+
+## Rotation 2026-06-11 (archived addenda older than 2026-06-04)
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-10 |
+| Tool | Codex |
+| Work | **T-2229 dirty handoff drift resync**. Continued the root `/goal` auto-research loop after workspace-boundary verification surfaced one more Blind-to-X dirty path beyond T-2228: `projects/blind-to-x/pipeline/notion/_upload.py`. No product/code edits, staging, commit, push, revert, `update_goal`, graph process kill, or Hanwoo T-251 retry was performed. |
+| Next Priorities | Refreshed `.tmp/scoped-dirty-worktree-handoff-plan-current.{json,md}`, `.tmp/github-project-inventory-current.json`, `.tmp/next-experiment-current.json`, and product readiness evidence. Current boundary is dirty signature `413aa1aeb3cbbbd172f5709765c6cccfbea738f7b55b1daf028479b687729785`, dirty count `98`, staged `0`, ahead `901`, project:blind-to-x group count `30`, workspace-dashboard group count `26`, and workspace group count `19`. The previous signature `54735defa13b599f9e0d932856915aa9f3cf2ec02e7df077e53ffff973200116` is stale. Current selector is `blocked / dirty_worktree_handoff_current / adoptable_candidate_count=0`; no product adoption, staging, commit, push, or revert is authorized. Recompute AIC1 shortstat after this relay update before using `APPROVE_AIC1`. Continue only with explicit scoped staging/commit authorization, explicit push/user push, or user-reported Supabase credential reset/resync before T-251. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-10 |
+| Tool | Codex |
+| Work | **T-2228 dirty handoff drift resync**. Continued the root `/goal` auto-research loop after debug inventory and live status showed a new dirty-boundary drift beyond the T-2227 no-drift snapshot. Four additional dirty paths are now present outside my edits: `projects/blind-to-x/scrapers/crawl4ai_extractor.py`, `projects/blind-to-x/tests/unit/test_new_features.py`, `workspace/execution/content_writer.py`, and `workspace/tests/test_content_writer.py`. No product/code edits, staging, commit, push, revert, `update_goal`, graph process kill, or Hanwoo T-251 retry was performed. |
+| Next Priorities | Refreshed `.tmp/scoped-dirty-worktree-handoff-plan-current.{json,md}` and `.tmp/github-project-inventory-current.json`; current boundary is dirty signature `54735defa13b599f9e0d932856915aa9f3cf2ec02e7df077e53ffff973200116`, dirty count `97`, staged `0`, ahead `901`, project:blind-to-x group count `29`, workspace-dashboard group count `26`, and workspace group count `19`. The previous signature `f21fd28265a4109d17cb2df395c79ab3066dd680074cb2a3ee768dcafa4b8090` is stale, and T-2227's `aab5.../93` note is superseded. Keep selector at `blocked / dirty_worktree_handoff_current / adoptable_candidate_count=0`; recompute AIC1 shortstat after this relay update before using `APPROVE_AIC1`. Continue only with explicit scoped staging/commit authorization, explicit push/user push, or user-reported Supabase credential reset/resync before T-251. |
+
+## Rotation 2026-06-11 (archived addenda older than 2026-06-04)
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-10 |
+| Tool | Codex |
+| Work | **claude-goal POSIX/Bash dirs OR-list detector loop**. Continued only the nested `claude-goal/` autonomous debugging loop while root `/goal` launch work remains blocked by the current dirty handoff boundary. Fresh marker proof showed `dirs || <marker>` exits successfully, prints the working directory, and writes no marker, while both detector copies previously returned true for `dirs || python3 /tmp/claude_goal.py stop-hook`, structured `bash -lc`, and `builtin dirs` variants. |
+| Next Priorities | Fixed both detector copies in `claude-goal/goal/scripts/claude_goal.py` and `claude-goal/goal/scripts/install_goal.py`: added narrow `_posix_dirs_static_success(...)` for no-arg `dirs` and `dirs --`, plus `builtin dirs` dispatch through the existing Bash builtin wrapper path. Updated `claude-goal/tests/test_claude_goal.py` and `claude-goal/tests/test_install_goal.py` with OR-list negatives and AND controls. Verification passed direct detector probes for both copies, focused pytest (`2 passed`; `80 passed`), Ruff check, Ruff format check, `py_compile`, touched-file pytest (`577 passed`), full nested pytest (`630 passed in 683.60s`), path-limited diff-check, basetemp cleanup, and evidence note `claude-goal/.tmp/claude-goal-posix-dirs-current.md`. The broad root `code_review_gate.py --base HEAD --json` still fails from accumulated workspace dirty state (`risk_score=0.85`), so this slice is covered by scoped tests/static gates. No stage, commit, push, revert, root product/browser edit, `update_goal`, graph process kill, or Hanwoo T-251 retry was performed. |
+
+## Rotation 2026-06-11 (archived addenda older than 2026-06-04)
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-10 |
+| Tool | Codex |
+| Work | **T-2231 launch audit and dirty boundary confirmation**. Continued the active root `/goal` auto-research loop from the refreshed T-2230 dirty handoff boundary. Re-ran the launch objective audit, completion audit, GitHub/project inventory, dirty handoff plan, product readiness, release authorization packet, and next-experiment selector. Completion is still incomplete: launch audit requirements `15`, completion audit `7` complete, `13` issues, and `8` blocked. Release authorization remains `blocked_dirty_worktree`. No product/code edits, staging, commit, push, revert, `update_goal`, graph process kill, or Hanwoo T-251 retry was performed. |
+| Next Priorities | Current root dirty boundary remains handoff-current: signature `471ee451c19dc29d384d1c5e79f16b0ad157037bd7a80ffbbd7587547b305d27`, dirty count `100`, staged `0`, ahead `901`, groups `project:blind-to-x=32`, `workspace-dashboard=26`, `workspace=19`, `root=12`, `execution=7`, and `ai-context=4`. Selector is `blocked / dirty_worktree_handoff_current / adoptable_candidate_count=0`; product readiness is `94/blocked`; release packet is `blocked_dirty_worktree`; open PR count is `0`; Hanwoo T-251 remains user-owned external. Recompute AIC1 shortstat after this relay update before using `APPROVE_AIC1`; continue only with explicit scoped staging/commit authorization, explicit push/user push, or user-reported Supabase credential reset/resync before T-251. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-10 |
+| Tool | Codex |
+| Work | **T-2230 dirty handoff drift resync after claude-goal loop**. Continued the active root `/goal` auto-research loop from live workspace state after the separate nested `claude-goal/` POSIX/Bash dirs detector cycle appeared at the top of the relay. Rehydrated shared `.ai` context, refreshed GitHub/project inventory, dirty handoff plan, product readiness, browser QA inventory, dependency freshness, selector, and debug inventory. The debug inventory expected-fail gate surfaced two additional Blind-to-X dirty paths beyond T-2229: `projects/blind-to-x/pipeline/editorial_reviewer.py` and `projects/blind-to-x/tests/unit/test_comment_trigger_uplift.py`. No product/code edits, staging, commit, push, revert, `update_goal`, graph process kill, or Hanwoo T-251 retry was performed. |
+| Next Priorities | Current root dirty boundary is refreshed and current: signature `471ee451c19dc29d384d1c5e79f16b0ad157037bd7a80ffbbd7587547b305d27`, dirty count `100`, staged `0`, ahead `901`, groups `project:blind-to-x=32`, `workspace-dashboard=26`, `workspace=19`, `root=12`, `execution=7`, and `ai-context=4`. The prior `413aa.../98` note is stale. Selector remains `blocked / dirty_worktree_handoff_current / adoptable_candidate_count=0`; dependency direct candidates remain `0` with only deferred/runtime/major-migration items; browser QA remains `4/4` fresh usable nonblank; readiness remains `94/blocked`; Hanwoo T-251 remains user-owned external. Recompute AIC1 shortstat after this relay update before using `APPROVE_AIC1`; continue only with explicit scoped staging/commit authorization, explicit push/user push, or user-reported Supabase credential reset/resync before T-251. |
+
+## Rotation 2026-06-11 (archived addenda older than 2026-06-04)
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-10 |
+| Tool | Codex |
+| Work | **claude-goal POSIX/Bash umask OR-list detector loop**. Continued only the nested `claude-goal/` autonomous debugging loop while root `/goal` launch work remains blocked by the current dirty handoff boundary. Fresh marker proof showed `umask || <marker>` exits successfully, prints the current mask (`0022`), and writes no marker, while both detector copies previously returned true for `umask || python3 /tmp/claude_goal.py stop-hook`, structured `bash -lc`, and `builtin umask` variants. |
+| Next Priorities | Fixed both detector copies in `claude-goal/goal/scripts/claude_goal.py` and `claude-goal/goal/scripts/install_goal.py`: added narrow `_posix_umask_static_success(...)` for no-arg `umask` and `umask --`, plus `builtin umask` dispatch through the existing Bash builtin wrapper path. Updated `claude-goal/tests/test_claude_goal.py` and `claude-goal/tests/test_install_goal.py` with OR-list negatives and AND controls. Verification passed direct detector probes for both copies, focused pytest (`2 passed`; `88 passed`), Ruff check, Ruff format check, `py_compile`, full nested pytest (`638 passed in 843.71s`), path-limited diff-check, basetemp cleanup, and evidence note `claude-goal/.tmp/claude-goal-posix-umask-current.md`. The broad root `code_review_gate.py --base HEAD --json` still fails from accumulated workspace dirty state (`risk_score=0.85`), so this slice is covered by scoped tests/static gates. No stage, commit, push, revert, root product/browser edit, `update_goal`, graph process kill, or Hanwoo T-251 retry was performed. |
+
+## Rotation 2026-06-11 (archived addenda older than 2026-06-04)
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-10 |
+| Tool | Codex |
+| Work | **T-2232 dirty handoff drift resync after concurrent Blind-to-X paths**. Continued the active root `/goal` auto-research loop and preserved the separate nested `claude-goal/` umask detector relay. Fresh live status surfaced six additional Blind-to-X dirty paths beyond T-2231: `projects/blind-to-x/scripts/notion_doctor.py`, `projects/blind-to-x/tests/unit/test_notion_doctor.py`, `projects/blind-to-x/pipeline/draft_generator.py`, `projects/blind-to-x/pipeline/process_stages/generate_review_stage.py`, `projects/blind-to-x/tests/unit/test_draft_generator_multi_provider.py`, and `projects/blind-to-x/tests/unit/test_process_stages.py`. Regenerated GitHub/project inventory, dirty handoff plan, session orientation, product readiness, release authorization packet, next-experiment selector, browser QA inventory, dependency freshness, launch audit, and debug inventory. No product/code edits, staging, commit, push, revert, `update_goal`, graph process kill, or Hanwoo T-251 retry was performed. |
+| Next Priorities | Current root dirty boundary is refreshed and current: signature `a5efa10aaf669e761950e5c02595f2167643fa9df0620d1358f250942f0833cc`, dirty count `106`, staged `0`, ahead `901`, groups `project:blind-to-x=38`, `workspace-dashboard=26`, `workspace=19`, `root=12`, `execution=7`, and `ai-context=4`. The prior `4095bb.../102` and `471ee.../100` notes are stale. Selector is `blocked / dirty_worktree_handoff_current / adoptable_candidate_count=0`; product readiness is `94/blocked`; release packet is `blocked_dirty_worktree`; debug inventory expected-fail gate reports `5` blocked and `0` actionable; dependency direct candidates remain `0`; browser QA remains `4/4` fresh usable nonblank. Recompute AIC1 shortstat after this relay update before using `APPROVE_AIC1`; continue only with explicit scoped staging/commit authorization, explicit push/user push, or user-reported Supabase credential reset/resync before T-251. |
+
+## Rotation 2026-06-11 (archived addenda older than 2026-06-04)
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-10 |
+| Tool | Codex |
+| Work | **claude-goal POSIX/Bash umask output-option OR-list detector loop**. Continued only the nested `claude-goal/` autonomous debugging loop while root `/goal` launch work remains blocked by the current dirty handoff boundary. Fresh marker proof showed `umask -S || <marker>` and `umask -p || <marker>` exit successfully, print the current mask, and write no marker, while both detector copies previously returned true for those OR-list forms, structured `bash -lc`, and `builtin umask -p` variants. |
+| Next Priorities | Fixed both detector copies in `claude-goal/goal/scripts/claude_goal.py` and `claude-goal/goal/scripts/install_goal.py`: `_posix_umask_static_success(...)` now accepts only MODE-free `-[pS]+` option tokens plus optional final `--`, while mode operands and invalid options stay conservative. Updated `claude-goal/tests/test_claude_goal.py` and `claude-goal/tests/test_install_goal.py` with output-option OR-list negatives plus invalid-option controls. Verification passed direct detector probes for both copies, focused pytest (`2 passed`; `97 passed`), Ruff check, Ruff format check, `py_compile`, path-limited diff-check, full nested pytest (`647 passed in 702.58s`), basetemp cleanup, and evidence note `claude-goal/.tmp/claude-goal-posix-umask-options-current.md`. The broad root `code_review_gate.py --base HEAD --json` still fails from accumulated workspace dirty state (`risk_score=0.85`), so this slice is covered by scoped tests/static gates. No stage, commit, push, revert, root product/browser edit, `update_goal`, graph process kill, or Hanwoo T-251 retry was performed. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-10 |
+| Tool | Codex |
+| Work | **T-2233 dirty handoff drift resync after additional Blind-to-X draft/process paths**. Continued the active root `/goal` auto-research loop after launch audit and live status showed four more Blind-to-X dirty paths beyond T-2232: `projects/blind-to-x/pipeline/draft_generator.py`, `projects/blind-to-x/pipeline/process_stages/generate_review_stage.py`, `projects/blind-to-x/tests/unit/test_draft_generator_multi_provider.py`, and `projects/blind-to-x/tests/unit/test_process_stages.py`. Regenerated GitHub/project inventory, dirty handoff plan, and session orientation. No product/code edits, staging, commit, push, revert, `update_goal`, graph process kill, or Hanwoo T-251 retry was performed. |
+| Next Priorities | Current root dirty boundary is refreshed and current: signature `a5efa10aaf669e761950e5c02595f2167643fa9df0620d1358f250942f0833cc`, dirty count `106`, staged `0`, ahead `901`, groups `project:blind-to-x=38`, `workspace-dashboard=26`, `workspace=19`, `root=12`, `execution=7`, and `ai-context=4`. The prior `4095.../102` note is stale. Selector after this relay is `blocked / dirty_worktree_handoff_current / adoptable_candidate_count=0`; continue only with explicit scoped staging/commit authorization, explicit push/user push, or user-reported Supabase credential reset/resync before T-251. |
+
+## Rotation 2026-06-11 (archived addenda older than 2026-06-04)
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-10 |
+| Tool | Codex |
+| Work | **T-2234 dirty handoff drift resync after index refresh surfaced Blind-to-X CLI/browser probe paths**. Continued the active root `/goal` auto-research loop after `git update-index --refresh` and live deterministic inventory surfaced four more Blind-to-X dirty paths beyond T-2233: `projects/blind-to-x/pipeline/cli.py`, `projects/blind-to-x/scripts/source_browser_probe.py`, `projects/blind-to-x/tests/unit/test_main.py`, and `projects/blind-to-x/tests/unit/test_source_browser_probe.py`. Regenerated dirty handoff plan, release authorization packet, product readiness evidence, and session orientation. No product/code edits, staging, commit, push, revert, `update_goal`, graph process kill, or Hanwoo T-251 retry was performed. |
+| Next Priorities | Current root dirty boundary is refreshed and current: signature `78068bc6e32fb9b0852647123aff2219ab47d6e35bdffd756f8d8f12e34571c4`, dirty count `110`, staged `0`, ahead `901`, groups `project:blind-to-x=42`, `workspace-dashboard=26`, `workspace=19`, `root=12`, `execution=7`, and `ai-context=4`. The prior `a5efa.../106`, `4095.../102`, and `471ee.../100` notes are stale. Selector remains blocked on the dirty-worktree handoff boundary with `adoptable_candidate_count=0`; product readiness is `94/blocked`; release packet is `blocked_dirty_worktree`. Continue only with explicit scoped staging/commit authorization, explicit push/user push, or user-reported Supabase credential reset/resync before T-251. |
+
+## Rotation 2026-06-11 (archived addenda older than 2026-06-04)
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-10 |
+| Tool | Codex |
+| Work | **T-2235 dirty handoff drift resync after Blind-to-X source preflight doctor path surfaced**. Continued the active root `/goal` auto-research loop after workspace-boundary verification found one more Blind-to-X dirty path beyond T-2234: `projects/blind-to-x/scripts/source_preflight_evidence_doctor.py`. Regenerated dirty handoff plan, next-experiment selector, release authorization packet, product readiness evidence, and session orientation. No product/code edits, staging, commit, push, revert, `update_goal`, graph process kill, or Hanwoo T-251 retry was performed. |
+| Next Priorities | Current root dirty boundary is refreshed and current: signature `6108a3d13ad592a30f1130010764d5b22da88ec844dfd85d639510610844922e`, dirty count `111`, staged `0`, ahead `901`, groups `project:blind-to-x=43`, `workspace-dashboard=26`, `workspace=19`, `root=12`, `execution=7`, and `ai-context=4`. The prior `78068.../110`, `a5efa.../106`, and older notes are stale. Selector remains blocked on the dirty-worktree handoff boundary with `adoptable_candidate_count=0`; product readiness is `94/blocked`; release packet is `blocked_dirty_worktree`. D1 scoped authorization evidence is not current after this drift: `verify-approve-d1-*` reports current virtual index `9 files changed, 2008 insertions(+), 14 deletions(-)`, tree `2c2a1521ebed9a0e49db94730c42a76dbf256f03`, digest `dce440b1d56a0c132499945a9bea4b3c163d90de07e793a4e0c63e3ef131e43b`; refresh D1 gates/evidence before honoring `APPROVE_D1`. Continue only with explicit scoped staging/commit authorization, explicit push/user push, or user-reported Supabase credential reset/resync before T-251. |
+
+## Rotation 2026-06-11 (archived addenda older than 2026-06-04)
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-10 |
+| Tool | Codex |
+| Work | **T-2236 launch objective completion audit refresh on current 111-path boundary**. Continued the active root `/goal` auto-research loop after T-2235 moved the dirty boundary to `111` paths by surfacing `projects/blind-to-x/scripts/source_preflight_evidence_doctor.py`. Used the auto-research skill, reran `python execution/session_orient.py --json`, regenerated `.tmp/launch-objective-audit-current.json`, and rewrote `.tmp/completion-audit-current.json` as UTF-8 without BOM. No product/code edits, staging, commit, push, revert, `update_goal`, graph process kill, or Hanwoo T-251 retry was performed. |
+| Next Priorities | Completion audit remains incomplete at the current boundary: `15` requirements, `7` complete, `13` issues, and `8` blocked. Current blockers are dirty worktree handoff (`111` paths, staged `0`, ahead `901`, signature `6108a3d13ad592a30f1130010764d5b22da88ec844dfd85d639510610844922e`), code-review gate fail (`risk_score=0.85` from accumulated dirty state), release packet `blocked_dirty_worktree`, missing current-head `root-quality-gate`/`active-project-matrix` Actions until explicit push/user push, Blind-to-X dirty paths (`43`), and external/user-owned Hanwoo `T-251`. Continue only with explicit scoped staging/commit authorization, explicit push/user push, or user-reported Supabase credential reset/resync before T-251. |
+
+## Rotation 2026-06-11 (archived addenda older than 2026-06-04)
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-10 |
+| Tool | Codex |
+| Work | **claude-goal POSIX/Bash alias OR-list detector loop**. Continued only the nested `claude-goal/` autonomous debugging loop while root `/goal` launch work remains blocked by the current dirty handoff boundary. Fresh marker proof showed `alias || <marker>` and `alias -p || <marker>` exit successfully and write no marker, while both detector copies previously returned true for `alias || python3 /tmp/claude_goal.py stop-hook`, `alias -p || ...`, structured `bash -lc`, and `builtin alias` variants. |
+| Next Priorities | Fixed both detector copies in `claude-goal/goal/scripts/claude_goal.py` and `claude-goal/goal/scripts/install_goal.py`: added narrow `_posix_alias_static_success(...)` for no-arg alias listing, `-p` clusters, and optional final `--`, plus `builtin alias` dispatch through the existing Bash builtin wrapper path. Updated `claude-goal/tests/test_claude_goal.py` and `claude-goal/tests/test_install_goal.py` with alias OR-list negatives plus invalid/missing-name/AND controls. Verification passed direct detector probes for both copies, focused pytest (`2 passed`; `107 passed`), Ruff check, Ruff format check, `py_compile`, path-limited diff-check, full nested pytest (`657 passed in 657.49s`), basetemp cleanup, and evidence note `claude-goal/.tmp/claude-goal-posix-alias-current.md`. The broad root `code_review_gate.py --base HEAD --json` still fails from accumulated workspace dirty state (`risk_score=0.85`), so this slice is covered by scoped tests/static gates. No stage, commit, push, revert, root product/browser edit, `update_goal`, graph process kill, or Hanwoo T-251 retry was performed. |
+
+## Rotation 2026-06-11 (archived addenda older than 2026-06-04)
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-10 |
+| Tool | Codex |
+| Work | **T-2237 debug-loop blocked-completion proof refresh on current 111-path boundary**. Continued the active root `/goal` auto-research loop from unchanged live state. Verified `git status` still reports `111` dirty paths, real index staged count is `0`, `.ai` relay shortstat is `4 files changed, 3313 insertions(+), 50 deletions(-)`, and `session_orient.py --json` still reports branch `main` ahead `901`, graph current, open PR count `0`, and active goal incomplete. The initially suggested `execution/debug_loop_inventory.py` path is absent in this workspace; the canonical current script is `.agents/skills/auto-research/scripts/debug_loop_inventory.py`. No product/code edits, staging, commit, push, revert, `update_goal`, graph process kill, or Hanwoo T-251 retry was performed. |
+| Next Priorities | Ran `python .agents/skills/auto-research/scripts/debug_loop_inventory.py --root . --output-md .tmp/debug-loop-known-bugs-current.md --output-json .tmp/debug-loop-known-bugs-current.json --json --fail-on-completion-blocked`; it exited expected `1` and labeled the nonzero result as blocked-completion proof, not a source failure. Current debug inventory reports `5` blocked, `0` actionable, `0` reproduction-unclear items: dirty handoff boundary (`111` paths, staged `0`, ahead `901`, signature `6108a3d13ad592a30f1130010764d5b22da88ec844dfd85d639510610844922e`), user-owned Hanwoo `T-251`, missing current-head `root-quality-gate`/`active-project-matrix` Actions until explicit push/user push, Blind-to-X ready but not launch-complete because `43` dirty paths remain, and completion audit incomplete (`15` items, `7` complete, `13` issues, `8` blocked). Continue only with explicit scoped staging/commit authorization, explicit push/user push, or user-reported Supabase credential reset/resync before T-251. |
+
+## Rotation 2026-06-11 (archived addenda older than 2026-06-04)
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-10 |
+| Tool | Codex |
+| Work | **T-2238 Blind-to-X D1 format gate repair and current evidence resync**. Continued the active root `/goal` auto-research loop under the current dirty handoff boundary. Repaired D1-only Ruff format drift in `projects/blind-to-x/tests/unit/test_source_preflight_evidence_doctor.py`, `projects/blind-to-x/scripts/build_weekly_report.py`, and `projects/blind-to-x/scripts/source_preflight_strategy_simulation.py`. Re-ran the D1 source-preflight focused gates and refreshed `.tmp` approval/evidence surfaces to current D1 fingerprint values. No staging, commit, push, revert, `update_goal`, graph process kill, or Hanwoo T-251 retry was performed. |
+| Next Priorities | D1 focused verification is current: pytest `47 passed`, Ruff check pass, Ruff format check pass (`7 files already formatted`), `py_compile` pass, strategy simulation pass with `repair_evidence_first` and `score_delta 24.0`, path-limited diff-check pass, `verify-approve-d1-evidence-sync-current.py --json` pass, and `verify-approve-d1-preflight-current.py --json` pass. Current D1 virtual index is `9 files changed, 2234 insertions(+), 14 deletions(-)`, tree `0c8f6fe4168f4717d5804169769ff578d1d73272`, digest `c3ff2593f3b2b9c056800fac2d4af4d024980cf89c5a22a2f744803ad337666b`, staged `0`. Root selector remains `blocked / dirty_worktree_handoff_current / adoptable_candidate_count=0` on the current 113-path dirty boundary; continue only with explicit scoped staging/commit authorization, explicit push/user push, or user-reported Supabase credential reset/resync before T-251. |
+
+## Rotation 2026-06-11 (archived addenda older than 2026-06-04)
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-10 |
+| Tool | Codex |
+| Work | **T-2239 current evidence refresh after T-2238 D1 repair**. Continued the active root `/goal` auto-research loop with the `auto-research` skill after T-2238 changed the top relay and D1 evidence. Rehydrated `.ai` state and `session_orient.py --json`, then regenerated `.tmp/github-project-inventory-current.json`, `.tmp/product-readiness-current.json`, `.tmp/browser-qa-inventory-current.json`, `.tmp/dependency-freshness-current.json`, `.tmp/scoped-dirty-worktree-handoff-plan-current.{json,md}`, `.tmp/next-experiment-current.json`, `.tmp/release-authorization-packet-current.json`, `.tmp/launch-objective-audit-current.json`, `.tmp/completion-audit-current.json`, and `.tmp/debug-loop-known-bugs-current.{json,md}`. A broad `rg` for `T-2238` over `.ai .tmp` timed out after 124s, then live `.ai` inspection confirmed T-2238 already exists, so this relay uses `T-2239`. No product/code edits by this T-2239 cycle, staging, commit, push, revert, `update_goal`, graph process kill, or Hanwoo T-251 retry was performed. |
+| Next Priorities | Current root boundary remains handoff-current: dirty signature `9163201e5bb4e0d909b7031e9d96c9a5dc4be83efdd9a16ee958495ca07a24ef`, dirty count `117`, staged `0`, ahead `901`, groups `project:blind-to-x=49`, `workspace-dashboard=26`, `workspace=19`, `root=12`, `execution=7`, `ai-context=4`. Selector remains `blocked / dirty_worktree_handoff_current / adoptable_candidate_count=0`; release packet remains `blocked_dirty_worktree`; product readiness remains `94/blocked`; browser QA inventory remains `4/4` fresh usable nonblank; dependency inventory has `0` direct candidates; launch audit is current for dirty count `117`. Completion audit remains `incomplete` (`15` items, `7` complete, `13` issues, `8` blocked). Debug inventory expected-fail gate exited `1` as blocked-completion proof with `5` blocked, `0` actionable, `0` reproduction-unclear items. Continue only with explicit scoped staging/commit authorization, explicit push/user push, or user-reported Supabase credential reset/resync before T-251. Recompute AIC1/D1 scoped shortstats before honoring old approval labels. |
+
+## Rotation 2026-06-11 (archived addenda older than 2026-06-04)
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-10 |
+| Tool | Codex |
+| Work | **claude-goal POSIX/Bash jobs OR-list detector loop**. Continued only the nested `claude-goal/` autonomous debugging loop while root `/goal` launch work remains blocked by the current dirty handoff boundary. Fresh marker proof showed `jobs || <marker>` and `jobs -p || <marker>` exit successfully and write no marker, while both detector copies previously returned true for `jobs || python3 /tmp/claude_goal.py stop-hook`, `jobs -p || ...`, structured `bash -lc`, and `builtin jobs` variants. |
+| Next Priorities | Fixed both detector copies in `claude-goal/goal/scripts/claude_goal.py` and `claude-goal/goal/scripts/install_goal.py`: added narrow `_posix_jobs_static_success(...)` for no-arg `jobs`, listing option clusters made only of `-l`, `-n`, `-p`, `-r`, and `-s`, optional final `--`, and Bash `builtin jobs` dispatch through the existing static-success path. Updated `claude-goal/tests/test_claude_goal.py` and `claude-goal/tests/test_install_goal.py` with raw, structured Bash, and `builtin jobs` OR-list negatives plus invalid option, `jobs -x`, and AND-list controls. Verification passed direct detector probes for both copies, focused pytest (`2 passed`; `117 passed`), Ruff check, Ruff format check, `py_compile`, path-limited diff-check, single rerun of a transient unrelated Windows `PermissionError` test (`1 passed`), final full nested pytest (`667 passed in 696.95s`), basetemp cleanup, and evidence note `claude-goal/.tmp/claude-goal-posix-jobs-current.md`. The broad root `code_review_gate.py --base HEAD --json` still fails from accumulated workspace dirty state (`risk_score=0.85`), so this slice is covered by scoped tests/static gates. No stage, commit, push, revert, root product/browser edit, `update_goal`, graph process kill, or Hanwoo T-251 retry was performed. |
+
+## Rotation 2026-06-11 (archived addenda older than 2026-06-04)
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-10 |
+| Tool | Codex |
+| Work | **T-2240 root dirty handoff boundary override after concurrent claude-goal relay**. Restored the root `/goal` continuation signal to the top of HANDOFF after a concurrent nested `claude-goal/` relay became the latest addendum. Root product/code state was not edited; this entry only preserves the current auto-research handoff boundary for future session orientation. |
+| Next Priorities | Current root boundary remains handoff-current: dirty signature `9163201e5bb4e0d909b7031e9d96c9a5dc4be83efdd9a16ee958495ca07a24ef`, dirty count `117`, staged `0`, ahead `901`, groups `project:blind-to-x=49`, `workspace-dashboard=26`, `workspace=19`, `root=12`, `execution=7`, `ai-context=4`. Selector remains `blocked / dirty_worktree_handoff_current / adoptable_candidate_count=0`; readiness remains `94/blocked`; release packet remains `blocked_dirty_worktree`; launch audit is current for dirty count `117`; completion audit remains `incomplete` (`15` items, `7` complete, `13` issues, `8` blocked); debug inventory confirms `5` blocked, `0` actionable, `0` reproduction-unclear items. Continue only with explicit scoped staging/commit authorization, explicit push/user push, or user-reported Supabase credential reset/resync before T-251. Do not retry T-251 or call `update_goal`. |
+
+## Rotation 2026-06-11 (archived addenda older than 2026-06-04)
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-10 |
+| Tool | Codex |
+| Work | **T-2241 direction alignment and external reference comparison refresh**. Continued the active root `/goal` auto-research loop without product/code edits. Rehydrated `.ai` plus `session_orient.py --json`, refreshed readiness and selector evidence, ran `direction_alignment_audit.py`, and verified current external reference pages for OpenAI Codex Web, Cursor Plan Mode, and LangSmith observability. Wrote the comparison note to `.tmp/direction-reference-comparison-current.md`. |
+| Next Priorities | Direction audit is `aligned_blocked`, score `1.0`, `24/24` checks passed, with the direction hypothesis that Vibe coding should be an evidence-based local-first product operations hub. External comparison says Vibe should beat Codex Web by binding delegation to local dirty signatures/release gates, beat Cursor Plan Mode by binding plans to live evidence/A-B scoring/handoff, and beat LangSmith by combining trace/eval discipline with local release judgment. Implementation remains blocked: selector is `blocked / dirty_worktree_handoff_current / adoptable_candidate_count=0`; dirty signature `9163201e5bb4e0d909b7031e9d96c9a5dc4be83efdd9a16ee958495ca07a24ef`, dirty count `117`, staged `0`, ahead `901`, groups `project:blind-to-x=49`, `workspace-dashboard=26`, `workspace=19`, `root=12`, `execution=7`, `ai-context=4`. Continue only with explicit scoped staging/commit authorization, explicit push/user push, or user-reported Supabase credential reset/resync before T-251. |
+
+## Rotation 2026-06-11 (archived addenda older than 2026-06-04)
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-10 |
+| Tool | Codex |
+| Work | **claude-goal POSIX/Bash hash OR-list detector loop**. Continued only the nested `claude-goal/` autonomous debugging loop while root `/goal` launch work remains blocked by the current dirty handoff boundary. Fresh marker proof showed `hash || <marker>`, `hash -l || <marker>`, `hash -r || <marker>`, `hash -lr || <marker>`, and `hash -- || <marker>` exit successfully and skip the OR-list right side, while both detector copies previously returned true for `hash || python3 /tmp/claude_goal.py stop-hook`, list/reset variants, structured `bash -lc`, and `builtin hash` variants. |
+| Next Priorities | Fixed both detector copies in `claude-goal/goal/scripts/claude_goal.py` and `claude-goal/goal/scripts/install_goal.py`: added narrow `_posix_hash_static_success(...)` for no-arg `hash`, `-l`/`-r` option clusters, optional final `--`, and Bash `builtin hash` dispatch through the static-success path. Updated `claude-goal/tests/test_claude_goal.py` and `claude-goal/tests/test_install_goal.py` with raw, structured Bash, and `builtin hash` OR-list negatives plus invalid option, missing required value, and AND-list controls. Verification passed direct detector probes for both copies, focused pytest (`2 passed`; `128 passed`), Ruff check, Ruff format check, `py_compile`, path-limited diff-check, full nested pytest (`678 passed in 769.18s`), basetemp/probe cleanup, and evidence note `claude-goal/.tmp/claude-goal-posix-hash-current.md`. The first focused `tests/test_claude_goal.py` run hit the 120s command timeout before completion and passed on rerun with a longer timeout. The broad root `code_review_gate.py --base HEAD --json` still fails from accumulated workspace dirty state (`risk_score=0.8`), so this slice is covered by scoped tests/static gates. No stage, commit, push, revert, root product/browser edit, `update_goal`, graph process kill, or Hanwoo T-251 retry was performed. |
