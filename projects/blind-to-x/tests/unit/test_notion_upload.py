@@ -6,7 +6,8 @@ import httpx
 from unittest.mock import AsyncMock, patch, MagicMock
 
 from pipeline.notion_upload import NotionUploader
-from config import ERROR_NOTION_CONFIG_MISSING, ERROR_NOTION_SCHEMA_MISMATCH
+from pipeline.notion_retry_diagnostics import notion_retry_diagnostics
+from config import ERROR_NOTION_CONFIG_MISSING, ERROR_NOTION_SCHEMA_MISMATCH, ERROR_NOTION_UPLOAD_FAILED
 
 
 @pytest.fixture
@@ -120,6 +121,16 @@ async def test_safe_notion_call_success(mock_config):
 
     res = await uploader._safe_notion_call(mock_fn)
     assert res == "success"
+    assert uploader.last_notion_retry_report == {
+        "attempt_count": 1,
+        "retry_count": 0,
+        "max_retries": 3,
+        "final_state": "success",
+        "final_error": None,
+        "last_status": None,
+        "retryable": None,
+        "attempts": [],
+    }
 
 
 @pytest.mark.asyncio
@@ -143,6 +154,34 @@ async def test_safe_notion_call_retry(mock_sleep, mock_config):
     assert res == "success"
     assert call_count == 3
     assert mock_sleep.call_count == 2
+    report = uploader.last_notion_retry_report
+    assert report is not None
+    assert report["final_state"] == "success"
+    assert report["attempt_count"] == 3
+    assert report["retry_count"] == 2
+    assert report["last_status"] == 429
+    assert report["attempts"] == [
+        {
+            "attempt": 1,
+            "status": 429,
+            "retry_after_seconds": None,
+            "retryable": True,
+            "will_retry": True,
+            "delay_seconds": 1,
+            "error_type": "DummyError",
+            "error": "Rate limited",
+        },
+        {
+            "attempt": 2,
+            "status": 429,
+            "retry_after_seconds": None,
+            "retryable": True,
+            "will_retry": True,
+            "delay_seconds": 2,
+            "error_type": "DummyError",
+            "error": "Rate limited",
+        },
+    ]
 
 
 @pytest.mark.asyncio
@@ -164,6 +203,12 @@ async def test_safe_notion_call_retries_httpx_status_error(mock_sleep, mock_conf
     assert res == "success"
     assert call_count == 2
     mock_sleep.assert_awaited_once_with(1)
+    report = uploader.last_notion_retry_report
+    assert report is not None
+    assert report["final_state"] == "success"
+    assert report["retry_count"] == 1
+    assert report["attempts"][0]["status"] == 429
+    assert report["attempts"][0]["delay_seconds"] == 1
 
 
 @pytest.mark.asyncio
@@ -185,6 +230,41 @@ async def test_safe_notion_call_uses_retry_after_header(mock_sleep, mock_config)
     assert res == "success"
     assert call_count == 2
     mock_sleep.assert_awaited_once_with(7)
+    report = uploader.last_notion_retry_report
+    assert report is not None
+    assert report["final_state"] == "success"
+    assert report["retry_count"] == 1
+    assert report["attempts"][0]["status"] == 429
+    assert report["attempts"][0]["retry_after_seconds"] == 7
+    assert report["attempts"][0]["delay_seconds"] == 7
+
+
+@pytest.mark.asyncio
+@patch("asyncio.sleep", new_callable=AsyncMock)
+async def test_safe_notion_call_retries_service_overload_529(mock_sleep, mock_config):
+    uploader = NotionUploader(mock_config)
+    call_count = 0
+
+    async def mock_fn():
+        nonlocal call_count
+        call_count += 1
+        if call_count < 2:
+            request = httpx.Request("POST", "https://api.notion.com/v1/pages")
+            response = httpx.Response(529, headers={"Retry-After": "3"}, request=request)
+            raise httpx.HTTPStatusError("Service Overload", request=request, response=response)
+        return "success"
+
+    res = await uploader._safe_notion_call(mock_fn, max_retries=3)
+    assert res == "success"
+    assert call_count == 2
+    mock_sleep.assert_awaited_once_with(3)
+    report = uploader.last_notion_retry_report
+    assert report is not None
+    assert report["final_state"] == "success"
+    assert report["retry_count"] == 1
+    assert report["attempts"][0]["status"] == 529
+    assert report["attempts"][0]["retryable"] is True
+    assert report["attempts"][0]["retry_after_seconds"] == 3
 
 
 @pytest.mark.asyncio
@@ -308,6 +388,79 @@ async def test_update_page_properties_success(mock_ensure_schema, mock_config):
     assert call_kwargs["properties"]["상태"]["status"]["name"] == "완료"
 
 
+@pytest.mark.asyncio
+@patch("pipeline.notion_upload.NotionUploader.ensure_schema", new_callable=AsyncMock)
+@patch("asyncio.sleep", new_callable=AsyncMock)
+async def test_update_page_properties_failure_exposes_retry_diagnostics(mock_sleep, mock_ensure_schema, mock_config):
+    uploader = NotionUploader(mock_config)
+    mock_ensure_schema.return_value = True
+
+    class RateLimitError(Exception):
+        status = 429
+        headers = {"Retry-After": "4"}
+
+    call_count = 0
+
+    async def mock_update(**kwargs):
+        nonlocal call_count
+        call_count += 1
+        raise RateLimitError("Rate limited")
+
+    uploader.client = AsyncMock()
+    uploader.client.pages.update = mock_update
+    uploader.props = {"status": "Status"}
+    uploader._db_properties = {"Status": {"type": "status"}}
+
+    res = await uploader.update_page_properties("page_id", {"status": "Blocked"})
+
+    assert res is False
+    assert call_count == 3
+    assert mock_sleep.await_count == 2
+    assert uploader.last_error_code == ERROR_NOTION_UPLOAD_FAILED
+    assert "Failed to update Notion page properties" in uploader.last_error_message
+    report = uploader.last_notion_retry_report
+    assert report is not None
+    assert report["final_state"] == "failed"
+    assert report["last_status"] == 429
+    assert report["retry_count"] == 2
+
+    diagnostics = notion_retry_diagnostics(uploader, retry_label="the Notion property update")
+    assert diagnostics["notion_retry_summary"] == {
+        "final_state": "failed",
+        "attempt_count": 3,
+        "retry_count": 2,
+        "last_status": 429,
+        "retryable": True,
+    }
+    assert diagnostics["notion_operator_action"] == (
+        "Retry the Notion property update after at least 4s, then reduce request rate if it repeats."
+    )
+
+
+@pytest.mark.asyncio
+@patch("pipeline.notion_upload.NotionUploader.ensure_schema", new_callable=AsyncMock)
+async def test_update_page_properties_schema_failure_sets_schema_error(mock_ensure_schema, mock_config):
+    uploader = NotionUploader(mock_config)
+    mock_ensure_schema.return_value = True
+
+    class BadRequestError(Exception):
+        status = 400
+
+    async def mock_update(**kwargs):
+        raise BadRequestError("Status is not a property that exists")
+
+    uploader.client = AsyncMock()
+    uploader.client.pages.update = mock_update
+    uploader.props = {"status": "Status"}
+    uploader._db_properties = {"Status": {"type": "status"}}
+
+    res = await uploader.update_page_properties("page_id", {"status": "Blocked"})
+
+    assert res is False
+    assert uploader.last_error_code == ERROR_NOTION_SCHEMA_MISMATCH
+    assert "property update schema mismatch" in uploader.last_error_message
+
+
 def test_prepare_property_payload_multi_select(mock_config):
     uploader = NotionUploader(mock_config)
     uploader.props = {"risk_flags": "위험 신호"}
@@ -341,6 +494,21 @@ def test_prepare_property_payload_skips_empty_or_unknown_values(mock_config):
     assert uploader._prepare_property_payload("memo", "") == (None, None)
     assert uploader._prepare_property_payload("missing", "value") == (None, None)
     assert uploader._prepare_property_payload("unknown_type", "value") == (None, None)
+
+
+def test_prepare_property_payload_allows_clearing_x_publish_error(mock_config):
+    uploader = NotionUploader(mock_config)
+    uploader.props = {"x_publish_error": "X Publish Error", "memo": "Memo"}
+    uploader._db_properties = {
+        "X Publish Error": {"type": "rich_text"},
+        "Memo": {"type": "rich_text"},
+    }
+
+    prop_name, payload = uploader._prepare_property_payload("x_publish_error", "")
+
+    assert prop_name == "X Publish Error"
+    assert payload == {"rich_text": []}
+    assert uploader._prepare_property_payload("memo", "") == (None, None)
 
 
 def test_build_upload_properties_preserves_review_and_x_fields(mock_config):
@@ -1121,6 +1289,14 @@ async def test_safe_notion_call_non_retryable_raises_immediately(mock_config):
         await uploader._safe_notion_call(mock_fn, max_retries=3)
 
     assert call_count == 1  # 재시도 없이 즉시 종료
+    report = uploader.last_notion_retry_report
+    assert report is not None
+    assert report["final_state"] == "failed"
+    assert report["final_error"] == "Unauthorized"
+    assert report["last_status"] == 401
+    assert report["retry_count"] == 0
+    assert report["attempts"][0]["retryable"] is False
+    assert report["attempts"][0]["will_retry"] is False
 
 
 @pytest.mark.asyncio
@@ -1139,6 +1315,14 @@ async def test_safe_notion_call_exhausts_retries_raises(mock_sleep, mock_config)
         await uploader._safe_notion_call(mock_fn, max_retries=2)
 
     assert mock_sleep.call_count == 1  # max_retries=2이면 retry 1번
+    report = uploader.last_notion_retry_report
+    assert report is not None
+    assert report["final_state"] == "failed"
+    assert report["final_error"] == "Rate limited"
+    assert report["last_status"] == 429
+    assert report["retry_count"] == 1
+    assert report["attempts"][0]["will_retry"] is True
+    assert report["attempts"][1]["will_retry"] is False
 
 
 @pytest.mark.asyncio

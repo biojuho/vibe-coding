@@ -45,6 +45,8 @@ class NotionUploader(
     Notion API 인프라(ensure_schema, query_collection 등)만 유지합니다.
     """
 
+    RETRYABLE_NOTION_STATUS_CODES = {429, 500, 502, 503, 504, 529}
+
     def __init__(self, config):
         self.config = config
         api_key = config.get("notion.api_key")
@@ -68,6 +70,7 @@ class NotionUploader(
         self.collection_kind = None
         self.last_error_code = None
         self.last_error_message = None
+        self.last_notion_retry_report: dict[str, Any] | None = None
         self.client = AsyncClient(auth=self.api_key) if self.api_key else None
 
         # P1-B: 중복 감지 bulk 캐시 — 실행 1회 bulk 조회 후 메모리 내 O(1) 체크
@@ -257,16 +260,60 @@ class NotionUploader(
         import asyncio as _asyncio
 
         last_exc = None
+        attempts: list[dict[str, Any]] = []
+        self.last_notion_retry_report = {
+            "attempt_count": 0,
+            "retry_count": 0,
+            "max_retries": max_retries,
+            "final_state": "pending",
+            "final_error": None,
+            "last_status": None,
+            "retryable": None,
+            "attempts": attempts,
+        }
         for attempt in range(max_retries):
+            attempt_number = attempt + 1
             try:
-                return await fn(*args, **kwargs)
+                result = await fn(*args, **kwargs)
+                self.last_notion_retry_report.update(
+                    {
+                        "attempt_count": attempt_number,
+                        "retry_count": sum(1 for item in attempts if item["will_retry"]),
+                        "final_state": "success",
+                        "final_error": None,
+                    }
+                )
+                return result
             except Exception as exc:
                 last_exc = exc
                 status = self._extract_status_code(exc)
                 retry_after = self._extract_retry_after_seconds(exc)
-                retryable = status in (429, 500, 502, 503, 504) or status is None
-                if retryable and attempt < max_retries - 1:
-                    delay = retry_after if retry_after is not None else 2**attempt  # 1s, 2s, 4s
+                retryable = status in self.RETRYABLE_NOTION_STATUS_CODES or status is None
+                will_retry = retryable and attempt < max_retries - 1
+                delay = (retry_after if retry_after is not None else 2**attempt) if will_retry else None
+                attempts.append(
+                    {
+                        "attempt": attempt_number,
+                        "status": status,
+                        "retry_after_seconds": retry_after,
+                        "retryable": retryable,
+                        "will_retry": will_retry,
+                        "delay_seconds": delay,
+                        "error_type": type(exc).__name__,
+                        "error": str(exc),
+                    }
+                )
+                self.last_notion_retry_report.update(
+                    {
+                        "attempt_count": attempt_number,
+                        "retry_count": sum(1 for item in attempts if item["will_retry"]),
+                        "final_state": "retrying" if will_retry else "failed",
+                        "final_error": None if will_retry else str(exc),
+                        "last_status": status,
+                        "retryable": retryable,
+                    }
+                )
+                if will_retry:
                     logger.warning(
                         "Notion API error (status=%s), retrying in %ds (attempt %d/%d): %s",
                         status,

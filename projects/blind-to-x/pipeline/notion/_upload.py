@@ -36,6 +36,7 @@ class NotionUploadMixin:
         "갈등 낚시 과다": "갈등 과열",
     }
     X_MAX_CHARS = 280
+    CLEARABLE_EMPTY_RICH_TEXT_KEYS = {"x_publish_error"}
 
     def _prepare_property_payload(self, semantic_key: str, value: Any):
         """시맨틱 키 + 값 → Notion API 속성 payload 변환."""
@@ -50,7 +51,9 @@ class NotionUploadMixin:
 
     def _resolve_property_target(self, semantic_key: str, value: Any) -> tuple[str | None, str | None]:
         prop_name = self.props.get(semantic_key)
-        if not prop_name or prop_name not in self._db_properties or value in (None, ""):
+        if not prop_name or prop_name not in self._db_properties or value is None:
+            return None, None
+        if value == "" and semantic_key not in self.CLEARABLE_EMPTY_RICH_TEXT_KEYS:
             return None, None
         return prop_name, self._db_properties[prop_name]["type"]
 
@@ -66,6 +69,8 @@ class NotionUploadMixin:
 
     @staticmethod
     def _build_scalar_property_payload(prop_type: str | None, value: Any) -> dict[str, Any] | None:
+        if prop_type == "rich_text" and value == "":
+            return {"rich_text": []}
         builders = {
             "title": lambda item: {"title": [{"text": {"content": str(item)[:1990]}}]},
             "rich_text": lambda item: {"rich_text": [{"text": {"content": str(item)[:1990]}}]},
@@ -1053,5 +1058,16 @@ class NotionUploadMixin:
             logger.info("Successfully updated properties for Notion page %s", page_id)
             return True
         except Exception as exc:
+            err_str = str(exc)
+            if "is not a property that exists" in err_str:
+                self._set_error(
+                    ERROR_NOTION_SCHEMA_MISMATCH,
+                    f"Notion property update schema mismatch. Original error: {err_str}",
+                )
+            else:
+                self._set_error(
+                    ERROR_NOTION_UPLOAD_FAILED,
+                    f"Failed to update Notion page properties: {err_str}",
+                )
             logger.error("Failed to update Notion page properties: %s", exc)
             return False
