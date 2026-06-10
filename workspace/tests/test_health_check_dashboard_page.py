@@ -156,6 +156,26 @@ def test_health_check_dashboard_suggests_specific_next_actions(
     assert ok_action == "추가 조치가 필요 없습니다."
 
 
+def test_health_check_dashboard_next_action_helpers_match_dispatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module, _fake_streamlit = _import_health_check_dashboard(monkeypatch)
+
+    assert module._detail_has("401 unauthorized", "401", "invalid")
+    assert module._status_next_action("ok") == module._suggest_next_action(
+        {"name": "git", "category": "environment", "status": "ok", "detail": ".git"}
+    )
+    assert module._env_next_action("unexpected format") == module._suggest_next_action(
+        {"name": "OPENAI_API_KEY", "category": "env", "status": "warn", "detail": "unexpected format"}
+    )
+    assert module._api_next_action("429 rate limit") == module._suggest_next_action(
+        {"name": "OpenAI", "category": "api", "status": "warn", "detail": "429 rate limit"}
+    )
+    assert module._environment_next_action({"name": "git"}) == module._suggest_next_action(
+        {"name": "git", "category": "environment", "status": "fail", "detail": "missing"}
+    )
+
+
 def test_health_check_dashboard_source_avoids_deprecated_width_api() -> None:
     source = (WORKSPACE_ROOT / "execution" / "pages" / "health_check_dashboard.py").read_text(encoding="utf-8")
 

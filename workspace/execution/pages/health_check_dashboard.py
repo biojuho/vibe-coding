@@ -78,54 +78,78 @@ def _status_label(status: str) -> str:
     }.get(status, status.upper())
 
 
-def _suggest_next_action(result: dict) -> str:
-    status = result.get("status", "")
-    category = result.get("category", "")
-    detail = str(result.get("detail") or "")
-    detail_lower = detail.lower()
+def _detail_has(detail_lower: str, *needles: str) -> bool:
+    return any(needle in detail_lower for needle in needles)
 
+
+def _status_next_action(status: str) -> str | None:
     if status == STATUS_OK:
         return "추가 조치가 필요 없습니다."
     if status == STATUS_SKIP:
         return "최초 실행 전이면 기록만 남기고, 반복 점검에서 계속 건너뛰면 생성 파이프라인을 확인하세요."
+    return None
 
-    if category == "env":
-        if "not set" in detail_lower or "missing" in detail_lower:
-            return ".env와 .env.example을 비교해 누락된 키를 채우고, 선택 provider인지 필수 provider인지 구분하세요."
-        if "unexpected format" in detail_lower:
-            return "키 prefix와 길이를 provider 콘솔 기준으로 확인하고, 포맷이 맞지 않으면 새 키로 교체하세요."
-        return "환경 변수 값을 갱신한 뒤 같은 카테고리만 다시 점검하세요."
 
-    if category == "api":
-        if "401" in detail_lower or "unauthorized" in detail_lower or "invalid" in detail_lower:
-            return "인증 키가 만료되었거나 잘못되었습니다. provider 콘솔에서 재발급 후 .env를 갱신하세요."
-        if "403" in detail_lower or "forbidden" in detail_lower:
-            return "키 권한, 조직, 프로젝트 스코프를 확인한 뒤 최소 권한으로 다시 연결하세요."
-        if "429" in detail_lower or "rate" in detail_lower:
-            return "요청 제한 상태입니다. 재시도 간격을 두고 비용/쿼터 화면에서 한도를 확인하세요."
-        if "timeout" in detail_lower or "connection" in detail_lower:
-            return "네트워크, DNS, 프록시, provider 상태를 확인한 뒤 연결 점검만 재실행하세요."
-        if "not set" in detail_lower or "missing keys" in detail_lower:
-            return "필수 API인지 선택 API인지 판단하고, 필요한 키만 .env에 채운 뒤 재점검하세요."
-        return "연결 실패 원문을 기준으로 인증, 권한, provider 상태를 순서대로 분리해 확인하세요."
+def _env_next_action(detail_lower: str) -> str:
+    if _detail_has(detail_lower, "not set", "missing"):
+        return ".env와 .env.example을 비교해 누락된 키를 채우고, 선택 provider인지 필수 provider인지 구분하세요."
+    if "unexpected format" in detail_lower:
+        return "키 prefix와 길이를 provider 콘솔 기준으로 확인하고, 포맷이 맞지 않으면 새 키로 교체하세요."
+    return "환경 변수 값을 갱신한 뒤 같은 카테고리만 다시 점검하세요."
 
-    if category == "filesystem":
-        if "missing" in detail_lower:
-            return "누락 경로를 프로젝트 root 기준으로 복구하고, 임시 산출물은 재생성 가능한지 확인하세요."
-        return "경로 권한과 실제 위치를 확인한 뒤 파일시스템 점검만 다시 실행하세요."
 
-    if category == "database":
-        if "not created yet" in detail_lower:
-            return "초기화 스크립트나 관련 파이프라인을 실행해 workspace.db를 생성하세요."
-        return "SQLite 파일 존재 여부와 integrity를 확인하고, 손상 시 재생성 가능한 백업 경로를 우선 확인하세요."
+def _api_next_action(detail_lower: str) -> str:
+    if _detail_has(detail_lower, "401", "unauthorized", "invalid"):
+        return "인증 키가 만료되었거나 잘못되었습니다. provider 콘솔에서 재발급 후 .env를 갱신하세요."
+    if _detail_has(detail_lower, "403", "forbidden"):
+        return "키 권한, 조직, 프로젝트 스코프를 확인한 뒤 최소 권한으로 다시 연결하세요."
+    if _detail_has(detail_lower, "429", "rate"):
+        return "요청 제한 상태입니다. 재시도 간격을 두고 비용/쿼터 화면에서 한도를 확인하세요."
+    if _detail_has(detail_lower, "timeout", "connection"):
+        return "네트워크, DNS, 프록시, provider 상태를 확인한 뒤 연결 점검만 재실행하세요."
+    if _detail_has(detail_lower, "not set", "missing keys"):
+        return "필수 API인지 선택 API인지 판단하고, 필요한 키만 .env에 채운 뒤 재점검하세요."
+    return "연결 실패 원문을 기준으로 인증, 권한, provider 상태를 순서대로 분리해 확인하세요."
 
-    if category == "environment":
-        if "venv" in str(result.get("name", "")).lower():
-            return "가상환경을 활성화하거나 의존성 설치 상태를 확인한 뒤 동일 점검을 반복하세요."
-        if "git" in str(result.get("name", "")).lower():
-            return "현재 작업 경로가 Git 저장소 root인지 확인하세요."
-        return "실행 환경 차이를 먼저 고정한 뒤 점검을 다시 실행하세요."
 
+def _filesystem_next_action(detail_lower: str) -> str:
+    if "missing" in detail_lower:
+        return "누락 경로를 프로젝트 root 기준으로 복구하고, 임시 산출물은 재생성 가능한지 확인하세요."
+    return "경로 권한과 실제 위치를 확인한 뒤 파일시스템 점검만 다시 실행하세요."
+
+
+def _database_next_action(detail_lower: str) -> str:
+    if "not created yet" in detail_lower:
+        return "초기화 스크립트나 관련 파이프라인을 실행해 workspace.db를 생성하세요."
+    return "SQLite 파일 존재 여부와 integrity를 확인하고, 손상 시 재생성 가능한 백업 경로를 우선 확인하세요."
+
+
+def _environment_next_action(result: dict) -> str:
+    name_lower = str(result.get("name", "")).lower()
+    if "venv" in name_lower:
+        return "가상환경을 활성화하거나 의존성 설치 상태를 확인한 뒤 동일 점검을 반복하세요."
+    if "git" in name_lower:
+        return "현재 작업 경로가 Git 저장소 root인지 확인하세요."
+    return "실행 환경 차이를 먼저 고정한 뒤 점검을 다시 실행하세요."
+
+
+def _suggest_next_action(result: dict) -> str:
+    status_action = _status_next_action(result.get("status", ""))
+    if status_action:
+        return status_action
+
+    category = result.get("category", "")
+    detail_lower = str(result.get("detail") or "").lower()
+    category_handlers = {
+        "env": lambda: _env_next_action(detail_lower),
+        "api": lambda: _api_next_action(detail_lower),
+        "filesystem": lambda: _filesystem_next_action(detail_lower),
+        "database": lambda: _database_next_action(detail_lower),
+        "environment": lambda: _environment_next_action(result),
+    }
+    handler = category_handlers.get(category)
+    if handler:
+        return handler()
     return "실패 원문을 근거로 소유 시스템을 분리하고, 같은 카테고리만 재실행해 복구 여부를 확인하세요."
 
 
