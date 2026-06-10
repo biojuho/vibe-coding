@@ -5938,3 +5938,18 @@
 - Post-commit code-review graph refresh is current at `24830b9f`; update emitted only known Blind-to-X transaction warnings and rebuilt FTS.
 - Updated `.ai/HANDOFF.md` and `.ai/TASKS.md` so T-2264 is recorded as complete while T-2265 remains the current pending approval surface.
 - No push, unrelated staging, revert, product/browser edit, `update_goal`, or Hanwoo T-251 retry was performed.
+
+## 2026-06-11 - Codex
+
+- Continued only the nested `claude-goal/` autonomous debugging loop while root `/goal` launch work remains blocked by the current T-2264/T-2265 dirty handoff boundary.
+- Fresh marker proof showed `readonly || <marker>`, `readonly -p || <marker>`, `readonly -- || <marker>`, and `builtin readonly || <marker>` exit successfully and skip the OR-list right side.
+- Runtime control showed `readonly -Q || <marker>` executes the marker because that option fails.
+- Before the fix, both detector copies counted static-success `readonly` OR-list forms as configured Stop hooks.
+- Fixed `claude-goal/goal/scripts/claude_goal.py` and `claude-goal/goal/scripts/install_goal.py` by adding narrow `_posix_readonly_static_success(...)` support for no-arg `readonly`, single `-p`, and single `--`, plus Bash `builtin readonly` dispatch through the static-success path.
+- Updated `claude-goal/tests/test_claude_goal.py` and `claude-goal/tests/test_install_goal.py` with raw, structured Bash, and `builtin readonly` OR-list negatives plus invalid option and AND-list controls.
+- Verification passed direct detector probes for both copies, focused pytest (`2 passed`; `198 passed`), Ruff check, Ruff format check, `py_compile`, path-limited diff-check, and full nested pytest (`748 passed in 636.09s`).
+- Current broad root `code_review_gate.py --base HEAD --json` still fails from accumulated workspace dirty state (`risk_score=0.70`, `changed_files=94`, `affected_flows=935`, `test_gaps=252`), so this slice is covered by scoped tests/static gates.
+- Evidence note: `claude-goal/.tmp/claude-goal-posix-readonly-current.md`.
+- Changed files for this slice: `claude-goal/goal/scripts/claude_goal.py`, `claude-goal/goal/scripts/install_goal.py`, `claude-goal/tests/test_claude_goal.py`, `claude-goal/tests/test_install_goal.py`, `claude-goal/.tmp/claude-goal-posix-readonly-current.md`, `.ai/HANDOFF.md`, `.ai/TASKS.md`, and `.ai/SESSION_LOG.md`.
+- Basetemp cleanup removed this loop's `pytest-posix-readonly-claude` and `pytest-posix-readonly-full`; `pytest-posix-readonly-install` was already absent.
+- No stage, commit, push, revert, root product/browser edit, `update_goal`, graph process kill, or Hanwoo T-251 retry was performed by this nested loop.
