@@ -8,11 +8,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
-WORKSPACE = Path(__file__).resolve().parents[1]
-if str(WORKSPACE) not in sys.path:
-    sys.path.insert(0, str(WORKSPACE))
-
+import _path_bootstrap
 from path_contract import REPO_ROOT
+
+WORKSPACE = _path_bootstrap.WORKSPACE
 
 
 SCAN_EXCLUDES = {
