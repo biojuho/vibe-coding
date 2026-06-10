@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { cp, readdir, stat } from "node:fs/promises";
+import { cp, mkdir, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -62,6 +62,7 @@ async function copyIfExists(source, destination) {
 		return false;
 	}
 
+	await mkdir(path.dirname(destination), { recursive: true });
 	await cp(source, destination, { recursive: true, force: true });
 	return true;
 }
@@ -78,9 +79,18 @@ async function prepareStaticAssets(serverPath) {
 	);
 }
 
+async function prepareRuntimeDependencies(serverPath) {
+	const serverDir = path.dirname(serverPath);
+	await copyIfExists(
+		path.join(projectRoot, "node_modules", "@swc", "helpers"),
+		path.join(serverDir, "node_modules", "@swc", "helpers"),
+	);
+}
+
 export async function resolveStandaloneServer() {
 	const serverPath = await findStandaloneServer();
 	await prepareStaticAssets(serverPath);
+	await prepareRuntimeDependencies(serverPath);
 	return serverPath;
 }
 

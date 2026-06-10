@@ -27,3 +27,26 @@ test("smoke script uses an isolated port unless explicitly configured", async ()
 		"smoke fixtures must not write into Next standalone build output",
 	);
 });
+
+test("standalone launcher repairs traced SWC helper dependency gaps", async () => {
+	const source = await readFile(
+		path.join(process.cwd(), "scripts/start-standalone.mjs"),
+		"utf8",
+	);
+
+	assert.match(
+		source,
+		/prepareRuntimeDependencies/,
+		"standalone startup must prepare runtime dependency fallbacks",
+	);
+	assert.match(
+		source,
+		/path\.join\(projectRoot,\s*"node_modules",\s*"@swc",\s*"helpers"\)/,
+		"standalone startup must copy the local @swc/helpers package when tracing omits it",
+	);
+	assert.match(
+		source,
+		/path\.join\(serverDir,\s*"node_modules",\s*"@swc",\s*"helpers"\)/,
+		"@swc/helpers must be copied inside the standalone server directory",
+	);
+});

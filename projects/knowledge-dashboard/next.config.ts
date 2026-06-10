@@ -45,6 +45,9 @@ const nextConfig: NextConfig = {
 	// Smaller, self-contained server bundle for container/Vercel deploys.
 	output: "standalone",
 	reactStrictMode: true,
+	// Browser QA drives the dev server through 127.0.0.1; allow the HMR origin
+	// explicitly so Next.js does not block its own development websocket.
+	allowedDevOrigins: ["127.0.0.1"],
 	// Do not advertise the framework/version to the world.
 	poweredByHeader: false,
 	async headers() {
