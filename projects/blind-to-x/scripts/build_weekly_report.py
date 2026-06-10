@@ -2,14 +2,271 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from collections import Counter
+import json
 import logging
 from pathlib import Path
+import sys
 
-from config import ConfigManager, load_env, setup_logging
-from pipeline.feedback_loop import FeedbackLoop
-from pipeline.notion_upload import NotionUploader
+BTX_ROOT = Path(__file__).resolve().parent.parent
+if str(BTX_ROOT) not in sys.path:
+    sys.path.insert(0, str(BTX_ROOT))
+
+from config import ConfigManager, load_env, setup_logging  # noqa: E402
+from pipeline.feedback_loop import FeedbackLoop  # noqa: E402
+from pipeline.notion_upload import NotionUploader  # noqa: E402
 
 logger = logging.getLogger(__name__)
+
+
+def _as_float(value) -> float | None:
+    try:
+        if value in (None, ""):
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _format_number(value) -> str:
+    number = _as_float(value)
+    if number is None:
+        return "-"
+    if abs(number - round(number)) < 0.0001:
+        return str(int(round(number)))
+    return f"{number:.2f}"
+
+
+def _format_percent(value) -> str:
+    number = _as_float(value)
+    if number is None:
+        return "-"
+    return f"{number * 100:.1f}%"
+
+
+def _format_usd(value) -> str:
+    number = _as_float(value)
+    return "-" if number is None else f"${number:.4f}"
+
+
+def _format_ms(value) -> str:
+    number = _as_float(value)
+    return "-" if number is None else f"{number:.1f}ms"
+
+
+def _format_bool(value) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return "-"
+
+
+def _count_sort_value(value) -> float:
+    number = _as_float(value)
+    return number if number is not None else 0.0
+
+
+def _format_counts(counts: dict | Counter, *, limit: int = 4) -> str:
+    if not counts:
+        return "-"
+    if isinstance(counts, Counter):
+        items = counts.most_common(limit)
+    else:
+        items = sorted(counts.items(), key=lambda item: (-_count_sort_value(item[1]), str(item[0])))[:limit]
+    return ", ".join(f"{label}={count}" for label, count in items) if items else "-"
+
+
+def _first_operator_action(items) -> str:
+    if not isinstance(items, list):
+        return ""
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        action = str(item.get("operator_action") or "").strip()
+        if action:
+            return action
+    return ""
+
+
+def _review_experiment_next_action(summary: dict | None, safety: dict) -> str:
+    if safety.get("read_only") is False:
+        return "Restore the dry-run read-only safety contract before using this evidence."
+    if safety.get("notion_writes") or safety.get("x_posts"):
+        return "Disable Notion writes and X posting for the review experiment dry-run."
+    if safety.get("auto_publish_default"):
+        return "Keep auto-publish disabled; require manual publish approval."
+    if safety.get("manual_publish_required") is False:
+        return "Require manual publish approval before rollout."
+    if not isinstance(summary, dict):
+        return ""
+
+    confidence = summary.get("candidate_experiment_confidence")
+    if isinstance(confidence, dict):
+        action = _first_operator_action(confidence.get("issues"))
+        if action:
+            return action
+
+    action = _first_operator_action(summary.get("candidate_top_missing_metric_hints"))
+    if action:
+        return action
+
+    if summary.get("candidate_ready_for_rollout") is True:
+        return "Review the candidate card manually, then keep publish approval manual."
+    return ""
+
+
+def _variant_signal_stats(experiment: dict, variant_name: str) -> dict:
+    variants = []
+    items = experiment.get("items")
+    if isinstance(items, list):
+        for item in items:
+            if isinstance(item, dict) and isinstance(item.get(variant_name), dict):
+                variants.append(item[variant_name])
+    elif isinstance(experiment.get("variants"), dict) and isinstance(experiment["variants"].get(variant_name), dict):
+        variants.append(experiment["variants"][variant_name])
+
+    providers: Counter[str] = Counter()
+    models: Counter[str] = Counter()
+    latencies: list[float] = []
+    costs: list[float] = []
+    operator_action_total = 0
+
+    for variant in variants:
+        signals = variant.get("signals") if isinstance(variant.get("signals"), dict) else {}
+        provider = str(signals.get("provider") or "").strip()
+        model = str(signals.get("model") or "").strip()
+        latency = _as_float(signals.get("latency_ms"))
+        cost = _as_float(signals.get("token_cost_estimate"))
+        if provider:
+            providers[provider] += 1
+        if model:
+            models[model] += 1
+        if latency is not None:
+            latencies.append(latency)
+        if cost is not None:
+            costs.append(cost)
+        operator_action_total += int(_as_float(variant.get("operator_action_count")) or 0)
+
+    return {
+        "providers": providers,
+        "models": models,
+        "avg_latency_ms": sum(latencies) / len(latencies) if latencies else None,
+        "avg_cost_usd": sum(costs) / len(costs) if costs else None,
+        "operator_action_total": operator_action_total,
+    }
+
+
+def _render_review_experiment_section(experiment: dict | None) -> str:
+    if not isinstance(experiment, dict):
+        return ""
+
+    summary = experiment.get("summary") if isinstance(experiment.get("summary"), dict) else None
+    comparison = experiment.get("comparison") if isinstance(experiment.get("comparison"), dict) else None
+    variants = experiment.get("variants") if isinstance(experiment.get("variants"), dict) else None
+    if summary is None and comparison is None:
+        return ""
+
+    safety = experiment.get("safety") if isinstance(experiment.get("safety"), dict) else {}
+    current = _variant_signal_stats(experiment, "current")
+    candidate = _variant_signal_stats(experiment, "candidate")
+
+    lines = [
+        "",
+        "## Review Experiment A/B Summary (dry-run)",
+        "",
+    ]
+    input_source = str(experiment.get("input_source") or "").strip()
+    if input_source:
+        lines.append(f"- Source: {input_source}")
+
+    if summary is not None:
+        next_action = _review_experiment_next_action(summary, safety)
+        lines.extend(
+            [
+                f"- Items: {summary.get('item_count', 0)}; "
+                f"candidate adoption={_format_percent(summary.get('candidate_adoption_rate'))}; "
+                f"rollout_ready={_format_bool(summary.get('candidate_ready_for_rollout'))}",
+                f"- Score: current_avg={_format_number(summary.get('average_current_review_efficiency_score'))}; "
+                f"candidate_avg={_format_number(summary.get('average_candidate_review_efficiency_score'))}; "
+                f"delta={_format_number(summary.get('average_score_delta'))}",
+                f"- Operator actions: total={summary.get('candidate_operator_action_total', 0)}; "
+                f"avg/item={_format_number(summary.get('average_operator_actions_per_item'))}; "
+                f"max/item={summary.get('max_operator_actions_per_item', 0)}; "
+                f"delta={_format_number(summary.get('average_operator_action_delta'))}",
+            ]
+        )
+        missing_counts = summary.get("candidate_missing_metric_counts")
+        if isinstance(missing_counts, dict):
+            lines.append(
+                f"- Missing metrics: rate={_format_percent(summary.get('candidate_missing_metric_rate'))}; "
+                f"top={_format_counts(missing_counts)}"
+            )
+        lines.append(
+            f"- Operator buckets: errors={_format_counts(summary.get('candidate_operator_error_bucket_counts') or {})}; "
+            f"reasons={_format_counts(summary.get('candidate_operator_reason_bucket_counts') or {})}; "
+            f"triage={_format_counts(summary.get('candidate_operator_triage_bucket_counts') or {})}"
+        )
+        rollout_reason = str(summary.get("candidate_rollout_reason") or "").strip()
+        if rollout_reason:
+            lines.append(f"- Rollout gate: {rollout_reason}")
+        if next_action:
+            lines.append(f"- Next manual action: {next_action}")
+    elif comparison is not None and variants is not None:
+        current_variant = variants.get("current") if isinstance(variants.get("current"), dict) else {}
+        candidate_variant = variants.get("candidate") if isinstance(variants.get("candidate"), dict) else {}
+        lines.extend(
+            [
+                f"- Recommendation: {comparison.get('recommendation', '-')}",
+                f"- Score: current={_format_number(current_variant.get('review_efficiency_score'))}; "
+                f"candidate={_format_number(candidate_variant.get('review_efficiency_score'))}; "
+                f"delta={_format_number(comparison.get('score_delta'))}",
+                f"- Operator actions: current={current_variant.get('operator_action_count', 0)}; "
+                f"candidate={candidate_variant.get('operator_action_count', 0)}; "
+                f"delta={_format_number(comparison.get('operator_action_delta'))}",
+            ]
+        )
+
+    lines.extend(
+        [
+            f"- Provider evidence: current={_format_counts(current['providers'])}; "
+            f"candidate={_format_counts(candidate['providers'])}",
+            f"- Model evidence: current={_format_counts(current['models'])}; "
+            f"candidate={_format_counts(candidate['models'])}",
+            f"- Latency avg: current={_format_ms(current['avg_latency_ms'])}; "
+            f"candidate={_format_ms(candidate['avg_latency_ms'])}",
+            f"- Cost avg: current={_format_usd(current['avg_cost_usd'])}; "
+            f"candidate={_format_usd(candidate['avg_cost_usd'])}",
+            f"- Safety: read_only={_format_bool(safety.get('read_only'))}; "
+            f"notion_writes={_format_bool(safety.get('notion_writes'))}; "
+            f"x_posts={_format_bool(safety.get('x_posts'))}; "
+            f"manual_publish_required={_format_bool(safety.get('manual_publish_required'))}",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def _load_review_experiment_report(input_path: str | None) -> dict:
+    if not input_path:
+        return {}
+    try:
+        path = Path(input_path)
+        with path.open(encoding="utf-8-sig") as handle:
+            payload = json.load(handle)
+        return payload if isinstance(payload, dict) else {}
+    except Exception as exc:
+        logger.warning("Review experiment section skipped: %s", exc)
+        return {}
+
+
+def _load_report_payload(input_path: str | None) -> dict:
+    if not input_path:
+        return {}
+    path = Path(input_path)
+    with path.open(encoding="utf-8-sig") as handle:
+        payload = json.load(handle)
+    if not isinstance(payload, dict):
+        raise ValueError("weekly report payload input must be a JSON object")
+    return payload
 
 
 def _render_best_of_n_section(days: int) -> str:
@@ -70,17 +327,31 @@ def _render_report(payload: dict, *, best_of_n_days: int = 30) -> str:
             f"{item['topic_cluster']} / {item['hook_type']} / {item['emotion_axis']}"
         )
     body = "\n".join(lines) + "\n"
+    review_experiment_section = _render_review_experiment_section(payload.get("review_experiment"))
+    if review_experiment_section:
+        body += review_experiment_section
     tuner_section = _render_best_of_n_section(best_of_n_days)
     if tuner_section:
         body += tuner_section
     return body
 
 
-async def run(days: int, config_path: str, output_path: str) -> int:
-    config_mgr = ConfigManager(config_path)
-    notion_uploader = NotionUploader(config_mgr)
-    feedback_loop = FeedbackLoop(notion_uploader, config_mgr)
-    payload = await feedback_loop.build_weekly_report_payload(days=days)
+async def run(
+    days: int,
+    config_path: str,
+    output_path: str,
+    review_experiment_input: str | None = None,
+    payload_input: str | None = None,
+) -> int:
+    payload = _load_report_payload(payload_input)
+    if not payload:
+        config_mgr = ConfigManager(config_path)
+        notion_uploader = NotionUploader(config_mgr)
+        feedback_loop = FeedbackLoop(notion_uploader, config_mgr)
+        payload = await feedback_loop.build_weekly_report_payload(days=days)
+    review_experiment = _load_review_experiment_report(review_experiment_input)
+    if review_experiment:
+        payload["review_experiment"] = review_experiment
     # tuner sweep 은 더 긴 윈도우(30일)로 보는 게 표본 확보에 유리.
     report = _render_report(payload, best_of_n_days=max(days, 30))
 
@@ -96,11 +367,31 @@ def main():
     parser.add_argument("--config", default="config.yaml")
     parser.add_argument("--days", type=int, default=7)
     parser.add_argument("--output", default=".tmp/weekly_report.md")
+    parser.add_argument(
+        "--payload-input",
+        default="",
+        help="Optional weekly report payload JSON to render locally without fetching Notion.",
+    )
+    parser.add_argument(
+        "--review-experiment-input",
+        default="",
+        help="Optional review_experiment_dry_run JSON to embed as a read-only A/B summary.",
+    )
     args = parser.parse_args()
 
     load_env()
     setup_logging()
-    raise SystemExit(asyncio.run(run(days=args.days, config_path=args.config, output_path=args.output)))
+    raise SystemExit(
+        asyncio.run(
+            run(
+                days=args.days,
+                config_path=args.config,
+                output_path=args.output,
+                review_experiment_input=args.review_experiment_input,
+                payload_input=args.payload_input,
+            )
+        )
+    )
 
 
 if __name__ == "__main__":

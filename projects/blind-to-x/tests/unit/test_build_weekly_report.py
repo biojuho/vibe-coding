@@ -6,6 +6,9 @@
 
 from __future__ import annotations
 
+import asyncio
+import json
+import subprocess
 import sys
 from pathlib import Path
 from unittest.mock import patch
@@ -15,7 +18,7 @@ import pytest
 _BTX_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_BTX_ROOT))
 
-from scripts.build_weekly_report import _render_best_of_n_section, _render_report  # noqa: E402
+from scripts.build_weekly_report import _render_best_of_n_section, _render_report, run  # noqa: E402
 
 
 def _basic_payload():
@@ -43,6 +46,92 @@ def _basic_payload():
     }
 
 
+def _review_experiment_payload():
+    return {
+        "input_source": ".tmp/review_queue_report_sample.json",
+        "dry_run": True,
+        "batch": True,
+        "safety": {
+            "read_only": True,
+            "notion_writes": False,
+            "x_posts": False,
+            "auto_publish_default": False,
+            "manual_publish_required": True,
+        },
+        "summary": {
+            "item_count": 3,
+            "candidate_adoption_rate": 0.667,
+            "average_current_review_efficiency_score": 18.0,
+            "average_candidate_review_efficiency_score": 24.5,
+            "average_score_delta": 6.5,
+            "candidate_operator_action_total": 5,
+            "average_operator_actions_per_item": 1.667,
+            "max_operator_actions_per_item": 2,
+            "average_operator_action_delta": 1.667,
+            "candidate_missing_metric_rate": 0.1,
+            "candidate_missing_metric_counts": {
+                "provider": 0,
+                "model": 0,
+                "latency_ms": 1,
+                "token_cost_estimate": 2,
+            },
+            "candidate_operator_error_bucket_counts": {"x_post_failed": 2},
+            "candidate_operator_reason_bucket_counts": {"missing_draft": 1},
+            "candidate_operator_triage_bucket_counts": {"blocked_publish": 1},
+            "candidate_ready_for_rollout": False,
+            "candidate_rollout_reason": "blocked: fill missing objective metrics before rollout",
+            "candidate_experiment_confidence": {
+                "issues": [
+                    {
+                        "code": "missing_metric_rate_high",
+                        "operator_action": (
+                            "Fill the top missing metrics before using this experiment as adoption evidence."
+                        ),
+                    }
+                ],
+            },
+        },
+        "items": [
+            {
+                "current": {"signals": {}, "operator_action_count": 0},
+                "candidate": {
+                    "signals": {
+                        "provider": "gemini",
+                        "model": "gemini-2.5-flash",
+                        "latency_ms": 400,
+                        "token_cost_estimate": 0.01,
+                    },
+                    "operator_action_count": 2,
+                },
+            },
+            {
+                "current": {"signals": {}, "operator_action_count": 0},
+                "candidate": {
+                    "signals": {
+                        "provider": "openai",
+                        "model": "gpt-5-mini",
+                        "latency_ms": 500,
+                        "token_cost_estimate": 0.02,
+                    },
+                    "operator_action_count": 1,
+                },
+            },
+            {
+                "current": {"signals": {}, "operator_action_count": 0},
+                "candidate": {
+                    "signals": {
+                        "provider": "gemini",
+                        "model": "gemini-2.5-flash",
+                        "latency_ms": 600,
+                        "token_cost_estimate": 0.03,
+                    },
+                    "operator_action_count": 2,
+                },
+            },
+        ],
+    }
+
+
 def test_render_report_includes_all_required_summary_sections():
     """기본 markdown 구조가 깨지지 않아야: 헤더 + 요약 + Topics/Hooks/Emotions/Performers."""
     with patch("scripts.build_weekly_report._render_best_of_n_section", return_value=""):
@@ -57,6 +146,134 @@ def test_render_report_includes_all_required_summary_sections():
     assert "## Top Emotions" in text
     assert "## Top Performers" in text
     assert "Title A | views=1000 likes=50 retweets=10" in text
+
+
+def test_render_report_embeds_review_experiment_batch_summary():
+    payload = _basic_payload()
+    payload["review_experiment"] = _review_experiment_payload()
+
+    with patch("scripts.build_weekly_report._render_best_of_n_section", return_value=""):
+        text = _render_report(payload)
+
+    assert "## Review Experiment A/B Summary (dry-run)" in text
+    assert "Source: .tmp/review_queue_report_sample.json" in text
+    assert "candidate adoption=66.7%" in text
+    assert "rollout_ready=false" in text
+    assert "Score: current_avg=18; candidate_avg=24.50; delta=6.50" in text
+    assert "Operator actions: total=5; avg/item=1.67; max/item=2; delta=1.67" in text
+    assert "Missing metrics: rate=10.0%; top=token_cost_estimate=2, latency_ms=1, model=0, provider=0" in text
+    assert "Operator buckets: errors=x_post_failed=2; reasons=missing_draft=1; triage=blocked_publish=1" in text
+    assert "Provider evidence: current=-; candidate=gemini=2, openai=1" in text
+    assert "Model evidence: current=-; candidate=gemini-2.5-flash=2, gpt-5-mini=1" in text
+    assert "Latency avg: current=-; candidate=500.0ms" in text
+    assert "Cost avg: current=-; candidate=$0.0200" in text
+    assert "Safety: read_only=true; notion_writes=false; x_posts=false; manual_publish_required=true" in text
+    assert "Rollout gate: blocked: fill missing objective metrics before rollout" in text
+    assert "Next manual action: Fill the top missing metrics before using this experiment as adoption evidence." in text
+
+
+def test_render_report_preserves_non_numeric_review_metric_counts():
+    payload = _basic_payload()
+    experiment = _review_experiment_payload()
+    experiment["summary"]["candidate_missing_metric_counts"] = {
+        "latency_ms": "n/a",
+        "provider": 1,
+    }
+    payload["review_experiment"] = experiment
+
+    with patch("scripts.build_weekly_report._render_best_of_n_section", return_value=""):
+        text = _render_report(payload)
+
+    assert "Missing metrics: rate=10.0%; top=provider=1, latency_ms=n/a" in text
+
+
+def test_render_report_embeds_ready_review_experiment_next_action():
+    payload = _basic_payload()
+    experiment = _review_experiment_payload()
+    experiment["summary"]["candidate_ready_for_rollout"] = True
+    experiment["summary"]["candidate_rollout_reason"] = "ready: confidence and safety gates passed"
+    experiment["summary"]["candidate_experiment_confidence"] = {"issues": []}
+    payload["review_experiment"] = experiment
+
+    with patch("scripts.build_weekly_report._render_best_of_n_section", return_value=""):
+        text = _render_report(payload)
+
+    assert "Rollout gate: ready: confidence and safety gates passed" in text
+    assert "Next manual action: Review the candidate card manually, then keep publish approval manual." in text
+
+
+def test_run_renders_payload_input_without_notion_fetch(tmp_path):
+    payload_path = tmp_path / "weekly_payload.json"
+    experiment_path = tmp_path / "review_experiment.json"
+    output_path = tmp_path / "weekly_report.md"
+    payload_path.write_text(json.dumps(_basic_payload()), encoding="utf-8")
+    experiment_path.write_text(json.dumps(_review_experiment_payload()), encoding="utf-8")
+
+    with (
+        patch("scripts.build_weekly_report.ConfigManager") as config_manager,
+        patch("scripts.build_weekly_report.NotionUploader") as notion_uploader,
+        patch("scripts.build_weekly_report._render_best_of_n_section", return_value=""),
+    ):
+        exit_code = asyncio.run(
+            run(
+                days=7,
+                config_path="config.yaml",
+                output_path=str(output_path),
+                review_experiment_input=str(experiment_path),
+                payload_input=str(payload_path),
+            )
+        )
+
+    assert exit_code == 0
+    config_manager.assert_not_called()
+    notion_uploader.assert_not_called()
+    text = output_path.read_text(encoding="utf-8")
+    assert "## Review Experiment A/B Summary (dry-run)" in text
+    assert "Next manual action: Fill the top missing metrics before using this experiment as adoption evidence." in text
+
+
+def test_run_rejects_non_object_payload_input(tmp_path):
+    payload_path = tmp_path / "weekly_payload.json"
+    output_path = tmp_path / "weekly_report.md"
+    payload_path.write_text(json.dumps([_basic_payload()]), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="weekly report payload input must be a JSON object"):
+        asyncio.run(
+            run(
+                days=7,
+                config_path="config.yaml",
+                output_path=str(output_path),
+                payload_input=str(payload_path),
+            )
+        )
+
+    assert not output_path.exists()
+
+
+def test_direct_script_renders_payload_input_without_project_pythonpath(tmp_path):
+    payload_path = tmp_path / "weekly_payload.json"
+    output_path = tmp_path / "weekly_report.md"
+    payload_path.write_text(json.dumps(_basic_payload()), encoding="utf-8")
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(_BTX_ROOT / "scripts" / "build_weekly_report.py"),
+            "--payload-input",
+            str(payload_path),
+            "--output",
+            str(output_path),
+        ],
+        cwd=_BTX_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert output_path.exists()
+    assert "Smoke item" not in output_path.read_text(encoding="utf-8")
+    assert "Title A | views=1000 likes=50 retweets=10" in result.stdout
 
 
 def test_render_report_embeds_tuner_section_when_available():
