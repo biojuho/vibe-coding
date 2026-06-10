@@ -1002,7 +1002,7 @@ def test_run_json_reports_success_parse_and_nonzero_contract(tmp_path: Path) -> 
     }
 
 
-def test_low_level_summary_helpers_preserve_blocker_contract(tmp_path: Path) -> None:
+def test_low_level_input_selector_and_context_helpers_preserve_contract() -> None:
     helper_error = {
         "_input_error": {
             "reason": "helper failed",
@@ -1052,6 +1052,8 @@ def test_low_level_summary_helpers_preserve_blocker_contract(tmp_path: Path) -> 
     context = debug_loop_inventory._inventory_item_context(context_inputs)
     assert context.graph == _session_with_fresh_graph()["graph"]
 
+
+def test_low_level_graph_freshness_helpers_preserve_contract() -> None:
     assert debug_loop_inventory._graph_freshness_is_degraded(_session_with_fresh_graph()["graph"]) is False
     assert debug_loop_inventory._graph_freshness_is_degraded(_session_with_stale_graph()["graph"]) is True
     assert debug_loop_inventory._graph_freshness_reproduction() == [
@@ -1083,6 +1085,9 @@ def test_low_level_summary_helpers_preserve_blocker_contract(tmp_path: Path) -> 
         debug_loop_inventory._graph_freshness_item_from_graph(_session_with_stale_graph()["graph"])["title"]
         == "Code Review Graph Evidence Is Stale"
     )
+
+
+def test_low_level_markdown_summary_helpers_preserve_contract() -> None:
     assert debug_loop_inventory._markdown_summary_lines(
         {
             "item_count": 5,
@@ -1272,6 +1277,34 @@ def test_low_level_summary_helpers_preserve_blocker_contract(tmp_path: Path) -> 
         ),
         "",
     ]
+
+
+def _expected_selector_gate() -> dict[str, object]:
+    return {
+        "gate": ("python .agents/skills/auto-research/scripts/debug_loop_inventory.py --fail-on-completion-blocked"),
+        "expected_exit_codes": [1],
+        "meaning": "Completion remains blocked; not a source failure.",
+    }
+
+
+def _blocked_item_contract() -> dict[str, object]:
+    return debug_loop_inventory._make_item(
+        priority=1,
+        title="Blocked Item",
+        status="reproduced, blocked",
+        severity="high",
+        frequency="always",
+        reproduction=["run helper"],
+        expected=["candidate"],
+        actual=["blocked"],
+        root_cause="dirty handoff",
+        next_action="wait",
+        actionable=False,
+        blockers=["authorization required"],
+    )
+
+
+def test_low_level_markdown_inventory_item_helpers_preserve_contract() -> None:
     assert debug_loop_inventory._markdown_inventory_item_header_lines(
         {
             "priority": 3,
@@ -1336,6 +1369,9 @@ def test_low_level_summary_helpers_preserve_blocker_contract(tmp_path: Path) -> 
         "- Actual:",
         "  - blocked",
     ]
+
+
+def test_low_level_markdown_inventory_body_helpers_preserve_contract() -> None:
     expected_inventory_item_lines = [
         "## Priority 2 - Loop Blocked",
         "",
@@ -1394,6 +1430,9 @@ def test_low_level_summary_helpers_preserve_blocker_contract(tmp_path: Path) -> 
     markdown_lines = []
     debug_loop_inventory._append_markdown_inventory_body(markdown_lines, inventory_body)
     assert markdown_lines == expected_inventory_item_lines + expected_reproduction_unclear_lines
+
+
+def test_low_level_boundary_inventory_helpers_preserve_contract() -> None:
     assert debug_loop_inventory._inventory_boundary_from_inputs(
         selector_kind="dirty_worktree_handoff_current",
         readiness=_readiness(),
@@ -1449,6 +1488,17 @@ def test_low_level_summary_helpers_preserve_blocker_contract(tmp_path: Path) -> 
         == []
     )
     assert [item["title"] for item in evidence_items] == [item["title"] for item in boundary_items]
+
+
+def test_low_level_launch_completion_context_helpers_preserve_contract() -> None:
+    boundary_inputs = debug_loop_inventory.InventoryBuildInputs(
+        session_orient=_session(),
+        selector=_selector(),
+        readiness=_readiness(),
+        completion_audit=_completion(),
+        dirty_handoff_plan=_handoff_plan(),
+    )
+    boundary_context = debug_loop_inventory._inventory_item_context(boundary_inputs)
     completion_items: list[dict[str, object]] = []
     debug_loop_inventory._append_launch_completion_from_context(
         completion_items,
@@ -1471,6 +1521,16 @@ def test_low_level_summary_helpers_preserve_blocker_contract(tmp_path: Path) -> 
     )
     assert debug_loop_inventory._primary_boundary_kind(has_dirty_boundary=False, has_publish_boundary=False) == ""
 
+
+def test_low_level_primary_dirty_boundary_helpers_preserve_contract() -> None:
+    boundary_inputs = debug_loop_inventory.InventoryBuildInputs(
+        session_orient=_session(),
+        selector=_selector(),
+        readiness=_readiness(),
+        completion_audit=_completion(),
+        dirty_handoff_plan=_handoff_plan(),
+    )
+    boundary_context = debug_loop_inventory._inventory_item_context(boundary_inputs)
     primary_dirty_items: list[dict[str, object]] = []
     debug_loop_inventory._append_primary_dirty_boundary_item(
         primary_dirty_items,
@@ -1487,6 +1547,8 @@ def test_low_level_summary_helpers_preserve_blocker_contract(tmp_path: Path) -> 
     assert primary_dirty_items[0]["priority"] == 1
     assert primary_dirty_items[0]["title"] == "Dirty Handoff Boundary Blocks New Product Edits"
 
+
+def test_low_level_primary_publish_boundary_helpers_preserve_contract() -> None:
     publish_inputs = debug_loop_inventory.InventoryBuildInputs(
         session_orient=_clean_publish_session(),
         selector=_publish_selector(),
@@ -1511,6 +1573,8 @@ def test_low_level_summary_helpers_preserve_blocker_contract(tmp_path: Path) -> 
     assert primary_publish_items[0]["priority"] == 1
     assert primary_publish_items[0]["title"] == "Current-HEAD GitHub Actions Cannot Be Proven Locally"
 
+
+def test_low_level_launch_and_project_boundary_fields_preserve_contract() -> None:
     assert debug_loop_inventory._launch_blocker_labels(has_dirty_boundary=True, blind_dirty=["dirty.py"]) == [
         "dirty worktree",
         "publish/current-head Actions",
@@ -1613,6 +1677,8 @@ def test_low_level_summary_helpers_preserve_blocker_contract(tmp_path: Path) -> 
     readiness_without_hanwoo_tasks["projects"][0]["tasks"] = []
     assert debug_loop_inventory._hanwoo_t251_task_ids(readiness_without_hanwoo_tasks) == ["T-251"]
 
+
+def test_low_level_current_head_readiness_helpers_preserve_contract() -> None:
     assert debug_loop_inventory._current_head_readiness_reproduction() == [
         "Run `python execution/product_readiness_score.py --json`.",
         "Run `python execution/session_orient.py --json`.",
@@ -1663,6 +1729,8 @@ def test_low_level_summary_helpers_preserve_blocker_contract(tmp_path: Path) -> 
         is True
     )
 
+
+def test_low_level_handoff_plan_status_helpers_preserve_contract() -> None:
     handoff_line = debug_loop_inventory._handoff_plan_status_line(
         freshness=_handoff_plan()["freshness"],
         selector_kind="dirty_worktree_handoff_current",
@@ -1694,6 +1762,8 @@ def test_low_level_summary_helpers_preserve_blocker_contract(tmp_path: Path) -> 
         "branch ahead `885`, signature `clean-signature`."
     )
 
+
+def test_low_level_publish_and_input_evidence_fields_preserve_contract() -> None:
     publish_fields = debug_loop_inventory._current_head_publish_base_fields(next_action="publish")
     assert publish_fields == {
         "title": "Current-HEAD GitHub Actions Cannot Be Proven Locally",
@@ -1739,6 +1809,8 @@ def test_low_level_summary_helpers_preserve_blocker_contract(tmp_path: Path) -> 
     assert "release authorization packet" in publish_item["next_action"]
     assert "Explicit push authorization" in readiness_item["next_action"]
 
+
+def test_low_level_inventory_item_summary_helpers_preserve_contract() -> None:
     item = debug_loop_inventory._make_item(
         priority=1,
         title="Blocked Item",
@@ -1818,6 +1890,8 @@ def test_low_level_summary_helpers_preserve_blocker_contract(tmp_path: Path) -> 
     assert debug_loop_inventory._completion_gate(items=[item], blocked_items=[], unclear_count=0) == "open_items"
     assert debug_loop_inventory._completion_gate(items=[], blocked_items=[], unclear_count=0) == "clear"
 
+
+def test_low_level_markdown_append_helpers_preserve_contract() -> None:
     markdown_lines: list[str] = []
     debug_loop_inventory._append_markdown_list(markdown_lines, "Actual", ["blocked"])
     assert markdown_lines == ["- Actual:", "  - blocked"]
@@ -1891,6 +1965,23 @@ def test_low_level_summary_helpers_preserve_blocker_contract(tmp_path: Path) -> 
     document_lines = debug_loop_inventory._markdown_document_lines(document_inventory)
     assert "\n".join(document_lines) == debug_loop_inventory.render_markdown(document_inventory)
 
+
+def test_low_level_completion_blocked_status_helpers_preserve_contract() -> None:
+    expectations = debug_loop_inventory._selector_gate_expectations(_selector())
+    item = debug_loop_inventory._make_item(
+        priority=1,
+        title="Blocked Item",
+        status="reproduced, blocked",
+        severity="high",
+        frequency="always",
+        reproduction=["run helper"],
+        expected=["candidate"],
+        actual=["blocked"],
+        root_cause="dirty handoff",
+        next_action="wait",
+        actionable=False,
+        blockers=["authorization required"],
+    )
     inventory = {"items": [item], "summary": {"expected_failure_gates": expectations}}
     markdown_summary = debug_loop_inventory._summary_for_markdown(inventory)
     assert markdown_summary["item_count"] == 1
@@ -1946,6 +2037,8 @@ def test_low_level_summary_helpers_preserve_blocker_contract(tmp_path: Path) -> 
         == 0
     )
 
+
+def test_low_level_regenerated_file_helpers_preserve_contract(tmp_path: Path) -> None:
     file_path = tmp_path / "regenerated.json"
     file_path.write_text("stale", encoding="utf-8")
     debug_loop_inventory._discard_regenerated_file(file_path)
@@ -1973,21 +2066,19 @@ def test_low_level_summary_helpers_preserve_blocker_contract(tmp_path: Path) -> 
     )
 
 
-def test_direct_input_and_completion_helpers_preserve_cli_contract(tmp_path: Path) -> None:
-    session_path = Path("session.json")
-    selector_path = Path("selector.json")
-    readiness_path = Path("readiness.json")
-    completion_path = Path("completion.json")
-    dirty_plan_path = Path("dirty-plan.json")
-    args = SimpleNamespace(
-        session_orient=session_path,
-        selector=selector_path,
+def _direct_input_path_args() -> SimpleNamespace:
+    return SimpleNamespace(
+        session_orient=Path("session.json"),
+        selector=Path("selector.json"),
         readiness=None,
         completion_audit=None,
-        dirty_handoff_plan=dirty_plan_path,
+        dirty_handoff_plan=Path("dirty-plan.json"),
     )
 
-    provided_paths = debug_loop_inventory._provided_input_paths(args)
+
+def test_provided_input_path_helpers_preserve_cli_contract() -> None:
+    provided_paths = debug_loop_inventory._provided_input_paths(_direct_input_path_args())
+
     assert debug_loop_inventory._PROVIDED_INPUT_KEYS == (
         "session_orient",
         "selector",
@@ -1995,6 +2086,17 @@ def test_direct_input_and_completion_helpers_preserve_cli_contract(tmp_path: Pat
         "completion_audit",
         "dirty_handoff_plan",
     )
+    assert provided_paths == {
+        "session_orient": Path("session.json"),
+        "selector": Path("selector.json"),
+        "readiness": None,
+        "completion_audit": None,
+        "dirty_handoff_plan": Path("dirty-plan.json"),
+    }
+    assert not debug_loop_inventory._all_input_paths_provided(provided_paths)
+
+
+def test_helper_command_builders_preserve_cli_contract() -> None:
     assert debug_loop_inventory._session_orient_command() == [
         sys.executable,
         "execution/session_orient.py",
@@ -2014,13 +2116,15 @@ def test_direct_input_and_completion_helpers_preserve_cli_contract(tmp_path: Pat
         "execution/product_readiness_score.py",
         "--json",
     ]
-    assert provided_paths == {
-        "session_orient": session_path,
-        "selector": selector_path,
-        "readiness": None,
-        "completion_audit": None,
-        "dirty_handoff_plan": dirty_plan_path,
-    }
+
+
+def test_inventory_arg_parser_preserves_direct_input_contract() -> None:
+    session_path = Path("session.json")
+    selector_path = Path("selector.json")
+    readiness_path = Path("readiness.json")
+    completion_path = Path("completion.json")
+    dirty_plan_path = Path("dirty-plan.json")
+
     parsed_args = debug_loop_inventory._inventory_args_from_argv(
         [
             "--session-orient",
@@ -2035,6 +2139,7 @@ def test_direct_input_and_completion_helpers_preserve_cli_contract(tmp_path: Pat
             str(dirty_plan_path),
         ]
     )
+
     assert debug_loop_inventory._provided_input_paths(parsed_args) == {
         "session_orient": session_path,
         "selector": selector_path,
@@ -2043,19 +2148,25 @@ def test_direct_input_and_completion_helpers_preserve_cli_contract(tmp_path: Pat
         "dirty_handoff_plan": dirty_plan_path,
     }
     assert debug_loop_inventory._all_input_paths_provided(debug_loop_inventory._provided_input_paths(parsed_args))
-    assert not debug_loop_inventory._all_input_paths_provided(provided_paths)
+
+
+def test_inventory_arg_parser_preserves_default_contract() -> None:
+    parsed_args = debug_loop_inventory._inventory_args_from_argv([])
+
     assert parsed_args.output_md == debug_loop_inventory.DEFAULT_OUTPUT_MD
     assert parsed_args.output_json == debug_loop_inventory.DEFAULT_OUTPUT_JSON
     assert parsed_args.timeout == 60
     assert parsed_args.json is False
     assert parsed_args.fail_on_completion_blocked is False
     assert parsed_args.root == Path(".")
-    assert debug_loop_inventory._inventory_args_from_argv([]).root == Path(".")
 
+
+def test_inventory_arg_parser_preserves_root_output_and_control_flags(tmp_path: Path) -> None:
     custom_root = Path("workspace-root")
     root_args = debug_loop_inventory._inventory_args_from_argv(["--root", str(custom_root)])
-    assert root_args.root == custom_root
     absolute_root_args = SimpleNamespace(root=tmp_path / "workspace-root")
+
+    assert root_args.root == custom_root
     assert debug_loop_inventory._inventory_root_from_args(absolute_root_args) == absolute_root_args.root.resolve()
 
     custom_output_md = Path("custom-debug.md")
@@ -2083,9 +2194,14 @@ def test_direct_input_and_completion_helpers_preserve_cli_contract(tmp_path: Pat
     assert control_args.json is True
     assert control_args.fail_on_completion_blocked is True
 
+
+def test_provided_input_loading_and_override_helpers_preserve_contract(tmp_path: Path) -> None:
+    session_path = Path("session.json")
+    selector_path = Path("selector.json")
     (tmp_path / session_path).write_text(json.dumps({"git": {"branch": "main"}}), encoding="utf-8")
     absolute_selector = tmp_path / selector_path
     absolute_selector.write_text(json.dumps({"status": "blocked"}), encoding="utf-8")
+
     loaded_inputs = debug_loop_inventory._load_provided_inputs(
         tmp_path,
         {
@@ -2098,6 +2214,7 @@ def test_direct_input_and_completion_helpers_preserve_cli_contract(tmp_path: Pat
         "session_orient": {"git": {"branch": "main"}},
         "selector": {"status": "blocked"},
     }
+
     collected_inputs = {
         "session_orient": {"git": {"branch": "main"}},
         "selector": {"status": "collected"},
@@ -2112,6 +2229,8 @@ def test_direct_input_and_completion_helpers_preserve_cli_contract(tmp_path: Pat
         "selector": {"status": "provided"},
     }
 
+
+def test_input_error_evidence_helpers_preserve_cli_contract() -> None:
     merged_error = debug_loop_inventory._add_input_error({"status": "stale"}, {"reason": "helper failed"})
     assert merged_error == {"status": "stale", "_input_error": {"reason": "helper failed"}}
     error_inputs = debug_loop_inventory.InventoryBuildInputs(
@@ -2128,19 +2247,7 @@ def test_direct_input_and_completion_helpers_preserve_cli_contract(tmp_path: Pat
     assert debug_loop_inventory._inventory_input_error_lines(error_inputs) == [
         "session_orient: empty helper output; returncode=2; detail=no stdout"
     ]
-    ordered_error_inputs = debug_loop_inventory.InventoryBuildInputs(
-        session_orient=debug_loop_inventory._input_error_payload("session failed"),
-        selector=debug_loop_inventory._input_error_payload("selector failed"),
-        readiness={},
-        completion_audit=debug_loop_inventory._input_error_payload("audit failed"),
-        dirty_handoff_plan=debug_loop_inventory._input_error_payload("handoff failed"),
-    )
-    assert debug_loop_inventory._inventory_input_error_lines(ordered_error_inputs) == [
-        "session_orient: session failed",
-        "selector: selector failed",
-        "completion_audit: audit failed",
-        "dirty_handoff_plan: handoff failed",
-    ]
+
     input_items: list[dict[str, object]] = []
     assert debug_loop_inventory._append_input_evidence_item(input_items, inputs=error_inputs) == [
         "session_orient: empty helper output; returncode=2; detail=no stdout"
@@ -2148,6 +2255,26 @@ def test_direct_input_and_completion_helpers_preserve_cli_contract(tmp_path: Pat
     assert input_items[0]["title"] == "Debug Inventory Input Evidence Is Unavailable"
     assert debug_loop_inventory._selector_kind(_selector()) == "dirty_worktree_handoff_current"
     assert debug_loop_inventory._selector_kind({"summary": {"selected_kind": "fallback_kind"}}) == "fallback_kind"
+
+
+def test_input_error_lines_preserve_ordered_cli_contract() -> None:
+    ordered_error_inputs = debug_loop_inventory.InventoryBuildInputs(
+        session_orient=debug_loop_inventory._input_error_payload("session failed"),
+        selector=debug_loop_inventory._input_error_payload("selector failed"),
+        readiness={},
+        completion_audit=debug_loop_inventory._input_error_payload("audit failed"),
+        dirty_handoff_plan=debug_loop_inventory._input_error_payload("handoff failed"),
+    )
+
+    assert debug_loop_inventory._inventory_input_error_lines(ordered_error_inputs) == [
+        "session_orient: session failed",
+        "selector: selector failed",
+        "completion_audit: audit failed",
+        "dirty_handoff_plan: handoff failed",
+    ]
+
+
+def test_completion_boundary_helper_preserves_cli_contract() -> None:
     assert debug_loop_inventory.completion_is_blocked({"summary": {"completion_allowed": True}}) is False
     assert debug_loop_inventory.completion_is_blocked({"summary": {"completion_allowed": False}}) is True
 
