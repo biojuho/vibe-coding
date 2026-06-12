@@ -53,7 +53,16 @@ function toValidDate(value) {
 
 function toDateKey(value) {
 	const date = toValidDate(value);
-	return date ? date.toISOString().split("T")[0] : null;
+	if (!date) {
+		return null;
+	}
+	// Key by LOCAL calendar day so event buckets and month cells align in the
+	// user's timezone. toISOString() (UTC) shifted KST days back by one, so
+	// events landed on the wrong cell and "today" highlighted the wrong day.
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, "0");
+	const day = String(date.getDate()).padStart(2, "0");
+	return `${year}-${month}-${day}`;
 }
 
 function normalizeScheduleEvents(events) {
@@ -528,11 +537,11 @@ export default function ScheduleTab(options = {}) {
 								);
 							}
 
-							const dateStr = day.toISOString().split("T")[0];
+							const dateStr = toDateKey(day);
 							const dayEvents = currentMonthEvents.filter(
 								(event) => toDateKey(event.date) === dateStr,
 							);
-							const isToday = dateStr === new Date().toISOString().split("T")[0];
+							const isToday = dateStr === toDateKey(new Date());
 
 							return (
 								<button

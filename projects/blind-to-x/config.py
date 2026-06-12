@@ -156,6 +156,52 @@ def load_env():
 logger = logging.getLogger(__name__)
 
 
+_TRUE_TOKENS = frozenset({"1", "true", "yes", "y", "on"})
+_FALSE_TOKENS = frozenset({"0", "false", "no", "n", "off", ""})
+
+
+def as_bool(value, *, default: bool = False) -> bool:
+    """config/아티팩트 boolean 값의 단일 해석 지점.
+
+    env/YAML/JSON에서 온 문자열 "false"는 Python truthiness로 True가 되므로
+    절대 raw truthiness로 플래그를 소비하지 말 것. 미인식 토큰(오타 등)은
+    default로 떨어진다 — 기본값이 켜짐인 게이트는 default=True를 명시해야
+    오타가 안전 게이트를 끄지 않는다.
+    """
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in _TRUE_TOKENS:
+            return True
+        if normalized in _FALSE_TOKENS:
+            return False
+        return default
+    return bool(value)
+
+
+def as_optional_float(value) -> float | None:
+    """숫자 해석: 유효한 0을 보존한다. `or` fallback으로 0이 기본값에 먹히는
+    버그 클래스의 방지 지점. None/공백/비수치만 None."""
+    if value is None or isinstance(value, bool):
+        return float(value) if isinstance(value, bool) else None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        try:
+            return float(text)
+        except ValueError:
+            return None
+    return None
+
+
 class ConfigValidationError(Exception):
     """config.yaml 필수 키 누락 또는 잘못된 값."""
 
@@ -200,6 +246,10 @@ class ConfigManager:
             else:
                 return default
         return val if val is not None else default
+
+    def get_bool(self, key, default: bool = False) -> bool:
+        """boolean 설정 조회. 문자열 "false"·오타 토큰도 default 기준으로 안전 처리."""
+        return as_bool(self.get(key), default=default)
 
     def validate(self) -> list[str]:
         """설정 값 검증. 비치명적 경고 리스트를 반환하며 치명적 오류는 ConfigValidationError 발생.
@@ -247,7 +297,7 @@ class ConfigManager:
 
 class ProxyManager:
     def __init__(self, config):
-        self.enabled = config.get("proxy.enabled", False)
+        self.enabled = as_bool(config.get("proxy.enabled", False))
         self.proxy_list = config.get("proxy.list", [])
 
     def get_random_proxy(self):

@@ -79,8 +79,14 @@ export async function getProfitabilityEstimates() {
 		const activeCattle = normalizeProfitabilityServiceRows(
 			await prisma.cattle.findMany({
 				where: {
-					status: "ACTIVE",
+					// cattle.status holds Korean breed-stage labels
+					// (송아지/육성우/번식우/...), never "ACTIVE" — filtering on "ACTIVE"
+					// here previously matched zero rows and silently disabled the
+					// whole widget. Shipment candidates are simply animals still on
+					// the farm and not yet sold; the 24-month gate below narrows to
+					// the actual slaughter window.
 					isArchived: false,
+					salesRecords: { none: {} },
 				},
 				select: {
 					id: true,
@@ -180,8 +186,11 @@ export async function getProfitabilityEstimates() {
 				const cumulativeCost = baseCost + ageMonths * MONTHLY_FEED_COST;
 
 				// Use Grade 1 as baseline estimation
+				// Gender is stored as Korean "암"(female)/"수"(male); comparing
+				// against "FEMALE" never matched, so cows were always priced as
+				// bulls. Match the actual stored value.
 				const currentKgPrice =
-					cattle.gender === "FEMALE"
+					cattle.gender === "암"
 						? priceData.cow.grade1
 						: priceData.bull.grade1;
 

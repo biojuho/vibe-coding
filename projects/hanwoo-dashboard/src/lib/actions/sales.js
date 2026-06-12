@@ -61,37 +61,49 @@ export async function createSalesRecord(data) {
 				return { success: false, message: "존재하지 않는 개체입니다." };
 		}
 
-		const created = await prisma.salesRecord.create({
-			data: {
-				saleDate: payload.saleDate,
-				price: payload.price,
-				purchaser: payload.purchaser,
-				grade: payload.grade,
-				cattleId: payload.cattleId,
-			},
-		});
-
-		// 출하 이력
-		if (payload.cattleId) {
-			const saleGradeLabel = payload.grade || "등급 미등록";
-			await recordCattleHistory(
-				payload.cattleId,
-				"sale",
-				payload.saleDate,
-				`출하: ${payload.price.toLocaleString()}원 (등급: ${saleGradeLabel})`,
-				{
+		// Row + history + outbox commit atomically. Without this, an outbox
+		// failure after the sale row committed returns a false failure, and the
+		// retry creates a DUPLICATE sale (SalesRecord has no unique constraint).
+		const created = await prisma.$transaction(async (tx) => {
+			const row = await tx.salesRecord.create({
+				data: {
+					saleDate: payload.saleDate,
 					price: payload.price,
-					grade: payload.grade,
 					purchaser: payload.purchaser,
+					grade: payload.grade,
+					cattleId: payload.cattleId,
 				},
-			);
-		}
+			});
 
-		await createOutboxEvent({
-			topic: DASHBOARD_EVENT_TOPICS.saleRecorded,
-			aggregateId: payload.cattleId || null,
-			payload: { price: payload.price, grade: payload.grade },
+			// 출하 이력
+			if (payload.cattleId) {
+				const saleGradeLabel = payload.grade || "등급 미등록";
+				await recordCattleHistory(
+					payload.cattleId,
+					"sale",
+					payload.saleDate,
+					`출하: ${payload.price.toLocaleString()}원 (등급: ${saleGradeLabel})`,
+					{
+						price: payload.price,
+						grade: payload.grade,
+						purchaser: payload.purchaser,
+					},
+					tx,
+				);
+			}
+
+			await createOutboxEvent(
+				{
+					topic: DASHBOARD_EVENT_TOPICS.saleRecorded,
+					aggregateId: payload.cattleId || null,
+					payload: { price: payload.price, grade: payload.grade },
+				},
+				tx,
+			);
+
+			return row;
 		});
+
 		await invalidateHomeCaches({ summary: true, salesListPages: true });
 		return { success: true, data: created };
 	} catch (error) {

@@ -113,20 +113,29 @@ export async function createExpenseRecord(data) {
 				return { success: false, message: "존재하지 않는 축사입니다." };
 		}
 
-		const created = await prisma.expenseRecord.create({
-			data: {
-				date: payload.date,
-				cattleId: payload.cattleId,
-				buildingId: payload.buildingId,
-				category: payload.category,
-				amount: payload.amount,
-				description: payload.description,
-			},
-		});
-		await createOutboxEvent({
-			topic: DASHBOARD_EVENT_TOPICS.expenseRecorded,
-			aggregateId: payload.cattleId || payload.buildingId || null,
-			payload: { category: payload.category, amount: payload.amount },
+		// Row + outbox commit atomically. Without this, an outbox failure after
+		// the expense row committed returns a false failure, and the retry
+		// creates a DUPLICATE expense (ExpenseRecord has no unique constraint).
+		const created = await prisma.$transaction(async (tx) => {
+			const row = await tx.expenseRecord.create({
+				data: {
+					date: payload.date,
+					cattleId: payload.cattleId,
+					buildingId: payload.buildingId,
+					category: payload.category,
+					amount: payload.amount,
+					description: payload.description,
+				},
+			});
+			await createOutboxEvent(
+				{
+					topic: DASHBOARD_EVENT_TOPICS.expenseRecorded,
+					aggregateId: payload.cattleId || payload.buildingId || null,
+					payload: { category: payload.category, amount: payload.amount },
+				},
+				tx,
+			);
+			return row;
 		});
 		await invalidateHomeCaches({ summary: true });
 		revalidatePath("/");

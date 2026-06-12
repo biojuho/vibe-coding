@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from pipeline.regulation_checker import x_weighted_character_count
+from config import as_bool as _as_bool
 
 PUBLISH = "PUBLISH"
 HOLD = "HOLD"
@@ -161,7 +162,7 @@ def _regulation_failures(regulation: Any) -> list[str]:
 def _research_failed(research_context: Any) -> bool:
     if not isinstance(research_context, dict) or not research_context:
         return True
-    return bool(research_context.get("value_reduction_failed")) or not research_context.get("universal_value")
+    return _as_bool(research_context.get("value_reduction_failed")) or not research_context.get("universal_value")
 
 
 def decide_publish(

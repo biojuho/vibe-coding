@@ -16,6 +16,9 @@ const INITIAL_MESSAGES = [
 const CHAT_CONNECTION_ERROR_MESSAGE =
 	"AI 비서 연결이 잠시 불안정합니다. 잠시 후 다시 질문해 주세요.";
 const STREAMING_PLACEHOLDER_MESSAGE = "답변 생성 중입니다...";
+// If no SSE chunk arrives for this long, treat the stream as stalled and abort
+// so the input doesn't stay locked on "답변 생성 중" forever (flaky rural net).
+const CHAT_IDLE_TIMEOUT_MS = 30000;
 const FALLBACK_GUIDE_PREFIX =
 	"AI 연결이 불안정해 기본 운영 가이드로 먼저 안내합니다. 최신 농장 정보 기반 답변은 잠시 후 다시 시도해 주세요.";
 
@@ -82,6 +85,7 @@ async function streamChat(options = {}) {
 		onChunk,
 		onDone,
 		onError,
+		idleTimeoutMs = CHAT_IDLE_TIMEOUT_MS,
 	} = normalizeStreamChatOptions(options);
 	const handleChunk = typeof onChunk === "function" ? onChunk : () => {};
 	const handleDone = typeof onDone === "function" ? onDone : () => {};
@@ -113,37 +117,68 @@ async function streamChat(options = {}) {
 		const decoder = new TextDecoder();
 		let buffer = "";
 
-		while (true) {
-			const { done, value } = await reader.read();
-			if (done) break;
+		// Idle watchdog: reset on every chunk; if it fires, cancel the reader so
+		// the read loop unwinds and we surface a connection error.
+		let idleTimer = null;
+		let timedOut = false;
+		const clearIdle = () => {
+			if (idleTimer) {
+				clearTimeout(idleTimer);
+				idleTimer = null;
+			}
+		};
+		const armIdle = () => {
+			clearIdle();
+			idleTimer = setTimeout(() => {
+				timedOut = true;
+				reader.cancel().catch(() => {});
+			}, idleTimeoutMs);
+		};
 
-			buffer += decoder.decode(value, { stream: true });
-			const lines = buffer.split("\n");
-			buffer = lines.pop() || "";
+		try {
+			armIdle();
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+				armIdle();
 
-			for (const line of lines) {
-				const trimmed = line.trim();
-				if (!trimmed.startsWith("data: ")) continue;
-				const payload = trimmed.slice(6);
+				buffer += decoder.decode(value, { stream: true });
+				const lines = buffer.split("\n");
+				buffer = lines.pop() || "";
 
-				if (payload === "[DONE]") {
-					handleDone();
-					return;
-				}
+				for (const line of lines) {
+					const trimmed = line.trim();
+					if (!trimmed.startsWith("data: ")) continue;
+					const payload = trimmed.slice(6);
 
-				try {
-					const parsed = JSON.parse(payload);
-					if (parsed.error) {
-						handleError(parsed.error);
+					if (payload === "[DONE]") {
+						clearIdle();
+						handleDone();
 						return;
 					}
-					if (parsed.text) {
-						handleChunk(parsed.text);
+
+					try {
+						const parsed = JSON.parse(payload);
+						if (parsed.error) {
+							clearIdle();
+							handleError(parsed.error);
+							return;
+						}
+						if (parsed.text) {
+							handleChunk(parsed.text);
+						}
+					} catch {
+						/* ignore malformed JSON chunks */
 					}
-				} catch {
-					/* ignore malformed JSON chunks */
 				}
 			}
+		} finally {
+			clearIdle();
+		}
+
+		if (timedOut) {
+			handleError(CHAT_CONNECTION_ERROR_MESSAGE);
+			return;
 		}
 		handleDone();
 	} catch (error) {

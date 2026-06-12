@@ -16,6 +16,7 @@ from pipeline.commands import (
 )
 from pipeline.daily_queue_floor import resolve_daily_queue_floor
 from pipeline.feed_collector import collect_feed_items
+from config import as_bool as _as_bool
 
 logger = logging.getLogger(__name__)
 
@@ -269,7 +270,7 @@ async def _append_cross_source_insights(
     top_examples,
     trend_monitor,
 ):
-    if dry_run or not config_mgr.get("cross_source_insight.enabled", True):
+    if dry_run or not _as_bool(config_mgr.get("cross_source_insight.enabled", True), default=True):
         return results
 
     try:

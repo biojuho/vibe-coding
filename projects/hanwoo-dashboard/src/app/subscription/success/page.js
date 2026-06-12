@@ -60,6 +60,9 @@ function SuccessContent() {
 	const searchParams = useSearchParams();
 	const router = useRouter();
 	const [status, setStatus] = useState(PAYMENT_CONFIRMATION_INITIAL_MESSAGE);
+	// Bumping this re-runs the confirmation effect from attempt 0 — used by the
+	// manual "re-check" button so a network blip after payment isn't a dead end.
+	const [retryNonce, setRetryNonce] = useState(0);
 	const paymentKeyParam = searchParams.get("paymentKey");
 	const orderIdParam = searchParams.get("orderId");
 	const amountParam = searchParams.get("amount");
@@ -79,6 +82,16 @@ function SuccessContent() {
 	const shouldShowPaymentRetryLink =
 		visibleStatus === PAYMENT_MISSING_REDIRECT_MESSAGE ||
 		visibleStatus === PAYMENT_INVALID_REDIRECT_MESSAGE;
+	// Show a manual re-check when confirmation is stuck in a recoverable state
+	// (network/timeout error, gateway pending, redirect failure) but not while it
+	// is still auto-confirming, already succeeded, or blocked on bad URL params.
+	const isActivelyConfirming =
+		visibleStatus === PAYMENT_CONFIRMATION_INITIAL_MESSAGE ||
+		visibleStatus.startsWith("결제 확인을 다시 시도합니다");
+	const shouldShowManualRetry =
+		!shouldShowPaymentRetryLink &&
+		!isActivelyConfirming &&
+		visibleStatus !== PAYMENT_SUCCESS_STATUS;
 
 	useEffect(() => {
 		const paymentKey = normalizePaymentKey(searchParams.get("paymentKey"));
@@ -185,10 +198,26 @@ function SuccessContent() {
 					})}`,
 				);
 			} catch (error) {
-				if (!cancelled) {
-					console.error("Payment confirmation failed:", error);
-					setStatus(PAYMENT_CONFIRMATION_ERROR_MESSAGE);
+				if (cancelled) {
+					return;
 				}
+
+				console.error("Payment confirmation failed:", error);
+				// Network/timeout errors are transient: keep retrying within the
+				// same bounded loop instead of dead-ending the just-charged user.
+				if (attempt < CONFIRM_RETRY_LIMIT) {
+					setStatus(
+						`결제 확인을 다시 시도합니다. ${CONFIRM_RETRY_DELAY_MS / 1000}초 후 재확인합니다.`,
+					);
+					retryTimer = schedulePaymentStatusTimer(() => {
+						if (!cancelled) {
+							void confirmPayment(attempt + 1);
+						}
+					}, CONFIRM_RETRY_DELAY_MS);
+					return;
+				}
+
+				setStatus(PAYMENT_CONFIRMATION_ERROR_MESSAGE);
 			}
 		};
 
@@ -198,7 +227,7 @@ function SuccessContent() {
 			cancelled = true;
 			clearPaymentStatusTimer(retryTimer);
 		};
-	}, [searchParams, router]);
+	}, [searchParams, router, retryNonce]);
 
 	return (
 		<div
@@ -261,6 +290,34 @@ function SuccessContent() {
 						>
 							결제 화면으로 돌아가기
 						</a>
+					) : null}
+					{shouldShowManualRetry ? (
+						<button
+							type="button"
+							onClick={() => {
+								setStatus(PAYMENT_CONFIRMATION_INITIAL_MESSAGE);
+								setRetryNonce((nonce) => nonce + 1);
+							}}
+							aria-label="결제 다시 확인하기"
+							title="결제 다시 확인하기"
+							style={{
+								display: "inline-flex",
+								alignItems: "center",
+								justifyContent: "center",
+								marginTop: "22px",
+								padding: "14px 18px",
+								borderRadius: "16px",
+								background: "var(--surface-gradient-primary)",
+								color: "white",
+								fontSize: "15px",
+								fontWeight: 700,
+								border: "none",
+								cursor: "pointer",
+								boxShadow: "var(--shadow-button-primary)",
+							}}
+						>
+							결제 다시 확인하기
+						</button>
 					) : null}
 				</div>
 			)}

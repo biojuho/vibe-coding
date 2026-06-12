@@ -92,42 +92,55 @@ export async function createCattle(data) {
 		}
 
 		const payload = validation.data;
-		const created = await prisma.cattle.create({
-			data: {
-				tagNumber: payload.tagNumber,
-				name: payload.name,
-				birthDate: payload.birthDate,
-				gender: payload.gender,
-				status: payload.status,
-				weight: payload.weight,
-				buildingId: payload.buildingId,
-				penNumber: payload.penNumber,
-				memo: payload.memo,
-				geneticFather: payload.geneticInfo.father,
-				geneticMother: payload.geneticInfo.mother,
-				geneticGrade: payload.geneticInfo.grade,
-				lastEstrus: payload.lastEstrus,
-				pregnancyDate: payload.pregnancyDate,
-				purchasePrice: payload.purchasePrice,
-				purchaseDate: payload.purchaseDate,
-			},
+		// Row + history + outbox commit atomically: if the outbox insert fails
+		// after the cattle row was written, the whole unit rolls back, so the
+		// caller's failure response is truthful and a retry won't hit the
+		// tagNumber unique constraint for a row the user thinks was never saved.
+		const created = await prisma.$transaction(async (tx) => {
+			const row = await tx.cattle.create({
+				data: {
+					tagNumber: payload.tagNumber,
+					name: payload.name,
+					birthDate: payload.birthDate,
+					gender: payload.gender,
+					status: payload.status,
+					weight: payload.weight,
+					buildingId: payload.buildingId,
+					penNumber: payload.penNumber,
+					memo: payload.memo,
+					geneticFather: payload.geneticInfo.father,
+					geneticMother: payload.geneticInfo.mother,
+					geneticGrade: payload.geneticInfo.grade,
+					lastEstrus: payload.lastEstrus,
+					pregnancyDate: payload.pregnancyDate,
+					purchasePrice: payload.purchasePrice,
+					purchaseDate: payload.purchaseDate,
+				},
+			});
+
+			await recordCattleHistory(
+				row.id,
+				"purchase",
+				new Date(),
+				`신규 등록: ${data.name} (${data.tagNumber})`,
+				{
+					purchasePrice: payload.purchasePrice,
+				},
+				tx,
+			);
+
+			await createOutboxEvent(
+				{
+					topic: DASHBOARD_EVENT_TOPICS.cattleCreated,
+					aggregateId: row.id,
+					payload: { tagNumber: payload.tagNumber, name: payload.name },
+				},
+				tx,
+			);
+
+			return row;
 		});
 
-		await recordCattleHistory(
-			created.id,
-			"purchase",
-			new Date(),
-			`신규 등록: ${data.name} (${data.tagNumber})`,
-			{
-				purchasePrice: payload.purchasePrice,
-			},
-		);
-
-		await createOutboxEvent({
-			topic: DASHBOARD_EVENT_TOPICS.cattleCreated,
-			aggregateId: created.id,
-			payload: { tagNumber: payload.tagNumber, name: payload.name },
-		});
 		await invalidateHomeCaches({
 			summary: true,
 			notifications: true,
@@ -153,81 +166,93 @@ export async function updateCattle(id, data) {
 		}
 
 		const payload = validation.data;
+		// 변경 전 기존값 조회 (이력 비교용)
 		const existing = await prisma.cattle.findUnique({ where: { id } });
 
-		const updated = await prisma.cattle.update({
-			where: { id },
-			data: {
-				tagNumber: payload.tagNumber,
-				name: payload.name,
-				birthDate: payload.birthDate,
-				gender: payload.gender,
-				status: payload.status,
-				weight: payload.weight,
-				buildingId: payload.buildingId,
-				penNumber: payload.penNumber,
-				memo: payload.memo,
-				geneticFather: payload.geneticInfo.father,
-				geneticMother: payload.geneticInfo.mother,
-				geneticGrade: payload.geneticInfo.grade,
-				lastEstrus: payload.lastEstrus,
-				pregnancyDate: payload.pregnancyDate,
-				purchasePrice: payload.purchasePrice,
-				purchaseDate: payload.purchaseDate,
-			},
+		const updated = await prisma.$transaction(async (tx) => {
+			const row = await tx.cattle.update({
+				where: { id },
+				data: {
+					tagNumber: payload.tagNumber,
+					name: payload.name,
+					birthDate: payload.birthDate,
+					gender: payload.gender,
+					status: payload.status,
+					weight: payload.weight,
+					buildingId: payload.buildingId,
+					penNumber: payload.penNumber,
+					memo: payload.memo,
+					geneticFather: payload.geneticInfo.father,
+					geneticMother: payload.geneticInfo.mother,
+					geneticGrade: payload.geneticInfo.grade,
+					lastEstrus: payload.lastEstrus,
+					pregnancyDate: payload.pregnancyDate,
+					purchasePrice: payload.purchasePrice,
+					purchaseDate: payload.purchaseDate,
+				},
+			});
+
+			// 상태 변경 이력
+			if (existing && existing.status !== payload.status) {
+				await recordCattleHistory(
+					id,
+					"status_change",
+					new Date(),
+					`상태 변경: ${existing.status} → ${data.status}`,
+					{
+						from: existing.status,
+						to: payload.status,
+					},
+					tx,
+				);
+			}
+			// 체중 변경 이력
+			if (existing && existing.weight !== payload.weight) {
+				await recordCattleHistory(
+					id,
+					"weight",
+					new Date(),
+					`체중 변경: ${existing.weight}kg → ${data.weight}kg`,
+					{
+						from: existing.weight,
+						to: payload.weight,
+					},
+					tx,
+				);
+			}
+			// 이동 이력
+			if (
+				existing &&
+				(existing.buildingId !== payload.buildingId ||
+					existing.penNumber !== payload.penNumber)
+			) {
+				await recordCattleHistory(
+					id,
+					"movement",
+					new Date(),
+					`이동: ${existing.buildingId} ${existing.penNumber}번 → ${data.buildingId} ${data.penNumber}번`,
+					{
+						fromBuilding: existing.buildingId,
+						fromPen: existing.penNumber,
+						toBuilding: payload.buildingId,
+						toPen: payload.penNumber,
+					},
+					tx,
+				);
+			}
+
+			await createOutboxEvent(
+				{
+					topic: DASHBOARD_EVENT_TOPICS.cattleUpdated,
+					aggregateId: id,
+					payload: { tagNumber: payload.tagNumber, name: payload.name },
+				},
+				tx,
+			);
+
+			return row;
 		});
 
-		// 상태 변경 이력
-		if (existing && existing.status !== payload.status) {
-			await recordCattleHistory(
-				id,
-				"status_change",
-				new Date(),
-				`상태 변경: ${existing.status} → ${data.status}`,
-				{
-					from: existing.status,
-					to: payload.status,
-				},
-			);
-		}
-		// 체중 변경 이력
-		if (existing && existing.weight !== payload.weight) {
-			await recordCattleHistory(
-				id,
-				"weight",
-				new Date(),
-				`체중 변경: ${existing.weight}kg → ${data.weight}kg`,
-				{
-					from: existing.weight,
-					to: payload.weight,
-				},
-			);
-		}
-		// 이동 이력
-		if (
-			existing &&
-			(existing.buildingId !== payload.buildingId ||
-				existing.penNumber !== payload.penNumber)
-		) {
-			await recordCattleHistory(
-				id,
-				"movement",
-				new Date(),
-				`이동: ${existing.buildingId} ${existing.penNumber}번 → ${data.buildingId} ${data.penNumber}번`,
-				{
-					fromBuilding: existing.buildingId,
-					fromPen: existing.penNumber,
-					toBuilding: payload.buildingId,
-					toPen: payload.penNumber,
-				},
-			);
-		}
-
-		await createOutboxEvent({
-			topic: DASHBOARD_EVENT_TOPICS.cattleUpdated,
-			aggregateId: id,
-			payload: { tagNumber: payload.tagNumber, name: payload.name },
-		});
 		await invalidateHomeCaches({
 			summary: true,
 			notifications: true,
@@ -326,17 +351,21 @@ export async function recordCalving(data) {
 				data: historyItems,
 			});
 
+			await createOutboxEvent(
+				{
+					topic: DASHBOARD_EVENT_TOPICS.cattleUpdated,
+					aggregateId: payload.motherId,
+					payload: { event: "calving", calfTagNumber },
+				},
+				tx,
+			);
+
 			return {
 				mother: updatedMother,
 				calf,
 			};
 		});
 
-		await createOutboxEvent({
-			topic: DASHBOARD_EVENT_TOPICS.cattleUpdated,
-			aggregateId: payload.motherId,
-			payload: { event: "calving", calfTagNumber },
-		});
 		await invalidateHomeCaches({
 			summary: true,
 			notifications: true,
@@ -367,24 +396,31 @@ export async function deleteCattle(id) {
 		}
 
 		// 소프트 삭제
-		await prisma.cattle.update({
-			where: { id },
-			data: { isArchived: true, archivedAt: new Date() },
+		await prisma.$transaction(async (tx) => {
+			await tx.cattle.update({
+				where: { id },
+				data: { isArchived: true, archivedAt: new Date() },
+			});
+
+			await recordCattleHistory(
+				id,
+				"status_change",
+				new Date(),
+				"아카이브 처리됨",
+				{ action: "archive" },
+				tx,
+			);
+
+			await createOutboxEvent(
+				{
+					topic: DASHBOARD_EVENT_TOPICS.cattleArchived,
+					aggregateId: id,
+					payload: { action: "archive" },
+				},
+				tx,
+			);
 		});
 
-		await recordCattleHistory(
-			id,
-			"status_change",
-			new Date(),
-			"아카이브 처리됨",
-			{ action: "archive" },
-		);
-
-		await createOutboxEvent({
-			topic: DASHBOARD_EVENT_TOPICS.cattleArchived,
-			aggregateId: id,
-			payload: { action: "archive" },
-		});
 		await invalidateHomeCaches({
 			summary: true,
 			notifications: true,

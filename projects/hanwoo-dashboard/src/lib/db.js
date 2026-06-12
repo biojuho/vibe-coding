@@ -15,6 +15,24 @@ import { PrismaClient } from "@/generated/prisma/client";
  *      for (const c of cattle) await prisma.building.findUnique({where:{id:c.buildingId}});
  *   ✅ const cattle = await prisma.cattle.findMany({ include: { building: true } });
  */
+/**
+ * Build the Postgres TLS config. Supabase requires SSL, but certificate
+ * verification should be ON in production to prevent MITM. Configure via env:
+ *   - DB_SSL_CA: the Supabase project CA certificate (PEM contents)
+ *   - DB_SSL_REJECT_UNAUTHORIZED: "true" to verify (recommended in prod)
+ * Defaults stay backward-compatible (no verification) so existing deployments
+ * keep working until the CA is provisioned.
+ */
+export function buildDbSslConfig(env = process.env) {
+	const ca =
+		typeof env.DB_SSL_CA === "string" && env.DB_SSL_CA.trim()
+			? env.DB_SSL_CA
+			: undefined;
+	const rejectUnauthorized = env.DB_SSL_REJECT_UNAUTHORIZED === "true";
+
+	return ca ? { ca, rejectUnauthorized } : { rejectUnauthorized };
+}
+
 const createPrismaClient = () => {
 	const poolMax = process.env.NODE_ENV === "production" ? 10 : 5;
 	const logLevel =
@@ -23,7 +41,7 @@ const createPrismaClient = () => {
 	try {
 		const adapter = new PrismaPg({
 			connectionString: process.env.DATABASE_URL,
-			ssl: { rejectUnauthorized: false }, // Supabase pooler requires SSL
+			ssl: buildDbSslConfig(), // configurable; see buildDbSslConfig
 			pool: {
 				max: poolMax,
 				idleTimeout: 20, // seconds — recycle idle connections

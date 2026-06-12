@@ -26,6 +26,17 @@ REVIEW_RECORD_COLLECTION_KEYS = (
 OPERATOR_ACTION_NOISE_THRESHOLD = 3
 MIN_CONFIDENT_EXPERIMENT_ITEMS = 3
 MAX_CONFIDENT_MISSING_METRIC_RATE = 0.25
+PROVIDER_FAILURE_PRIORITY = {
+    "auth": 10,
+    "quota_or_billing": 20,
+    "invalid_output": 30,
+    "rate_limit": 40,
+    "overloaded": 50,
+    "server_error": 60,
+    "timeout": 70,
+    "network_error": 80,
+    "provider_error": 90,
+}
 
 OBJECTIVE_METRICS = (
     "success",
@@ -202,6 +213,23 @@ def _as_float(value: Any) -> float | None:
     return None
 
 
+def _as_bool(value: Any, *, default: bool = False) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "y", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "n", "off", ""}:
+            return False
+        return default
+    return bool(value)
+
+
 def _average_numeric(values: Any) -> float | None:
     if isinstance(values, dict):
         numbers = [_as_float(value) for value in values.values()]
@@ -247,22 +275,139 @@ def _provider_failures(post_data: dict[str, Any], drafts: dict[str, Any]) -> lis
     return failures
 
 
+def _unique_nonempty_texts(values: Any) -> list[str]:
+    seen: set[str] = set()
+    results: list[str] = []
+    for value in _as_list(values):
+        text = str(value).strip()
+        if text and text not in seen:
+            seen.add(text)
+            results.append(text)
+    return results
+
+
+def _provider_names_from_failures(failures: list[dict[str, Any]]) -> list[str]:
+    values = [_first_present(failure.get("provider"), failure.get("provider_name")) for failure in failures]
+    return _unique_nonempty_texts(values)
+
+
+def _provider_failure_category_counts(value: Any) -> dict[str, int]:
+    counts: Counter[str] = Counter()
+    if isinstance(value, dict):
+        for category, count in value.items():
+            key = str(category).strip()
+            parsed = _as_float(count)
+            int_count = int(parsed) if parsed is not None else 0
+            if key and int_count > 0:
+                counts[key] += int_count
+    else:
+        for category in _as_list(value):
+            key = str(category).strip()
+            if key:
+                counts[key] += 1
+    return dict(sorted(counts.items(), key=lambda pair: (-pair[1], pair[0])))
+
+
+def _provider_failure_category_counts_from_failures(failures: list[dict[str, Any]]) -> dict[str, int]:
+    values = [
+        _first_present(failure.get("category"), failure.get("error_category"), failure.get("failure_category"))
+        for failure in failures
+    ]
+    return _provider_failure_category_counts(values)
+
+
+def _provider_failure_category(failure: dict[str, Any]) -> str:
+    return (
+        str(
+            _first_present(
+                failure.get("category"),
+                failure.get("error_category"),
+                failure.get("failure_category"),
+                "provider_error",
+            )
+        ).strip()
+        or "provider_error"
+    )
+
+
+def _provider_failure_brief(failure: dict[str, Any]) -> dict[str, Any]:
+    category = _provider_failure_category(failure)
+    provider = str(_first_present(failure.get("provider"), failure.get("provider_name"), "") or "").strip()
+    model = str(failure.get("model") or "").strip()
+    circuit_breaker = _as_bool(failure.get("circuit_breaker_candidate")) or category in {"auth", "quota_or_billing"}
+    return {
+        "provider": provider,
+        "model": model,
+        "category": category,
+        "retryable": _as_bool(failure.get("retryable")),
+        "circuit_breaker_candidate": circuit_breaker,
+        "error_preview": str(failure.get("error_preview") or failure.get("error") or "").strip(),
+        "operator_action": str(failure.get("operator_action") or "").strip(),
+    }
+
+
+def _provider_failure_priority(failure: dict[str, Any], index: int) -> tuple[int, int]:
+    category = _provider_failure_category(failure)
+    priority = PROVIDER_FAILURE_PRIORITY.get(category, PROVIDER_FAILURE_PRIORITY["provider_error"])
+    if _as_bool(failure.get("circuit_breaker_candidate")) or category in {"auth", "quota_or_billing"}:
+        priority = max(0, priority - 5)
+    return priority, index
+
+
+def _primary_provider_failure_from_failures(failures: list[dict[str, Any]]) -> dict[str, Any]:
+    if not failures:
+        return {}
+    indexed = list(enumerate(failures))
+    _, primary = sorted(indexed, key=lambda item: _provider_failure_priority(item[1], item[0]))[0]
+    return _provider_failure_brief(primary)
+
+
+def _primary_provider_failure(summary: dict[str, Any], failures: list[dict[str, Any]]) -> dict[str, Any]:
+    primary = _as_dict(summary.get("primary_failure"))
+    if primary:
+        brief = _provider_failure_brief(primary)
+        if brief["provider"] or brief["category"] != "provider_error" or brief["operator_action"]:
+            return brief
+    return _primary_provider_failure_from_failures(failures)
+
+
+def _merge_provider_failure_counts(primary: dict[str, int], fallback: dict[str, int]) -> dict[str, int]:
+    merged = dict(primary)
+    for key, count in fallback.items():
+        if key not in merged:
+            merged[key] = count
+    return dict(sorted(merged.items(), key=lambda pair: (-pair[1], pair[0])))
+
+
 def _provider_failure_summary(post_data: dict[str, Any], drafts: dict[str, Any]) -> dict[str, Any]:
+    failures = _provider_failures(post_data, drafts)
     summary = _as_dict(
         _first_present(
             post_data.get("draft_provider_failure_summary"),
             drafts.get("_provider_failure_summary"),
         )
     )
-    if not summary:
+    if not summary and not failures:
         return {}
 
-    categories = summary.get("categories")
+    providers_attempted = _unique_nonempty_texts(summary.get("providers_attempted"))
+    for provider in _provider_names_from_failures(failures):
+        if provider not in providers_attempted:
+            providers_attempted.append(provider)
+
+    categories = _merge_provider_failure_counts(
+        _provider_failure_category_counts(summary.get("categories")),
+        _provider_failure_category_counts_from_failures(failures),
+    )
+    primary_failure = _primary_provider_failure(summary, failures)
     return {
-        "providers_attempted": _as_list(summary.get("providers_attempted")),
-        "categories": categories if isinstance(categories, dict) else {},
-        "operator_action_required": bool(summary.get("operator_action_required")),
-        "primary_operator_action": str(summary.get("primary_operator_action") or "").strip(),
+        "providers_attempted": providers_attempted,
+        "categories": categories,
+        "operator_action_required": _as_bool(summary.get("operator_action_required"))
+        or any(_as_bool(failure.get("operator_action_required")) for failure in failures),
+        "primary_operator_action": str(summary.get("primary_operator_action") or "").strip()
+        or str(primary_failure.get("operator_action") or "").strip(),
+        "primary_failure": primary_failure,
     }
 
 
@@ -270,10 +415,23 @@ def _first_provider_failure(failures: list[dict[str, Any]]) -> dict[str, Any]:
     return failures[0] if failures else {}
 
 
+def _draft_generation_failed(post_data: dict[str, Any], drafts: dict[str, Any]) -> bool:
+    return _as_bool(_first_present(post_data.get("draft_generation_failed"), drafts.get("_generation_failed")))
+
+
 def _draft_success(post_data: dict[str, Any], drafts: dict[str, Any]) -> bool:
-    generation_failed = bool(post_data.get("draft_generation_failed") or drafts.get("_generation_failed"))
+    generation_failed = _draft_generation_failed(post_data, drafts)
     draft_text = _first_nonempty_text(drafts, ("twitter", "threads", "naver_blog", "newsletter"))
     return bool(draft_text) and not generation_failed
+
+
+def _x_publish_status_requires_action(value: Any) -> bool:
+    return str(value or "").strip().lower() in {"", "needs edit", "blocked", "failed"}
+
+
+def _priority_value(value: Any, default: int = 999) -> int:
+    priority = _as_float(value)
+    return int(priority if priority is not None else default)
 
 
 def _duplicate_or_near_duplicate(post_data: dict[str, Any], drafts: dict[str, Any]) -> bool:
@@ -282,8 +440,8 @@ def _duplicate_or_near_duplicate(post_data: dict[str, Any], drafts: dict[str, An
         post_data.get("is_duplicate"),
         drafts.get("_duplicate_or_near_duplicate"),
     )
-    if isinstance(explicit, bool):
-        return explicit
+    if explicit is not None:
+        return _as_bool(explicit)
 
     similarity = _as_float(
         _first_present(post_data.get("max_semantic_similarity"), drafts.get("_max_semantic_similarity"))
@@ -292,13 +450,16 @@ def _duplicate_or_near_duplicate(post_data: dict[str, Any], drafts: dict[str, An
 
 
 def _draft_quality_score(post_data: dict[str, Any], drafts: dict[str, Any]) -> float | None:
-    return _as_float(
+    primary_score = _as_float(
         _first_present(
             drafts.get("_quality_gate_score"),
             post_data.get("draft_quality_score"),
             post_data.get("quality_gate_score"),
         )
-    ) or _average_numeric(post_data.get("quality_gate_scores"))
+    )
+    if primary_score is not None:
+        return primary_score
+    return _average_numeric(post_data.get("quality_gate_scores"))
 
 
 def _safety_risk_flags_result(*mappings: dict[str, Any]) -> list[Any] | None:
@@ -323,14 +484,15 @@ def _objective_metric_snapshot(fixture: dict[str, Any]) -> dict[str, Any]:
     risk_flags = _safety_risk_flags_result(post_data, analysis)
     summary = _provider_failure_summary(post_data, drafts)
     x_status = str(post_data.get("x_publish_status") or "").strip()
+    review_queue_operator_action = str(post_data.get("review_queue_operator_action") or "").strip()
     success = _draft_success(post_data, drafts)
+    generation_failed = _draft_generation_failed(post_data, drafts)
     operator_action_required = bool(
         summary.get("operator_action_required")
-        or any(bool(failure.get("operator_action_required")) for failure in failures)
-        or post_data.get("review_queue_operator_action")
-        or post_data.get("draft_generation_failed")
-        or drafts.get("_generation_failed")
-        or x_status in {"", "Needs Edit", "Blocked", "Failed"}
+        or any(_as_bool(failure.get("operator_action_required")) for failure in failures)
+        or review_queue_operator_action
+        or generation_failed
+        or _x_publish_status_requires_action(x_status)
         or not success
     )
 
@@ -391,10 +553,11 @@ def _operator_actions(metrics: dict[str, Any], fixture: dict[str, Any]) -> list[
     review_queue_action = str(post_data.get("review_queue_operator_action") or "").strip()
     review_queue_reason = str(post_data.get("review_queue_operator_reason") or "").strip()
     if review_queue_action:
+        priority = _as_float(post_data.get("review_queue_priority"))
         action = {
             "action": "review_queue_action",
             "reason": f"{review_queue_action}: {review_queue_reason}" if review_queue_reason else review_queue_action,
-            "priority": int(_as_float(post_data.get("review_queue_priority")) or 15),
+            "priority": int(priority if priority is not None else 15),
         }
         for bucket_key in ("error_bucket", "reason_bucket", "triage_bucket"):
             value = str(post_data.get(f"review_queue_{bucket_key}") or "").strip()
@@ -435,7 +598,7 @@ def _operator_actions(metrics: dict[str, Any], fixture: dict[str, Any]) -> list[
         )
 
     x_status = str(post_data.get("x_publish_status") or "").strip()
-    if x_status in {"", "Needs Edit", "Blocked", "Failed"}:
+    if _x_publish_status_requires_action(x_status):
         actions.append(
             {
                 "action": "resolve_x_publish_status",
@@ -466,7 +629,7 @@ def _operator_actions(metrics: dict[str, Any], fixture: dict[str, Any]) -> list[
     for action in actions:
         key = (action.get("action"), action.get("reason"))
         deduped.setdefault(key, action)
-    return sorted(deduped.values(), key=lambda item: int(item.get("priority") or 999))
+    return sorted(deduped.values(), key=lambda item: _priority_value(item.get("priority")))
 
 
 def _score_variant(signals: dict[str, Any], operator_action_count: int) -> float:
@@ -646,6 +809,175 @@ def _candidate_operator_bucket_counts(items: list[dict[str, Any]], bucket_key: s
     return dict(sorted(counts.items()))
 
 
+def _candidate_safety_risk_flag_counts(items: list[dict[str, Any]]) -> dict[str, int]:
+    counts: Counter[str] = Counter()
+    for item in items:
+        flags = item["candidate"]["signals"].get("safety_risk_flags")
+        if not isinstance(flags, list):
+            continue
+        for flag in flags:
+            value = str(flag).strip()
+            if value:
+                counts[value] += 1
+    return dict(sorted(counts.items(), key=lambda pair: (-pair[1], pair[0])))
+
+
+def _candidate_safety_risk_item_count(items: list[dict[str, Any]]) -> int:
+    return sum(1 for item in items if _candidate_has_safety_risk_flags(item))
+
+
+def _candidate_provider_failure_category_counts(items: list[dict[str, Any]]) -> dict[str, int]:
+    counts: Counter[str] = Counter()
+    for item in items:
+        summary = item["candidate"]["signals"].get("provider_failure_summary")
+        if not isinstance(summary, dict):
+            continue
+        categories = summary.get("categories")
+        if not isinstance(categories, dict):
+            continue
+        for category, count in categories.items():
+            key = str(category).strip()
+            value = int(_as_float(count) or 0)
+            if key and value > 0:
+                counts[key] += value
+    return dict(sorted(counts.items(), key=lambda pair: (-pair[1], pair[0])))
+
+
+def _candidate_provider_failure_provider_counts(items: list[dict[str, Any]]) -> dict[str, int]:
+    counts: Counter[str] = Counter()
+    for item in items:
+        summary = item["candidate"]["signals"].get("provider_failure_summary")
+        if not isinstance(summary, dict):
+            continue
+        for provider in _as_list(summary.get("providers_attempted")):
+            key = str(provider).strip()
+            if key:
+                counts[key] += 1
+    return dict(sorted(counts.items(), key=lambda pair: (-pair[1], pair[0])))
+
+
+def _candidate_primary_provider_failure_category_counts(items: list[dict[str, Any]]) -> dict[str, int]:
+    counts: Counter[str] = Counter()
+    for item in items:
+        summary = item["candidate"]["signals"].get("provider_failure_summary")
+        if not isinstance(summary, dict):
+            continue
+        primary = summary.get("primary_failure")
+        if not isinstance(primary, dict):
+            continue
+        category = str(primary.get("category") or "").strip()
+        if category:
+            counts[category] += 1
+    return dict(sorted(counts.items(), key=lambda pair: (-pair[1], pair[0])))
+
+
+def _candidate_primary_provider_failure_provider_counts(items: list[dict[str, Any]]) -> dict[str, int]:
+    counts: Counter[str] = Counter()
+    for item in items:
+        summary = item["candidate"]["signals"].get("provider_failure_summary")
+        if not isinstance(summary, dict):
+            continue
+        primary = summary.get("primary_failure")
+        if not isinstance(primary, dict):
+            continue
+        provider = str(primary.get("provider") or "").strip()
+        if provider:
+            counts[provider] += 1
+    return dict(sorted(counts.items(), key=lambda pair: (-pair[1], pair[0])))
+
+
+def _candidate_primary_provider_failure_actions(items: list[dict[str, Any]], *, limit: int = 5) -> list[dict[str, Any]]:
+    counts: Counter[tuple[str, str, str, str, bool, bool]] = Counter()
+    for item in items:
+        summary = item["candidate"]["signals"].get("provider_failure_summary")
+        if not isinstance(summary, dict):
+            continue
+        primary = summary.get("primary_failure")
+        if not isinstance(primary, dict):
+            continue
+        provider = str(primary.get("provider") or "").strip()
+        model = str(primary.get("model") or "").strip()
+        category = str(primary.get("category") or "").strip()
+        operator_action = (
+            str(summary.get("primary_operator_action") or "").strip()
+            or str(primary.get("operator_action") or "").strip()
+        )
+        if not (provider or model or category or operator_action):
+            continue
+        counts[
+            (
+                provider or "-",
+                model or "-",
+                category or "provider_error",
+                operator_action or "-",
+                _as_bool(primary.get("retryable")),
+                _as_bool(primary.get("circuit_breaker_candidate")),
+            )
+        ] += 1
+
+    actions: list[dict[str, Any]] = []
+    for (provider, model, category, operator_action, retryable, circuit_breaker), count in sorted(
+        counts.items(),
+        key=lambda item: (-item[1], item[0][0], item[0][2], item[0][3]),
+    )[:limit]:
+        actions.append(
+            {
+                "provider": provider,
+                "model": model,
+                "category": category,
+                "operator_action": operator_action,
+                "retryable": retryable,
+                "circuit_breaker_candidate": circuit_breaker,
+                "count": count,
+            }
+        )
+    return actions
+
+
+def _candidate_has_safety_risk_flags(item: dict[str, Any]) -> bool:
+    flags = item["candidate"]["signals"].get("safety_risk_flags")
+    return isinstance(flags, list) and any(str(flag).strip() for flag in flags)
+
+
+def _candidate_top_operator_actions(items: list[dict[str, Any]], *, limit: int = 5) -> list[dict[str, Any]]:
+    counts: Counter[str] = Counter()
+    priorities: dict[str, int] = {}
+    reasons: dict[str, Counter[str]] = {}
+    for item in items:
+        actions = item["candidate"]["signals"].get("operator_actions")
+        if not isinstance(actions, list):
+            continue
+        for action in actions:
+            if not isinstance(action, dict):
+                continue
+            action_name = str(action.get("action") or "").strip()
+            if not action_name:
+                continue
+            counts[action_name] += 1
+            priority = _priority_value(action.get("priority"))
+            priorities[action_name] = min(priority, priorities.get(action_name, priority))
+            reason = str(action.get("reason") or "").strip()
+            if reason:
+                reasons.setdefault(action_name, Counter())[reason] += 1
+
+    top_actions = sorted(counts.items(), key=lambda item: (-item[1], priorities.get(item[0], 999), item[0]))[:limit]
+    results: list[dict[str, Any]] = []
+    for action_name, count in top_actions:
+        reason_counts = reasons.get(action_name) or Counter()
+        top_reason = ""
+        if reason_counts:
+            top_reason = sorted(reason_counts.items(), key=lambda item: (-item[1], item[0]))[0][0]
+        results.append(
+            {
+                "action": action_name,
+                "count": count,
+                "priority": priorities.get(action_name, 999),
+                "reason": top_reason,
+            }
+        )
+    return results
+
+
 def _top_missing_metrics(counts: dict[str, int], item_count: int) -> list[dict[str, Any]]:
     metric_order = {metric: index for index, metric in enumerate(OBJECTIVE_METRICS)}
     metrics = [metric for metric, count in counts.items() if count > 0]
@@ -688,6 +1020,57 @@ def _top_missing_metric_hints(counts: dict[str, int], item_count: int) -> list[d
     ]
 
 
+def _missing_metric_owner_counts(counts: dict[str, int]) -> dict[str, int]:
+    owner_counts: Counter[str] = Counter()
+    for metric, count in counts.items():
+        amount = int(_as_float(count) or 0)
+        if amount <= 0:
+            continue
+        hint = MISSING_METRIC_HINTS.get(metric, {})
+        owner = str(hint.get("owner") or "unknown").strip() or "unknown"
+        owner_counts[owner] += amount
+    return dict(sorted(owner_counts.items(), key=lambda item: (-item[1], item[0])))
+
+
+def _top_missing_metric_owners(
+    counts: dict[str, int],
+    item_count: int,
+    *,
+    limit: int = 5,
+) -> list[dict[str, Any]]:
+    owner_metrics: dict[str, Counter[str]] = {}
+    metric_order = {metric: index for index, metric in enumerate(OBJECTIVE_METRICS)}
+    for metric, count in counts.items():
+        amount = int(_as_float(count) or 0)
+        if amount <= 0:
+            continue
+        hint = MISSING_METRIC_HINTS.get(metric, {"owner": "unknown"})
+        owner = str(hint.get("owner") or "unknown").strip() or "unknown"
+        owner_metrics.setdefault(owner, Counter())[metric] += amount
+
+    owner_counts = _missing_metric_owner_counts(counts)
+    total_missing_count = sum(owner_counts.values())
+    results: list[dict[str, Any]] = []
+    for owner, count in list(owner_counts.items())[:limit]:
+        metric_counts = owner_metrics.get(owner, Counter())
+        metric_name, metric_count = sorted(
+            metric_counts.items(),
+            key=lambda item: (-item[1], metric_order.get(item[0], 999), item[0]),
+        )[0]
+        hint = _missing_metric_hint(metric_name, metric_count, item_count)
+        results.append(
+            {
+                "owner": owner,
+                "count": count,
+                "share": round(count / total_missing_count, 3) if total_missing_count else 0.0,
+                "top_metric": metric_name,
+                "top_metric_count": metric_count,
+                "operator_action": hint["operator_action"],
+            }
+        )
+    return results
+
+
 def _candidate_experiment_confidence(
     *,
     item_count: int,
@@ -698,6 +1081,7 @@ def _candidate_experiment_confidence(
     missing_metric_rate: float,
     average_operator_actions_per_item: float,
     high_noise_item_count: int,
+    top_missing_metric_owners: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     issues = []
     if item_count < min_item_count:
@@ -709,11 +1093,12 @@ def _candidate_experiment_confidence(
             }
         )
     if missing_metric_rate > max_missing_metric_rate:
+        owner_issue = _missing_metric_owner_issue(top_missing_metric_owners)
         issues.append(
             {
                 "code": "missing_metric_rate_high",
                 "reason": "Too many objective metric slots are missing from the candidate evidence.",
-                "operator_action": "Fill the top missing metrics before using this experiment as adoption evidence.",
+                **owner_issue,
             }
         )
     if average_operator_actions_per_item > max_operator_actions_per_item or high_noise_item_count:
@@ -739,6 +1124,31 @@ def _candidate_experiment_confidence(
     }
 
 
+def _missing_metric_owner_issue(top_missing_metric_owners: list[dict[str, Any]] | None) -> dict[str, Any]:
+    generic_action = "Fill the top missing metrics before using this experiment as adoption evidence."
+    if not top_missing_metric_owners:
+        return {"operator_action": generic_action}
+
+    top_owner = top_missing_metric_owners[0]
+    if not isinstance(top_owner, dict):
+        return {"operator_action": generic_action}
+
+    owner = str(top_owner.get("owner") or "").strip()
+    top_metric = str(top_owner.get("top_metric") or "").strip()
+    owner_action = str(top_owner.get("operator_action") or "").strip()
+    if not owner or not owner_action:
+        return {"operator_action": generic_action}
+
+    return {
+        "operator_action": f"{owner}: {owner_action}",
+        "owner": owner,
+        "owner_count": int(_as_float(top_owner.get("count")) or 0),
+        "top_metric": top_metric or "-",
+        "top_metric_count": int(_as_float(top_owner.get("top_metric_count")) or 0),
+        "owner_operator_action": owner_action,
+    }
+
+
 def _candidate_rollout_gate(confidence: dict[str, Any], safety: dict[str, bool]) -> dict[str, Any]:
     blockers = [str(issue.get("code")) for issue in confidence.get("issues", []) if issue.get("code")]
     safety_blockers = [
@@ -756,8 +1166,51 @@ def _candidate_rollout_gate(confidence: dict[str, Any], safety: dict[str, bool])
     return {
         "candidate_ready_for_rollout": not blockers,
         "candidate_rollout_blockers": blockers,
+        "candidate_rollout_blocker_actions": _candidate_rollout_blocker_actions(confidence, safety),
         "candidate_rollout_reason": _candidate_rollout_reason(blockers, confidence),
     }
+
+
+def _candidate_rollout_blocker_actions(confidence: dict[str, Any], safety: dict[str, bool]) -> list[dict[str, Any]]:
+    actions: list[dict[str, Any]] = []
+    for issue in confidence.get("issues", []):
+        if not isinstance(issue, dict):
+            continue
+        code = str(issue.get("code") or "").strip()
+        if not code:
+            continue
+        action = str(issue.get("operator_action") or "").strip()
+        item: dict[str, Any] = {
+            "code": code,
+            "source": "confidence",
+            "operator_action": action or ROLLOUT_BLOCKER_REASONS.get(code, f"resolve {code} before rollout"),
+        }
+        reason = str(issue.get("reason") or "").strip()
+        if reason:
+            item["reason"] = reason
+        for key in ("owner", "owner_count", "top_metric", "top_metric_count", "owner_operator_action"):
+            if key in issue:
+                item[key] = issue[key]
+        actions.append(item)
+
+    safety_blockers = (
+        ("not_read_only", not safety.get("read_only")),
+        ("notion_writes_enabled", safety.get("notion_writes")),
+        ("x_posts_enabled", safety.get("x_posts")),
+        ("auto_publish_enabled", safety.get("auto_publish_default")),
+        ("manual_publish_not_required", not safety.get("manual_publish_required")),
+    )
+    for code, blocked in safety_blockers:
+        if not blocked:
+            continue
+        actions.append(
+            {
+                "code": code,
+                "source": "safety",
+                "operator_action": ROLLOUT_BLOCKER_REASONS.get(code, f"resolve {code} before rollout"),
+            }
+        )
+    return actions
 
 
 def _candidate_rollout_reason(blockers: list[str], confidence: dict[str, Any]) -> str:
@@ -794,6 +1247,14 @@ def _summarize_batch_items(
     total_metric_slots = item_count * len(OBJECTIVE_METRICS)
     high_noise_items = _high_noise_items(items, max_operator_actions_per_item=max_operator_actions_per_item)
     missing_metric_counts = _candidate_missing_metric_counts(items)
+    missing_metric_owner_counts = _missing_metric_owner_counts(missing_metric_counts)
+    top_missing_metric_owners = _top_missing_metric_owners(missing_metric_counts, item_count)
+    safety_risk_flag_counts = _candidate_safety_risk_flag_counts(items)
+    provider_failure_category_counts = _candidate_provider_failure_category_counts(items)
+    provider_failure_provider_counts = _candidate_provider_failure_provider_counts(items)
+    primary_provider_failure_category_counts = _candidate_primary_provider_failure_category_counts(items)
+    primary_provider_failure_provider_counts = _candidate_primary_provider_failure_provider_counts(items)
+    primary_provider_failure_actions = _candidate_primary_provider_failure_actions(items)
     adoption_rate = round(adoption_count / item_count, 3) if item_count else 0.0
     average_operator_actions_per_item = _average(candidate_operator_actions)
     missing_metric_rate = round(candidate_missing_metric_count / total_metric_slots, 3) if total_metric_slots else 0.0
@@ -806,6 +1267,7 @@ def _summarize_batch_items(
         missing_metric_rate=missing_metric_rate,
         average_operator_actions_per_item=average_operator_actions_per_item,
         high_noise_item_count=len(high_noise_items),
+        top_missing_metric_owners=top_missing_metric_owners,
     )
     return {
         "item_count": item_count,
@@ -827,9 +1289,19 @@ def _summarize_batch_items(
         "candidate_missing_metric_rate": missing_metric_rate,
         "candidate_missing_metric_counts": missing_metric_counts,
         "candidate_missing_metric_rates": _candidate_missing_metric_rates(missing_metric_counts, item_count),
+        "candidate_missing_metric_owner_counts": missing_metric_owner_counts,
+        "candidate_top_missing_metric_owners": top_missing_metric_owners,
         "candidate_operator_error_bucket_counts": _candidate_operator_bucket_counts(items, "error_bucket"),
         "candidate_operator_reason_bucket_counts": _candidate_operator_bucket_counts(items, "reason_bucket"),
         "candidate_operator_triage_bucket_counts": _candidate_operator_bucket_counts(items, "triage_bucket"),
+        "candidate_safety_risk_item_count": _candidate_safety_risk_item_count(items),
+        "candidate_safety_risk_flag_counts": safety_risk_flag_counts,
+        "candidate_provider_failure_category_counts": provider_failure_category_counts,
+        "candidate_provider_failure_provider_counts": provider_failure_provider_counts,
+        "candidate_primary_provider_failure_category_counts": primary_provider_failure_category_counts,
+        "candidate_primary_provider_failure_provider_counts": primary_provider_failure_provider_counts,
+        "candidate_primary_provider_failure_actions": primary_provider_failure_actions,
+        "candidate_top_operator_actions": _candidate_top_operator_actions(items),
         "candidate_top_missing_metrics": _top_missing_metrics(missing_metric_counts, item_count),
         "candidate_missing_metric_hints": _candidate_missing_metric_hints(missing_metric_counts, item_count),
         "candidate_top_missing_metric_hints": _top_missing_metric_hints(missing_metric_counts, item_count),
@@ -937,6 +1409,14 @@ def review_records_to_fixtures(records: list[dict[str, Any]]) -> list[dict[str, 
         duplicate_flag = _first_record_value(record, ("duplicate_or_near_duplicate", "is_duplicate"))
         similarity = _first_record_value(record, ("max_semantic_similarity", "semantic_similarity"))
         risk_flags = _safety_risk_flags_result(record)
+        provider_failure_summary = _first_record_value(
+            record,
+            ("draft_provider_failure_summary", "provider_failure_summary", "_provider_failure_summary"),
+        )
+        provider_failures = _first_record_value(
+            record,
+            ("draft_provider_failures", "provider_failures", "_provider_failures"),
+        )
 
         post_data = {
             "title": title,
@@ -964,6 +1444,10 @@ def review_records_to_fixtures(records: list[dict[str, Any]]) -> list[dict[str, 
             "duplicate_or_near_duplicate": duplicate_flag,
             "max_semantic_similarity": similarity,
         }
+        if isinstance(provider_failure_summary, dict):
+            post_data["draft_provider_failure_summary"] = provider_failure_summary
+        if isinstance(provider_failures, list):
+            post_data["draft_provider_failures"] = provider_failures
         drafts = {
             "twitter": tweet_body,
             "_provider_used": _first_record_value(record, ("provider", "provider_used")),
@@ -1025,11 +1509,51 @@ def write_report(report: dict[str, Any], output_path: Path) -> None:
 
 def _format_batch_console_summary(report: dict[str, Any], destination: str) -> str:
     summary = report["summary"]
+    top_action = _console_top_operator_action(summary.get("candidate_top_operator_actions"))
+    safety_flags = _format_compact_counts(summary.get("candidate_safety_risk_flag_counts"))
+    provider_failure_categories = _format_compact_counts(summary.get("candidate_provider_failure_category_counts"))
+    provider_failure_providers = _format_compact_counts(summary.get("candidate_provider_failure_provider_counts"))
+    primary_failure_categories = _format_compact_counts(
+        summary.get("candidate_primary_provider_failure_category_counts")
+    )
+    primary_failure_providers = _format_compact_counts(
+        summary.get("candidate_primary_provider_failure_provider_counts")
+    )
+    top_missing_metric = _console_top_missing_metric(summary.get("candidate_top_missing_metrics"))
+    top_missing_owner = _console_top_missing_metric_owner(summary.get("candidate_top_missing_metric_owners"))
+    rollout_blockers = _console_rollout_blocker_actions(summary.get("candidate_rollout_blocker_actions"))
+    top_rollout_blocker = rollout_blockers["top"]
     return (
         "review_experiment_dry_run="
         f"{destination} batch_items={summary['item_count']} "
         f"adoption_rate={summary['candidate_adoption_rate']} "
         f"avg_score_delta={summary['average_score_delta']} "
+        f"missing_metric_rate={summary.get('candidate_missing_metric_rate', 0.0)} "
+        f"top_missing_metric={top_missing_metric['metric']} "
+        f"top_missing_metric_count={top_missing_metric['count']} "
+        f"top_missing_owner={top_missing_owner['owner']} "
+        f"top_missing_owner_count={top_missing_owner['count']} "
+        f"top_missing_owner_metric={top_missing_owner['top_metric']} "
+        f"top_missing_owner_action={top_missing_owner['operator_action']} "
+        f"operator_actions_total={summary['candidate_operator_action_total']} "
+        f"avg_operator_actions={summary['average_operator_actions_per_item']} "
+        f"high_noise_items={summary['high_noise_item_count']} "
+        f"safety_risk_items={summary.get('candidate_safety_risk_item_count', 0)} "
+        f"safety_risk_flags={safety_flags} "
+        f"provider_failure_categories={provider_failure_categories} "
+        f"provider_failure_providers={provider_failure_providers} "
+        f"primary_provider_failure_categories={primary_failure_categories} "
+        f"primary_provider_failure_providers={primary_failure_providers} "
+        f"top_operator_action={top_action['action']} "
+        f"top_operator_action_count={top_action['count']} "
+        f"top_operator_action_reason={top_action['reason']} "
+        f"rollout_blocker_count={rollout_blockers['count']} "
+        f"rollout_blocker_codes={rollout_blockers['codes']} "
+        f"top_rollout_blocker_code={top_rollout_blocker['code']} "
+        f"top_rollout_blocker_source={top_rollout_blocker['source']} "
+        f"top_rollout_blocker_owner={top_rollout_blocker['owner']} "
+        f"top_rollout_blocker_metric={top_rollout_blocker['top_metric']} "
+        f"top_rollout_blocker_action={top_rollout_blocker['operator_action']} "
         f"ready_for_rollout={summary['candidate_ready_for_rollout']} "
         f"rollout_reason={summary['candidate_rollout_reason']}"
     )
@@ -1038,12 +1562,124 @@ def _format_batch_console_summary(report: dict[str, Any], destination: str) -> s
 def _format_single_console_summary(report: dict[str, Any], destination: str) -> str:
     recommendation = report["comparison"]["recommendation"]
     score_delta = report["comparison"]["score_delta"]
+    candidate = report["variants"]["candidate"]
+    top_action = _console_top_operator_action(candidate["signals"].get("operator_actions"))
     return (
         f"review_experiment_dry_run={destination} "
         f"recommendation={recommendation} score_delta={score_delta} "
+        f"operator_action_count={candidate['operator_action_count']} "
+        f"top_operator_action={top_action['action']} "
+        f"top_operator_action_count={top_action['count']} "
+        f"top_operator_action_reason={top_action['reason']} "
         "ready_for_rollout=False "
         "rollout_reason=blocked: run batch dry-run for rollout confidence"
     )
+
+
+def _console_top_operator_action(actions: Any) -> dict[str, Any]:
+    if not isinstance(actions, list):
+        return {"action": "-", "count": 0, "reason": "-"}
+    if actions and isinstance(actions[0], dict) and "count" in actions[0]:
+        item = actions[0]
+        return {
+            "action": str(item.get("action") or "-"),
+            "count": item.get("count", 0),
+            "reason": str(item.get("reason") or "-"),
+        }
+    counts: Counter[str] = Counter()
+    reasons: dict[str, Counter[str]] = {}
+    priorities: dict[str, int] = {}
+    for item in actions:
+        if not isinstance(item, dict):
+            continue
+        action_name = str(item.get("action") or "").strip()
+        if not action_name:
+            continue
+        counts[action_name] += 1
+        priority = _priority_value(item.get("priority"))
+        priorities[action_name] = min(priority, priorities.get(action_name, priority))
+        reason = str(item.get("reason") or "").strip()
+        if reason:
+            reasons.setdefault(action_name, Counter())[reason] += 1
+    if not counts:
+        return {"action": "-", "count": 0, "reason": "-"}
+    action_name, count = sorted(counts.items(), key=lambda item: (-item[1], priorities.get(item[0], 999), item[0]))[0]
+    reason_counts = reasons.get(action_name) or Counter()
+    reason = "-"
+    if reason_counts:
+        reason = sorted(reason_counts.items(), key=lambda item: (-item[1], item[0]))[0][0]
+    return {"action": action_name, "count": count, "reason": reason}
+
+
+def _console_top_missing_metric(metrics: Any) -> dict[str, Any]:
+    if not isinstance(metrics, list):
+        return {"metric": "-", "count": 0}
+    for metric in metrics:
+        if not isinstance(metric, dict):
+            continue
+        name = str(metric.get("metric") or "").strip()
+        if name:
+            return {"metric": name, "count": metric.get("count", 0)}
+    return {"metric": "-", "count": 0}
+
+
+def _console_top_missing_metric_owner(owners: Any) -> dict[str, Any]:
+    if not isinstance(owners, list):
+        return {"owner": "-", "count": 0, "top_metric": "-", "operator_action": "-"}
+    for owner in owners:
+        if not isinstance(owner, dict):
+            continue
+        name = str(owner.get("owner") or "").strip()
+        if name:
+            return {
+                "owner": name,
+                "count": owner.get("count", 0),
+                "top_metric": str(owner.get("top_metric") or "-"),
+                "operator_action": str(owner.get("operator_action") or "-"),
+            }
+    return {"owner": "-", "count": 0, "top_metric": "-", "operator_action": "-"}
+
+
+def _console_rollout_blocker_actions(actions: Any) -> dict[str, Any]:
+    top = _empty_console_rollout_blocker_action()
+    if not isinstance(actions, list):
+        return {"count": 0, "codes": "-", "top": top}
+    codes = []
+    for action in actions:
+        if not isinstance(action, dict):
+            continue
+        code = str(action.get("code") or "").strip()
+        if not code:
+            continue
+        codes.append(code)
+        if top["code"] == "-":
+            top = _console_rollout_blocker_action(action, code)
+    return {
+        "count": len(codes),
+        "codes": ",".join(codes) if codes else "-",
+        "top": top,
+    }
+
+
+def _empty_console_rollout_blocker_action() -> dict[str, Any]:
+    return {"code": "-", "source": "-", "owner": "-", "top_metric": "-", "operator_action": "-"}
+
+
+def _console_rollout_blocker_action(action: dict[str, Any], code: str) -> dict[str, Any]:
+    return {
+        "code": code,
+        "source": str(action.get("source") or "-"),
+        "owner": str(action.get("owner") or "-"),
+        "top_metric": str(action.get("top_metric") or "-"),
+        "operator_action": str(action.get("operator_action") or "-"),
+    }
+
+
+def _format_compact_counts(counts: Any) -> str:
+    if not isinstance(counts, dict):
+        return "-"
+    parts = [f"{key}={value}" for key, value in sorted(counts.items(), key=lambda item: str(item[0]))]
+    return ",".join(parts) if parts else "-"
 
 
 def _positive_int(value: str) -> int:

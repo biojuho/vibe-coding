@@ -35,9 +35,11 @@ export async function recordCattleHistory(
 	eventDate,
 	description,
 	metadata = null,
+	client = prisma,
 ) {
+	const db = client ?? prisma;
 	try {
-		await prisma.cattleHistory.create({
+		await db.cattleHistory.create({
 			data: {
 				cattleId,
 				eventType,

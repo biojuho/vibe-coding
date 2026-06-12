@@ -6,7 +6,7 @@ import asyncio
 import os
 from datetime import datetime
 
-from config import ERROR_NOTION_UPLOAD_FAILED
+from config import ERROR_NOTION_UPLOAD_FAILED, as_bool
 from pipeline.draft_analytics import record_draft_event, refresh_ml_scorer_if_needed
 from pipeline.notion_retry_diagnostics import attach_notion_retry_diagnostics
 from pipeline.publish_decision import DROP, HOLD, PUBLISH, PublishDecision, decide_publish
@@ -98,7 +98,7 @@ def _build_blind_image_prompt(post_data: dict, profile: dict) -> str:
 
 def _inject_image_ab_variant(config, post_data: dict, topic_cluster: str, emotion_axis: str) -> None:
     try:
-        ab_active = config.get("image_ab_testing.enabled", False) if config else False
+        ab_active = as_bool(config.get("image_ab_testing.enabled", False)) if config else False
         if not ab_active:
             return
 
@@ -358,7 +358,9 @@ async def run_persist_stage(
     if not await _upload_to_notion(ctx, notion_uploader, post_data, image_url, drafts, profile, screenshot_url, errors):
         return False
 
-    require_human_approval = True if config is None else config.get("content_strategy.require_human_approval", True)
+    require_human_approval = (
+        True if config is None else as_bool(config.get("content_strategy.require_human_approval", True), default=True)
+    )
     should_publish = (
         publish_decision.action == PUBLISH
         and not review_only

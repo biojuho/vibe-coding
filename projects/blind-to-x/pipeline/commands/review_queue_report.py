@@ -8,6 +8,7 @@ import json
 import logging
 from pathlib import Path
 from typing import Any
+from config import as_bool as _as_bool
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +126,7 @@ REPORT_COMMAND_OPTION_FLAGS = (
     ("action_limit", "--review-queue-action-limit"),
     ("ready_attention_limit", "--review-queue-ready-attention-limit"),
 )
+SAFE_SHELL_ARG_CHARS = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_./:\\=-")
 BLOCKED_ERROR_RECOVERY_HINTS = {
     "missing_draft": "Fill tweet_body or regenerate the draft before rerunning --reprocess-approved.",
     "x_post_failed": "Check X credentials/rate limits and retry manual reprocess after the account is ready.",
@@ -165,11 +167,15 @@ def _safe_options(value: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
+def _format_bool(value: Any, *, default: bool = False) -> str:
+    return str(_as_bool(value, default=default)).lower()
+
+
 def _quote_command_arg(value: Any) -> str:
     text = str(value)
     if not text:
         return "''"
-    if any(char.isspace() for char in text) or "'" in text or '"' in text:
+    if any(char not in SAFE_SHELL_ARG_CHARS for char in text):
         return "'" + text.replace("'", "''") + "'"
     return text
 
@@ -201,7 +207,7 @@ def build_operator_next_commands(report: dict[str, Any]) -> list[dict[str, Any]]
             "manual_publish_required": True,
         }
     ]
-    if bool(report.get("operator_action_truncated")):
+    if _as_bool(report.get("operator_action_truncated")):
         total_actions = _safe_count(report.get("operator_action_count"))
         commands.append(
             {
@@ -215,7 +221,7 @@ def build_operator_next_commands(report: dict[str, Any]) -> list[dict[str, Any]]
                 "manual_publish_required": True,
             }
         )
-    if bool(report.get("ready_attention_truncated")):
+    if _as_bool(report.get("ready_attention_truncated")):
         total_attention = _safe_count(report.get("ready_attention_total_count"))
         commands.append(
             {
@@ -1074,15 +1080,15 @@ def build_review_queue_delta(current: dict[str, Any], previous: dict[str, Any] |
     delta["comparison_scope"] = _build_delta_comparison_scope(option_changes)
     for key in DELTA_COUNT_KEYS:
         delta["counts"][key] = _safe_count(current.get(key)) - _safe_count(previous.get(key))
-    previous_truncated = bool(previous.get("operator_action_truncated"))
-    current_truncated = bool(current.get("operator_action_truncated"))
+    previous_truncated = _as_bool(previous.get("operator_action_truncated"))
+    current_truncated = _as_bool(current.get("operator_action_truncated"))
     delta["operator_action_truncated"] = {
         "previous": previous_truncated,
         "current": current_truncated,
         "changed": previous_truncated != current_truncated,
     }
-    previous_ready_attention_truncated = bool(previous.get("ready_attention_truncated"))
-    current_ready_attention_truncated = bool(current.get("ready_attention_truncated"))
+    previous_ready_attention_truncated = _as_bool(previous.get("ready_attention_truncated"))
+    current_ready_attention_truncated = _as_bool(current.get("ready_attention_truncated"))
     delta["ready_attention_truncated"] = {
         "previous": previous_ready_attention_truncated,
         "current": current_ready_attention_truncated,
@@ -1192,7 +1198,7 @@ def evaluate_review_queue_severity(report: dict[str, Any]) -> tuple[str, list[st
 
     delta = report.get("delta") if isinstance(report.get("delta"), dict) else {}
     delta_counts = delta.get("counts") if isinstance(delta.get("counts"), dict) else {}
-    if delta.get("has_previous"):
+    if _as_bool(delta.get("has_previous")):
         if _safe_count(delta_counts.get("blocked_count")) > 0:
             raise_to(SEVERITY_CRITICAL, f"blocked_delta=+{delta_counts.get('blocked_count')}")
         if _safe_count(delta_counts.get("stale_ready_count")) > 0:
@@ -1253,7 +1259,7 @@ def build_review_queue_summary(report: dict[str, Any]) -> dict[str, Any]:
         "operator_action_count": _safe_count(report.get("operator_action_count")),
         "operator_action_displayed_count": _safe_count(report.get("operator_action_displayed_count")),
         "operator_action_hidden_count": _safe_count(report.get("operator_action_hidden_count")),
-        "operator_action_truncated": bool(report.get("operator_action_truncated")),
+        "operator_action_truncated": _as_bool(report.get("operator_action_truncated")),
         "blocked_count": _safe_count(report.get("blocked_count")),
         "stale_ready_count": _safe_count(report.get("stale_ready_count")),
         "scheduled_due_count": _safe_count(report.get("scheduled_due_count")),
@@ -1275,16 +1281,16 @@ def build_review_queue_summary(report: dict[str, Any]) -> dict[str, Any]:
         "ready_attention_displayed_count": _safe_count(report.get("ready_attention_displayed_count")),
         "ready_attention_total_count": _safe_count(report.get("ready_attention_total_count")),
         "ready_attention_hidden_count": _safe_count(report.get("ready_attention_hidden_count")),
-        "ready_attention_truncated": bool(report.get("ready_attention_truncated")),
+        "ready_attention_truncated": _as_bool(report.get("ready_attention_truncated")),
         "oldest_ready_age_days": oldest_ready.get("age_days"),
         "oldest_ready_target": oldest_ready.get("target_hint") or "",
         "oldest_ready_title": _compact_text(oldest_ready.get("title"), limit=48),
-        "has_previous": bool(delta.get("has_previous")),
-        "delta_comparable": delta.get("comparable") if delta.get("has_previous") else None,
-        "read_only": bool(safety.get("read_only")),
-        "notion_writes": bool(safety.get("notion_writes")),
-        "x_posts": bool(safety.get("x_posts")),
-        "manual_publish_required": bool(safety.get("manual_publish_required")),
+        "has_previous": _as_bool(delta.get("has_previous")),
+        "delta_comparable": delta.get("comparable") if _as_bool(delta.get("has_previous")) else None,
+        "read_only": _as_bool(safety.get("read_only")),
+        "notion_writes": _as_bool(safety.get("notion_writes")),
+        "x_posts": _as_bool(safety.get("x_posts")),
+        "manual_publish_required": _as_bool(safety.get("manual_publish_required")),
     }
 
 
@@ -1327,10 +1333,10 @@ def build_incident_response(report: dict[str, Any]) -> dict[str, Any]:
         "scheduled_ready_count": _safe_count(report.get("scheduled_ready_count")),
         "default_exit_code": _safe_count(exit_codes.get("default")),
         "fail_on_warning_exit_code": _safe_count(exit_codes.get("fail_on_warning")),
-        "read_only": bool(safety.get("read_only")),
-        "notion_writes": bool(safety.get("notion_writes")),
-        "x_posts": bool(safety.get("x_posts")),
-        "manual_publish_required": bool(safety.get("manual_publish_required")),
+        "read_only": _as_bool(safety.get("read_only")),
+        "notion_writes": _as_bool(safety.get("notion_writes")),
+        "x_posts": _as_bool(safety.get("x_posts")),
+        "manual_publish_required": _as_bool(safety.get("manual_publish_required")),
     }
 
 
@@ -1471,10 +1477,10 @@ def _build_incident_response_delta(current: dict[str, Any], previous: dict[str, 
         "previous_fail_on_warning_exit_code": previous_exit,
         "current_fail_on_warning_exit_code": current_exit,
         "fail_on_warning_exit_code_delta": current_exit - previous_exit,
-        "previous_operator_action_required": bool(previous_incident.get("operator_action_required")),
-        "current_operator_action_required": bool(current_incident.get("operator_action_required")),
-        "previous_escalation_required": bool(previous_incident.get("escalation_required")),
-        "current_escalation_required": bool(current_incident.get("escalation_required")),
+        "previous_operator_action_required": _as_bool(previous_incident.get("operator_action_required")),
+        "current_operator_action_required": _as_bool(current_incident.get("operator_action_required")),
+        "previous_escalation_required": _as_bool(previous_incident.get("escalation_required")),
+        "current_escalation_required": _as_bool(current_incident.get("escalation_required")),
     }
 
 
@@ -1545,7 +1551,7 @@ def format_review_queue_report(report: dict[str, Any]) -> str:
             else {}
         )
         comparable = summary.get("delta_comparable")
-        comparable_label = "none" if comparable is None else str(bool(comparable)).lower()
+        comparable_label = "none" if comparable is None else _format_bool(comparable)
         top_ready_age = (
             summary.get("top_ready_age_bucket") if isinstance(summary.get("top_ready_age_bucket"), dict) else {}
         )
@@ -1606,18 +1612,18 @@ def format_review_queue_report(report: dict[str, Any]) -> str:
         lines.append(
             "incident_response: "
             f"{incident.get('severity') or severity} | "
-            f"action_required={str(bool(incident.get('operator_action_required'))).lower()} | "
+            f"action_required={_format_bool(incident.get('operator_action_required'))} | "
             f"next_step={incident.get('next_step') or 'none'} | "
             f"target={incident.get('target_hint') or 'none'} | "
             f"{incident_triage_suffix}"
             f"{incident_triage_hint_suffix}"
             f"{incident_schedule_suffix}"
             f"exit_if_enforced={incident.get('fail_on_warning_exit_code', 0)} | "
-            f"guard={'manual_publish_required' if incident.get('manual_publish_required') else 'none'}"
+            f"guard={'manual_publish_required' if _as_bool(incident.get('manual_publish_required')) else 'none'}"
         )
     delta = report.get("delta") if isinstance(report.get("delta"), dict) else {}
     incident_delta = delta.get("incident_response") if isinstance(delta.get("incident_response"), dict) else {}
-    if delta.get("has_previous") and incident_delta:
+    if _as_bool(delta.get("has_previous")) and incident_delta:
         lines.append(
             "incident_delta: "
             f"severity={incident_delta.get('previous_severity')}->{incident_delta.get('current_severity')}, "
@@ -1631,17 +1637,17 @@ def format_review_queue_report(report: dict[str, Any]) -> str:
             f"->{incident_delta.get('current_schedule_hint') or 'none'}, "
             f"exit_if_enforced={incident_delta.get('previous_fail_on_warning_exit_code', 0)}"
             f"->{incident_delta.get('current_fail_on_warning_exit_code', 0)}, "
-            f"escalation={str(bool(incident_delta.get('previous_escalation_required'))).lower()}"
-            f"->{str(bool(incident_delta.get('current_escalation_required'))).lower()}"
+            f"escalation={_format_bool(incident_delta.get('previous_escalation_required'))}"
+            f"->{_format_bool(incident_delta.get('current_escalation_required'))}"
         )
     safety = report.get("safety") if isinstance(report.get("safety"), dict) else {}
     if safety:
         lines.append(
             "safety: "
-            f"read_only={str(bool(safety.get('read_only'))).lower()}, "
-            f"notion_writes={str(bool(safety.get('notion_writes'))).lower()}, "
-            f"x_posts={str(bool(safety.get('x_posts'))).lower()}, "
-            f"manual_publish_required={str(bool(safety.get('manual_publish_required'))).lower()}"
+            f"read_only={_format_bool(safety.get('read_only'))}, "
+            f"notion_writes={_format_bool(safety.get('notion_writes'))}, "
+            f"x_posts={_format_bool(safety.get('x_posts'))}, "
+            f"manual_publish_required={_format_bool(safety.get('manual_publish_required'))}"
         )
     exit_codes = report.get("exit_codes") if isinstance(report.get("exit_codes"), dict) else {}
     if not exit_codes:
@@ -1671,13 +1677,13 @@ def format_review_queue_report(report: dict[str, Any]) -> str:
         lines.append(
             f"next_command {index} [{command.get('name')}]: {command_text} | "
             f"{purpose_text}"
-            f"read_only={str(bool(command.get('read_only'))).lower()}, "
-            f"notion_writes={str(bool(command.get('notion_writes'))).lower()}, "
-            f"x_posts={str(bool(command.get('x_posts'))).lower()}, "
-            f"publish_command={str(bool(command.get('publish_command'))).lower()}, "
-            f"manual_publish_required={str(bool(command.get('manual_publish_required'))).lower()}"
+            f"read_only={_format_bool(command.get('read_only'))}, "
+            f"notion_writes={_format_bool(command.get('notion_writes'))}, "
+            f"x_posts={_format_bool(command.get('x_posts'))}, "
+            f"publish_command={_format_bool(command.get('publish_command'))}, "
+            f"manual_publish_required={_format_bool(command.get('manual_publish_required'))}"
         )
-    if delta.get("has_previous"):
+    if _as_bool(delta.get("has_previous")):
         delta_counts = delta.get("counts", {})
         lines.append(
             "delta: "
@@ -1702,8 +1708,8 @@ def format_review_queue_report(report: dict[str, Any]) -> str:
                 "action_display_delta: "
                 f"displayed={delta_counts.get('operator_action_displayed_count', 0):+}, "
                 f"hidden={delta_counts.get('operator_action_hidden_count', 0):+}, "
-                f"truncated={str(bool(truncated_delta.get('previous'))).lower()}"
-                f"->{str(bool(truncated_delta.get('current'))).lower()}"
+                f"truncated={_format_bool(truncated_delta.get('previous'))}"
+                f"->{_format_bool(truncated_delta.get('current'))}"
             )
         rank_changes = (
             delta.get("operator_action_rank_changes")
@@ -1740,7 +1746,7 @@ def format_review_queue_report(report: dict[str, Any]) -> str:
             changed_option_list = changed_options if isinstance(changed_options, list) else []
             stable_signal_list = stable_signals if isinstance(stable_signals, list) else []
             config_sensitive_list = config_sensitive if isinstance(config_sensitive, list) else []
-            same_options = bool(comparison_scope.get("same_options"))
+            same_options = _as_bool(comparison_scope.get("same_options"))
             stable_count = "all" if same_options else str(len(stable_signal_list))
             lines.append(
                 "delta_scope: "
@@ -1774,7 +1780,7 @@ def format_review_queue_report(report: dict[str, Any]) -> str:
     if total_actions:
         displayed_actions = _safe_count(report.get("operator_action_displayed_count"))
         hidden_actions = _safe_count(report.get("operator_action_hidden_count"))
-        truncated = bool(report.get("operator_action_truncated"))
+        truncated = _as_bool(report.get("operator_action_truncated"))
         rerun_hint = f", rerun_with=--review-queue-action-limit {total_actions}" if truncated else ""
         lines.append(
             "action_display: "
@@ -1784,7 +1790,7 @@ def format_review_queue_report(report: dict[str, Any]) -> str:
     delta_action_counts = (
         delta.get("operator_action_counts") if isinstance(delta.get("operator_action_counts"), dict) else {}
     )
-    if delta.get("has_previous") and delta_action_counts:
+    if _as_bool(delta.get("has_previous")) and delta_action_counts:
         lines.append(
             "action_delta: "
             + ", ".join(
@@ -1823,7 +1829,7 @@ def format_review_queue_report(report: dict[str, Any]) -> str:
     delta_error_counts = (
         delta.get("blocked_error_counts") if isinstance(delta.get("blocked_error_counts"), dict) else {}
     )
-    if delta.get("has_previous") and delta_error_counts:
+    if _as_bool(delta.get("has_previous")) and delta_error_counts:
         lines.append(
             "blocked_error_delta: "
             + ", ".join(
@@ -1864,7 +1870,7 @@ def format_review_queue_report(report: dict[str, Any]) -> str:
     delta_needs_edit_reason_counts = (
         delta.get("needs_edit_reason_counts") if isinstance(delta.get("needs_edit_reason_counts"), dict) else {}
     )
-    if delta.get("has_previous") and delta_needs_edit_reason_counts:
+    if _as_bool(delta.get("has_previous")) and delta_needs_edit_reason_counts:
         lines.append(
             "needs_edit_reason_delta: "
             + ", ".join(
@@ -1903,7 +1909,7 @@ def format_review_queue_report(report: dict[str, Any]) -> str:
     delta_missing_status_counts = (
         delta.get("missing_status_counts") if isinstance(delta.get("missing_status_counts"), dict) else {}
     )
-    if delta.get("has_previous") and delta_missing_status_counts:
+    if _as_bool(delta.get("has_previous")) and delta_missing_status_counts:
         lines.append(
             "missing_status_delta: "
             + ", ".join(
@@ -1935,7 +1941,7 @@ def format_review_queue_report(report: dict[str, Any]) -> str:
         displayed_attention = _safe_count(report.get("ready_attention_displayed_count") or len(ready_attention_items))
         total_attention = _safe_count(report.get("ready_attention_total_count") or len(ready_attention_items))
         hidden_attention = _safe_count(report.get("ready_attention_hidden_count"))
-        attention_truncated = bool(report.get("ready_attention_truncated"))
+        attention_truncated = _as_bool(report.get("ready_attention_truncated"))
         rerun_hint = (
             f", rerun_with=--review-queue-ready-attention-limit {total_attention}" if attention_truncated else ""
         )
@@ -1959,17 +1965,17 @@ def format_review_queue_report(report: dict[str, Any]) -> str:
         delta.get("ready_attention_truncated") if isinstance(delta.get("ready_attention_truncated"), dict) else {}
     )
     delta_counts = delta.get("counts") if isinstance(delta.get("counts"), dict) else {}
-    if delta.get("has_previous") and ready_attention_truncated_delta:
+    if _as_bool(delta.get("has_previous")) and ready_attention_truncated_delta:
         lines.append(
             "ready_attention_display_delta: "
             f"displayed={delta_counts.get('ready_attention_displayed_count', 0):+}, "
             f"total={delta_counts.get('ready_attention_total_count', 0):+}, "
             f"hidden={delta_counts.get('ready_attention_hidden_count', 0):+}, "
-            f"truncated={str(bool(ready_attention_truncated_delta.get('previous'))).lower()}"
-            f"->{str(bool(ready_attention_truncated_delta.get('current'))).lower()}"
+            f"truncated={_format_bool(ready_attention_truncated_delta.get('previous'))}"
+            f"->{_format_bool(ready_attention_truncated_delta.get('current'))}"
         )
     delta_ready_age = delta.get("ready_age_buckets") if isinstance(delta.get("ready_age_buckets"), dict) else {}
-    if delta.get("has_previous") and delta_ready_age:
+    if _as_bool(delta.get("has_previous")) and delta_ready_age:
         lines.append(
             "ready_age_delta: "
             + ", ".join(
@@ -1981,7 +1987,7 @@ def format_review_queue_report(report: dict[str, Any]) -> str:
     ready_attention_rank_changes = (
         delta.get("ready_attention_rank_changes") if isinstance(delta.get("ready_attention_rank_changes"), list) else []
     )
-    if delta.get("has_previous") and ready_attention_rank_changes:
+    if _as_bool(delta.get("has_previous")) and ready_attention_rank_changes:
         attention_delta_parts = []
         for change in ready_attention_rank_changes[:3]:
             if not isinstance(change, dict):

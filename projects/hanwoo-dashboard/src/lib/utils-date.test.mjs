@@ -66,9 +66,16 @@ test("date utility calculations use a fresh or injected current date", () => {
 		/return date \? date\.toLocaleDateString\(['"]ko-KR['"]\) : ['"]날짜 미등록['"];/,
 	);
 	assert.doesNotMatch(utilsSource, /return date \? date\.toLocaleDateString\(['"]ko-KR['"]\) : ['"]-['"];/);
-	assert.match(
+	// toInputDate must format from LOCAL calendar components, not UTC, so KST
+	// "today" defaults and calendar cells do not shift back a day.
+	assert.match(utilsSource, /return date \? toLocalInputDate\(date\) : ['"]['"];/);
+	assert.doesNotMatch(
 		utilsSource,
 		/return date \? date\.toISOString\(\)\.split\(['"]T['"]\)\[0\] : ['"]['"];/,
+	);
+	assert.match(
+		utilsSource,
+		/const month = String\(date\.getMonth\(\) \+ 1\)\.padStart\(2, ['"]0['"]\);/,
 	);
 	assert.match(
 		utilsSource,

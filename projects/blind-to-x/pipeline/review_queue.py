@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+from config import as_bool
 
 
 def build_review_decision(
@@ -19,7 +20,7 @@ def build_review_decision(
     title = str(post_data.get("title", "") or "").strip()
     content = str(post_data.get("content", "") or "").strip()
 
-    if config.get("review.reject_on_missing_title", True) and not title:
+    if as_bool(config.get("review.reject_on_missing_title", True), default=True) and not title:
         return {
             "should_queue": False,
             "status": "보류",
@@ -27,7 +28,7 @@ def build_review_decision(
             "review_priority": "low",
         }
 
-    if config.get("review.reject_on_missing_content", True) and not content:
+    if as_bool(config.get("review.reject_on_missing_content", True), default=True) and not content:
         return {
             "should_queue": False,
             "status": "보류",

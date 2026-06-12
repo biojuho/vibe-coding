@@ -7,10 +7,15 @@ from typing import Any
 
 DEFAULT_INPUT_PATH = Path(".tmp/source_browser_preflight.json")
 DEFAULT_MAX_JSON_BYTES = 2_000_000
+SAFE_POWERSHELL_ARG_CHARS = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_./:\\=-")
 _SOURCE_BROWSER_TOOL = "source_browser_probe"
 _ARTIFACT_EVIDENCE_KEYS = ("screenshot_path", "html_snapshot_path", "click_screenshot_path", "trace_path")
 _FALLBACK_ONLY_STATUSES = {"blocked", "browser_unavailable", "login_wall"}
 _STRATEGY_REVIEW_STATUSES = {"browser_error", "click_error", "empty", "http_error", "timeout"}
+_TRACE_VIEWER_HINT = (
+    "Open the Playwright trace locally and inspect Actions, Console, Network, and DOM snapshots before changing "
+    "selectors or timeouts."
+)
 
 
 def _resolve_path(value: str | Path, base_dir: Path) -> Path:
@@ -18,6 +23,34 @@ def _resolve_path(value: str | Path, base_dir: Path) -> Path:
     if path.is_absolute():
         return path
     return base_dir / path
+
+
+def _resolve_explicit_input_path(value: str | Path, base_dir: Path) -> Path:
+    path = Path(value)
+    if path.is_absolute():
+        return path
+    try:
+        path.resolve(strict=False).relative_to(base_dir)
+    except ValueError:
+        return base_dir / path
+    return path
+
+
+def _as_bool(value: Any, *, default: bool = False) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "y", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "n", "off", ""}:
+            return False
+        return default
+    return bool(value)
 
 
 def _issue(severity: str, code: str, message: str, *, source: str = "", path: str = "") -> dict[str, str]:
@@ -116,18 +149,53 @@ def _validate_failure_report(
     if not isinstance(operator, dict):
         issues.append(_issue("error", "missing_operator", "Missing operator block.", source=source))
     else:
-        if operator.get("action_required") is not True:
+        expected_operator_action = str(action_item.get("operator_action") or action_item.get("action") or "").strip()
+        actual_operator_action = str(operator.get("action") or "").strip()
+        if not _as_bool(operator.get("action_required")):
             issues.append(
                 _issue(
                     "error", "operator_action_not_required", "Expected operator.action_required=true.", source=source
                 )
             )
-        if not str(operator.get("action") or "").strip():
+        if not actual_operator_action:
             issues.append(_issue("error", "missing_operator_action", "Missing operator.action.", source=source))
-        if not isinstance(operator.get("evidence"), dict):
+        elif expected_operator_action and actual_operator_action != expected_operator_action:
+            issues.append(
+                _issue(
+                    "error",
+                    "operator_action_mismatch",
+                    "problem action operator_action does not match failure report operator.action.",
+                    source=source,
+                )
+            )
+        operator_evidence = operator.get("evidence")
+        if not isinstance(operator_evidence, dict):
             issues.append(
                 _issue("error", "missing_operator_evidence", "Missing operator.evidence object.", source=source)
             )
+        else:
+            failure_report_evidence_path = str(operator_evidence.get("failure_report_path") or "").strip()
+            if not failure_report_evidence_path:
+                issues.append(
+                    _issue(
+                        "error",
+                        "operator_evidence_missing_failure_report_path",
+                        "Missing operator.evidence.failure_report_path.",
+                        source=source,
+                    )
+                )
+            elif _resolve_path(failure_report_evidence_path, base_dir).resolve(
+                strict=False
+            ) != failure_report_path.resolve(strict=False):
+                issues.append(
+                    _issue(
+                        "error",
+                        "operator_evidence_failure_report_path_mismatch",
+                        "operator.evidence.failure_report_path does not point to this failure report.",
+                        source=source,
+                        path=str(_resolve_path(failure_report_evidence_path, base_dir)),
+                    )
+                )
 
     classification = report.get("classification")
     report_status = classification.get("status") if isinstance(classification, dict) else None
@@ -166,6 +234,22 @@ def _problem_actions(report: dict[str, Any]) -> list[Any]:
         return []
     actions = summary.get("problem_actions")
     return actions if isinstance(actions, list) else []
+
+
+def _evidence_snapshot(evidence: Any) -> dict[str, str]:
+    if not isinstance(evidence, dict):
+        return {}
+    snapshot: dict[str, str] = {}
+    for key, value in evidence.items():
+        if value is None:
+            continue
+        if not isinstance(value, (str, int, float, bool)):
+            continue
+        key_text = str(key or "").strip()
+        value_text = str(value).strip()
+        if key_text and value_text:
+            snapshot[key_text] = value_text
+    return snapshot
 
 
 def _present_evidence_fields(evidence: Any) -> list[str]:
@@ -239,6 +323,104 @@ def _evidence_gate(
     }
 
 
+def _format_command(parts: list[str | Path]) -> str:
+    return " ".join(_quote_powershell_arg(part) for part in parts)
+
+
+def _quote_powershell_arg(value: str | Path) -> str:
+    text = str(value)
+    if not text:
+        return "''"
+    if any(char not in SAFE_POWERSHELL_ARG_CHARS for char in text):
+        return "'" + text.replace("'", "''") + "'"
+    return text
+
+
+def _doctor_rerun_command(*, input_path: Path, base_dir: Path) -> str:
+    return _format_command(
+        [
+            "py",
+            "-3",
+            "scripts/source_preflight_evidence_doctor.py",
+            "--input",
+            input_path,
+            "--base-dir",
+            base_dir,
+            "--fail-on-warning",
+        ]
+    )
+
+
+def _source_preflight_capture_command(*, source: str, input_path: Path, include_trace: bool) -> str:
+    command_parts: list[str | Path] = [
+        "py",
+        "-3",
+        "main.py",
+        "--config",
+        "config.yaml",
+        "--source",
+        source,
+        "--source-preflight",
+        "--source-preflight-click-through",
+        "--source-preflight-output",
+        input_path,
+        "--source-preflight-screenshot-dir",
+        Path("screenshots/source_preflight"),
+        "--source-preflight-failure-dir",
+        Path(".tmp/failures/source_preflight"),
+    ]
+    if include_trace:
+        command_parts.extend(["--source-preflight-trace-dir", Path(".tmp/traces/source_preflight")])
+    return _format_command(command_parts)
+
+
+def _trace_viewer_command(trace_path: str) -> str:
+    return _format_command(["playwright", "show-trace", trace_path])
+
+
+def _trace_viewer_details(action_item: dict[str, Any], failure_report: dict[str, Any] | None) -> dict[str, str]:
+    evidence = action_item.get("evidence")
+    if not isinstance(evidence, dict):
+        return {}
+    trace_path = str(evidence.get("trace_path") or "").strip()
+    if not trace_path:
+        return {}
+
+    operator = failure_report.get("operator") if isinstance(failure_report, dict) else {}
+    operator = operator if isinstance(operator, dict) else {}
+    command = str(action_item.get("trace_viewer_command") or operator.get("trace_viewer_command") or "").strip()
+    hint = str(action_item.get("trace_viewer_hint") or operator.get("trace_viewer_hint") or "").strip()
+    return {
+        "trace_viewer_command": command or _trace_viewer_command(trace_path),
+        "trace_viewer_hint": hint or _TRACE_VIEWER_HINT,
+    }
+
+
+def _repair_commands_for_item(
+    *,
+    input_path: Path,
+    base_dir: Path,
+    action_item: dict[str, Any],
+    item_issues: list[dict[str, str]],
+    evidence_gate: dict[str, Any],
+) -> list[str]:
+    if evidence_gate.get("status") != "fix_evidence_first":
+        return []
+
+    commands = [_doctor_rerun_command(input_path=input_path, base_dir=base_dir)]
+    source = str(action_item.get("source") or "").strip()
+    if source and source != "unknown":
+        issue_codes = {str(issue.get("code") or "") for issue in item_issues}
+        evidence = action_item.get("evidence")
+        include_trace = any("trace_path" in code for code in issue_codes) or (
+            isinstance(evidence, dict) and bool(evidence.get("trace_path"))
+        )
+        commands.append(
+            _source_preflight_capture_command(source=source, input_path=input_path, include_trace=include_trace)
+        )
+    return commands
+
+
 def build_evidence_payload(
     input_path: Path,
     *,
@@ -246,7 +428,7 @@ def build_evidence_payload(
     max_json_bytes: int = DEFAULT_MAX_JSON_BYTES,
 ) -> dict[str, Any]:
     base_dir = (base_dir or Path.cwd()).resolve()
-    resolved_input = _resolve_path(input_path, base_dir)
+    resolved_input = _resolve_explicit_input_path(input_path, base_dir)
     report, load_issue = _read_json_file(resolved_input, max_bytes=max_json_bytes)
     issues: list[dict[str, str]] = []
     items: list[dict[str, Any]] = []
@@ -272,6 +454,7 @@ def build_evidence_payload(
                 item_issues.append(
                     _issue("error", "problem_action_not_object", "Expected problem action to be an object.")
                 )
+                repair_commands = [_doctor_rerun_command(input_path=resolved_input, base_dir=base_dir)]
                 items.append(
                     {
                         "index": index,
@@ -284,15 +467,24 @@ def build_evidence_payload(
                             "evidence_fields": [],
                             "missing_required_evidence": ["problem_action"],
                         },
+                        "repair_commands": repair_commands,
                     }
                 )
                 issues.extend(item_issues)
                 continue
 
             source = str(action_item.get("source") or "unknown")
+            status_text = str(action_item.get("status") or "")
+            operator_action_value = str(action_item.get("operator_action") or action_item.get("action") or "").strip()
+            explicit_operator_action_required = "operator_action_required" in action_item
+            if explicit_operator_action_required:
+                operator_action_required = _as_bool(action_item.get("operator_action_required"))
+            else:
+                operator_action_required = False
             evidence = action_item.get("evidence")
             failure_report_value = evidence.get("failure_report_path") if isinstance(evidence, dict) else None
             failure_report_path = None
+            failure_report = None
             failure_report_status = "missing"
             if not isinstance(evidence, dict) or not evidence:
                 item_issues.append(
@@ -318,6 +510,21 @@ def build_evidence_payload(
                 item_issues.extend(report_issues)
                 failure_report_status = "valid" if failure_report and not report_issues else "invalid"
 
+            failure_report_operator = (
+                failure_report.get("operator")
+                if isinstance(failure_report, dict) and isinstance(failure_report.get("operator"), dict)
+                else {}
+            )
+            if not operator_action_value:
+                failure_report_action = str(failure_report_operator.get("action") or "").strip()
+                if failure_report_action:
+                    operator_action_value = failure_report_action
+            if not explicit_operator_action_required:
+                if "action_required" in failure_report_operator and failure_report_status == "valid":
+                    operator_action_required = _as_bool(failure_report_operator.get("action_required"))
+                else:
+                    operator_action_required = bool(operator_action_value) or status_text != "ready"
+
             evidence_gate = _evidence_gate(
                 action_item,
                 failure_report_status=failure_report_status,
@@ -342,16 +549,29 @@ def build_evidence_payload(
                     item_issues=item_issues,
                 )
             issues.extend(item_issues)
+            repair_commands = _repair_commands_for_item(
+                input_path=resolved_input,
+                base_dir=base_dir,
+                action_item=action_item,
+                item_issues=item_issues,
+                evidence_gate=evidence_gate,
+            )
+            trace_viewer_details = _trace_viewer_details(action_item, failure_report)
             items.append(
                 {
                     "index": index,
                     "source": source,
                     "status": action_item.get("status"),
+                    "operator_action_required": operator_action_required,
+                    "operator_action": operator_action_value,
+                    "evidence": _evidence_snapshot(evidence),
                     "failure_report_path": str(failure_report_path) if failure_report_path else "",
                     "failure_report_status": failure_report_status,
                     "issue_count": len(item_issues),
                     "issues": item_issues,
                     "evidence_gate": evidence_gate,
+                    **trace_viewer_details,
+                    "repair_commands": repair_commands,
                 }
             )
 
@@ -368,6 +588,7 @@ def build_evidence_payload(
         for item in items
         if isinstance(item.get("evidence_gate"), dict) and item["evidence_gate"].get("strategy_change_ready") is True
     )
+    repair_command_count = sum(len(item.get("repair_commands") or []) for item in items)
     status = "FAIL" if error_count else "WARN" if warning_count else "PASS"
     return {
         "ok": error_count == 0,
@@ -381,6 +602,7 @@ def build_evidence_payload(
             "warning_count": warning_count,
             "strategy_change_ready_count": strategy_change_ready_count,
             "evidence_gate_status_counts": evidence_gate_status_counts,
+            "repair_command_count": repair_command_count,
         },
         "items": items,
         "issues": issues,
@@ -418,10 +640,25 @@ def _print_text_report(payload: dict[str, Any]) -> None:
     print(f"  warnings: {summary['warning_count']}")
     print(f"  strategy_change_ready: {summary.get('strategy_change_ready_count', 0)}")
     print(f"  evidence_gates: {summary.get('evidence_gate_status_counts') or {}}")
+    print(f"  repair_commands: {summary.get('repair_command_count', 0)}")
     for issue in payload["issues"]:
         location = f" path={issue['path']}" if issue.get("path") else ""
         source = f" source={issue['source']}" if issue.get("source") else ""
         print(f"  - {issue['severity']} {issue['code']}{source}{location}: {issue['message']}")
+    for item in payload["items"]:
+        item_source = f" source={item.get('source')}" if item.get("source") else ""
+        if "operator_action_required" in item or item.get("operator_action"):
+            required = str(bool(item.get("operator_action_required"))).lower()
+            action = str(item.get("operator_action") or "-")
+            print(f"  operator_action item={item.get('index')}{item_source}: required={required} action={action}")
+        if item.get("trace_viewer_command"):
+            print(f"  trace_viewer item={item.get('index')}{item_source}: {item['trace_viewer_command']}")
+        commands = item.get("repair_commands") or []
+        if not commands:
+            continue
+        print(f"  repair_commands item={item.get('index')}{item_source}:")
+        for index, command in enumerate(commands, start=1):
+            print(f"    {index}. {command}")
     print(f"  next_step: {payload['next_step']}")
 
 

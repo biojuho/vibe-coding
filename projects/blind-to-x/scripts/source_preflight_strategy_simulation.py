@@ -41,6 +41,17 @@ def _resolve_path(value: str | Path, base_dir: Path) -> Path:
     return base_dir / path
 
 
+def _resolve_explicit_input_path(value: str | Path, base_dir: Path) -> Path:
+    path = Path(value)
+    if path.is_absolute():
+        return path
+    try:
+        path.resolve(strict=False).relative_to(base_dir)
+    except ValueError:
+        return base_dir / path
+    return path
+
+
 def _unique_paths(paths: list[Path]) -> list[Path]:
     seen: set[str] = set()
     unique: list[Path] = []
@@ -54,9 +65,11 @@ def _unique_paths(paths: list[Path]) -> list[Path]:
 
 
 def _input_paths(args: argparse.Namespace, base_dir: Path) -> list[Path]:
-    paths = [_resolve_path(path, base_dir) for path in (args.input or [])]
+    explicit_input_requested = bool(args.input or args.input_dir)
+    paths = [_resolve_explicit_input_path(path, base_dir) for path in (args.input or [])]
+    max_files = max(0, int(args.max_files or 0))
     for input_dir in args.input_dir or []:
-        resolved_dir = _resolve_path(input_dir, base_dir)
+        resolved_dir = _resolve_explicit_input_path(input_dir, base_dir)
         if not resolved_dir.exists() or not resolved_dir.is_dir():
             paths.append(resolved_dir)
             continue
@@ -65,8 +78,8 @@ def _input_paths(args: argparse.Namespace, base_dir: Path) -> list[Path]:
             key=lambda path: (path.stat().st_mtime if path.exists() else 0.0, str(path)),
             reverse=True,
         )
-        paths.extend(matches[: args.max_files])
-    if not paths:
+        paths.extend(matches[:max_files])
+    if not paths and not explicit_input_requested:
         paths.append(_resolve_path(DEFAULT_INPUT_PATH, base_dir))
     return _unique_paths(paths)
 
@@ -140,7 +153,7 @@ def _current_strategy_signals(summary: dict[str, Any], gate_counts: Counter[str]
         "duplicate_or_near_duplicate": False,
         "operator_action_required": bool(problem_count),
         "problem_action_count": problem_count,
-        "strategy_review_count": problem_count,
+        "strategy_review_count": strategy_ready_count,
         "fallback_only_count": fallback_only_count,
         "evidence_repair_count": fix_evidence_count,
         "repair_command_count": repair_command_count,
@@ -345,6 +358,35 @@ def _rollout_gate(summary: dict[str, Any], comparison: dict[str, Any], gate_coun
     }
 
 
+def _repair_command_queue_consistency(summary: dict[str, Any]) -> dict[str, Any]:
+    try:
+        repair_command_count = int(summary.get("repair_command_count") or 0)
+    except (TypeError, ValueError):
+        repair_command_count = 0
+    repair_command_queue = (
+        summary.get("repair_command_queue") if isinstance(summary.get("repair_command_queue"), list) else []
+    )
+    top_repair_commands = (
+        summary.get("top_repair_commands") if isinstance(summary.get("top_repair_commands"), list) else []
+    )
+    queue_count_total = 0
+    for item in repair_command_queue:
+        if not isinstance(item, dict):
+            continue
+        try:
+            queue_count_total += int(item.get("count") or 0)
+        except (TypeError, ValueError):
+            continue
+    status = "ok" if repair_command_count == queue_count_total else "mismatch"
+    return {
+        "status": status,
+        "repair_command_count": repair_command_count,
+        "queue_count_total": queue_count_total,
+        "queue_item_count": len(repair_command_queue),
+        "top_item_count": len(top_repair_commands),
+    }
+
+
 def build_strategy_simulation(
     input_paths: list[Path],
     *,
@@ -363,6 +405,7 @@ def build_strategy_simulation(
     problem_count = int(summary.get("problem_action_count") or 0)
     comparison = _compare(current, candidate, problem_count=problem_count)
     metric_coverage = _metric_coverage(current, candidate)
+    repair_command_queue_consistency = _repair_command_queue_consistency(summary)
     return {
         "dry_run": True,
         "input_paths": [str(path) for path in input_paths],
@@ -376,6 +419,9 @@ def build_strategy_simulation(
             "error_count": int(summary.get("error_count") or 0),
             "warning_count": int(summary.get("warning_count") or 0),
             "evidence_gate_status_counts": dict(gate_counts),
+            "evidence_field_counts": (
+                summary.get("evidence_field_counts") if isinstance(summary.get("evidence_field_counts"), dict) else {}
+            ),
             "repair_command_count": int(summary.get("repair_command_count") or 0),
             "repair_command_type_counts": (
                 summary.get("repair_command_type_counts")
@@ -384,6 +430,22 @@ def build_strategy_simulation(
             ),
             "top_repair_commands": (
                 summary.get("top_repair_commands") if isinstance(summary.get("top_repair_commands"), list) else []
+            ),
+            "repair_command_queue": (
+                summary.get("repair_command_queue") if isinstance(summary.get("repair_command_queue"), list) else []
+            ),
+            "repair_command_queue_consistency": repair_command_queue_consistency,
+            "operator_action_counts": (
+                summary.get("operator_action_counts") if isinstance(summary.get("operator_action_counts"), dict) else {}
+            ),
+            "top_operator_actions": (
+                summary.get("top_operator_actions") if isinstance(summary.get("top_operator_actions"), list) else []
+            ),
+            "operator_action_mismatch_count": int(summary.get("operator_action_mismatch_count") or 0),
+            "operator_action_mismatch_source_counts": (
+                summary.get("operator_action_mismatch_source_counts")
+                if isinstance(summary.get("operator_action_mismatch_source_counts"), dict)
+                else {}
             ),
             "operator_recommendation": _operator_recommendation(summary),
             **metric_coverage,
@@ -402,6 +464,7 @@ def _format_summary(payload: dict[str, Any], destination: str) -> str:
     rollout_gate = payload.get("rollout_gate") if isinstance(payload.get("rollout_gate"), dict) else {}
     manual_ready_gate = payload.get("manual_ready_gate") if isinstance(payload.get("manual_ready_gate"), dict) else {}
     summary = payload.get("summary") if isinstance(payload.get("summary"), dict) else {}
+    top_action = _top_operator_action_summary(summary)
     missing_counts = (
         summary.get("missing_metric_counts") if isinstance(summary.get("missing_metric_counts"), dict) else {}
     )
@@ -412,6 +475,22 @@ def _format_summary(payload: dict[str, Any], destination: str) -> str:
         or f"current:{missing_counts.get('current', '-')}/{metric_total},"
         f"candidate:{missing_counts.get('candidate', '-')}/{metric_total}"
     )
+    mismatch_count = int(summary.get("operator_action_mismatch_count") or 0)
+    mismatch_sources = (
+        summary.get("operator_action_mismatch_source_counts")
+        if isinstance(summary.get("operator_action_mismatch_source_counts"), dict)
+        else {}
+    )
+    evidence_fields = (
+        summary.get("evidence_field_counts") if isinstance(summary.get("evidence_field_counts"), dict) else {}
+    )
+    repair_queue_consistency = (
+        summary.get("repair_command_queue_consistency")
+        if isinstance(summary.get("repair_command_queue_consistency"), dict)
+        else {}
+    )
+    primary_repair_target = _primary_repair_target(summary, manual_ready_gate)
+    primary_repair_parts = _primary_repair_target_summary(primary_repair_target)
     current = payload["variants"]["current"]["signals"]
     candidate = payload["variants"]["candidate"]["signals"]
     return (
@@ -420,14 +499,94 @@ def _format_summary(payload: dict[str, Any], destination: str) -> str:
         f"gate={rollout_gate.get('status', '-')} "
         f"manual_ready_gate={manual_ready_gate.get('status', '-')} "
         f"repair_command_count={summary.get('repair_command_count', 0)} "
+        f"repair_queue={repair_queue_consistency.get('status', '-')} "
+        f"primary_repair_type={primary_repair_parts['type']} "
+        f"primary_repair_count={primary_repair_parts['count']} "
+        f"primary_repair_buckets={primary_repair_parts['buckets']} "
+        f"primary_repair_sources={primary_repair_parts['sources']} "
         f"repair_remaining={_repair_remaining_count(manual_ready_gate)} "
         f"metric_missing={metric_missing} "
+        f"operator_action_mismatch_count={mismatch_count} "
+        f"operator_action_mismatch_sources={_format_compact_counts(mismatch_sources)} "
+        f"evidence_fields={_format_compact_counts(evidence_fields)} "
         f"scope={measurement_scope.get('mode', '-')} "
         f"score_delta={comparison['score_delta']} "
         f"unsafe_strategy_change_delta={comparison['unsafe_strategy_change_delta']} "
         f"current_unsafe={current['unsafe_strategy_change_count']} "
-        f"candidate_unsafe={candidate['unsafe_strategy_change_count']}"
+        f"candidate_unsafe={candidate['unsafe_strategy_change_count']} "
+        f"top_operator_action_count={top_action['count']} "
+        f"top_operator_action_sources={top_action['sources']} "
+        f"top_operator_action={top_action['action']}"
     )
+
+
+def _top_operator_action_summary(summary: dict[str, Any]) -> dict[str, Any]:
+    actions = summary.get("top_operator_actions") if isinstance(summary.get("top_operator_actions"), list) else []
+    for item in actions:
+        if not isinstance(item, dict):
+            continue
+        action = str(item.get("operator_action") or "").strip()
+        if not action:
+            continue
+        sources = item.get("sources") if isinstance(item.get("sources"), dict) else {}
+        return {
+            "count": item.get("count", 0),
+            "sources": _format_compact_counts(sources),
+            "action": action,
+        }
+    return {"count": 0, "sources": "-", "action": "-"}
+
+
+def _primary_repair_target(summary: dict[str, Any], manual_ready_gate: dict[str, Any]) -> dict[str, Any]:
+    repair_command = str(manual_ready_gate.get("primary_repair_command") or "").strip()
+    queue = summary.get("repair_command_queue") if isinstance(summary.get("repair_command_queue"), list) else []
+    fallback: dict[str, Any] | None = None
+    for item in queue:
+        if not isinstance(item, dict):
+            continue
+        command = str(item.get("command") or "").strip()
+        if fallback is None:
+            fallback = item
+        if repair_command and command == repair_command:
+            return item
+    return fallback or {}
+
+
+def _primary_repair_target_summary(item: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(item, dict) or not item:
+        return {"type": "-", "count": 0, "buckets": "-", "sources": "-"}
+    sources = item.get("sources") if isinstance(item.get("sources"), dict) else {}
+    buckets = item.get("buckets") if isinstance(item.get("buckets"), dict) else {}
+    return {
+        "type": str(item.get("type") or "-"),
+        "count": item.get("count", 0),
+        "buckets": _format_compact_counts(buckets),
+        "sources": _format_compact_counts(sources),
+    }
+
+
+def _format_compact_counts(counts: dict[str, Any]) -> str:
+    parts = []
+    for key, value in sorted(counts.items(), key=lambda item: str(item[0])):
+        parts.append(f"{key}={value}")
+    return ",".join(parts) if parts else "-"
+
+
+def _as_bool(value: Any, *, default: bool = False) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "y", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "n", "off", ""}:
+            return False
+        return default
+    return bool(value)
 
 
 def _repair_remaining_count(manual_ready_gate: dict[str, Any]) -> int:
@@ -443,53 +602,28 @@ def _repair_remaining_count(manual_ready_gate: dict[str, Any]) -> int:
     return 0
 
 
-def _quote_powershell(value: str) -> str:
-    return "'" + value.replace("'", "''") + "'"
-
-
-def _display_path(value: str, *, base_dir: Path) -> str:
-    path = Path(value)
-    try:
-        return str(path.resolve().relative_to(base_dir))
-    except ValueError:
-        return str(path)
-
-
-def _fallback_evidence_doctor_commands(payload: dict[str, Any]) -> list[str]:
-    try:
-        base_dir = Path(str(payload.get("base_dir") or Path.cwd())).resolve()
-    except OSError:
-        base_dir = Path.cwd().resolve()
-    commands = []
-    for value in payload.get("input_paths") or []:
-        input_path = _display_path(str(value), base_dir=base_dir)
-        commands.append(
-            "py -3 scripts/source_preflight_evidence_doctor.py "
-            f"--input {_quote_powershell(input_path)} "
-            f"--base-dir {_quote_powershell(str(base_dir))} "
-            "--json --fail-on-warning"
-        )
-    return commands
-
-
 def _manual_repair_commands(payload: dict[str, Any]) -> list[str]:
     summary = payload.get("summary") if isinstance(payload.get("summary"), dict) else {}
     commands: list[str] = []
     top_repair_commands = (
         summary.get("top_repair_commands") if isinstance(summary.get("top_repair_commands"), list) else []
     )
-    for item in top_repair_commands:
+    repair_command_queue = (
+        summary.get("repair_command_queue") if isinstance(summary.get("repair_command_queue"), list) else []
+    )
+    repair_command_items = repair_command_queue or top_repair_commands
+    for item in repair_command_items:
         if not isinstance(item, dict):
             continue
         command = str(item.get("command") or "").strip()
         if command and command not in commands:
             commands.append(command)
-    return commands or _fallback_evidence_doctor_commands(payload)
+    return commands
 
 
 def _manual_ready_gate_result(payload: dict[str, Any], *, required: bool) -> dict[str, Any]:
     rollout_gate = payload.get("rollout_gate") if isinstance(payload.get("rollout_gate"), dict) else {}
-    ready = bool(rollout_gate.get("ready_for_manual_strategy_review"))
+    ready = _as_bool(rollout_gate.get("ready_for_manual_strategy_review"))
     if not required:
         return {
             "required": False,

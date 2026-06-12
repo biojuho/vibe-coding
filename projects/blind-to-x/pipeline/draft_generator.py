@@ -21,8 +21,21 @@ from pipeline.draft_providers import (
 )
 from pipeline.draft_validation import DraftValidationMixin
 from pipeline.regulation_checker import RegulationChecker
+from config import as_bool as _as_bool
 
 logger = logging.getLogger(__name__)
+
+_PROVIDER_FAILURE_PRIORITY = {
+    "auth": 10,
+    "quota_or_billing": 20,
+    "invalid_output": 30,
+    "rate_limit": 40,
+    "overloaded": 50,
+    "server_error": 60,
+    "timeout": 70,
+    "network_error": 80,
+    "provider_error": 90,
+}
 
 
 def _compact_error_preview(error: Any, *, limit: int = 240) -> str:
@@ -104,27 +117,66 @@ def classify_provider_failure(
 def summarize_provider_failures(failures: list[dict[str, Any]]) -> dict[str, Any]:
     categories: dict[str, int] = {}
     providers: list[str] = []
+    circuit_breaker_providers: list[str] = []
     retryable_count = 0
     non_retryable_count = 0
     primary_action = ""
+    total_latency_ms = 0.0
+    max_latency_ms = 0.0
+    last_failure: dict[str, Any] = {}
+    primary_failure: dict[str, Any] = {}
+    primary_priority: tuple[int, int] | None = None
     for failure in failures:
         category = str(failure.get("category") or "provider_error")
         categories[category] = categories.get(category, 0) + 1
         provider = str(failure.get("provider") or "")
         if provider and provider not in providers:
             providers.append(provider)
-        if failure.get("retryable"):
+        retryable = _as_bool(failure.get("retryable"))
+        circuit_breaker_candidate = _as_bool(failure.get("circuit_breaker_candidate"))
+        if provider and circuit_breaker_candidate and provider not in circuit_breaker_providers:
+            circuit_breaker_providers.append(provider)
+        if retryable:
             retryable_count += 1
         else:
             non_retryable_count += 1
         if not primary_action and failure.get("operator_action"):
             primary_action = str(failure["operator_action"])
+        latency_ms = max(0.0, float(failure.get("latency_ms") or 0.0))
+        total_latency_ms += latency_ms
+        max_latency_ms = max(max_latency_ms, latency_ms)
+        failure_brief = {
+            "provider": provider,
+            "model": str(failure.get("model") or ""),
+            "category": category,
+            "retryable": retryable,
+            "circuit_breaker_candidate": circuit_breaker_candidate,
+            "error_preview": str(failure.get("error_preview") or ""),
+            "operator_action": str(failure.get("operator_action") or ""),
+        }
+        last_failure = failure_brief
+        priority = (
+            _PROVIDER_FAILURE_PRIORITY.get(category, _PROVIDER_FAILURE_PRIORITY["provider_error"]),
+            len(providers),
+        )
+        if circuit_breaker_candidate:
+            priority = (max(0, priority[0] - 5), priority[1])
+        if primary_priority is None or priority < primary_priority:
+            primary_priority = priority
+            primary_failure = failure_brief
+            if failure_brief["operator_action"]:
+                primary_action = failure_brief["operator_action"]
     return {
         "total_failures": len(failures),
         "providers_attempted": providers,
         "categories": dict(sorted(categories.items())),
+        "circuit_breaker_providers": circuit_breaker_providers,
         "retryable_count": retryable_count,
         "non_retryable_count": non_retryable_count,
+        "total_latency_ms": round(total_latency_ms, 1),
+        "max_latency_ms": round(max_latency_ms, 1),
+        "last_failure": last_failure,
+        "primary_failure": primary_failure,
         "operator_action_required": bool(failures),
         "primary_operator_action": primary_action,
     }

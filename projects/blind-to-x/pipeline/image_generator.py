@@ -7,6 +7,7 @@ import tempfile
 from urllib.parse import quote
 
 import aiohttp
+from config import as_bool
 
 logger = logging.getLogger(__name__)
 
@@ -248,7 +249,7 @@ class ImageGenerator:
             self.model = config.get("openai.image_model", "dall-e-3")
 
             env_enabled = _env_flag("OPENAI_IMAGE_ENABLED")
-            openai_enabled = env_enabled if env_enabled is not None else config.get("openai.enabled", False)
+            openai_enabled = env_enabled if env_enabled is not None else as_bool(config.get("openai.enabled", False))
 
             if openai_enabled and self.api_key:
                 from openai import AsyncOpenAI

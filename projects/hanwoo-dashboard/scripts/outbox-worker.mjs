@@ -19,6 +19,8 @@ const POLL_BATCH = 50;
 const DEFAULT_INTERVAL_MS = 10_000;
 const RETRY_DELAY_SEC = 60;
 const MAX_ATTEMPTS = 5;
+// A PROCESSING row older than this is treated as a crashed claim and requeued.
+const STALE_CLAIM_MS = 5 * 60_000;
 const ESTRUS_CYCLE_DAYS = 21;
 const ESTRUS_ALERT_WINDOW = 3;
 const CALVING_DAYS = 285;
@@ -26,14 +28,23 @@ const CALVING_ALERT_WINDOW = 14;
 
 // ── Prisma singleton ─────────────────────────────────────────────────────────
 
+// TLS config mirrors src/lib/db.js buildDbSslConfig: verification is opt-in via
+// DB_SSL_REJECT_UNAUTHORIZED/DB_SSL_CA so prod can authenticate the connection.
+function buildWorkerDbSsl() {
+	if (process.env.DATABASE_URL?.includes("localhost")) {
+		return undefined;
+	}
+	const ca = process.env.DB_SSL_CA?.trim() ? process.env.DB_SSL_CA : undefined;
+	const rejectUnauthorized = process.env.DB_SSL_REJECT_UNAUTHORIZED === "true";
+	return ca ? { ca, rejectUnauthorized } : { rejectUnauthorized };
+}
+
 let _prisma;
 function getPrisma() {
 	if (!_prisma) {
 		const adapter = new PrismaPg({
 			connectionString: process.env.DATABASE_URL,
-			ssl: process.env.DATABASE_URL?.includes("localhost")
-				? undefined
-				: { rejectUnauthorized: false },
+			ssl: buildWorkerDbSsl(),
 			pool: { max: 3, idleTimeout: 20 },
 		});
 		_prisma = new PrismaClient({ adapter, log: ["error"] });
@@ -193,6 +204,19 @@ async function processEvent(prisma, event) {
 async function pollOnce() {
 	const prisma = getPrisma();
 
+	// Requeue claims stranded by a crashed worker (PROCESSING with no progress)
+	// so events are never lost between the claim and the DONE/retry write.
+	const reaped = await prisma.outboxEvent.updateMany({
+		where: {
+			status: "PROCESSING",
+			updatedAt: { lt: new Date(Date.now() - STALE_CLAIM_MS) },
+		},
+		data: { status: "PENDING" },
+	});
+	if (reaped.count > 0) {
+		console.warn(`[worker] requeued ${reaped.count} stale PROCESSING event(s)`);
+	}
+
 	const events = await prisma.outboxEvent.findMany({
 		where: { status: "PENDING", availableAt: { lte: new Date() } },
 		orderBy: [{ availableAt: "asc" }, { createdAt: "asc" }],
@@ -203,11 +227,16 @@ async function pollOnce() {
 
 	let processed = 0;
 	for (const event of events) {
-		// Mark processing
-		await prisma.outboxEvent.update({
-			where: { id: event.id },
+		// Atomic claim: only one worker can flip PENDING→PROCESSING. If another
+		// worker (daemon + cron) already claimed it, count===0 → skip, so events
+		// are never double-processed and `attempts` isn't double-incremented.
+		const claimed = await prisma.outboxEvent.updateMany({
+			where: { id: event.id, status: "PENDING" },
 			data: { status: "PROCESSING", attempts: { increment: 1 } },
 		});
+		if (claimed.count === 0) {
+			continue;
+		}
 
 		try {
 			await processEvent(prisma, event);

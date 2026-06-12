@@ -7,6 +7,7 @@ from datetime import datetime
 import logging
 from typing import Any
 from zoneinfo import ZoneInfo
+from config import as_bool as _as_bool
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ def relaxed_pre_editorial_threshold(config: Any, default_threshold: float) -> fl
 def relax_per_source_limits(config: Any) -> bool:
     if config is None or not hasattr(config, "get"):
         return True
-    return bool(config.get("review.minimum_daily_queue_relax_per_source_limits", True))
+    return _as_bool(config.get("review.minimum_daily_queue_relax_per_source_limits", True), default=True)
 
 
 def _resolve_timezone(config: Any) -> ZoneInfo:

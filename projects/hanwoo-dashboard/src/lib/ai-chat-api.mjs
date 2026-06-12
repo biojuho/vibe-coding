@@ -150,19 +150,71 @@ export async function parseAiChatRequest(request) {
 	};
 }
 
+const AI_CHAT_STREAM_IDLE_TIMEOUT_MS = 30000;
+export const AI_CHAT_STREAM_TIMEOUT_MESSAGE =
+	"AI 응답이 지연되어 연결을 종료했습니다. 잠시 후 다시 시도해 주세요.";
+const STREAM_IDLE_TIMEOUT = Symbol("ai-chat-stream-idle-timeout");
+
 export function createAiChatSseStream(options = {}) {
 	const {
 		chat,
 		message,
 		encoder = new TextEncoder(),
+		idleTimeoutMs = AI_CHAT_STREAM_IDLE_TIMEOUT_MS,
 	} = normalizeAiChatStreamOptions(options);
 	return new ReadableStream({
 		async start(controller) {
 			try {
 				const result = await chat.sendMessageStream(message);
+				// Support both async (real Gemini) and sync (test) iterables so a
+				// stalled provider can't hold the connection open forever: each
+				// chunk races an idle timer that closes the stream on expiry.
+				const source = result.stream;
+				const iterator =
+					typeof source?.[Symbol.asyncIterator] === "function"
+						? source[Symbol.asyncIterator]()
+						: source[Symbol.iterator]();
 
-				for await (const chunk of result.stream) {
-					const text = chunk.text();
+				while (true) {
+					let timer;
+					const idle = new Promise((resolve) => {
+						timer = setTimeout(
+							() => resolve(STREAM_IDLE_TIMEOUT),
+							idleTimeoutMs,
+						);
+					});
+					let next;
+					try {
+						next = await Promise.race([
+							Promise.resolve(iterator.next()),
+							idle,
+						]);
+					} finally {
+						clearTimeout(timer);
+					}
+
+					if (next === STREAM_IDLE_TIMEOUT) {
+						if (typeof iterator.return === "function") {
+							try {
+								await iterator.return();
+							} catch {
+								/* best-effort upstream cancel */
+							}
+						}
+						controller.enqueue(
+							encoder.encode(
+								`data: ${JSON.stringify({ error: AI_CHAT_STREAM_TIMEOUT_MESSAGE })}\n\n`,
+							),
+						);
+						controller.close();
+						return;
+					}
+
+					if (next.done) {
+						break;
+					}
+
+					const text = next.value.text();
 					if (text) {
 						controller.enqueue(
 							encoder.encode(`data: ${JSON.stringify({ text })}\n\n`),

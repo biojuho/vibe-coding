@@ -261,6 +261,29 @@ test("createAiChatSseStream emits chunks and converts provider errors to SSE err
 	);
 });
 
+test("createAiChatSseStream closes a stalled stream with a timeout error frame", async () => {
+	const stalledStream = createAiChatSseStream({
+		message: "question",
+		idleTimeoutMs: 20,
+		chat: {
+			async sendMessageStream() {
+				return {
+					stream: {
+						// Async iterable whose first chunk never resolves.
+						[Symbol.asyncIterator]() {
+							return { next: () => new Promise(() => {}) };
+						},
+					},
+				};
+			},
+		},
+	});
+
+	const output = await readStreamText(stalledStream);
+	assert.match(output, /"error":/);
+	assert.match(output, /AI 응답이 지연되어 연결을 종료했습니다/);
+});
+
 test("createAiChatSseStream normalizes malformed stream options", async () => {
 	for (const value of [null, [], "bad-options"]) {
 		const stream = createAiChatSseStream(value);

@@ -14,6 +14,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass
+from config import as_bool as _as_bool
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ class ViralFilter:
 
     def __init__(self, config: dict):
         self._threshold = float(config.get("viral_filter.threshold", 40.0))
-        self._enabled = bool(config.get("viral_filter.enabled", True))
+        self._enabled = _as_bool(config.get("viral_filter.enabled", True), default=True)
         self._timeout = int(config.get("viral_filter.timeout_seconds", 10))
         self._api_key = os.environ.get("GEMINI_API_KEY") or config.get("gemini.api_key", "")
 

@@ -136,3 +136,10 @@
 - **이유**: `evaluate_candidate_editorial_fit`·`assess_quality`는 '진짜 게시물'의 품질을 보지만, 추출한 것이 애초에 게시물이 맞는지는 아무도 검증하지 않았다. 이를 명시적 레이어로 분리해 수집 정확도를 높인다.
 - **시그니처 2계층**: 하드(봇 차단·캡차 — 정상 글에 사실상 없음, 길이 무관 차단) / 소프트(로그인·삭제 — 정상 글이 인용 가능, 본문 < `min_article_chars`일 때만 차단). 본문 길이 가드로 거짓 양성을 억제한다.
 - **분류**: `blocked` → `SCRAPE_FAILED`, `non_article` → `SCRAPE_PARSE_FAILED`. 실패 사유 `scrape_blocked_page` / `scrape_login_wall` / `scrape_deleted_post`로 구분 기록되어 실패 분석에 잡힌다.
+
+## [D-034] boolean 설정/플래그 강제는 config 경계로 단일화
+- **일자**: 2026-06-12
+- **결정**: boolean 해석의 단일 구현은 루트 `config.py`의 `as_bool(value, *, default=False)`이며, `ConfigManager.get_bool(key, default)`이 설정 조회용 진입점이다. pipeline 모듈은 로컬 `_as_bool`을 정의하지 말고 `from config import as_bool as _as_bool`을 사용한다. 미인식 토큰(오타)은 `default`로 떨어지므로 기본-켜짐 게이트는 `default=True`를 명시한다. 유효한 0을 보존하는 숫자 해석은 `as_optional_float`.
+- **배경**: env/YAML/JSON에서 온 문자열 `"false"`가 Python truthiness로 True가 되는 동일 클래스 버그를 52회의 디버그 루프가 파일별 `_as_bool()` 복붙(17개 변종, `"off"`/`"y"` 토큰에서 상호 모순)으로 땜질했다. 소비 지점마다 고치는 한 무한 재발하는 구조였다.
+- **강제 장치**: `tests/unit/test_boolean_coercion_contract.py`가 (1) canonical 명세, (2) pipeline 내 로컬 `_as_bool` 재정의 금지(AST 검사), (3) standalone scripts 사본 4개의 동작 동치, (4) `_quote_powershell_arg` 3벌의 상호 동치를 검증한다.
+- **예외**: stdlib 전용 standalone scripts(`source_preflight_*`, `review_experiment_dry_run`, `notion_doctor`)는 import 결합 대신 동작 동치 계약으로 동기화한다.

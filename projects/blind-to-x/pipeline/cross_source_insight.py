@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from typing import Any
+from config import as_bool
 
 logger = logging.getLogger(__name__)
 
@@ -361,7 +362,7 @@ async def process_cross_source_insights(
         }
 
         # Step 3: Upload to Notion (if available)
-        if notion_uploader and not (config and config.get("dry_run", False)):
+        if notion_uploader and not (config and as_bool(config.get("dry_run", False))):
             try:
                 # Build post_data-like dict for Notion upload
                 post_data_for_notion = {

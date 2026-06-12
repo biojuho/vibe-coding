@@ -155,6 +155,22 @@ const requiredDate = (message) =>
 		z.date().refine((value) => !Number.isNaN(value.getTime()), message),
 	);
 
+// Like requiredDate but rejects clearly-future dates (e.g. a 2027-instead-of-2025
+// typo). Allows one day of timezone skew so a "today" pick is never falsely
+// rejected when the server clock is behind the user's local day.
+const FUTURE_DATE_SKEW_MS = 24 * 60 * 60 * 1000;
+const requiredPastOrTodayDate = (message, futureMessage) =>
+	z.preprocess(
+		toDate,
+		z
+			.date()
+			.refine((value) => !Number.isNaN(value.getTime()), message)
+			.refine(
+				(value) => value.getTime() <= Date.now() + FUTURE_DATE_SKEW_MS,
+				futureMessage,
+			),
+	);
+
 const optionalDate = (message) =>
 	z.preprocess(
 		toDate,
@@ -202,9 +218,18 @@ const cattleMutationSchema = z
 		buildingId: requiredText("축사를 선택해 주세요.", 80),
 		penNumber: requiredPositiveInt("칸 번호를 확인해 주세요.", 99),
 		gender: z.enum(CATTLE_GENDERS),
-		birthDate: requiredDate("올바른 생년월일을 입력해 주세요."),
+		birthDate: requiredPastOrTodayDate(
+			"올바른 생년월일을 입력해 주세요.",
+			"생년월일은 오늘 이후일 수 없습니다.",
+		),
 		status: z.enum(CATTLE_STATUSES),
-		weight: requiredPositiveNumber("체중은 0보다 커야 합니다."),
+		weight: z.preprocess(
+			toNumber,
+			boundedNumber("체중은 0보다 커야 합니다.", { positive: true }).refine(
+				(value) => value <= 2000,
+				"체중이 너무 큽니다. 값을 확인해 주세요.",
+			),
+		),
 		geneticInfo: z
 			.object({
 				father: optionalText(50),
@@ -234,7 +259,10 @@ const cattleMutationSchema = z
 
 const salesRecordSchema = z
 	.object({
-		saleDate: requiredDate("출하 날짜를 선택해 주세요."),
+		saleDate: requiredPastOrTodayDate(
+			"출하 날짜를 선택해 주세요.",
+			"출하 날짜는 오늘 이후일 수 없습니다.",
+		),
 		price: requiredPositiveInt("판매 금액은 0보다 커야 합니다."),
 		cattleId: requiredText("출하할 개체를 선택해 주세요.", 80),
 		purchaser: optionalText(80),
@@ -262,7 +290,10 @@ const feedRecordSchema = z
 
 const calvingRecordSchema = z.object({
 	motherId: requiredText("분만 대상 개체를 선택해 주세요.", 80),
-	calvingDate: requiredDate("분만일을 입력해 주세요."),
+	calvingDate: requiredPastOrTodayDate(
+		"분만일을 입력해 주세요.",
+		"분만일은 오늘 이후일 수 없습니다.",
+	),
 	calfGender: z.enum(CATTLE_GENDERS),
 	calfTagNumber: requiredText("송아지 이력번호를 입력해 주세요.", 30),
 });

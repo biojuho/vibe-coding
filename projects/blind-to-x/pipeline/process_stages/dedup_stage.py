@@ -8,6 +8,7 @@ from pipeline.notion_retry_diagnostics import attach_notion_retry_diagnostics
 
 from .context import ProcessRunContext, mark_stage
 from .runtime import logger
+from config import as_bool as _as_bool
 
 
 async def run_dedup_stage(
@@ -41,7 +42,7 @@ async def run_dedup_stage(
         return False
 
     feed_title = (post_data_hint or {}).get("feed_title", "")
-    notion_check_enabled = bool(config.get("dedup.notion_check_enabled", True)) if config else True
+    notion_check_enabled = _as_bool(config.get("dedup.notion_check_enabled", True), default=True) if config else True
     if feed_title and notion_check_enabled:
         sim_threshold = float(config.get("dedup.title_similarity_threshold", 0.6)) if config else 0.6
         lookback = int(config.get("dedup.lookback_days", 14)) if config else 14

@@ -12,10 +12,12 @@ from pathlib import Path
 from typing import Any
 
 import aiohttp
-from anthropic import AsyncAnthropic
 from openai import AsyncOpenAI
+from config import as_bool
 
 logger = logging.getLogger(__name__)
+
+AsyncAnthropic = None
 
 PROVIDER_ALIASES: dict[str, str] = {
     "claude": "anthropic",
@@ -29,6 +31,15 @@ PROVIDER_ALIASES: dict[str, str] = {
 }
 
 DEFAULT_PROVIDER_ORDER: list[str] = ["anthropic", "gemini", "xai", "openai", "ollama"]
+
+
+def _load_async_anthropic():
+    global AsyncAnthropic
+    if AsyncAnthropic is None:
+        from anthropic import AsyncAnthropic as _AsyncAnthropic
+
+        AsyncAnthropic = _AsyncAnthropic
+    return AsyncAnthropic
 
 
 def _emit_workspace_langfuse_trace(
@@ -145,6 +156,59 @@ class DraftProvidersMixin:
             "ollama": self.ollama_enabled,
         }
         return [provider for provider in self.provider_order if availability.get(provider, False)]
+
+    @property
+    def anthropic_client(self):
+        if not getattr(self, "_anthropic_client_initialized", False):
+            async_anthropic = _load_async_anthropic() if self.anthropic_enabled else None
+            self._anthropic_client = async_anthropic(api_key=self.anthropic_api_key) if async_anthropic else None
+            self._anthropic_client_initialized = True
+        return self._anthropic_client
+
+    @anthropic_client.setter
+    def anthropic_client(self, value):
+        self._anthropic_client = value
+        self._anthropic_client_initialized = True
+
+    @property
+    def openai_client(self):
+        if not getattr(self, "_openai_client_initialized", False):
+            self._openai_client = AsyncOpenAI(api_key=self.openai_api_key) if self.openai_enabled else None
+            self._openai_client_initialized = True
+        return self._openai_client
+
+    @openai_client.setter
+    def openai_client(self, value):
+        self._openai_client = value
+        self._openai_client_initialized = True
+
+    @property
+    def xai_client(self):
+        if not getattr(self, "_xai_client_initialized", False):
+            self._xai_client = (
+                AsyncOpenAI(api_key=self.xai_api_key, base_url="https://api.x.ai/v1") if self.xai_enabled else None
+            )
+            self._xai_client_initialized = True
+        return self._xai_client
+
+    @xai_client.setter
+    def xai_client(self, value):
+        self._xai_client = value
+        self._xai_client_initialized = True
+
+    @property
+    def ollama_client(self):
+        if not getattr(self, "_ollama_client_initialized", False):
+            self._ollama_client = (
+                AsyncOpenAI(api_key="ollama", base_url=self.ollama_base_url) if self.ollama_enabled else None
+            )
+            self._ollama_client_initialized = True
+        return self._ollama_client
+
+    @ollama_client.setter
+    def ollama_client(self, value):
+        self._ollama_client = value
+        self._ollama_client_initialized = True
 
     # ------------------------------------------------------------------
     # Timeout
@@ -377,15 +441,16 @@ def init_provider_clients(instance: Any) -> None:
     instance.openai_enabled = instance._provider_enabled("openai", instance.openai_api_key)
     instance.gemini_enabled = instance._provider_enabled("gemini", instance.gemini_api_key)
     instance.xai_enabled = instance._provider_enabled("xai", instance.xai_api_key)
-    instance.ollama_enabled = instance._check_ollama_enabled()
+    if "ollama" in instance.provider_order or as_bool(config.get("ollama.enabled")):
+        instance.ollama_enabled = instance._check_ollama_enabled()
+    else:
+        instance.ollama_enabled = False
 
-    instance.anthropic_client = (
-        AsyncAnthropic(api_key=instance.anthropic_api_key) if instance.anthropic_enabled else None
-    )
-    instance.openai_client = AsyncOpenAI(api_key=instance.openai_api_key) if instance.openai_enabled else None
-    instance.xai_client = (
-        AsyncOpenAI(api_key=instance.xai_api_key, base_url="https://api.x.ai/v1") if instance.xai_enabled else None
-    )
-    instance.ollama_client = (
-        AsyncOpenAI(api_key="ollama", base_url=instance.ollama_base_url) if instance.ollama_enabled else None
-    )
+    instance._anthropic_client = None
+    instance._openai_client = None
+    instance._xai_client = None
+    instance._ollama_client = None
+    instance._anthropic_client_initialized = False
+    instance._openai_client_initialized = False
+    instance._xai_client_initialized = False
+    instance._ollama_client_initialized = False

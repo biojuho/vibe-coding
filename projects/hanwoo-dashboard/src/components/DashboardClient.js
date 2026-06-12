@@ -1043,19 +1043,35 @@ export default function DashboardClient(options = {}) {
 			try {
 				const { synced, failed, deadLettered, reused } =
 					await syncOfflineQueue();
-				if (cancelled || reused || (synced === 0 && deadLettered === 0)) {
+				// failed includes deadLettered; separate the two so we don't tell
+				// users to "retry" items whose automatic retries are exhausted.
+				const transientFailed = Math.max(0, failed - deadLettered);
+				if (cancelled || reused || (synced === 0 && failed === 0)) {
 					return;
 				}
+
+				const descriptionParts = [];
+				if (synced > 0) {
+					descriptionParts.push(`${synced}건이 서버에 반영되었습니다.`);
+				}
+				if (transientFailed > 0) {
+					descriptionParts.push(`${transientFailed}건은 잠시 후 다시 시도됩니다.`);
+				}
+				if (deadLettered > 0) {
+					descriptionParts.push(
+						`${deadLettered}건은 자동 재시도가 중단되었습니다. 설정 > 동기화에서 확인해 주세요.`,
+					);
+				}
+
+				const hasProblem = transientFailed > 0 || deadLettered > 0;
 				notify({
-					title:
-						failed > 0
+					title: deadLettered > 0
+						? "오프라인 작업 일부가 보류되었습니다."
+						: transientFailed > 0
 							? "오프라인 작업을 일부 동기화했습니다."
 							: "오프라인 작업 동기화가 완료되었습니다.",
-					description:
-						failed > 0
-							? `${synced}건은 반영되었고 ${failed}건은 다시 시도해 주세요.`
-							: `${synced}건이 서버에 반영되었습니다.`,
-					variant: failed > 0 ? "warning" : "success",
+					description: descriptionParts.join(" "),
+					variant: hasProblem ? "warning" : "success",
 				});
 				if (synced > 0) {
 					try {

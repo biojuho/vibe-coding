@@ -85,6 +85,38 @@ test("classifyPaymentConfirmationResult keeps 5xx gateway failures retryable", (
 	assert.equal(result.message, PAYMENT_CONFIRMATION_PENDING_MESSAGE);
 });
 
+test("classifyPaymentConfirmationResult treats ALREADY_PROCESSED_PAYMENT as reconcilable, not failed", () => {
+	const result = classifyPaymentConfirmationResult({
+		status: 400,
+		payload: {
+			code: "ALREADY_PROCESSED_PAYMENT",
+			message: "이미 처리된 결제 입니다.",
+		},
+		rawText: "",
+		parseError: null,
+		expectedAmount: 9900,
+	});
+
+	assert.equal(result.kind, "already_processed");
+	assert.equal(result.httpStatus, 202);
+	assert.equal(result.reason, "already_processed");
+	assert.equal(result.message, PAYMENT_CONFIRMATION_PENDING_MESSAGE);
+});
+
+test("classifyPaymentConfirmationResult still fails other 4xx gateway rejections", () => {
+	const result = classifyPaymentConfirmationResult({
+		status: 400,
+		payload: { code: "INVALID_STOPPED_CARD", message: "정지된 카드입니다." },
+		rawText: "",
+		parseError: null,
+		expectedAmount: 9900,
+	});
+
+	assert.equal(result.kind, "failed");
+	assert.equal(result.httpStatus, 400);
+	assert.equal(result.reason, "gateway_rejected");
+});
+
 test("classifyPaymentConfirmationResult treats malformed 200 responses as pending verification", () => {
 	const result = classifyPaymentConfirmationResult({
 		status: 200,

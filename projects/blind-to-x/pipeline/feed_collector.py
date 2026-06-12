@@ -15,6 +15,7 @@ from pipeline.daily_queue_floor import (
     relaxed_pre_editorial_threshold,
 )
 from pipeline.dedup import check_cross_source_duplicates
+from config import as_bool as _as_bool
 
 logger = logging.getLogger(__name__)
 
@@ -166,7 +167,7 @@ async def collect_feed_items(
 
     # Cross-source dedup (before individual scraping)
     cross_source_dedup_count = 0
-    if config_mgr.get("dedup.cross_source_enabled", True):
+    if _as_bool(config_mgr.get("dedup.cross_source_enabled", True), default=True):
         before_count = len(urls_to_process)
         sim_threshold = float(config_mgr.get("dedup.title_similarity_threshold", 0.6))
         urls_to_process = check_cross_source_duplicates(urls_to_process, threshold=sim_threshold)

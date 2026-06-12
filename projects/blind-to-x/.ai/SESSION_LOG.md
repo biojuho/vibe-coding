@@ -1,5 +1,46 @@
 # Blind-to-X 세션 로그
 
+## 2026-06-12 | Claude Code | 적대적 비판 → D-034 boolean 강제 단일화
+- Summary: 52회 디버그 루프의 구조적 원인(파일별 `_as_bool` 복붙, 17개 변종 상호 모순)을 적대적 감사로 진단하고 근본 수정. canonical `as_bool`/`as_optional_float` + `ConfigManager.get_bool`을 루트 `config.py`에 도입, pipeline 13개 파일 통합, 잔존 raw-truthiness 7곳 수정, standalone scripts 4개 정렬, 계약 테스트 35개로 재발 차단.
+- Changed files: `config.py`; pipeline — `bootstrap.py`, `cli.py`, `runner.py`, `feed_collector.py`, `commands/review_queue_report.py`, `viral_filter.py`, `daily_queue_floor.py`, `draft_generator.py`, `publish_decision.py`, `publish_repair.py`, `review_queue.py`, `image_generator.py`, `cross_source_insight.py`, `editorial_reviewer.py`, `draft_providers.py`, `process_stages/{dedup,fetch,filter_profile,persist}_stage.py`; scripts — `notion_doctor.py`, `review_experiment_dry_run.py`, `source_preflight_evidence_doctor.py`, `source_preflight_strategy_simulation.py`; tests — `tests/unit/test_boolean_coercion_contract.py`(신규); docs — `.ai/{HANDOFF,TASKS,CONTEXT,DECISIONS,SESSION_LOG}.md`.
+- Verification: 전체 단위 `2503 passed, 9 skipped`(직접 pytest --no-cov); `ruff check .` pass; `project_qc_runner --project blind-to-x --json` artifact_status=passed. no commit/stage/push (타 도구 WIP 공존).
+
+## 2026-06-11 | Codex | T-2373 auto-research current blocker evidence refresh
+- Summary: refreshed current blocker evidence after Blind-to-X debug loop 8 without Blind-to-X product/source edits.
+- Current state: dirty handoff plan `current`, dirty `167`, staged `0`, ahead `919`, signature `223d7ec3d70841fb86d4ca0c7682d988960b79528f61de1285145d2c1414ad19`; selector `blocked / dirty_worktree_handoff_current`; readiness `92/blocked`; completion audit `incomplete` (`15` items, `6` complete, `15` issues, `9` blocked).
+- Verification: debug inventory expected-exited `1` with `5` blocked and `0` actionable; scoped authorization menu remains `ok / rendered_matches=true / uncovered 0/0`.
+- Guardrails: no stage, commit, push, revert, cleanup `--apply`, live provider/Notion/X/DB call, T-251 retry, product/source edit, or `update_goal`.
+
+## 2026-06-11 | Codex | T-2372 auto-research debug inventory UTF-16 self-anneal
+- Summary: fixed auto-research debug inventory so UTF-16 JSON input artifacts from PowerShell are parsed instead of collapsing to `{}` and looking like a valid completion-blocked proof.
+- Changed files: `.agents/skills/auto-research/scripts/debug_loop_inventory.py`, `workspace/tests/test_auto_research_debug_loop_inventory.py`, root/project `.ai` relay docs, and ignored `.tmp` evidence packet files.
+- Verification: `python -m pytest workspace\tests\test_auto_research_debug_loop_inventory.py -q -o addopts= --tb=short --maxfail=1 --basetemp .tmp\pytest-t2370-debug-loop-utf16` -> `63 passed`; `py_compile` -> pass; targeted `ruff check` / `ruff format --check` -> pass; live debug inventory -> expected completion-blocked exit 1 with `blocked=5`, `actionable=0`.
+- Guardrails: no stage, commit, push, revert, cleanup `--apply`, live provider/Notion/X/DB call, T-251 retry, or `update_goal`.
+
+## 2026-06-11 | Codex | T-2368 auto-research approval packet refresh
+- Summary: continued the active root auto-research goal under the dirty handoff boundary without Blind-to-X product/source edits.
+- Added root ignored packets for newly surfaced dirty drift: `APPROVE_SHORTS_MAKER_V2_HISTORY_FACT_SHORTS`, `APPROVE_SHORTS_MAKER_V2_TOOL_PILLOW_DEPRECATIONS`, `APPROVE_WORKSPACE_HANDOFF_ROTATOR_SUFFIX_HEADING`, `APPROVE_WORKSPACE_TASKS_DONE_ROTATOR_CHECKLISTS`, and `APPROVE_BLIND_TO_X_REVIEW_QUEUE_REPORT_COMMAND`.
+- Verification: Shorts Maker V2 history fact focused pytest `8 passed`, tool Pillow deprecation focused pytest `7 passed`, matching `py_compile` checks, workspace handoff rotator pytest `19 passed`, workspace tasks done rotator pytest `12 passed`, and Blind-to-X review queue report command pytest `36 passed`.
+- Current state: strict approval audit `ok / 167/167 / pathspecs 81 / staged 0`; selector `blocked / dirty_worktree_handoff_current`; completion audit `incomplete`.
+- Guardrails: no `update_goal`, stage, commit, push, revert, cleanup `--apply`, live provider call, or T-251 retry.
+
+## 2026-06-11 | Codex | 자율 디버깅 루프: formatter gate 복구
+- **작업 요약**:
+  - 0단계로 알려진 버그/이상 증상을 목록화했다. B-001 `project_qc_runner` 최초 실패는 재시도에서 안정 재현되지 않아 수정하지 않았고, B-002 ambient Python pytest 실패는 프로젝트 `.venv`가 아닌 실행환경 문제로 분리했다.
+  - 안정 재현된 B-003은 `ruff format --check .`가 `pipeline/draft_prompts.py`에서 실패하는 formatter gate 문제였다.
+  - `ruff format pipeline\draft_prompts.py`로 포맷/줄끝 상태만 정리했다.
+- **QC 결과**:
+  - `.venv\Scripts\python.exe -m ruff format --check .` → pass
+  - `.venv\Scripts\python.exe -m ruff check .` → pass
+  - `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_draft_prompts.py tests\unit\test_draft_generator_best_of_n.py tests\unit\test_draft_generator_multi_provider.py -q --tb=short --maxfail=1 -o addopts=` → 64 passed
+  - `python execution\project_qc_runner.py --project blind-to-x --json` → pass (`2208 passed`, `9 skipped`, lint pass)
+- **변경 파일**:
+  - `pipeline/draft_prompts.py`
+  - `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/SESSION_LOG.md`
+- **다음 메모**:
+  - blind-to-x 테스트는 ambient `python`이 아니라 프로젝트 `.venv` 또는 표준 `project_qc_runner.py`로 실행한다.
+  - `.tmp` pytest 임시 디렉터리 일부는 Windows 권한 잠금으로 `rg` 접근 거부를 낼 수 있으므로, 로그 스캔 실패만으로 코드 실패로 판정하지 않는다.
+
 ## 2026-05-22 | Claude Code | D-032: 본문 포함 편집 적합도 게이트 (선별 정확도)
 - **작업 요약**:
   - D-029가 명시하고 `config.yaml`에 키까지 있었으나 미구현이던 본문 포함 편집 적합도 검증을
@@ -1075,3 +1116,1079 @@ otebooklm_enricher.py)에 대한 100% Mock 기반 고강도 유닛 테스트 작
 - **변경 파일**:
   - `tests/unit/test_scrapers_base.py`
   - `tests/unit/test_escalation_runner.py`
+## 2026-06-11 | Codex | Debug loop 5 source-preflight repair input contract
+
+### Summary
+- Reproduced the weekly smoke primary repair command failure: `.tmp/source_browser_preflight-blind.json` was advertised but not generated.
+- Fixed `scripts/write_weekly_smoke_inputs.py` so smoke input generation also writes source-preflight evidence doctor input JSON and failure-report JSON.
+- Made source strategy repair commands and manifest expected repair queue derive from the chosen `--output-dir`.
+- Updated `README.md` and `docs/ops-runbook.md` JSON examples after verifier failure payloads preserved `repair_queue`.
+
+### Changed Files
+- `scripts/write_weekly_smoke_inputs.py`
+- `tests/unit/test_write_weekly_smoke_inputs.py`
+- `README.md`
+- `docs/ops-runbook.md`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_write_weekly_smoke_inputs.py tests\unit\test_source_preflight_evidence_doctor.py -q --tb=short --maxfail=1 -o addopts=` -> 27 passed.
+- `.venv\Scripts\python.exe scripts\source_preflight_evidence_doctor.py --input .tmp\source_browser_preflight-blind.json --fail-on-warning --json` -> PASS.
+- `.venv\Scripts\python.exe scripts\write_weekly_smoke_inputs.py --output-dir .tmp --manifest-output .tmp\weekly_smoke_manifest_current.json --self-check --json` -> ok.
+- `.venv\Scripts\python.exe scripts\verify_weekly_smoke.py --manifest .tmp\weekly_smoke_manifest_current.json --verify-review-summary --verify-strategy-summary --json` -> ok.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit -q --tb=short --maxfail=1 -o addopts= --basetemp ...` -> 2236 passed, 9 skipped.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: test 2238 passed, 9 skipped; lint passed.
+
+### Notes
+- A shorter QC runner attempt returned only progress lines and exit 1 without a fresh artifact; direct pytest and the longer runner retry passed.
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 6 copy-ready command quoting
+
+### Summary
+- Reproduced a weekly smoke manifest bug where copy-ready commands failed when `--output-dir` contained spaces.
+- The failing command came from `.tmp/weekly smoke loop6/manifest.json`; copying `commands.write_inputs` into PowerShell produced argparse `unrecognized arguments: smoke loop6 ...` and exit 2.
+- Root cause: command strings were assembled with unquoted f-strings, and the manifest validator treated quoted path-valued options as missing.
+- Fixed command generation with `subprocess.list2cmdline()` and updated manifest contract checks to accept quoted path fragments.
+- Updated tests so command expectations remain stable under QC runner `--basetemp` paths that include `Vibe coding`.
+
+### Changed Files
+- `scripts/write_weekly_smoke_inputs.py`
+- `scripts/verify_weekly_smoke.py`
+- `tests/unit/test_write_weekly_smoke_inputs.py`
+- `tests/unit/test_verify_weekly_smoke.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_write_weekly_smoke_inputs.py tests\unit\test_verify_weekly_smoke.py -q --tb=short --maxfail=1 -o addopts=` -> 81 passed.
+- `.venv\Scripts\python.exe -m ruff format --check scripts\write_weekly_smoke_inputs.py scripts\verify_weekly_smoke.py tests\unit\test_write_weekly_smoke_inputs.py tests\unit\test_verify_weekly_smoke.py` -> passed.
+- `.venv\Scripts\python.exe -m ruff check scripts\write_weekly_smoke_inputs.py scripts\verify_weekly_smoke.py tests\unit\test_write_weekly_smoke_inputs.py tests\unit\test_verify_weekly_smoke.py` -> passed.
+- Re-copied manifest commands for `.tmp/weekly smoke loop6 fixed` -> all copy-ready commands passed.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2258 passed, 9 skipped; lint passed.
+
+### Notes
+- `code-review-graph` MCP tools were not exposed in this environment, so deterministic pytest/ruff/QC gates were used.
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 7 review queue command metacharacter quoting
+
+### Summary
+- Reproduced a copy-ready command failure in review queue follow-up commands when the artifact path contained `&`.
+- The generated command was `python main.py --review-queue-report ... --review-queue-report-output .tmp/review&queue-loop7.json`; PowerShell rejected it with `AmpersandNotAllowed`.
+- Root cause: `_quote_command_arg()` only quoted whitespace and quote characters, but PowerShell metacharacters also need literal quoting.
+- Fixed `pipeline/commands/review_queue_report.py` to quote any command argument outside a conservative shell-safe character set.
+- Added unit coverage that locks `--review-queue-report-output '.tmp/review&queue-loop7.json'`.
+
+### Changed Files
+- `pipeline/commands/review_queue_report.py`
+- `tests/unit/test_review_queue_report_command.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction replay with generated command transformed to `Write-Output` -> PowerShell parse passed and preserved `.tmp/review&queue-loop7.json`.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_review_queue_report_command.py -q --tb=short --maxfail=1 -o addopts=` -> 36 passed.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_review_queue_report_command.py tests\unit\test_main.py tests\unit\test_runner.py -q --tb=short --maxfail=1 -o addopts=` -> 92 passed.
+- `.venv\Scripts\python.exe -m ruff format --check pipeline\commands\review_queue_report.py tests\unit\test_review_queue_report_command.py` -> passed.
+- `.venv\Scripts\python.exe -m ruff check pipeline\commands\review_queue_report.py tests\unit\test_review_queue_report_command.py` -> passed.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit -q --tb=short --maxfail=1 -o addopts= --basetemp ..\..\.tmp\project-qc-temp\blind-to-x\basetemp-loop7-direct` -> 2270 passed, 9 skipped.
+- `.venv\Scripts\python.exe -m ruff check .` -> passed.
+
+### Notes
+- `project_qc_runner.py --project blind-to-x --json` returned progress-only exit 1 twice after Loop 7 with no fresh Blind-to-X artifact and no surviving Blind-to-X pytest child process. The direct full pytest/lint commands above passed, so this was not treated as a product test failure.
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 8 project QC runner post-pass returncode normalization
+
+### Summary
+- Reproduced `project_qc_runner.py --project blind-to-x --json` reporting failure even after pytest stdout showed a clean pass.
+- Narrow reproduction with `--check test --no-artifact` returned `status=failed`, `returncode=4294967295`, and stdout `2270 passed, 9 skipped`.
+- The same resolved pytest command run directly in PowerShell exited `0`, including with the same repo-local temp environment.
+- Root cause: Windows/Popen pytest capture can leave a post-success sentinel return code after a successful pytest summary, which the runner treated as a real failure.
+- Fixed root `execution/project_qc_runner.py` to normalize only pytest commands with returncode `-1`/`4294967295`, empty stderr, and a successful pytest summary. The result preserves `raw_returncode` and `returncode_normalized_reason` when normalization is applied.
+
+### Changed Files
+- `../../execution/project_qc_runner.py`
+- `../../workspace/tests/test_project_qc_runner.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- `.venv\Scripts\python.exe -m pytest workspace\tests\test_project_qc_runner.py -q --tb=short --maxfail=1 -o addopts=` from workspace root -> 19 passed.
+- `python -m ruff format --check execution\project_qc_runner.py workspace\tests\test_project_qc_runner.py` -> passed.
+- `python -m ruff check execution\project_qc_runner.py workspace\tests\test_project_qc_runner.py` -> passed.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: Blind-to-X unit 2278 passed, 9 skipped; lint passed; partial artifact status passed.
+
+### Notes
+- This loop intentionally touched workspace-level runner code because it was blocking reliable Blind-to-X QC verification.
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 9 source browser probe PowerShell trace command quoting
+
+### Summary
+- Reproduced a source preflight operator command failure for trace paths containing PowerShell metacharacters.
+- `_build_trace_viewer_guidance({"trace_path": ".tmp/traces/source&preflight.zip"})` emitted `& playwright show-trace .tmp/traces/source&preflight.zip`, and PowerShell failed with `AmpersandNotAllowed`.
+- Root cause: `source_browser_probe.py` built PowerShell copy-ready commands with `subprocess.list2cmdline()`, which targets Windows process argv formatting and does not quote bare PowerShell metacharacters.
+- Fixed the file by adding a PowerShell literal-safe formatter and routing recommended, trace viewer, and evidence repair commands through it.
+- Added regression coverage for `& playwright show-trace '.tmp/traces/source&preflight.zip'`.
+
+### Changed Files
+- `scripts/source_browser_probe.py`
+- `tests/unit/test_source_browser_probe.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction replay with generated trace command transformed to `Write-Output` -> PowerShell parse passed and preserved `.tmp/traces/source&preflight.zip`.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_source_browser_probe.py -q --tb=short --maxfail=1 -o addopts=` -> 38 passed.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_source_browser_probe.py tests\unit\test_source_preflight_evidence_doctor.py tests\unit\test_source_preflight_trend_report.py tests\unit\test_source_preflight_strategy_simulation.py -q --tb=short --maxfail=1 -o addopts=` -> 75 passed.
+- `.venv\Scripts\python.exe -m ruff format --check scripts\source_browser_probe.py tests\unit\test_source_browser_probe.py` -> passed.
+- `.venv\Scripts\python.exe -m ruff check scripts\source_browser_probe.py tests\unit\test_source_browser_probe.py` -> passed.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2282 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 - Codex
+
+- Blind-to-X debug loop 41 fixed daily queue floor per-source relaxation string false handling.
+- Reproduced `collect_feed_items()` with active daily queue floor, source cap `{"blind": 1}`, and `review.minimum_daily_queue_relax_per_source_limits: "false"` returning 3 Blind items.
+- Root cause: `relax_per_source_limits()` used `bool(config.get(...))`, so non-empty string `"false"` was enabled.
+- Added `_as_bool()` in `daily_queue_floor.py` and routed the per-source relaxation flag through it.
+- Added feed collector regression coverage proving string `"false"` preserves the 1-item source cap.
+- Verification passed focused feed collector pytest (`6 passed`), targeted Ruff check, and live Blind-to-X project QC (`2429 passed, 9 skipped`, lint pass).
+- No `update_goal`, stage, commit, push, revert, cleanup `--apply`, live provider/Notion/X/DB call, or T-251 retry was performed.
+
+## 2026-06-11 - Codex
+
+- Blind-to-X debug loop 42 fixed `notion_doctor` publish safety `twitter.enabled` string false handling.
+- Reproduced `_publish_safety_diagnostics()` with publish env flags cleared and `twitter.enabled: "false"` returning `operator_action_required=True`, `severity=warning`, and `twitter_config_enabled=True`.
+- Root cause: publish safety diagnostics used `bool(config.get("twitter.enabled", False))`, so non-empty string `"false"` was enabled.
+- Added `_as_bool()` in `scripts/notion_doctor.py` and routed `twitter.enabled` publish safety through it.
+- Added notion doctor regression coverage proving string `"false"` leaves publish safety ok with no operator actions.
+- Verification passed focused notion doctor pytest (`25 passed`), targeted Ruff check, and live Blind-to-X project QC (`2433 passed, 9 skipped`, lint pass).
+- No `update_goal`, stage, commit, push, revert, cleanup `--apply`, live provider/Notion/X/DB call, or T-251 retry was performed.
+
+## 2026-06-11 - Codex
+
+- Blind-to-X debug loop 43 fixed provider readiness explicit enabled string false handling.
+- Reproduced `_provider_key_diagnostics()` with `anthropic.enabled: "false"` and no Anthropic key returning `operator_action_required=True`, `missing_enabled_providers=["anthropic"]`, and `enabled=True`.
+- Root cause: `_provider_explicitly_enabled()` used `bool(explicit)`, so non-empty string `"false"` was enabled.
+- Routed explicit provider enabled values through `_as_bool()`.
+- Added notion doctor regression coverage proving string `"false"` leaves the provider disabled and ready.
+- Verification passed focused notion doctor pytest (`26 passed`), targeted Ruff check, and live Blind-to-X project QC (`2436 passed, 9 skipped`, lint pass).
+- No `update_goal`, stage, commit, push, revert, cleanup `--apply`, live provider/Notion/X/DB call, or T-251 retry was performed.
+
+## 2026-06-11 - Codex
+
+- Blind-to-X debug loop 44 fixed provider failure summary string false retry/circuit handling.
+- Reproduced `summarize_provider_failures()` with `retryable: "false"` and `circuit_breaker_candidate: "false"` producing `retryable_count=1`, `non_retryable_count=0`, and `circuit_breaker_providers=["gemini"]`.
+- Root cause: summary aggregation and failure brief used raw truthiness / `bool(value)` for string flags.
+- Added `_as_bool()` in `draft_generator.py` and reused parsed retry/circuit flags across counts, provider lists, primary priority, and failure brief.
+- Added draft generator multi-provider regression coverage proving string false flags stay false.
+- Verification passed focused draft generator multi-provider pytest (`14 passed`), targeted Ruff check, and live Blind-to-X project QC (`2438 passed, 9 skipped`, lint pass).
+- No `update_goal`, stage, commit, push, revert, cleanup `--apply`, live provider/Notion/X/DB call, or T-251 retry was performed.
+
+## 2026-06-11 - Codex
+
+- Blind-to-X debug loop 45 fixed fetch-stage scrape integrity config string false handling.
+- Reproduced `run_fetch_stage()` with `scrape_quality.integrity_check_enabled: "false"` still calling `classify_scrape_integrity()`; a failing classifier verdict made fetch return `False`.
+- Root cause: fetch stage used `bool(config.get("scrape_quality.integrity_check_enabled", True))`, so non-empty string `"false"` was enabled.
+- Added `_as_bool()` in `fetch_stage.py` and routed the integrity-check enabled flag through it.
+- Added process-stage regression coverage proving string `"false"` skips the integrity classifier.
+- Verification passed focused process stage pytest (`55 passed`), targeted Ruff check, and live Blind-to-X project QC (`2442 passed, 9 skipped`, lint pass).
+- No `update_goal`, stage, commit, push, revert, cleanup `--apply`, live provider/Notion/X/DB call, or T-251 retry was performed.
+
+## 2026-06-11 - Codex
+
+- Blind-to-X debug loop 46 fixed publish decision research `value_reduction_failed` string false handling.
+- Reproduced `decide_publish()` with the normal publishable fixture and `value_reduction_failed: "false"` returning `DROP` with reason `research_context value reduction failed`.
+- Root cause: `_research_failed()` used `bool(research_context.get("value_reduction_failed"))`, so non-empty string `"false"` was failed.
+- Added `_as_bool()` in `publish_decision.py` and routed the research failure flag through it.
+- Added publish decision regression coverage proving string `"false"` keeps the publishable draft ready.
+- Verification passed focused publish decision pytest (`7 passed`), targeted Ruff check, and live Blind-to-X project QC (`2444 passed, 9 skipped`, lint pass).
+- No `update_goal`, stage, commit, push, revert, cleanup `--apply`, live provider/Notion/X/DB call, or T-251 retry was performed.
+
+## 2026-06-11 - Codex
+
+- Blind-to-X debug loop 47 fixed publish repair dict `fixable` string false handling.
+- Reproduced `repair_hold_draft()` with `fixable: "false"` and `external_link_in_body` stripping the URL and returning `changed=True`.
+- Root cause: `_is_fixable_hold()` used `bool(decision.get("fixable"))` for dict decisions, so non-empty string `"false"` was repairable.
+- Added `_as_bool()` in `publish_repair.py` and routed dict `fixable` through it.
+- Added focused publish repair regression coverage proving string `"false"` skips repair.
+- Verification passed focused publish repair pytest (`1 passed`), targeted Ruff check, and live Blind-to-X project QC (`2448 passed, 9 skipped`, lint pass).
+- No `update_goal`, stage, commit, push, revert, cleanup `--apply`, live provider/Notion/X/DB call, or T-251 retry was performed.
+
+## 2026-06-11 - Codex
+
+- Blind-to-X debug loop 52 fixed feed collector cross-source dedup config string false handling.
+- Reproduced `collect_feed_items()` with two duplicate cross-source candidates and `dedup.cross_source_enabled: "false"` returning one URL and `cross_source_dedup_count=1`.
+- Root cause: feed collector used raw config truthiness for the cross-source dedup gate, so non-empty string `"false"` was true.
+- Added `_as_bool()` in `pipeline/feed_collector.py` and routed `dedup.cross_source_enabled` through it.
+- Added feed collector regression coverage proving string false skips cross-source dedup and keeps both candidates.
+- Verification passed focused feed collector pytest (`7 passed`), targeted Ruff check, and live Blind-to-X project QC (`2468 passed, 9 skipped`, lint pass).
+- No `update_goal`, stage, commit, push, revert, cleanup `--apply`, live provider/Notion/X/DB call, or T-251 retry was performed.
+
+## 2026-06-11 - Codex
+
+- Blind-to-X debug loop 51 fixed bootstrap optional startup flag string false handling.
+- Reproduced `init_components()` with `twitter.enabled: "false"` awaiting `analytics_tracker.sync_metrics()` (`sync_await_count 1`).
+- Root cause: bootstrap used raw config truthiness for optional analytics/trend startup flags, so non-empty string `"false"` was true.
+- Added `_as_bool()` in `pipeline/bootstrap.py` and routed `twitter.enabled` / `trends.enabled` through it.
+- Added bootstrap regression coverage proving string false disables analytics sync and TrendMonitor initialization.
+- Verification passed focused bootstrap cost/status pytest (`13 passed`), targeted Ruff check, and live Blind-to-X project QC (`2465 passed, 9 skipped`, lint pass).
+- No `update_goal`, stage, commit, push, revert, cleanup `--apply`, live provider/Notion/X/DB call, or T-251 retry was performed; preserved pre-existing dirty WIP in `bootstrap.py`.
+
+## 2026-06-11 - Codex
+
+- Blind-to-X debug loop 50 fixed source preflight problem-action log string false handling.
+- Reproduced `_log_source_preflight_problem_actions()` with a problem action containing `operator_action_required: "false"` logging `operator_action_required=true`.
+- Root cause: the CLI problem-action logger used raw `bool(action_item.get("operator_action_required"))`, so non-empty string `"false"` was true.
+- Added a narrow `_as_bool()` helper in `pipeline/cli.py` and used it for the logged `operator_action_required` flag.
+- Added CLI regression coverage proving string `"false"` logs as `operator_action_required=false`.
+- Verification passed focused `test_main.py` pytest (`49 passed`), targeted Ruff check, and live Blind-to-X project QC (`2461 passed, 9 skipped`, lint pass).
+- No `update_goal`, stage, commit, push, revert, cleanup `--apply`, live provider/Notion/X/DB call, or T-251 retry was performed.
+
+## 2026-06-11 - Codex
+
+- Blind-to-X debug loop 49 fixed review queue report artifact/text boolean string false handling.
+- Reproduced `format_review_queue_report()` with artifact-style `operator_action_required`, safety, command, delta, and truncation flags set to string `"false"` printing `action_required=true`, `notion_writes=true`, `x_posts=true`, `publish_command=true`, and rerun/delta hints.
+- Root cause: review queue report formatting, summary, delta, and next-command helpers used raw `bool(value)` / truthiness for persisted report boolean fields, so non-empty string `"false"` was true.
+- Added `_as_bool()` / `_format_bool()` in `pipeline/commands/review_queue_report.py` and routed report artifact boolean fields through them.
+- Added review queue report command regression coverage proving string false artifact flags stay false in incident, safety, command, truncation, and delta output.
+- Verification passed focused review queue report pytest (`37 passed`), targeted Ruff check, and live Blind-to-X project QC (`2458 passed, 9 skipped`, lint pass).
+- No `update_goal`, stage, commit, push, revert, cleanup `--apply`, live provider/Notion/X/DB call, or T-251 retry was performed; preserved pre-existing dirty WIP in the same files.
+
+## 2026-06-11 - Codex
+
+- Blind-to-X debug loop 48 fixed source preflight strategy manual-ready gate string false handling.
+- Reproduced `_manual_ready_gate_result()` with rollout gate `ready_for_manual_strategy_review: "false"` returning `passed=True`, `status=pass`, and `exit_code=0`.
+- Root cause: manual-ready gate used `bool(rollout_gate.get("ready_for_manual_strategy_review"))`, so non-empty string `"false"` was ready.
+- Added `_as_bool()` in `source_preflight_strategy_simulation.py` and routed the manual-ready flag through it.
+- Added source preflight strategy regression coverage proving string `"false"` blocks the required manual-ready gate.
+- Verification passed focused source preflight strategy pytest (`16 passed`), targeted Ruff check, and live Blind-to-X project QC (`2451 passed, 9 skipped`, lint pass).
+- No `update_goal`, stage, commit, push, revert, cleanup `--apply`, live provider/Notion/X/DB call, or T-251 retry was performed.
+
+## 2026-06-11 | Codex | Debug loop 40 llm viral boost config string false
+
+### Summary
+- Reproduced `ranking.llm_viral_boost: "false"` being passed to `build_content_profile()` as true.
+- Before the fix, `_build_content_profile_dict()` passed `llm_viral_boost=True` for config string `"false"`.
+- Root cause: filter profile stage used `bool(config.get("ranking.llm_viral_boost", False))`, so the non-empty string `"false"` was true.
+- Routed `ranking.llm_viral_boost` through `_as_bool()`.
+- Added process-stage regression coverage proving string `"false"` passes `False` to the content-profile builder.
+
+### Changed Files
+- `pipeline/process_stages/filter_profile_stage.py`
+- `tests/unit/test_process_stages.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction before fix -> `llm_viral_boost` call `[True]`.
+- `.venv\Scripts\python.exe -m pytest tests\unit\test_process_stages.py -q --no-cov` -> 54 passed.
+- `.venv\Scripts\python.exe -m ruff check pipeline\process_stages\filter_profile_stage.py tests\unit\test_process_stages.py` -> passed.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2425 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 39 viral filter config string false
+
+### Summary
+- Reproduced ViralFilter config string `"false"` being treated as enabled.
+- Before the fix, `ViralFilter({"viral_filter.enabled": "false", "gemini.api_key": "dummy"})._enabled` was `True`.
+- Root cause: `ViralFilter.__init__()` used `bool(config.get("viral_filter.enabled", True))`, so the non-empty string `"false"` was true.
+- Added `_as_bool()` in `viral_filter.py` and routed `viral_filter.enabled` through it.
+- Added viral filter regression coverage proving string `"false"` stores `_enabled=False` and returns the default pass result.
+
+### Changed Files
+- `pipeline/viral_filter.py`
+- `tests/unit/test_viral_filter.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction before fix -> `_enabled=True`.
+- `.venv\Scripts\python.exe -m pytest tests\unit\test_viral_filter.py -q --no-cov` -> 11 passed.
+- `.venv\Scripts\python.exe -m ruff check pipeline\viral_filter.py tests\unit\test_viral_filter.py` -> passed.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2422 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 38 dedup config string false
+
+### Summary
+- Reproduced dedup stage config string `"false"` failing to disable Notion similarity checks.
+- Before the fix, `dedup.notion_check_enabled: "false"` still awaited `find_similar_in_notion()` and blocked the post as `DUPLICATE_CONTENT`.
+- Root cause: dedup stage used `bool(config.get("dedup.notion_check_enabled", True))`, so the non-empty string `"false"` was treated as enabled.
+- Added `_as_bool()` in `dedup_stage.py` and routed the Notion similarity-check config through it.
+- Added process-stage regression coverage proving string `"false"` skips the similarity check.
+
+### Changed Files
+- `pipeline/process_stages/dedup_stage.py`
+- `tests/unit/test_process_stages.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction before fix -> `False`, `find_similar_in_notion.await_count=1`, `error_code=DUPLICATE_CONTENT`.
+- `.venv\Scripts\python.exe -m pytest tests\unit\test_process_stages.py -q --no-cov` -> 53 passed.
+- `.venv\Scripts\python.exe -m ruff check pipeline\process_stages\dedup_stage.py tests\unit\test_process_stages.py` -> passed.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2417 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 37 editorial gate config string false
+
+### Summary
+- Reproduced editorial gate config string `"false"` failing to disable the gate.
+- Before the fix, `_check_editorial_fit()` with `feed_filter.editorial_gate_enabled: "false"` returned `False` with `failure_reason=editorial_hard_reject`.
+- Root cause: filter profile stage used `not bool(config.get(...))`, so the non-empty string `"false"` was treated as enabled.
+- Routed editorial gate enabled config through `_as_bool()`.
+- Added process-stage regression coverage proving string `"false"` disables the editorial gate.
+
+### Changed Files
+- `pipeline/process_stages/filter_profile_stage.py`
+- `tests/unit/test_process_stages.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction before fix -> `_check_editorial_fit()` returned `False`, `failure_reason=editorial_hard_reject`.
+- `.venv\Scripts\python.exe -m pytest tests\unit\test_process_stages.py -q --no-cov` -> 52 passed.
+- `.venv\Scripts\python.exe -m ruff check pipeline\process_stages\filter_profile_stage.py tests\unit\test_process_stages.py` -> passed.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2412 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 36 editorial hard_reject string false
+
+### Summary
+- Reproduced editorial fit gate treating `hard_reject: "false"` as a hard reject.
+- Before the fix, `_check_editorial_fit()` with score `70.0` and `hard_reject: "false"` returned `False` with `failure_reason=editorial_hard_reject`.
+- Root cause: filter profile stage used Python truthiness for `fit["hard_reject"]`, so the non-empty string `"false"` was true.
+- Added `_as_bool()` in `filter_profile_stage.py` and used it for hard-reject gate and failure reason selection.
+- Added process-stage regression coverage proving string `"false"` passes when score is sufficient.
+
+### Changed Files
+- `pipeline/process_stages/filter_profile_stage.py`
+- `tests/unit/test_process_stages.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction before fix -> `_check_editorial_fit()` returned `False`, `failure_reason=editorial_hard_reject`.
+- `.venv\Scripts\python.exe -m pytest tests\unit\test_process_stages.py -q --no-cov` -> 51 passed.
+- `.venv\Scripts\python.exe -m ruff check pipeline\process_stages\filter_profile_stage.py tests\unit\test_process_stages.py` -> passed.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2411 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 35 review action priority zero sorting
+
+### Summary
+- Reproduced review experiment operator action sorting treating priority 0 as the default priority 999.
+- Before the fix, `_operator_actions()` returned `[('resolve_x_publish_status', 40), ('review_queue_action', 0)]`.
+- Root cause: operator-action sorting and top-action aggregation used `int(... or 999)`, so valid numeric `0` was treated as missing.
+- Added `_priority_value()` and routed operator-action sorting, candidate top action aggregation, and console top action aggregation through it.
+- Added review experiment regression coverage proving a priority 0 action sorts before priority 40.
+
+### Changed Files
+- `scripts/review_experiment_dry_run.py`
+- `tests/unit/test_review_experiment_dry_run.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction before fix -> `[('resolve_x_publish_status', 40), ('review_queue_action', 0)]`.
+- `.venv\Scripts\python.exe -m pytest tests\unit\test_review_experiment_dry_run.py -q --no-cov` -> 31 passed.
+- `.venv\Scripts\python.exe -m ruff check scripts\review_experiment_dry_run.py tests\unit\test_review_experiment_dry_run.py` -> passed.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2404 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 34 recompute-score zero scrape quality
+
+### Summary
+- Reproduced recompute-score dry-run replacing explicit scrape quality score 0 with the default 70.
+- Before the fix, `_score_update_from_record()` with `scrape_quality_score: 0` passed `70.0` to `build_content_profile()`.
+- Root cause: `_score_update_from_record()` used `float(record.get("scrape_quality_score") or 70)`, so numeric `0` was treated as missing.
+- Fixed score normalization to default to `70.0` only when the source value is `None` or an empty string.
+- Added recompute-score regression coverage proving explicit zero reaches the content-profile builder as `0.0`.
+
+### Changed Files
+- `scripts/recompute_scores.py`
+- `tests/unit/test_recompute_scores.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction before fix -> builder call `[70.0]`.
+- `.venv\Scripts\python.exe -m pytest tests\unit\test_recompute_scores.py -q --no-cov` -> 21 passed.
+- `.venv\Scripts\python.exe -m ruff check scripts\recompute_scores.py tests\unit\test_recompute_scores.py` -> passed.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2401 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 32 review experiment priority zero fallback
+
+### Summary
+- Reproduced review experiment replacing explicit review queue priority 0 with the default priority.
+- Before the fix, `review_queue_priority: 0` produced action priority `15`.
+- Root cause: `_operator_actions()` used `int(_as_float(priority) or 15)`, so valid numeric `0.0` was treated as missing.
+- Fixed priority fallback to use default `15` only when `_as_float()` returns `None`.
+- Added review experiment regression coverage proving priority 0 is preserved.
+
+### Changed Files
+- `scripts/review_experiment_dry_run.py`
+- `tests/unit/test_review_experiment_dry_run.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction replay -> `ACTION_PRIORITY 0`, action payload priority `0`.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_review_experiment_dry_run.py -q --tb=short --maxfail=1 -o addopts=` -> 30 passed.
+- `.venv\Scripts\ruff.exe format --check scripts\review_experiment_dry_run.py tests\unit\test_review_experiment_dry_run.py` -> passed.
+- `.venv\Scripts\ruff.exe check scripts\review_experiment_dry_run.py tests\unit\test_review_experiment_dry_run.py` -> passed.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2390 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 31 review experiment X status case-insensitive action
+
+### Summary
+- Reproduced review experiment ignoring lower-case blocked X publish statuses.
+- Before the fix, `x_publish_status: " failed "` produced `operator_action_required=False` and no operator actions.
+- Root cause: status checks compared stripped text only against exact-case labels (`Needs Edit`, `Blocked`, `Failed`).
+- Added `_x_publish_status_requires_action()` and routed required aggregation/action generation through strip+lower matching.
+- Added review experiment regression coverage proving lowercase failed status produces `resolve_x_publish_status`.
+
+### Changed Files
+- `scripts/review_experiment_dry_run.py`
+- `tests/unit/test_review_experiment_dry_run.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction replay -> `SUCCESS True`, `OPERATOR_REQUIRED True`, `ACTIONS ['resolve_x_publish_status']`, `ACTION_REASON failed`.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_review_experiment_dry_run.py -q --tb=short --maxfail=1 -o addopts=` -> 29 passed.
+- `.venv\Scripts\ruff.exe format --check scripts\review_experiment_dry_run.py tests\unit\test_review_experiment_dry_run.py` -> passed.
+- `.venv\Scripts\ruff.exe check scripts\review_experiment_dry_run.py tests\unit\test_review_experiment_dry_run.py` -> passed.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2388 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 30 review experiment blank review action required
+
+### Summary
+- Reproduced review experiment treating blank review queue operator action text as required.
+- Before the fix, `review_queue_operator_action: "   "` produced `operator_action_required=True` while `operator_actions=[]`.
+- Root cause: `_objective_metric_snapshot()` truth-tested the raw action string, while operator action generation strips blank text.
+- Fixed review queue operator action aggregation to use stripped text.
+- Added review experiment regression coverage proving blank action text keeps a ready draft action-free.
+
+### Changed Files
+- `scripts/review_experiment_dry_run.py`
+- `tests/unit/test_review_experiment_dry_run.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction replay -> `SUCCESS True`, `OPERATOR_REQUIRED False`, `ACTIONS []`.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_review_experiment_dry_run.py -q --tb=short --maxfail=1 -o addopts=` -> 28 passed.
+- `.venv\Scripts\ruff.exe format --check scripts\review_experiment_dry_run.py tests\unit\test_review_experiment_dry_run.py` -> passed.
+- `.venv\Scripts\ruff.exe check scripts\review_experiment_dry_run.py tests\unit\test_review_experiment_dry_run.py` -> passed.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2384 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 29 review experiment zero quality score fallback
+
+### Summary
+- Reproduced review experiment replacing an explicit zero draft quality score with an average fallback.
+- Before the fix, `_quality_gate_score: 0` plus `quality_gate_scores: [9, 10]` produced `draft_quality_score=9.5`.
+- Root cause: `_draft_quality_score()` returned `primary_score or _average_numeric(...)`, so valid numeric `0.0` was treated as missing.
+- Fixed fallback handling to return the primary score whenever it is not `None`.
+- Added review experiment regression coverage proving explicit 0 is preserved.
+
+### Changed Files
+- `scripts/review_experiment_dry_run.py`
+- `tests/unit/test_review_experiment_dry_run.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction replay -> `DRAFT_QUALITY_SCORE 0.0`, `SUCCESS True`.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_review_experiment_dry_run.py -q --tb=short --maxfail=1 -o addopts=` -> 27 passed.
+- `.venv\Scripts\ruff.exe format --check scripts\review_experiment_dry_run.py tests\unit\test_review_experiment_dry_run.py` -> passed.
+- `.venv\Scripts\ruff.exe check scripts\review_experiment_dry_run.py tests\unit\test_review_experiment_dry_run.py` -> passed.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2382 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 28 review experiment duplicate string flag handling
+
+### Summary
+- Reproduced review experiment duplicate flag drift for string boolean values.
+- Before the fix, `duplicate_or_near_duplicate: "true"` produced duplicate `False` and no actions, while `duplicate_or_near_duplicate: "false"` plus high similarity produced duplicate `True` and `rewrite_duplicate_draft`.
+- Root cause: `_duplicate_or_near_duplicate()` only returned explicit values when they were real booleans; string flags fell through to semantic-similarity fallback.
+- Fixed explicit duplicate field handling to use `_as_bool()` whenever an explicit value is present.
+- Added review experiment regression coverage for both string true and string false with high similarity.
+
+### Changed Files
+- `scripts/review_experiment_dry_run.py`
+- `tests/unit/test_review_experiment_dry_run.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction replay -> `STRING_TRUE DUP True ACTIONS ['rewrite_duplicate_draft']`; `STRING_FALSE_HIGH_SIM DUP False ACTIONS []`.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_review_experiment_dry_run.py -q --tb=short --maxfail=1 -o addopts=` -> 26 passed.
+- `.venv\Scripts\ruff.exe format --check scripts\review_experiment_dry_run.py tests\unit\test_review_experiment_dry_run.py` -> passed.
+- `.venv\Scripts\ruff.exe check scripts\review_experiment_dry_run.py tests\unit\test_review_experiment_dry_run.py` -> passed.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2379 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 27 review experiment generation_failed false-string success
+
+### Summary
+- Reproduced review experiment treating `draft_generation_failed: "false"` as a failed draft.
+- Before the fix, a ready fixture with publishable draft text produced `success=False`, `operator_action_required=True`, and `regenerate_draft_after_recovery`.
+- Root cause: `_draft_success()` and `_objective_metric_snapshot()` interpreted generation-failed flags through Python truthiness, so the non-empty string `"false"` became true.
+- Added `_draft_generation_failed()` and routed generation flag handling through `_as_bool(_first_present(...))`.
+- Added a review experiment regression proving string `"false"` keeps a ready draft successful with no operator actions.
+
+### Changed Files
+- `scripts/review_experiment_dry_run.py`
+- `tests/unit/test_review_experiment_dry_run.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction replay -> `SUCCESS True`, `OPERATOR_REQUIRED False`, `ACTIONS []`.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_review_experiment_dry_run.py -q --tb=short --maxfail=1 -o addopts=` -> 25 passed.
+- `.venv\Scripts\ruff.exe format --check scripts\review_experiment_dry_run.py tests\unit\test_review_experiment_dry_run.py` -> passed.
+- `.venv\Scripts\ruff.exe check scripts\review_experiment_dry_run.py tests\unit\test_review_experiment_dry_run.py` -> passed.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2376 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 26 review experiment provider failure false-string required
+
+### Summary
+- Reproduced review experiment candidate signals treating a provider failure `operator_action_required: "false"` string as a required operator action.
+- Before the fix, a ready fixture with successful draft output produced `provider_failure_summary.operator_action_required=False` but candidate `operator_action_required=True` and no operator actions.
+- Root cause: `_objective_metric_snapshot()` used `bool(failure.get("operator_action_required"))` when aggregating provider failure required flags, bypassing the existing `_as_bool()` parser.
+- Fixed provider failure required aggregation to use `_as_bool()` consistently with provider failure summary sanitization.
+- Added a review experiment regression proving string `"false"` does not require candidate operator action when the draft is otherwise ready.
+
+### Changed Files
+- `scripts/review_experiment_dry_run.py`
+- `tests/unit/test_review_experiment_dry_run.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction replay -> `SUCCESS True`, `PROVIDER_SUMMARY_REQUIRED False`, `OPERATOR_REQUIRED False`, `ACTIONS []`.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_review_experiment_dry_run.py -q --tb=short --maxfail=1 -o addopts=` -> 24 passed.
+- `.venv\Scripts\ruff.exe format --check scripts\review_experiment_dry_run.py tests\unit\test_review_experiment_dry_run.py` -> passed.
+- `.venv\Scripts\ruff.exe check scripts\review_experiment_dry_run.py tests\unit\test_review_experiment_dry_run.py` -> passed.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2371 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 25 recompute-score falsey historical_examples validation
+
+### Summary
+- Reproduced recompute-score input validation accepting a falsey non-array `historical_examples` value.
+- Before the fix, a fixture with valid records and `historical_examples: ""` produced `status=ok`, `ok=True`, `historical_example_count=0`, and no errors.
+- Root cause: `_load_input_records()` used `payload.get("historical_examples") or []`, so explicit falsey non-array values were converted to an empty list before the existing type check.
+- Fixed `historical_examples` defaulting to use `[]` only when the key is absent; explicit values now remain subject to the array type check.
+- Added a `validate_input(..., json_output=True)` regression proving empty-string examples fail.
+
+### Changed Files
+- `scripts/recompute_scores.py`
+- `tests/unit/test_recompute_scores.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction replay -> `STATUS fail`, `OK False`, `HISTORICAL_EXAMPLE_COUNT 0`, `ERRORS ['recompute_scores historical_examples must be an array']`, `WARNINGS []`.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_recompute_scores.py -q --tb=short --maxfail=1 -o addopts=` -> 20 passed.
+- `.venv\Scripts\ruff.exe format --check scripts\recompute_scores.py tests\unit\test_recompute_scores.py` -> passed after formatting `scripts/recompute_scores.py`.
+- `.venv\Scripts\ruff.exe check scripts\recompute_scores.py tests\unit\test_recompute_scores.py` -> passed.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2366 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 24 recompute-score empty records validation
+
+### Summary
+- Reproduced recompute-score input validation rejecting a fixture that explicitly supplied an empty `records` array.
+- Before the fix, `{"records": [], "historical_examples": [], "candidate_ranking_weights": {"hook": 1.0}}` produced `status=fail`, `ok=False`, error `recompute_scores input must include a records/pages/items array`, and no `records_empty` warning.
+- Root cause: `_load_input_records()` used `payload.get("records") or payload.get("pages") or payload.get("items")`, so an explicit empty list was treated as missing.
+- Fixed object input record selection to use key presence for `records/pages/items`, preserving empty arrays while still supporting fallback fields when the key is absent.
+- Added a `validate_input(..., json_output=True)` regression proving empty explicit records are accepted with a warning.
+
+### Changed Files
+- `scripts/recompute_scores.py`
+- `tests/unit/test_recompute_scores.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction replay -> `STATUS ok`, `OK True`, `RECORD_COUNT 0`, `ERRORS []`, `WARNINGS ['records_empty']`.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_recompute_scores.py -q --tb=short --maxfail=1 -o addopts=` -> 19 passed.
+- `.venv\Scripts\ruff.exe format --check scripts\recompute_scores.py tests\unit\test_recompute_scores.py` -> passed after formatting `scripts/recompute_scores.py`.
+- `.venv\Scripts\ruff.exe check scripts\recompute_scores.py tests\unit\test_recompute_scores.py` -> passed.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2359 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 23 source browser empty-result report success
+
+### Summary
+- Reproduced source browser preflight reporting success when no probe results existed.
+- Before the fix, `build_report([])` emitted `source_count=0`, `ready_count=0`, `problem_count=0`, `ok=True`, and `exit_code_for_report(..., fail_on_problem=True)=0`.
+- Root cause: `_build_summary()` used `len(ready_sources) == len(results)` for `ok`; this condition is vacuously true for an empty result list.
+- Fixed `ok` to require at least one probe result and all results ready.
+- Added source browser probe regression coverage for empty results returning `ok=False` and fail-on-problem exit 1.
+
+### Changed Files
+- `scripts/source_browser_probe.py`
+- `tests/unit/test_source_browser_probe.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction replay -> `OK False`, `EXIT_FAIL_ON_PROBLEM 1`, default exit unchanged at 0.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_source_browser_probe.py -q --tb=short --maxfail=1 -o addopts=` -> 40 passed.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_source_browser_probe.py tests\unit\test_source_preflight_evidence_doctor.py tests\unit\test_source_preflight_trend_report.py tests\unit\test_source_preflight_strategy_simulation.py -q --tb=short --maxfail=1 -o addopts=` -> 94 passed.
+- `.venv\Scripts\ruff.exe format --check scripts\source_browser_probe.py tests\unit\test_source_browser_probe.py` -> passed.
+- `.venv\Scripts\ruff.exe check scripts\source_browser_probe.py tests\unit\test_source_browser_probe.py` -> passed.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2354 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 22 source browser unsafe source artifact filename collision
+
+### Summary
+- Reproduced source browser failure artifact data loss for unsafe custom source names.
+- Before the fix, sources `!!!` and `@@@` both generated `source-blocked.json`; the second write overwrote the first, leaving one failure report whose source was `@@@` even when reading the first enriched result path.
+- Root cause: source-derived failure report, screenshot, click screenshot, and HTML snapshot filenames used `_safe_slug(source)` directly; all-non-safe and non-ASCII names collapse to fallback slug `source`.
+- Fixed artifact naming by adding `_source_artifact_slug()`. Safe lower-case names keep their existing slug, while fallback `source` names get a stable short SHA-1 suffix.
+- Added source browser probe regression coverage for two unsafe source names producing distinct failure reports that preserve their original source values.
+
+### Changed Files
+- `scripts/source_browser_probe.py`
+- `tests/unit/test_source_browser_probe.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction replay on a clean directory -> paths `source-9a7b006d-blocked.json` and `source-ffab3be0-blocked.json`, files count 2, sources `!!!` and `@@@` preserved.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_source_browser_probe.py -q --tb=short --maxfail=1 -o addopts=` -> 39 passed.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_source_browser_probe.py tests\unit\test_source_preflight_evidence_doctor.py tests\unit\test_source_preflight_trend_report.py tests\unit\test_source_preflight_strategy_simulation.py -q --tb=short --maxfail=1 -o addopts=` -> 93 passed.
+- `.venv\Scripts\ruff.exe format --check scripts\source_browser_probe.py scripts\source_preflight_evidence_doctor.py tests\unit\test_source_browser_probe.py tests\unit\test_source_preflight_evidence_doctor.py tests\unit\test_source_preflight_trend_report.py` -> passed after formatting `scripts/source_browser_probe.py`.
+- `.venv\Scripts\ruff.exe check scripts\source_browser_probe.py scripts\source_preflight_evidence_doctor.py tests\unit\test_source_browser_probe.py tests\unit\test_source_preflight_evidence_doctor.py tests\unit\test_source_preflight_trend_report.py` -> passed.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2350 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 21 invalid failure report action_required false required-count suppression
+
+### Summary
+- Reproduced a legacy source preflight problem action whose failure report had `operator.action_required=false` and a non-empty `operator.action`.
+- Before the fix, the doctor correctly failed the invalid report with `operator_action_not_required`, but still emitted `operator_action_required=False`; trend then reported `operator_action_required_count=0` while also counting the operator action.
+- Root cause: `build_evidence_payload()` trusted `failure_report.operator.action_required` whenever the key existed, even after validation had marked the failure report invalid.
+- Fixed legacy inference so failure-report operator-required values are trusted only when `failure_report_status == "valid"`; invalid reports fall back to the non-empty operator action or non-ready status.
+- Added evidence doctor and trend regressions for invalid `action_required=false` preserving operator attention.
+
+### Changed Files
+- `scripts/source_preflight_evidence_doctor.py`
+- `tests/unit/test_source_preflight_evidence_doctor.py`
+- `tests/unit/test_source_preflight_trend_report.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction replay -> `DOCTOR_STATUS FAIL`, `ITEM_FAILURE_STATUS invalid`, `ITEM_REQUIRED True`, `TREND_OPERATOR_REQUIRED_COUNT 1`.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_source_preflight_evidence_doctor.py tests\unit\test_source_preflight_trend_report.py -q --tb=short --maxfail=1 -o addopts=` -> 39 passed.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_source_browser_probe.py tests\unit\test_source_preflight_evidence_doctor.py tests\unit\test_source_preflight_trend_report.py tests\unit\test_source_preflight_strategy_simulation.py -q --tb=short --maxfail=1 -o addopts=` -> 92 passed.
+- `.venv\Scripts\ruff.exe format --check scripts\source_preflight_evidence_doctor.py tests\unit\test_source_preflight_evidence_doctor.py tests\unit\test_source_preflight_trend_report.py` -> passed.
+- `.venv\Scripts\ruff.exe check scripts\source_preflight_evidence_doctor.py tests\unit\test_source_preflight_evidence_doctor.py tests\unit\test_source_preflight_trend_report.py` -> passed.
+- First full project QC attempt failed on transient `NameError: preparation` in `pipeline/draft_prompts.py`; the single failing test rerun passed without edits.
+- Final `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2348 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 20 failure report action_required string true validation
+
+### Summary
+- Reproduced source preflight evidence doctor rejecting a semantically valid failure report when `operator.action_required` was the string `"true"`.
+- Root cause: `_validate_failure_report()` used `operator.get("action_required") is not True`, bypassing the shared `_as_bool()` parser.
+- Fixed validation to use `_as_bool()`, and added evidence doctor/trend regressions.
+
+### Verification
+- Reproduction replay -> `DOCTOR_STATUS PASS`, `ITEM_FAILURE_STATUS valid`, `ISSUE_CODES []`, `TREND_FAILURE_STATUS_COUNTS {'valid': 1}`.
+- Focused evidence/trend pytest -> 37 passed.
+- Related source-preflight pytest -> 90 passed.
+- Ruff format/check -> passed.
+- Project QC -> unit 2343 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 11 weekly smoke manifest PowerShell command quoting
+
+### Summary
+- Reproduced a weekly smoke manifest command failure for output and manifest paths containing PowerShell metacharacters.
+- `commands.write_inputs` emitted `py -3 scripts/write_weekly_smoke_inputs.py --output-dir .tmp/weekly&smoke-loop11 --manifest-output .tmp/weekly&smoke-loop11/manifest.json`, and PowerShell failed with `AmpersandNotAllowed`.
+- Root cause: `write_weekly_smoke_inputs.py` used `subprocess.list2cmdline()` for PowerShell-facing copy-ready commands, and `verify_weekly_smoke.py` only accepted unquoted/double-quoted path fragments in part of the manifest validator.
+- Fixed the writer by adding a PowerShell literal-safe formatter. Fixed the validator to accept single-quoted path fragments.
+- Added regression coverage for `&` paths and updated test command expectations to use the writer formatter.
+
+### Changed Files
+- `scripts/write_weekly_smoke_inputs.py`
+- `scripts/verify_weekly_smoke.py`
+- `tests/unit/test_write_weekly_smoke_inputs.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction replay with generated `commands.write_inputs` transformed to `Write-Output` -> PowerShell parse passed and preserved `.tmp/weekly&smoke-loop11`.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_write_weekly_smoke_inputs.py -q --tb=short --maxfail=1 -o addopts=` -> 15 passed.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_write_weekly_smoke_inputs.py tests\unit\test_verify_weekly_smoke.py tests\unit\test_build_weekly_report.py -q --tb=short --maxfail=1 -o addopts=` -> 108 passed.
+- `.venv\Scripts\python.exe -m ruff format --check scripts\write_weekly_smoke_inputs.py scripts\verify_weekly_smoke.py tests\unit\test_write_weekly_smoke_inputs.py` -> passed.
+- `.venv\Scripts\python.exe -m ruff check scripts\write_weekly_smoke_inputs.py scripts\verify_weekly_smoke.py tests\unit\test_write_weekly_smoke_inputs.py` -> passed.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2293 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 12 weekly smoke self-check manifest consistency
+
+### Summary
+- Reproduced a weekly smoke artifact inconsistency in `--self-check --manifest-output --json` mode.
+- The stdout payload contained `self_check`, but the manifest written to disk did not include `self_check`.
+- Root cause: `write_weekly_smoke_inputs.py` wrote `manifest_output` before computing `build_self_check_payload()` and did not rewrite the artifact after adding the final `self_check` block.
+- Fixed `main()` so it rewrites the manifest after self-check computation when `--manifest-output` is provided.
+- Added JSON/text self-check assertions that the disk manifest includes the same `self_check` result.
+
+### Changed Files
+- `scripts/write_weekly_smoke_inputs.py`
+- `tests/unit/test_write_weekly_smoke_inputs.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction replay -> `MANIFEST_HAS_SELF_CHECK True`, `MANIFEST_SELF_CHECK {'errors': [], 'ok': True, 'status': 'ok'}`.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_write_weekly_smoke_inputs.py -q --tb=short --maxfail=1 -o addopts=` -> 15 passed.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_write_weekly_smoke_inputs.py tests\unit\test_verify_weekly_smoke.py tests\unit\test_build_weekly_report.py -q --tb=short --maxfail=1 -o addopts=` -> 108 passed.
+- `.venv\Scripts\python.exe -m ruff format --check scripts\write_weekly_smoke_inputs.py tests\unit\test_write_weekly_smoke_inputs.py` -> passed.
+- `.venv\Scripts\python.exe -m ruff check scripts\write_weekly_smoke_inputs.py tests\unit\test_write_weekly_smoke_inputs.py` -> passed.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2299 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 13 source preflight relative input path resolution
+
+### Summary
+- Reproduced a source preflight path resolution failure when both `--base-dir` and explicit `--input` were relative paths and `--input` already pointed inside `base_dir`.
+- `--base-dir .tmp/relative-base-loop13 --input .tmp/relative-base-loop13/source_browser_preflight.json` was resolved as `.tmp/relative-base-loop13/.tmp/relative-base-loop13/source_browser_preflight.json`, causing missing JSON / `invalid_evidence`.
+- Root cause: `source_preflight_trend_report.py`, `source_preflight_strategy_simulation.py`, and `source_preflight_evidence_doctor.py` reused the evidence artifact resolver for explicit input paths.
+- Fixed explicit input resolution so relative paths already under `base_dir` are preserved, while default inputs and evidence artifact paths remain base-dir relative.
+- Added focused regressions for evidence doctor, trend report, and strategy simulation.
+
+### Changed Files
+- `scripts/source_preflight_evidence_doctor.py`
+- `scripts/source_preflight_trend_report.py`
+- `scripts/source_preflight_strategy_simulation.py`
+- `tests/unit/test_source_preflight_evidence_doctor.py`
+- `tests/unit/test_source_preflight_trend_report.py`
+- `tests/unit/test_source_preflight_strategy_simulation.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction replay -> `TREND_STATUS PASS`, `REPORT_COUNT 1`, `ERROR_COUNT 0`, no double-prefixed input path.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_source_preflight_evidence_doctor.py tests\unit\test_source_preflight_trend_report.py tests\unit\test_source_preflight_strategy_simulation.py -q --tb=short --maxfail=1 -o addopts=` -> 41 passed.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_source_browser_probe.py tests\unit\test_source_preflight_evidence_doctor.py tests\unit\test_source_preflight_trend_report.py tests\unit\test_source_preflight_strategy_simulation.py -q --tb=short --maxfail=1 -o addopts=` -> 79 passed.
+- `.venv\Scripts\python.exe -m ruff format --check scripts\source_preflight_evidence_doctor.py scripts\source_preflight_trend_report.py scripts\source_preflight_strategy_simulation.py tests\unit\test_source_preflight_evidence_doctor.py tests\unit\test_source_preflight_trend_report.py tests\unit\test_source_preflight_strategy_simulation.py` -> passed.
+- `.venv\Scripts\python.exe -m ruff check scripts\source_preflight_evidence_doctor.py scripts\source_preflight_trend_report.py scripts\source_preflight_strategy_simulation.py tests\unit\test_source_preflight_evidence_doctor.py tests\unit\test_source_preflight_trend_report.py tests\unit\test_source_preflight_strategy_simulation.py` -> passed.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2306 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 14 source preflight strategy metric drift
+
+### Summary
+- Reproduced a source preflight strategy simulation metric drift in mixed strategy-ready/fallback evidence.
+- The payload had `evidence_gate_status_counts={"strategy_review_ready": 1, "fallback_only": 1}`, but the current variant reported `strategy_review_count=2` and comparison reported `strategy_review_delta=-1`.
+- Root cause: `_current_strategy_signals()` used total `problem_count` for `strategy_review_count` instead of actual `strategy_ready_count`.
+- Fixed current variant `strategy_review_count` to use `strategy_ready_count`, matching the candidate variant and evidence gate counts.
+- Added regression assertions for current/candidate strategy-review counts and zero strategy-review delta.
+
+### Changed Files
+- `scripts/source_preflight_strategy_simulation.py`
+- `tests/unit/test_source_preflight_strategy_simulation.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction replay -> `CURRENT_STRATEGY_REVIEW_COUNT 1`, `CANDIDATE_STRATEGY_REVIEW_COUNT 1`, `STRATEGY_REVIEW_DELTA 0`.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_source_preflight_strategy_simulation.py -q --tb=short --maxfail=1 -o addopts=` -> 12 passed.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_source_browser_probe.py tests\unit\test_source_preflight_evidence_doctor.py tests\unit\test_source_preflight_trend_report.py tests\unit\test_source_preflight_strategy_simulation.py -q --tb=short --maxfail=1 -o addopts=` -> 79 passed.
+- `.venv\Scripts\python.exe -m ruff format --check scripts\source_preflight_strategy_simulation.py tests\unit\test_source_preflight_strategy_simulation.py` -> passed.
+- `.venv\Scripts\python.exe -m ruff check scripts\source_preflight_strategy_simulation.py tests\unit\test_source_preflight_strategy_simulation.py` -> passed.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2311 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 15 source preflight fallback-only manual-ready repair commands
+
+### Summary
+- Reproduced a source preflight strategy simulation manual-ready gate drift for fallback-only evidence.
+- The payload correctly had `summary.repair_command_count=0`, but `--require-manual-ready --json` returned `manual_ready_gate.repair_command_count=1` and a synthesized `source_preflight_evidence_doctor.py` command.
+- Root cause: `_manual_repair_commands()` returned fallback evidence-doctor commands whenever actual repair queue/top commands were empty, even when the rollout gate action was fallback use rather than evidence repair.
+- Fixed manual-ready repair command collection to return only actual repair queue/top commands.
+- Added regression coverage proving fallback-only manual-ready blocks without repair commands.
+
+### Changed Files
+- `scripts/source_preflight_strategy_simulation.py`
+- `tests/unit/test_source_preflight_strategy_simulation.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction replay -> `SUMMARY_REPAIR_COUNT 0`, `MANUAL_REPAIR_COUNT 0`, `REPAIR_COMMANDS []`.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_source_preflight_strategy_simulation.py -q --tb=short --maxfail=1 -o addopts=` -> 13 passed.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_source_browser_probe.py tests\unit\test_source_preflight_evidence_doctor.py tests\unit\test_source_preflight_trend_report.py tests\unit\test_source_preflight_strategy_simulation.py -q --tb=short --maxfail=1 -o addopts=` -> 80 passed.
+- `.venv\Scripts\ruff.exe format --check scripts\source_preflight_strategy_simulation.py tests\unit\test_source_preflight_strategy_simulation.py` -> passed.
+- `.venv\Scripts\ruff.exe check scripts\source_preflight_strategy_simulation.py tests\unit\test_source_preflight_strategy_simulation.py` -> passed.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2317 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 16 source preflight legacy operator action inference
+
+### Summary
+- Reproduced source preflight operator-action loss for legacy summary problem actions.
+- A valid timeout evidence report whose summary problem action omitted `action`, `operator_action`, and `operator_action_required` produced `operator_action_required=False`, an empty `operator_action`, trend `operator_action_required_count=0`, and no top operator action.
+- Root cause: `build_evidence_payload()` computed operator action fields before loading the failure report and never backfilled missing values from `failure_report.operator`.
+- Fixed missing legacy operator action inference from the failure report operator block, while preserving explicit `operator_action_required=False`.
+- Added doctor and trend regressions proving failure report operator metadata is counted.
+
+### Changed Files
+- `scripts/source_preflight_evidence_doctor.py`
+- `tests/unit/test_source_preflight_evidence_doctor.py`
+- `tests/unit/test_source_preflight_trend_report.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction replay -> `ITEM_REQUIRED True`, non-empty `ITEM_ACTION`, `TREND_OPERATOR_REQUIRED_COUNT 1`, and populated `TREND_TOP_OPERATOR_ACTIONS`.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_source_preflight_evidence_doctor.py tests\unit\test_source_preflight_trend_report.py -q --tb=short --maxfail=1 -o addopts=` -> 31 passed.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_source_browser_probe.py tests\unit\test_source_preflight_evidence_doctor.py tests\unit\test_source_preflight_trend_report.py tests\unit\test_source_preflight_strategy_simulation.py -q --tb=short --maxfail=1 -o addopts=` -> 82 passed.
+- `.venv\Scripts\ruff.exe format --check scripts\source_preflight_evidence_doctor.py tests\unit\test_source_preflight_evidence_doctor.py tests\unit\test_source_preflight_trend_report.py` -> passed.
+- `.venv\Scripts\ruff.exe check scripts\source_preflight_evidence_doctor.py tests\unit\test_source_preflight_evidence_doctor.py tests\unit\test_source_preflight_trend_report.py` -> passed.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2322 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 17 source preflight explicit empty input-dir fallback
+
+### Summary
+- Reproduced source preflight trend/strategy input selection drift for explicit empty `--input-dir`.
+- With a valid default `.tmp/source_browser_preflight.json` present, `--input-dir empty` returned the default file and generated one report instead of respecting the explicit empty selector.
+- Root cause: duplicated `_input_paths()` logic appended `DEFAULT_INPUT_PATH` whenever the collected path list was empty, without distinguishing no selector from an explicit selector that matched zero files.
+- Fixed trend report and strategy simulation so default input fallback only occurs when neither `--input` nor `--input-dir` was provided.
+- Added regressions proving explicit empty directories produce zero paths/report count.
+
+### Changed Files
+- `scripts/source_preflight_trend_report.py`
+- `scripts/source_preflight_strategy_simulation.py`
+- `tests/unit/test_source_preflight_trend_report.py`
+- `tests/unit/test_source_preflight_strategy_simulation.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction replay -> `TREND_PATHS []`, `STRATEGY_PATHS []`, `TREND_REPORT_COUNT 0`, `STRATEGY_REPORT_COUNT 0`, `STRATEGY_GATE no_problem_actions`.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_source_preflight_trend_report.py tests\unit\test_source_preflight_strategy_simulation.py -q --tb=short --maxfail=1 -o addopts=` -> 29 passed.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_source_browser_probe.py tests\unit\test_source_preflight_evidence_doctor.py tests\unit\test_source_preflight_trend_report.py tests\unit\test_source_preflight_strategy_simulation.py -q --tb=short --maxfail=1 -o addopts=` -> 84 passed.
+- `.venv\Scripts\ruff.exe format --check scripts\source_preflight_trend_report.py scripts\source_preflight_strategy_simulation.py tests\unit\test_source_preflight_trend_report.py tests\unit\test_source_preflight_strategy_simulation.py` -> passed.
+- `.venv\Scripts\ruff.exe check scripts\source_preflight_trend_report.py scripts\source_preflight_strategy_simulation.py tests\unit\test_source_preflight_trend_report.py tests\unit\test_source_preflight_strategy_simulation.py` -> passed.
+- First full project QC attempt: unit 2325 passed, 9 skipped; lint failed on a transient `tests/unit/test_draft_prompts.py` syntax read. Direct `ruff check tests\unit\test_draft_prompts.py` and `py_compile` both passed without edits.
+- Final `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2327 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 18 source preflight negative max-files selection
+
+### Summary
+- Reproduced source preflight trend/strategy directory selection drift for negative `--max-files`.
+- With two matching reports, `--input-dir ... --max-files -1` selected the older file in both trend and strategy input selection because Python slicing evaluated `matches[:-1]`.
+- Root cause: duplicated `_input_paths()` logic passed `args.max_files` directly into list slicing without normalizing negative values.
+- Fixed trend report and strategy simulation to clamp `max_files` to `>= 0` before slicing.
+- Added regressions proving negative `--max-files` selects no files rather than an unintended subset.
+
+### Changed Files
+- `scripts/source_preflight_trend_report.py`
+- `scripts/source_preflight_strategy_simulation.py`
+- `tests/unit/test_source_preflight_trend_report.py`
+- `tests/unit/test_source_preflight_strategy_simulation.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction replay -> `MAX -1 TREND [] STRATEGY []` and `MAX -2 TREND [] STRATEGY []`.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_source_preflight_trend_report.py tests\unit\test_source_preflight_strategy_simulation.py -q --tb=short --maxfail=1 -o addopts=` -> 31 passed.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_source_browser_probe.py tests\unit\test_source_preflight_evidence_doctor.py tests\unit\test_source_preflight_trend_report.py tests\unit\test_source_preflight_strategy_simulation.py -q --tb=short --maxfail=1 -o addopts=` -> 86 passed.
+- `.venv\Scripts\ruff.exe format --check scripts\source_preflight_trend_report.py scripts\source_preflight_strategy_simulation.py tests\unit\test_source_preflight_trend_report.py tests\unit\test_source_preflight_strategy_simulation.py` -> passed.
+- `.venv\Scripts\ruff.exe check scripts\source_preflight_trend_report.py scripts\source_preflight_strategy_simulation.py tests\unit\test_source_preflight_trend_report.py tests\unit\test_source_preflight_strategy_simulation.py` -> passed.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2331 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 19 source preflight operator_action_required string boolean
+
+### Summary
+- Reproduced source preflight operator-action required count drift for string boolean input.
+- A problem action with `operator_action_required="false"` produced `operator_action_required=True` in evidence doctor output and trend `operator_action_required_count=1`.
+- Root cause: `build_evidence_payload()` used Python `bool(value)` on explicit `operator_action_required` values, so any non-empty string, including `"false"`, became true.
+- Fixed operator-action required coercion with explicit parsing for booleans, numeric values, and common string forms (`true/false`, `1/0`, `yes/no`, `on/off`).
+- Added evidence doctor and trend regressions proving string `"false"` preserves required count 0.
+
+### Changed Files
+- `scripts/source_preflight_evidence_doctor.py`
+- `tests/unit/test_source_preflight_evidence_doctor.py`
+- `tests/unit/test_source_preflight_trend_report.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction replay -> `ITEM_REQUIRED False`, `TREND_OPERATOR_REQUIRED_COUNT 0`, and original operator action text preserved.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_source_preflight_evidence_doctor.py tests\unit\test_source_preflight_trend_report.py -q --tb=short --maxfail=1 -o addopts=` -> 35 passed.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_source_browser_probe.py tests\unit\test_source_preflight_evidence_doctor.py tests\unit\test_source_preflight_trend_report.py tests\unit\test_source_preflight_strategy_simulation.py -q --tb=short --maxfail=1 -o addopts=` -> 88 passed.
+- `.venv\Scripts\ruff.exe format --check scripts\source_preflight_evidence_doctor.py tests\unit\test_source_preflight_evidence_doctor.py tests\unit\test_source_preflight_trend_report.py` -> passed.
+- `.venv\Scripts\ruff.exe check scripts\source_preflight_evidence_doctor.py tests\unit\test_source_preflight_evidence_doctor.py tests\unit\test_source_preflight_trend_report.py` -> passed.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2338 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 10 source preflight evidence doctor PowerShell trace command quoting
+
+### Summary
+- Reproduced a source preflight evidence doctor command failure for trace paths containing PowerShell metacharacters.
+- `_trace_viewer_command(".tmp/traces/source&preflight.zip")` emitted `playwright show-trace .tmp/traces/source&preflight.zip`, and PowerShell failed with `AmpersandNotAllowed`.
+- Root cause: `source_preflight_evidence_doctor.py` built copy-ready commands with `subprocess.list2cmdline()`, which targets Windows process argv formatting and does not quote bare PowerShell metacharacters.
+- Fixed the file by adding a PowerShell literal-safe formatter and routing evidence doctor command generation through it.
+- Added regression coverage for `playwright show-trace '.tmp/traces/source&preflight.zip'`.
+
+### Changed Files
+- `scripts/source_preflight_evidence_doctor.py`
+- `tests/unit/test_source_preflight_evidence_doctor.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction replay with generated trace command transformed to `Write-Output` -> PowerShell parse passed and preserved `.tmp/traces/source&preflight.zip`.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_source_preflight_evidence_doctor.py -q --tb=short --maxfail=1 -o addopts=` -> 15 passed.
+- `.venv\Scripts\python.exe -m pytest --no-cov tests\unit\test_source_browser_probe.py tests\unit\test_source_preflight_evidence_doctor.py tests\unit\test_source_preflight_trend_report.py tests\unit\test_source_preflight_strategy_simulation.py -q --tb=short --maxfail=1 -o addopts=` -> 76 passed.
+- `.venv\Scripts\python.exe -m ruff format --check scripts\source_preflight_evidence_doctor.py tests\unit\test_source_preflight_evidence_doctor.py` -> passed.
+- `.venv\Scripts\python.exe -m ruff check scripts\source_preflight_evidence_doctor.py tests\unit\test_source_preflight_evidence_doctor.py` -> passed.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2290 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.
+
+## 2026-06-11 | Codex | Debug loop 33 adaptive feedback zero scores
+
+### Summary
+- Reproduced adaptive feedback weight calculation dropping valid zero score metrics.
+- Before the fix, five performance records with one `scrape_quality_score: 0` returned `{}` because the zero-score record was excluded and valid data fell below the five-record minimum.
+- Root cause: `compute_adaptive_weights()` used truthiness checks for score presence and `or 50` score fallback, so numeric `0` was treated as missing.
+- Fixed adaptive-weight normalization to convert metric inputs through `_optional_float()` and exclude only `None`, blank strings, and non-numeric values.
+- Added feedback-loop regression coverage proving zero scores still count as valid performance data.
+
+### Changed Files
+- `pipeline/feedback_loop.py`
+- `tests/unit/test_feedback_loop_patterns.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Reproduction before fix -> `{}` and log `유효 데이터 4건`.
+- `.venv\Scripts\python.exe -m pytest tests\unit\test_feedback_loop_patterns.py -q` -> 24 tests passed, then coverage gate failed as expected for a single-file run.
+- `.venv\Scripts\python.exe -m pytest tests\unit\test_feedback_loop_patterns.py -q --no-cov` -> 24 passed.
+- `.venv\Scripts\python.exe -m ruff check pipeline\feedback_loop.py tests\unit\test_feedback_loop_patterns.py` -> passed.
+- `python execution\project_qc_runner.py --project blind-to-x --json` -> passed: unit 2396 passed, 9 skipped; lint passed.
+
+### Notes
+- No commit was made because the workspace already contains broad unrelated WIP.

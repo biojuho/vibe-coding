@@ -26,15 +26,18 @@ export async function GET() {
     return NextResponse.json(response.body, response.init);
   } catch (error) {
     const isProductionLike = process.env.NODE_ENV === "production";
+
+    // Always log server-side so operators see DB incidents in production
+    // (the previous guard inverted this: it logged only in dev).
+    console.error("Health check database warning:", error);
+
+    // Never expose raw DB/infra error text (host, region, auth strings) to
+    // anonymous callers in production; fall back to the generic warning.
     const response = buildHealthResponse({
       connected: false,
-      warning: error,
+      warning: isProductionLike ? undefined : error,
       timestamp: new Date().toISOString()
     });
-
-    if (!isProductionLike) {
-      console.error("Health check database warning:", response.body.warning);
-    }
 
     return NextResponse.json(response.body, response.init);
   }

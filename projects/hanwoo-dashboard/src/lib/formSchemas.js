@@ -63,6 +63,15 @@ const validDateString = (message) =>
 		.min(1, message)
 		.refine(isDateInputString, "올바른 날짜를 입력해 주세요.");
 
+// For dates that cannot be in the future (birth/sale/calving). Compares calendar
+// days in local time so a typo like 2027 is caught while "today" always passes.
+const pastOrTodayDateString = (message, futureMessage = "오늘 이후 날짜는 입력할 수 없습니다.") =>
+	z
+		.string()
+		.min(1, message)
+		.refine(isDateInputString, "올바른 날짜를 입력해 주세요.")
+		.refine((value) => value <= toInputDate(new Date()), futureMessage);
+
 const optionalText = (max = 300) =>
 	z.preprocess(
 		emptyToUndefined,
@@ -97,11 +106,17 @@ export const cattleFormSchema = z.object({
 			.max(99, "칸 번호를 확인해 주세요."),
 	),
 	gender: requiredText("성별을 선택해 주세요.", 10),
-	birthDate: validDateString("생년월일을 입력해 주세요."),
+	birthDate: pastOrTodayDateString(
+		"생년월일을 입력해 주세요.",
+		"생년월일은 오늘 이후일 수 없습니다.",
+	),
 	status: requiredText("상태를 선택해 주세요.", 30),
 	weight: z.preprocess(
 		toPlainNumber,
-		z.number().positive("체중은 0보다 커야 합니다."),
+		z
+			.number()
+			.positive("체중은 0보다 커야 합니다.")
+			.max(2000, "체중이 너무 큽니다. 값을 확인해 주세요."),
 	),
 	geneticInfo: z.object({
 		father: optionalText(50),
@@ -131,7 +146,10 @@ export const inventoryItemSchema = z.object({
 });
 
 export const salesFormSchema = z.object({
-	saleDate: validDateString("출하 날짜를 선택해 주세요."),
+	saleDate: pastOrTodayDateString(
+		"출하 날짜를 선택해 주세요.",
+		"출하 날짜는 오늘 이후일 수 없습니다.",
+	),
 	price: z.preprocess(
 		toPlainNumber,
 		z.number().positive("판매 가격은 0보다 커야 합니다."),
@@ -156,7 +174,10 @@ export const feedRecordSchema = z.object({
 });
 
 export const calvingRecordSchema = z.object({
-	calvingDate: validDateString("분만일을 입력해 주세요."),
+	calvingDate: pastOrTodayDateString(
+		"분만일을 입력해 주세요.",
+		"분만일은 오늘 이후일 수 없습니다.",
+	),
 	calfGender: z.enum(["암", "수"]),
 	calfTagNumber: requiredText("송아지 이력번호를 입력해 주세요.", 30),
 });

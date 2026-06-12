@@ -8,6 +8,7 @@ from typing import Any
 
 from pipeline.publish_decision import HOLD, PublishDecision
 from pipeline.regulation_checker import x_weighted_character_count
+from config import as_bool as _as_bool
 
 X_MAX_CHARS = 280
 
@@ -72,7 +73,7 @@ def _is_fixable_hold(decision: PublishDecision | dict[str, Any]) -> bool:
         fixable = decision.fixable
     elif isinstance(decision, dict):
         action = decision.get("action")
-        fixable = bool(decision.get("fixable"))
+        fixable = _as_bool(decision.get("fixable"))
     else:
         return False
     if action != HOLD or not fixable:

@@ -86,10 +86,22 @@ export function formatDate(value) {
 	return date ? date.toLocaleDateString("ko-KR") : "날짜 미등록";
 }
 
+// Format a date as YYYY-MM-DD using LOCAL calendar components, not UTC.
+// Using toISOString() here shifts the day backwards for users east of UTC
+// (e.g. KST 00:00–08:59 maps to the previous UTC day), which made "today"
+// defaults and calendar cells render one day early for Korean users. Stored
+// date-only values (UTC midnight) yield the same string in KST either way.
+export function toLocalInputDate(date) {
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, "0");
+	const day = String(date.getDate()).padStart(2, "0");
+	return `${year}-${month}-${day}`;
+}
+
 export function toInputDate(value) {
 	if (!value) return "";
 	const date = toValidDate(value);
-	return date ? date.toISOString().split("T")[0] : "";
+	return date ? toLocalInputDate(date) : "";
 }
 
 export function formatForecastDateLabel(

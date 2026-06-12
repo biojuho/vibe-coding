@@ -32,6 +32,7 @@ from .runtime import (
     logger,
     sentiment_tracker,
 )
+from config import as_bool as _as_bool
 
 
 def _has_visual_content(post_data: dict) -> bool:
@@ -99,7 +100,7 @@ def _set_filter_skip(
 
 def _build_content_profile_dict(ctx: ProcessRunContext, config, top_tweets) -> dict:
     ranking_weights = config.get("ranking.weights", {}) if config else {}
-    llm_viral_boost = bool(config.get("ranking.llm_viral_boost", False)) if config else False
+    llm_viral_boost = _as_bool(config.get("ranking.llm_viral_boost", False)) if config else False
     return build_content_profile(
         ctx.post_data,
         scrape_quality_score=ctx.quality["score"],
@@ -214,7 +215,7 @@ def _store_review_metadata(ctx: ProcessRunContext, profile: dict, decision: dict
 
 def _editorial_gate_failure(fit: dict, min_score: float) -> tuple[str, str, list]:
     hard_reject_reasons = list(fit.get("hard_reject_reasons") or [])
-    if bool(fit.get("hard_reject")):
+    if _as_bool(fit.get("hard_reject")):
         return (
             "editorial_hard_reject",
             "; ".join(hard_reject_reasons) or "편집 적합도 하드 리젝트",
@@ -522,13 +523,13 @@ def _check_editorial_fit(ctx: ProcessRunContext, config) -> bool:
     post_data["editorial_fit"] = fit
     ctx.result["editorial_score"] = fit.get("score")
 
-    if config is None or not bool(config.get("feed_filter.editorial_gate_enabled", True)):
+    if config is None or not _as_bool(config.get("feed_filter.editorial_gate_enabled", True), default=True):
         return True
 
     min_score = float(config.get("feed_filter.min_editorial_score", 60.0))
     score = float(fit.get("score", 0.0) or 0.0)
 
-    if not bool(fit.get("hard_reject")) and score >= min_score:
+    if not _as_bool(fit.get("hard_reject")) and score >= min_score:
         return True
 
     failure_reason, human, hard_reject_reasons = _editorial_gate_failure(fit, min_score)

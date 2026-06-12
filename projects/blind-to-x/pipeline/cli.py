@@ -1,6 +1,7 @@
 """Command Line Interface and orchestration."""
 
 import argparse
+import json
 import logging
 import os
 from pathlib import Path
@@ -17,11 +18,46 @@ from scripts.source_browser_probe import (
     exit_code_for_report,
     run_source_preflight,
 )
+from config import as_bool as _as_bool
 
 logger = logging.getLogger(__name__)
 
 _LOCK_FILE = Path(".tmp/.running.lock")
 _LOCK_MAX_AGE_SECONDS = 3600  # 1시간 초과 lock은 stale로 간주
+_SOURCE_PREFLIGHT_DEFAULTS = {
+    "source_preflight_timeout_ms": 12000,
+    "source_preflight_output": Path(".tmp/source_browser_preflight.json"),
+    "source_preflight_screenshot_dir": Path("screenshots/source_preflight"),
+    "source_preflight_failure_dir": DEFAULT_FAILURE_REPORT_DIR,
+    "source_preflight_trace_dir": None,
+    "source_preflight_click_through": False,
+    "source_preflight_use_recommended": False,
+}
+_SOURCE_PREFLIGHT_SAFETY_DEFAULTS = {
+    "read_only": True,
+    "notion_writes": False,
+    "x_posts": False,
+    "auto_apply_allowed": False,
+    "manual_strategy_review_required": True,
+}
+_SOURCE_PREFLIGHT_FLAGS = {
+    "source_preflight_timeout_ms": ("--source-preflight-timeout-ms",),
+    "source_preflight_output": ("--source-preflight-output",),
+    "source_preflight_screenshot_dir": ("--source-preflight-screenshot-dir",),
+    "source_preflight_failure_dir": ("--source-preflight-failure-dir",),
+    "source_preflight_trace_dir": ("--source-preflight-trace-dir",),
+    "source_preflight_click_through": ("--source-preflight-click-through",),
+    "source_preflight_use_recommended": ("--source-preflight-use-recommended",),
+}
+_SOURCE_PREFLIGHT_LOG_NAMES = {
+    "source_preflight_timeout_ms": "timeout_ms",
+    "source_preflight_output": "output_path",
+    "source_preflight_screenshot_dir": "screenshot_dir",
+    "source_preflight_failure_dir": "failure_dir",
+    "source_preflight_trace_dir": "trace_dir",
+    "source_preflight_click_through": "click_through",
+    "source_preflight_use_recommended": "use_recommended_source",
+}
 
 
 def build_parser():
@@ -52,6 +88,11 @@ def build_parser():
         "--source-preflight-fail-on-problem",
         action="store_true",
         help="Exit with status 1 when any browser-probed source is not ready.",
+    )
+    parser.add_argument(
+        "--source-preflight-print-options",
+        action="store_true",
+        help="Print resolved source preflight options as JSON without launching a browser.",
     )
     parser.add_argument(
         "--require-source-ready",
@@ -214,11 +255,278 @@ def _resolve_source_preflight_sources(config_mgr, args) -> list[str]:
 
 
 def _source_preflight_requested(args) -> bool:
-    return bool(getattr(args, "source_preflight", False) or getattr(args, "require_source_ready", False))
+    return bool(
+        getattr(args, "source_preflight", False)
+        or getattr(args, "require_source_ready", False)
+        or getattr(args, "source_preflight_print_options", False)
+    )
 
 
 def _source_preflight_should_continue(args, exit_code: int) -> bool:
     return bool(getattr(args, "require_source_ready", False) and exit_code == 0)
+
+
+def _mark_source_preflight_cli_overrides(args, argv: list[str] | None = None):
+    tokens = sys.argv[1:] if argv is None else argv
+    supplied_flags = {str(token).split("=", 1)[0] for token in tokens}
+    supplied_dests = {
+        dest for dest, flags in _SOURCE_PREFLIGHT_FLAGS.items() if any(flag in supplied_flags for flag in flags)
+    }
+    setattr(args, "_source_preflight_cli_overrides", supplied_dests)
+    return args
+
+
+def _source_preflight_cli_overrode(args, dest: str) -> bool:
+    supplied = getattr(args, "_source_preflight_cli_overrides", None)
+    if isinstance(supplied, set):
+        return dest in supplied
+    default = _SOURCE_PREFLIGHT_DEFAULTS.get(dest)
+    return getattr(args, dest, default) != default
+
+
+def _config_value(config_mgr, key: str):
+    if config_mgr is None or not hasattr(config_mgr, "get"):
+        return None
+    try:
+        return config_mgr.get(key, None)
+    except Exception:
+        return None
+
+
+def _source_preflight_option_origin(config_mgr, args, dest: str, config_key: str) -> str:
+    if _source_preflight_cli_overrode(args, dest):
+        return "cli"
+    configured = _config_value(config_mgr, config_key)
+    if configured in (None, ""):
+        return "default"
+    return "config"
+
+
+def _resolve_source_preflight_path(config_mgr, args, dest: str, config_key: str) -> Path | None:
+    current = getattr(args, dest, _SOURCE_PREFLIGHT_DEFAULTS[dest])
+    if _source_preflight_cli_overrode(args, dest):
+        return current
+    configured = _config_value(config_mgr, config_key)
+    if configured in (None, ""):
+        return current
+    return configured if isinstance(configured, Path) else Path(str(configured))
+
+
+def _resolve_source_preflight_int(config_mgr, args, dest: str, config_key: str) -> int:
+    current = getattr(args, dest, _SOURCE_PREFLIGHT_DEFAULTS[dest])
+    if _source_preflight_cli_overrode(args, dest):
+        return int(current)
+    configured = _config_value(config_mgr, config_key)
+    if configured in (None, ""):
+        return int(current)
+    try:
+        return int(configured)
+    except (TypeError, ValueError):
+        logger.warning("Ignoring invalid %s=%r; using %s.", config_key, configured, current)
+        return int(current)
+
+
+def _resolve_source_preflight_bool(config_mgr, args, dest: str, config_key: str) -> bool:
+    current = bool(getattr(args, dest, _SOURCE_PREFLIGHT_DEFAULTS[dest]))
+    if _source_preflight_cli_overrode(args, dest):
+        return current
+    configured = _config_value(config_mgr, config_key)
+    if configured in (None, ""):
+        return current
+    if isinstance(configured, bool):
+        return configured
+    if isinstance(configured, str):
+        return configured.strip().lower() in {"1", "true", "yes", "on"}
+    return bool(configured)
+
+
+def _resolve_source_preflight_config_bool(config_mgr, config_key: str, default: bool) -> bool:
+    configured = _config_value(config_mgr, config_key)
+    if configured in (None, ""):
+        return default
+    if isinstance(configured, bool):
+        return configured
+    if isinstance(configured, str):
+        return configured.strip().lower() in {"1", "true", "yes", "on"}
+    return bool(configured)
+
+
+def _resolve_source_preflight_safety(config_mgr) -> dict[str, bool]:
+    return {
+        key: _resolve_source_preflight_config_bool(config_mgr, f"source_preflight.safety.{key}", default)
+        for key, default in _SOURCE_PREFLIGHT_SAFETY_DEFAULTS.items()
+    }
+
+
+def _resolve_source_preflight_options(config_mgr, args) -> dict[str, object]:
+    origins = {
+        "timeout_ms": _source_preflight_option_origin(
+            config_mgr,
+            args,
+            "source_preflight_timeout_ms",
+            "source_preflight.timeout_ms",
+        ),
+        "output_path": _source_preflight_option_origin(
+            config_mgr,
+            args,
+            "source_preflight_output",
+            "source_preflight.output_path",
+        ),
+        "screenshot_dir": _source_preflight_option_origin(
+            config_mgr,
+            args,
+            "source_preflight_screenshot_dir",
+            "source_preflight.screenshot_dir",
+        ),
+        "failure_dir": _source_preflight_option_origin(
+            config_mgr,
+            args,
+            "source_preflight_failure_dir",
+            "source_preflight.failure_dir",
+        ),
+        "trace_dir": _source_preflight_option_origin(
+            config_mgr,
+            args,
+            "source_preflight_trace_dir",
+            "source_preflight.trace_dir",
+        ),
+        "click_through": _source_preflight_option_origin(
+            config_mgr,
+            args,
+            "source_preflight_click_through",
+            "source_preflight.click_through_default",
+        ),
+        "use_recommended_source": _source_preflight_option_origin(
+            config_mgr,
+            args,
+            "source_preflight_use_recommended",
+            "source_preflight.use_recommended_source_default",
+        ),
+    }
+    return {
+        "timeout_ms": max(
+            1000,
+            _resolve_source_preflight_int(
+                config_mgr,
+                args,
+                "source_preflight_timeout_ms",
+                "source_preflight.timeout_ms",
+            ),
+        ),
+        "output_path": _resolve_source_preflight_path(
+            config_mgr,
+            args,
+            "source_preflight_output",
+            "source_preflight.output_path",
+        ),
+        "screenshot_dir": _resolve_source_preflight_path(
+            config_mgr,
+            args,
+            "source_preflight_screenshot_dir",
+            "source_preflight.screenshot_dir",
+        ),
+        "failure_dir": _resolve_source_preflight_path(
+            config_mgr,
+            args,
+            "source_preflight_failure_dir",
+            "source_preflight.failure_dir",
+        ),
+        "trace_dir": _resolve_source_preflight_path(
+            config_mgr,
+            args,
+            "source_preflight_trace_dir",
+            "source_preflight.trace_dir",
+        ),
+        "click_through": _resolve_source_preflight_bool(
+            config_mgr,
+            args,
+            "source_preflight_click_through",
+            "source_preflight.click_through_default",
+        ),
+        "use_recommended_source": _resolve_source_preflight_bool(
+            config_mgr,
+            args,
+            "source_preflight_use_recommended",
+            "source_preflight.use_recommended_source_default",
+        ),
+        "safety": _resolve_source_preflight_safety(config_mgr),
+        "origins": origins,
+    }
+
+
+def _source_preflight_log_value(value) -> str:
+    if value in (None, ""):
+        return "-"
+    if isinstance(value, Path):
+        return value.as_posix()
+    return str(value)
+
+
+def _source_preflight_summary_value(value):
+    if isinstance(value, Path):
+        return value.as_posix()
+    return value
+
+
+def _source_preflight_option_summary(sources: list[str], args, options: dict[str, object]) -> dict[str, object]:
+    origins = options.get("origins") if isinstance(options.get("origins"), dict) else {}
+    safety = options.get("safety") if isinstance(options.get("safety"), dict) else _SOURCE_PREFLIGHT_SAFETY_DEFAULTS
+    supplied = getattr(args, "_source_preflight_cli_overrides", set())
+    cli_overrides = (
+        sorted(_SOURCE_PREFLIGHT_LOG_NAMES.get(dest, dest) for dest in supplied) if isinstance(supplied, set) else []
+    )
+    config_defaults = sorted(key for key, origin in origins.items() if origin == "config")
+    return {
+        "sources": sources,
+        "timeout_ms": options.get("timeout_ms"),
+        "output_path": _source_preflight_summary_value(options.get("output_path")),
+        "screenshot_dir": _source_preflight_summary_value(options.get("screenshot_dir")),
+        "failure_dir": _source_preflight_summary_value(options.get("failure_dir")),
+        "trace_dir": _source_preflight_summary_value(options.get("trace_dir")),
+        "viewport": getattr(args, "source_preflight_viewport", "desktop"),
+        "headed": bool(getattr(args, "source_preflight_headed", False)),
+        "click_through": bool(options.get("click_through")),
+        "use_recommended_source": bool(options.get("use_recommended_source")),
+        "origins": origins,
+        "cli_overrides": cli_overrides,
+        "config_defaults": config_defaults,
+        "browser_probe_will_run": False,
+        "notion_writes": bool(safety.get("notion_writes", False)),
+        "x_posts": bool(safety.get("x_posts", False)),
+        "read_only": bool(safety.get("read_only", True)),
+        "auto_apply_allowed": bool(safety.get("auto_apply_allowed", False)),
+        "manual_strategy_review_required": bool(safety.get("manual_strategy_review_required", True)),
+    }
+
+
+def _log_source_preflight_effective_options(sources: list[str], args, options: dict[str, object]) -> None:
+    origins = options.get("origins") if isinstance(options.get("origins"), dict) else {}
+    config_defaults = ",".join(sorted(key for key, origin in origins.items() if origin == "config")) or "-"
+    supplied = getattr(args, "_source_preflight_cli_overrides", set())
+    cli_overrides = (
+        ",".join(sorted(_SOURCE_PREFLIGHT_LOG_NAMES.get(dest, dest) for dest in supplied))
+        if isinstance(supplied, set) and supplied
+        else "-"
+    )
+    logger.info(
+        (
+            "Source preflight effective options: sources=%s; timeout_ms=%s; output_path=%s; "
+            "screenshot_dir=%s; failure_dir=%s; trace_dir=%s; viewport=%s; headed=%s; "
+            "click_through=%s; use_recommended_source=%s; config_defaults=%s; cli_overrides=%s"
+        ),
+        ",".join(sources),
+        options.get("timeout_ms"),
+        _source_preflight_log_value(options.get("output_path")),
+        _source_preflight_log_value(options.get("screenshot_dir")),
+        _source_preflight_log_value(options.get("failure_dir")),
+        _source_preflight_log_value(options.get("trace_dir")),
+        getattr(args, "source_preflight_viewport", "desktop"),
+        bool(getattr(args, "source_preflight_headed", False)),
+        options.get("click_through"),
+        options.get("use_recommended_source"),
+        config_defaults,
+        cli_overrides,
+    )
 
 
 def _apply_recommended_source_fallback(args, report: dict) -> str | None:
@@ -314,11 +622,23 @@ def _log_source_preflight_problem_actions(report: dict) -> int:
         status = _compact_log_value(action_item.get("status") or "problem")
         action = _compact_log_value(action_item.get("action"))
         parts = [f"source={source}", f"status={status}"]
+        if "operator_action_required" in action_item:
+            parts.append(
+                f"operator_action_required={str(_as_bool(action_item.get('operator_action_required'))).lower()}"
+            )
         if action:
             parts.append(f"action={action}")
         evidence = action_item.get("evidence")
         if isinstance(evidence, dict):
             parts.extend(_format_source_preflight_evidence(evidence))
+        review_order = action_item.get("evidence_review_order")
+        if isinstance(review_order, list) and review_order:
+            parts.append(f"evidence_review_order={_compact_log_value(','.join(str(item) for item in review_order))}")
+        repair_commands = action_item.get("repair_commands")
+        if isinstance(repair_commands, list) and repair_commands:
+            command_text = " | ".join(str(command) for command in repair_commands if command)
+            if command_text:
+                parts.append(f"repair_commands={_compact_log_value(command_text, max_chars=600)}")
         logger.warning("Source preflight problem action: %s", "; ".join(parts))
         logged_count += 1
     return logged_count
@@ -333,17 +653,26 @@ async def run_source_preflight_command(config_mgr, args) -> int | None:
         logger.error("No supported source preflight targets resolved for source=%s.", getattr(args, "source", "auto"))
         return 1
 
+    options = _resolve_source_preflight_options(config_mgr, args)
+    if options["use_recommended_source"]:
+        setattr(args, "source_preflight_use_recommended", True)
+    if getattr(args, "source_preflight_print_options", False):
+        summary = _source_preflight_option_summary(sources, args, options)
+        print(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+    _log_source_preflight_effective_options(sources, args, options)
+
     report = await run_source_preflight(
         sources=sources,
         custom_urls=None,
-        timeout_ms=max(1000, getattr(args, "source_preflight_timeout_ms", 12000)),
-        output_path=getattr(args, "source_preflight_output", None),
-        screenshot_dir=getattr(args, "source_preflight_screenshot_dir", None),
-        failure_dir=getattr(args, "source_preflight_failure_dir", DEFAULT_FAILURE_REPORT_DIR),
-        trace_dir=getattr(args, "source_preflight_trace_dir", None),
+        timeout_ms=options["timeout_ms"],
+        output_path=options["output_path"],
+        screenshot_dir=options["screenshot_dir"],
+        failure_dir=options["failure_dir"],
+        trace_dir=options["trace_dir"],
         headed=getattr(args, "source_preflight_headed", False),
         viewport=getattr(args, "source_preflight_viewport", "desktop"),
-        click_through=getattr(args, "source_preflight_click_through", False),
+        click_through=options["click_through"],
     )
     _log_ready_source_warnings(report)
     _log_source_preflight_problem_actions(report)
@@ -359,6 +688,7 @@ async def run_source_preflight_command(config_mgr, args) -> int | None:
 async def run_main():
     parser = build_parser()
     args = parser.parse_args()
+    _mark_source_preflight_cli_overrides(args)
 
     if not acquire_lock():
         return

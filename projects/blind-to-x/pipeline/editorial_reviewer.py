@@ -22,15 +22,33 @@ from typing_extensions import TypedDict
 
 from pipeline.draft_contract import is_publishable_draft_key, split_draft_bundle
 from pipeline.rules_loader import get_rule_section, load_rules
+from config import as_bool
 
-try:
-    from langgraph.graph import END, START, StateGraph
+LANGGRAPH_AVAILABLE: bool | None = None
+END = "__end__"
+START = "__start__"
+_StateGraph: Any | None = None
 
+
+def _load_state_graph() -> Any | None:
+    """Load LangGraph only when the editorial LLM loop is actually needed."""
+    global END, START, LANGGRAPH_AVAILABLE, _StateGraph
+    if LANGGRAPH_AVAILABLE is False:
+        return None
+    if _StateGraph is not None:
+        return _StateGraph
+    try:
+        from langgraph.graph import END as langgraph_end
+        from langgraph.graph import START as langgraph_start
+        from langgraph.graph import StateGraph as langgraph_state_graph
+    except ImportError:
+        LANGGRAPH_AVAILABLE = False
+        return None
+    END = langgraph_end
+    START = langgraph_start
+    _StateGraph = langgraph_state_graph
     LANGGRAPH_AVAILABLE = True
-except ImportError:
-    LANGGRAPH_AVAILABLE = False
-    END = "__end__"
-    START = "__start__"
+    return _StateGraph
 
 
 class EditorialState(TypedDict, total=False):
@@ -171,8 +189,9 @@ class EditorialReviewer:
         # Multi-provider: config의 llm.providers 순서를 존중하되, editorial에서 지원하는 것만 필터
         self._providers = self._build_provider_chain(config)
 
-        # Build LangGraph workflow
-        self._graph = self._build_graph()
+        # Provider-less runs return before graph invocation; avoid importing optional
+        # LangGraph/LangChain dependencies during no-op unit and dry-run paths.
+        self._graph = self._build_graph() if self._providers else _FallbackEditorialGraph(self)
 
     def _build_provider_chain(self, config: Any) -> list[dict]:
         """config의 llm.providers 순서대로 사용 가능한 provider 목록을 구성."""
@@ -200,7 +219,7 @@ class EditorialReviewer:
             if not api_key:
                 continue
             # config에서 enabled 체크
-            if config and config.get(f"{name}.enabled", True) is False:
+            if config and not as_bool(config.get(f"{name}.enabled", True), default=True):
                 continue
             model = (config.get(f"{name}.model") if config else None) or pc["default_model"]
             providers.append({"name": name, "api_key": api_key, "model": model})
@@ -208,11 +227,12 @@ class EditorialReviewer:
 
     def _build_graph(self) -> Any:
         """에디토리얼 리뷰(Evaluator)와 리라이트(Optimizer) 루프를 위한 StateGraph 컴파일."""
-        if not LANGGRAPH_AVAILABLE:
+        state_graph_cls = _load_state_graph()
+        if state_graph_cls is None:
             logger.warning("[EditorialGraph] langgraph 미설치: fallback loop로 실행합니다.")
             return _FallbackEditorialGraph(self)
 
-        builder = StateGraph(EditorialState)
+        builder = state_graph_cls(EditorialState)
 
         builder.add_node("reviewer", self._reviewer_node)
         builder.add_node("rewriter", self._rewriter_node)

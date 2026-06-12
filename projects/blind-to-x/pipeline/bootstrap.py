@@ -8,6 +8,7 @@ from pipeline import ImageUploader, ImageGenerator, TweetDraftGenerator
 from pipeline.analytics_tracker import AnalyticsTracker
 from pipeline.feedback_loop import FeedbackLoop
 from pipeline.cost_tracker import CostTracker
+from config import as_bool as _as_bool
 
 logger = logging.getLogger(__name__)
 
@@ -43,10 +44,49 @@ def init_scrapers(config_mgr, args):
     return scrapers
 
 
+def _log_cost_persistence_status(cost_tracker) -> None:
+    """Log CostDB health from an already-initialized tracker."""
+    try:
+        status = cost_tracker.get_cost_persistence_status()
+    except Exception as exc:  # pragma: no cover - defensive operator telemetry
+        logger.warning("Cost persistence status unavailable: %s", exc)
+        return
+
+    if not isinstance(status, dict):
+        logger.warning("Cost persistence status unavailable: invalid payload")
+        return
+
+    operations = status.get("operations") or []
+    operations_text = ",".join(str(operation) for operation in operations) if isinstance(operations, list) else "-"
+    status_value = status.get("status", "unknown")
+    fail_open = status.get("fail_open")
+    retained_event_count = status.get("retained_event_count", status.get("event_count", 0))
+    total_event_count = status.get("total_event_count", status.get("event_count", 0))
+    log_method = logger.warning if fail_open or status_value != "sqlite_enabled" else logger.info
+    log_method(
+        (
+            "Cost persistence status: status=%s fail_open=%s event_count=%s operation_count=%s operations=%s "
+            "retained_event_count=%s total_event_count=%s"
+        ),
+        status_value,
+        fail_open,
+        status.get("event_count", 0),
+        status.get("operation_count", 0),
+        operations_text or "-",
+        retained_event_count,
+        total_event_count,
+    )
+    operator_action = str(status.get("operator_action") or "").strip()
+    if operator_action:
+        logger.warning("Cost persistence operator action: %s", operator_action)
+
+
 async def check_budget(config_mgr, notifier):
     """Check if daily API budget is exceeded. Exits if over budget."""
     cost_tracker = CostTracker(config_mgr)
-    if cost_tracker.is_budget_exceeded():
+    budget_exceeded = cost_tracker.is_budget_exceeded()
+    _log_cost_persistence_status(cost_tracker)
+    if budget_exceeded:
         logger.error(
             "Daily API budget exceeded: $%.3f >= $%.3f",
             cost_tracker.current_cost,
@@ -79,7 +119,7 @@ async def init_components(args, config_mgr, scrapers, notion_uploader, cost_trac
     for scraper in scrapers.values():
         scraper.cleanup_old_screenshots()
 
-    if config_mgr.get("twitter.enabled", False):
+    if _as_bool(config_mgr.get("twitter.enabled", False)):
         try:
             await analytics_tracker.sync_metrics()
         except Exception as exc:
@@ -89,7 +129,7 @@ async def init_components(args, config_mgr, scrapers, notion_uploader, cost_trac
     await notion_uploader.warm_cache()
 
     trend_monitor = None
-    if config_mgr.get("trends.enabled", False):
+    if _as_bool(config_mgr.get("trends.enabled", False)):
         try:
             from pipeline.trend_monitor import TrendMonitor
 

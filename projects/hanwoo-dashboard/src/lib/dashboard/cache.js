@@ -103,19 +103,27 @@ export function buildMarketPriceDayKey(issueDate) {
 	return `market-price:day:v1:${normalizeSegment(issueDate, "unknown")}`;
 }
 
+// The dashboard cache is fail-OPEN: a Redis outage must degrade to a direct DB
+// read, never 500 the request. A read error is treated as a cache miss, and
+// write/invalidation errors are best-effort (stale entries TTL out).
 export async function getCachedJson(key) {
 	if (!isRedisConfigured()) {
 		return null;
 	}
 
-	const redis = await ensureRedisConnection("cache");
-	const rawValue = await redis.get(key);
+	try {
+		const redis = await ensureRedisConnection("cache");
+		const rawValue = await redis.get(key);
 
-	if (!rawValue) {
+		if (!rawValue) {
+			return null;
+		}
+
+		return JSON.parse(rawValue);
+	} catch (error) {
+		console.error("Dashboard cache read degraded (serving from source):", error);
 		return null;
 	}
-
-	return JSON.parse(rawValue);
 }
 
 export async function setCachedJson(key, value, ttlSeconds) {
@@ -123,15 +131,19 @@ export async function setCachedJson(key, value, ttlSeconds) {
 		return value;
 	}
 
-	const redis = await ensureRedisConnection("cache");
-	const serialized = JSON.stringify(value);
+	try {
+		const redis = await ensureRedisConnection("cache");
+		const serialized = JSON.stringify(value);
 
-	if (ttlSeconds) {
-		await redis.set(key, serialized, "EX", ttlSeconds);
-		return value;
+		if (ttlSeconds) {
+			await redis.set(key, serialized, "EX", ttlSeconds);
+		} else {
+			await redis.set(key, serialized);
+		}
+	} catch (error) {
+		console.error("Dashboard cache write degraded (skipped):", error);
 	}
 
-	await redis.set(key, serialized);
 	return value;
 }
 
@@ -145,8 +157,13 @@ export async function deleteCachedKeys(keys) {
 		return 0;
 	}
 
-	const redis = await ensureRedisConnection("cache");
-	return redis.del(...keyList);
+	try {
+		const redis = await ensureRedisConnection("cache");
+		return await redis.del(...keyList);
+	} catch (error) {
+		console.error("Dashboard cache invalidation degraded (skipped):", error);
+		return 0;
+	}
 }
 
 export async function deleteCachedKeysByPrefixes(prefixes) {
@@ -159,27 +176,32 @@ export async function deleteCachedKeysByPrefixes(prefixes) {
 		return 0;
 	}
 
-	const redis = await ensureRedisConnection("cache");
-	let deleted = 0;
+	try {
+		const redis = await ensureRedisConnection("cache");
+		let deleted = 0;
 
-	for (const prefix of prefixList) {
-		let cursor = "0";
+		for (const prefix of prefixList) {
+			let cursor = "0";
 
-		do {
-			const [nextCursor, keys] = await redis.scan(
-				cursor,
-				"MATCH",
-				`${prefix}*`,
-				"COUNT",
-				"100",
-			);
-			cursor = nextCursor;
+			do {
+				const [nextCursor, keys] = await redis.scan(
+					cursor,
+					"MATCH",
+					`${prefix}*`,
+					"COUNT",
+					"100",
+				);
+				cursor = nextCursor;
 
-			if (keys.length > 0) {
-				deleted += await redis.del(...keys);
-			}
-		} while (cursor !== "0");
+				if (keys.length > 0) {
+					deleted += await redis.del(...keys);
+				}
+			} while (cursor !== "0");
+		}
+
+		return deleted;
+	} catch (error) {
+		console.error("Dashboard cache prefix invalidation degraded (skipped):", error);
+		return 0;
 	}
-
-	return deleted;
 }

@@ -10,6 +10,7 @@ from pipeline.scrape_integrity import DEFAULT_MIN_ARTICLE_CHARS, classify_scrape
 
 from .context import ProcessRunContext, mark_stage
 from .runtime import log_scrape_quality
+from config import as_bool as _as_bool
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ def _check_scrape_integrity(ctx: ProcessRunContext, scraper) -> bool:
     min_chars = DEFAULT_MIN_ARTICLE_CHARS
     if config is not None:
         try:
-            enabled = bool(config.get("scrape_quality.integrity_check_enabled", True))
+            enabled = _as_bool(config.get("scrape_quality.integrity_check_enabled", True), default=True)
             min_chars = int(config.get("scrape_quality.min_article_chars", DEFAULT_MIN_ARTICLE_CHARS))
         except Exception:
             pass
