@@ -252,3 +252,26 @@ def test_config_retention_defaults_are_safe(tmp_path: Path) -> None:
     assert cfg.project.retention_sim_enabled is False
     assert cfg.project.retention_autofix_enabled is False
     assert cfg.project.retention_sim_stage == "post_asset"
+
+
+def test_config_early_kill_defaults_off(tmp_path: Path) -> None:
+    """조기 kill 게이트는 명시하지 않으면 비활성(opt-in)이어야 한다."""
+    cfg = load_config(_write_config(tmp_path, _base_config()))
+    assert cfg.project.early_kill_enabled is False
+    assert cfg.project.early_kill_max_unresolved_scenes == 3
+
+
+def test_config_loads_early_kill_overrides(tmp_path: Path) -> None:
+    path = _write_config(
+        tmp_path,
+        _base_config(**{"project.early_kill_enabled": True, "project.early_kill_max_unresolved_scenes": 1}),
+    )
+    cfg = load_config(path)
+    assert cfg.project.early_kill_enabled is True
+    assert cfg.project.early_kill_max_unresolved_scenes == 1
+
+
+def test_config_rejects_zero_early_kill_threshold(tmp_path: Path) -> None:
+    path = _write_config(tmp_path, _base_config(**{"project.early_kill_max_unresolved_scenes": 0}))
+    with pytest.raises(ConfigError, match="early_kill_max_unresolved_scenes"):
+        load_config(path)

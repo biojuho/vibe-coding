@@ -1,7 +1,7 @@
 project:
   language: "ko-KR"
   default_scene_count: 8
-  script_review_enabled: true    # GPT가 Hook/Flow/CTA 채점 후 미달 시 재생성
+  script_review_enabled: true    # GPT가 Hook/Flow/Closing(여운) 채점 후 미달 시 재생성
   script_review_min_score: 7     # 10점 만점 최소 기준 (6→7 강화)
   # T-290 씬별 QC 활성화 (자동 발행 가능한 품질 보장).
   # strict: 자막/오디오/이미지 essential 검사 모두 통과해야 다음 단계로.
@@ -27,19 +27,27 @@ project:
   #   pre_asset        — 대본 직후, TTS 전. 자가 치유 재작성을 scene_plans 에
   #                      실제 반영 → 개선된 대본이 그대로 렌더됨(진짜 closed-loop).
   retention_sim_stage: "post_asset"
+  # ── 조기 kill 게이트 ──
+  # scene QC 재시도 후에도 미해결 씬이 임계 이상이면 렌더 진입 전에 잡을 중단
+  # (status="failed", step="early_kill"). 렌더가 wall time의 85~89%라서
+  # 자산 결함이 확정된 잡(=Gate 4 hold 확정)의 컴퓨팅 낭비를 차단한다.
+  early_kill_enabled: true
+  early_kill_max_unresolved_scenes: 3
+  # 모든 프리셋은 closing(조용한 여운 마무리)으로 끝난다 — CTA 금지 철학.
+  # cta 역할은 레거시 호환으로만 남아있다 (models.py VALID_STRUCTURE_ROLES 참조).
   structure_presets:             # YPP: 콘텐츠 구조 다양화 (rotate)
     premium:
-      flow: [hook, problem, problem, insight, insight, solution, solution, cta]
+      flow: [hook, problem, problem, insight, insight, solution, solution, closing]
     listicle:
-      flow: [hook, body, body, body, body, body, cta]
+      flow: [hook, body, body, body, body, body, closing]
     countdown:
-      flow: [hook, rank5, rank4, rank3, rank2, rank1, cta]
+      flow: [hook, rank5, rank4, rank3, rank2, rank1, closing]
     story:
-      flow: [hook, setup, conflict, climax, resolution, lesson, cta]
+      flow: [hook, setup, conflict, climax, resolution, lesson, closing]
     quiz:
-      flow: [hook, question, hint, answer, explain, bonus, cta]
+      flow: [hook, question, hint, answer, explain, bonus, closing]
     debate:
-      flow: [hook, pro1, con1, pro2, con2, verdict, cta]
+      flow: [hook, pro1, con1, pro2, con2, verdict, closing]
 
 video:
   # YouTube Shorts 자동 발행 안전 구간(38~52s)으로 살짝 완화.
@@ -98,7 +106,8 @@ providers:
   tts_voice_roles:                   # 역할별 음성 매핑 (voice_strategy보다 우선)
     hook: onyx                       # 남성 깊은 톤 → 주의 끌기
     body: nova                       # 여성 따뜻한 톤 → 설명
-    cta: onyx                        # 남성 권위적 톤 → 행동 유도
+    cta: onyx                        # 레거시 호환 (프리셋은 closing 사용)
+    closing: nova                    # 여성 따뜻한 톤 → 조용한 여운 마무리
     rank5: echo                      # 남성 차분 → 카운트다운 시작
     rank4: shimmer                   # 여성 밝음 → 톤 변화
     rank3: fable                     # 남성 표현력 → 중반 전환

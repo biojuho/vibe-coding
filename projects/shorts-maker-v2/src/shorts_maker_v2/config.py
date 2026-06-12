@@ -51,6 +51,12 @@ class ProjectSettings:
     #       scene_plans 에 실제로 반영해 개선된 대본이 그대로 렌더된다 (진짜 closed-loop).
     retention_sim_stage: str = "post_asset"
     upload_ready_dir: str = ""  # 설정 시 완성 영상을 이 폴더에 복사
+    # 조기 kill 게이트: scene QC 재시도 후에도 미해결 씬이 임계 이상이면
+    # 렌더 진입 전에 잡을 중단한다 (status="failed", step="early_kill").
+    # 렌더가 wall time 의 85~89% 라서, 자산 결함이 확정된 잡을 여기서 끊으면
+    # hold 영상 제조에 드는 컴퓨팅 대부분을 절약한다. 기본 False — opt-in.
+    early_kill_enabled: bool = False
+    early_kill_max_unresolved_scenes: int = 3  # >= 1. 이 개수 이상 미해결이면 중단.
 
 
 @dataclass(frozen=True)
@@ -330,6 +336,9 @@ def load_config(config_path: str | Path) -> AppConfig:
     retention_sim_stage_val = str(project_raw.get("retention_sim_stage", "post_asset"))
     if retention_sim_stage_val not in {"post_asset", "pre_asset"}:
         raise ConfigError("project.retention_sim_stage must be one of: post_asset, pre_asset.")
+    early_kill_max_unresolved_val = int(project_raw.get("early_kill_max_unresolved_scenes", 3))
+    if early_kill_max_unresolved_val < 1:
+        raise ConfigError("project.early_kill_max_unresolved_scenes must be >= 1.")
     project = ProjectSettings(
         language=str(project_raw.get("language", "ko-KR")),
         default_scene_count=int(project_raw.get("default_scene_count", 7)),
@@ -353,6 +362,8 @@ def load_config(config_path: str | Path) -> AppConfig:
         retention_autofix_max_passes=retention_autofix_passes_val,
         retention_sim_stage=retention_sim_stage_val,
         upload_ready_dir=str(project_raw.get("upload_ready_dir", "")),
+        early_kill_enabled=bool(project_raw.get("early_kill_enabled", False)),
+        early_kill_max_unresolved_scenes=early_kill_max_unresolved_val,
     )
     if project.default_scene_count <= 0:
         raise ConfigError("project.default_scene_count must be > 0.")

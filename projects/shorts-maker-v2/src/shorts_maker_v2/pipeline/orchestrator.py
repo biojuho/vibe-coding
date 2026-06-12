@@ -872,6 +872,36 @@ class PipelineOrchestrator:
                             "blocking": False,
                         }
                     )
+                    # ── 조기 kill 게이트: 자산 결함이 확정된 잡은 렌더 전에 중단 ──
+                    # 렌더가 전체 wall time 의 85~89% 를 차지하므로, 미해결 씬이
+                    # 임계 이상이면 Gate 4 hold 가 사실상 확정 — 이후 단계는 낭비다.
+                    # degraded_steps 에 scene_qc 항목을 먼저 기록한 뒤 raise 한다
+                    # (지뢰밭 규칙: degraded_steps 없이 예외 raise 금지).
+                    if (
+                        self.config.project.early_kill_enabled
+                        and len(summary["unresolved"]) >= self.config.project.early_kill_max_unresolved_scenes
+                    ):
+                        jlog.error(
+                            "early_kill",
+                            unresolved_count=len(summary["unresolved"]),
+                            threshold=self.config.project.early_kill_max_unresolved_scenes,
+                            scene_ids=[u["scene_id"] for u in summary["unresolved"]],
+                        )
+                        status.fail(
+                            "scene_qc",
+                            detail=f"early kill: {len(summary['unresolved'])} unresolved scene(s)",
+                        )
+                        raise PipelineError(
+                            message=(
+                                f"Early kill: {len(summary['unresolved'])} scene(s) still failing QC "
+                                f"after retries (threshold "
+                                f"{self.config.project.early_kill_max_unresolved_scenes}) "
+                                "— aborting before render."
+                            ),
+                            error_type=PipelineErrorType.QUALITY_GATE,
+                            step="early_kill",
+                            context={"scene_ids": [u["scene_id"] for u in summary["unresolved"]]},
+                        )
                 jlog.info("scene_qc_done", passed=summary["passed"], total=summary["total"])
                 status.complete("scene_qc", detail=f"{summary['passed']}/{summary['total']} passed")
 
@@ -1262,8 +1292,14 @@ class PipelineOrchestrator:
             status.fail("script", detail="topic unsuitable")
         except Exception as exc:
             # 패턴 #1+#5: 에러 타입 세분화 + 스마트 전략 로깅
-            error_type = classify_error(exc)
-            pe = PipelineError.from_exception(exc, step="pipeline")
+            # 의도적으로 raise 된 PipelineError(early_kill, blocking degraded 등)는
+            # 재분류하지 않고 step/error_type 을 그대로 보존한다.
+            if isinstance(exc, PipelineError):
+                pe = exc
+                error_type = exc.error_type
+            else:
+                error_type = classify_error(exc)
+                pe = PipelineError.from_exception(exc, step="pipeline")
             failures.append(pe.to_dict())
             manifest.status = "failed"
             jlog.error(

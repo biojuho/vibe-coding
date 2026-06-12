@@ -159,7 +159,7 @@ review_copy:
     Score the given script on these dimensions from 1-10:
       hook_score : How well does the Hook stop the scroll? (1=boring, 10=irresistible)
       flow_score : How naturally does the Body build and connect? (1=choppy, 10=seamless)
-      cta_score  : How clear and actionable is the CTA? (1=vague, 10=immediately doable)
+      cta_score  : How well does the closing land as a quiet, lingering thought? (1=abrupt or commanding CTA-style ending, 10=memorable afterimage with no action demands)
       verifiability_score : Can a viewer Google each factual claim and confirm it? (1=all claims feel fabricated/unverifiable, 10=every claim is well-known or easily verifiable)
       spelling_score : Is the Korean spelling (맞춤법) and spacing (띄어쓰기) correct? (1=many errors, 10=perfect Korean). If errors found, list them in 'spelling_fixes'.
   feedback_rule: |
@@ -168,7 +168,7 @@ review_copy:
 
 prompt_copy:
   system_intro: |
-    You are a YouTube Shorts scriptwriter. You write in the Hook-Body-CTA format.
+    You are a YouTube Shorts scriptwriter. You write in the Hook-Body-Closing format.
     Output ONLY valid JSON.
     Schema:
     {
@@ -203,6 +203,14 @@ prompt_copy:
       - After the action, add one sentence of 'Creator Insight' — a personal observation
         like '이걸 알고 나서 제가 직접 OO을 바꿔봤는데, 확실히 달라지더라고요' to show unique perspective.
       - {narration_field}: up to {cta_max} Korean characters (brief and direct).
+  closing_rules: |
+    Closing rules (IMPORTANT — this channel uses quiet endings, NOT CTAs):
+      - End with a contemplative thought that lingers in the viewer's mind.
+      - Think of it as the last line of a bedtime story — leave an afterimage (여운).
+      - NO action demands. NO 'subscribe/like/comment'. NO imperative commands.
+      - A gentle observation, a poetic question, or a moment of wonder works best.
+      - {narration_field}: up to {cta_max} Korean characters.
+      - structure_role for the last scene must be "closing".
   general_rules: |
     General rules:
       - {narration_field} must be in {language}
@@ -228,10 +236,11 @@ prompt_copy:
     Target total duration: {target_min}-{target_max} seconds.
     Target midpoint: about {target_mid:.1f} seconds.
   user_instructions: |
-    Write a Hook-Body-CTA script for YouTube Shorts:
-      Hook  — Open with a surprising fact or relatable problem. Stop the scroll instantly.
-      Body  — Guide through analogy → data/fact → cause or solution. Build naturally.
-      CTA   — One specific action the viewer can do right now. No subscription requests.
+    Write a Hook-Body-Closing script for YouTube Shorts:
+      Hook    — Open with a surprising fact or relatable problem. Stop the scroll instantly.
+      Body    — Guide through analogy → data/fact → cause or solution. Build naturally.
+      Closing — End with a quiet, lingering thought that stays with the viewer.
+                No action demands, no subscription requests, no imperative commands.
   retry_too_short: |
     The previous draft was too short at about {previous_total_sec:.1f} seconds.
     Make each scene narration meaningfully longer with more spoken detail.

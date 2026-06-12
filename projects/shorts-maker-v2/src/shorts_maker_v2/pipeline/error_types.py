@@ -1,7 +1,7 @@
 """파이프라인 에러 타입 정의 — SiteAgent 패턴 차용.
 
 SiteAgent의 InvokeErrorType에서 영감받아, 우리 파이프라인의 모든 에러를
-9가지 구조화된 타입으로 분류합니다. 이를 통해:
+10가지 구조화된 타입으로 분류합니다. 이를 통해:
   1. 로그에서 즉시 원인 파악
   2. 에러 타입별 차별화된 복구 전략 실행
   3. 모니터링 대시보드에서 에러 분포 시각화
@@ -26,6 +26,7 @@ class PipelineErrorType(str, Enum):
     - CONTENT_FILTER: 콘텐츠 정책 위반 (DALL-E 안전 필터 등)
     - CONTEXT_LENGTH: 컨텍스트 창 초과
     - RESOURCE_ERROR: 로컬 리소스 문제 (디스크 공간, 메모리, 파일 없음)
+    - QUALITY_GATE: 품질 게이트 미달로 인한 의도적 중단 (외부 장애 아님, 재시도 무의미)
     - UNKNOWN: 분류 불가 에러
     """
 
@@ -37,6 +38,7 @@ class PipelineErrorType(str, Enum):
     CONTENT_FILTER = "content_filter"
     CONTEXT_LENGTH = "context_length"
     RESOURCE_ERROR = "resource_error"
+    QUALITY_GATE = "quality_gate"
     UNKNOWN = "unknown"
 
     @property
@@ -73,6 +75,7 @@ _WAIT_TIMES = {
     PipelineErrorType.CONTENT_FILTER: 0.0,  # 프롬프트 수정 필요
     PipelineErrorType.CONTEXT_LENGTH: 0.0,  # 입력 축소 필요
     PipelineErrorType.RESOURCE_ERROR: 0.0,  # 시스템 점검 필요
+    PipelineErrorType.QUALITY_GATE: 0.0,  # 같은 입력 재시도 무의미 — 대본/미디어 재생성 필요
 }
 
 # 로그 아이콘
@@ -85,6 +88,7 @@ _ICONS = {
     PipelineErrorType.CONTENT_FILTER: "🛡️",
     PipelineErrorType.CONTEXT_LENGTH: "📏",
     PipelineErrorType.RESOURCE_ERROR: "💾",
+    PipelineErrorType.QUALITY_GATE: "🚫",
     PipelineErrorType.UNKNOWN: "❓",
 }
 

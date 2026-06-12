@@ -723,6 +723,54 @@ class TestRunErrorPaths:
         orch.media_step.regenerate_scene.assert_called_once()
         assert warning_logger.called
 
+    def test_early_kill_aborts_before_render_when_unresolved_exceeds_threshold(self, tmp_path: Path):
+        """scene QC 미해결 씬이 임계 이상이면 렌더 전에 중단한다 (status=failed, step=early_kill)."""
+        cfg = _load_cfg(tmp_path)
+        _set_frozen_attr(cfg.project, "scene_qc_enabled", True)
+        _set_frozen_attr(cfg.project, "scene_qc_max_retries", 0)
+        _set_frozen_attr(cfg.project, "early_kill_enabled", True)
+        _set_frozen_attr(cfg.project, "early_kill_max_unresolved_scenes", 1)
+        render = MagicMock()
+        orch = PipelineOrchestrator(
+            config=cfg,
+            base_dir=tmp_path,
+            script_step=StubScript(),
+            media_step=StubMedia(),
+            render_step=render,
+        )
+        fail_qc = FakeQcResult("fail", issues=["visual blur"], checks={"visual_ok": False})
+
+        with patch("shorts_maker_v2.pipeline.orchestrator.QCStep.gate_scene_qc", return_value=fail_qc):
+            manifest = orch.run(topic="test topic", channel="ai_tech")
+
+        assert manifest.status == "failed"
+        assert manifest.failed_steps[0]["step"] == "early_kill"
+        assert manifest.failed_steps[0]["error_type"] == "quality_gate"
+        assert manifest.failed_steps[0]["is_retryable"] is False
+        assert any(d["step"] == "scene_qc" for d in manifest.degraded_steps)
+        render.run.assert_not_called()
+
+    def test_early_kill_disabled_by_default_does_not_abort(self, tmp_path: Path):
+        """early_kill_enabled=False(기본)면 미해결 씬이 있어도 렌더까지 진행한다."""
+        cfg = _load_cfg(tmp_path)
+        _set_frozen_attr(cfg.project, "scene_qc_enabled", True)
+        _set_frozen_attr(cfg.project, "scene_qc_max_retries", 0)
+        assert cfg.project.early_kill_enabled is False
+        orch = PipelineOrchestrator(
+            config=cfg,
+            base_dir=tmp_path,
+            script_step=StubScript(),
+            media_step=StubMedia(),
+            render_step=StubRender(),
+        )
+        fail_qc = FakeQcResult("fail", issues=["visual blur"], checks={"visual_ok": False})
+
+        with patch("shorts_maker_v2.pipeline.orchestrator.QCStep.gate_scene_qc", return_value=fail_qc):
+            manifest = orch.run(topic="test topic", channel="ai_tech")
+
+        assert manifest.status != "failed"
+        assert any(d["step"] == "scene_qc" for d in manifest.degraded_steps)
+
     def test_scene_qc_duration_failure_regenerates_audio(self, tmp_path: Path):
         cfg = _load_cfg(tmp_path)
         _set_frozen_attr(cfg.project, "structure_validation", "off")

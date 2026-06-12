@@ -288,7 +288,7 @@ class ScriptPromptsMixin:
 
     _PROMPT_COPY: dict[str, str] = {
         "system_intro": (
-            "You are a YouTube Shorts scriptwriter. You write in the Hook-Body-CTA format.\n"
+            "You are a YouTube Shorts scriptwriter. You write in the Hook-Body-Closing format.\n"
             "Output ONLY valid JSON.\n"
             "Schema:\n"
             "{\n"
@@ -377,10 +377,11 @@ class ScriptPromptsMixin:
             "Target midpoint: about {target_mid:.1f} seconds.\n"
         ),
         "user_instructions": (
-            "Write a Hook-Body-CTA script for YouTube Shorts in natural spoken English:\n"
-            "  Hook  - Open with a surprising fact or relatable problem. Stop the scroll instantly.\n"
-            "  Body  - Guide through analogy -> data or fact -> cause or solution. Build naturally.\n"
-            "  CTA   - One specific action the viewer can do right now. No subscription requests.\n"
+            "Write a Hook-Body-Closing script for YouTube Shorts in natural spoken English:\n"
+            "  Hook    - Open with a surprising fact or relatable problem. Stop the scroll instantly.\n"
+            "  Body    - Guide through analogy -> data or fact -> cause or solution. Build naturally.\n"
+            "  Closing - End with a quiet, lingering thought that stays with the viewer.\n"
+            "            No action demands, no subscription requests, no imperative commands.\n"
         ),
         "retry_too_short": (
             "The previous draft was too short at about {previous_total_sec:.1f} seconds.\n"

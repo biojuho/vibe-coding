@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from shorts_maker_v2.models import ScenePlan
+from shorts_maker_v2.pipeline.script_prompts import ScriptPromptsMixin
 from shorts_maker_v2.pipeline.script_step import ScriptStep, TopicUnsuitableError, _deep_merge_dicts
 
 
@@ -303,7 +304,9 @@ def test_next_structure_preset_rotates_configured_presets() -> None:
         llm_router=FakeOpenAIClient([]),
     )
 
-    with patch.object(ScriptStep, "_structure_counter", 0):
+    # ScriptStep 이 아니라 mixin 의 클래스 속성을 patch 해야 실제 카운터가 리셋된다
+    # (_next_structure_preset 은 ScriptPromptsMixin._structure_counter 를 직접 읽는다).
+    with patch.object(ScriptPromptsMixin, "_structure_counter", 0):
         first_name, first_flow = step._next_structure_preset()
         second_name, second_flow = step._next_structure_preset()
 

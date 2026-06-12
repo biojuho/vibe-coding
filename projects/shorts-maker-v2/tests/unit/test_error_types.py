@@ -12,7 +12,7 @@ from shorts_maker_v2.pipeline.error_types import (
 
 
 class TestPipelineErrorType:
-    def test_all_9_types_defined(self):
+    def test_all_10_types_defined(self):
         types = {e.value for e in PipelineErrorType}
         assert types == {
             "network_error",
@@ -23,6 +23,7 @@ class TestPipelineErrorType:
             "content_filter",
             "context_length",
             "resource_error",
+            "quality_gate",
             "unknown",
         }
 
@@ -37,6 +38,7 @@ class TestPipelineErrorType:
         assert PipelineErrorType.CONTENT_FILTER.is_retryable is False
         assert PipelineErrorType.CONTEXT_LENGTH.is_retryable is False
         assert PipelineErrorType.RESOURCE_ERROR.is_retryable is False
+        assert PipelineErrorType.QUALITY_GATE.is_retryable is False
         assert PipelineErrorType.UNKNOWN.is_retryable is False
 
     def test_suggested_wait_sec_rate_limit(self):
