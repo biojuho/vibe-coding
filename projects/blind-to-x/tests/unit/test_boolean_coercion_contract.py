@@ -59,6 +59,9 @@ def test_as_optional_float_preserves_zero():
     assert as_optional_float("  ") is None
     assert as_optional_float("abc") is None
     assert as_optional_float("1.5") == 1.5
+    # bool을 1.0/0.0으로 승격하면 점수 필드가 silent하게 오염된다.
+    assert as_optional_float(True) is None
+    assert as_optional_float(False) is None
 
 
 def test_config_manager_get_bool(tmp_path):
@@ -157,6 +160,44 @@ def test_image_ab_variant_respects_string_false():
     _inject_image_ab_variant(config, post_data, "topic", "emotion")
     assert "image_ab_variant" not in post_data
     assert post_data == {"title": "t"}
+
+
+SCRIPT_MODULES_WITH_AS_FLOAT = [
+    "scripts.build_weekly_report",
+    "scripts.review_experiment_dry_run",
+]
+
+FLOAT_EQUIVALENCE_MATRIX = [None, "", "  ", 0, "0", 1.5, "1.5", " 2.5 ", "abc", True, False, -3, "−1", [], {}]
+
+
+@pytest.mark.parametrize("module_name", SCRIPT_MODULES_WITH_AS_FLOAT)
+def test_script_as_float_matches_canonical(module_name):
+    import importlib
+
+    module = importlib.import_module(module_name)
+    for value in FLOAT_EQUIVALENCE_MATRIX:
+        assert module._as_float(value) == as_optional_float(value), (
+            f"{module_name}._as_float({value!r}) != config.as_optional_float({value!r})"
+        )
+
+
+def test_source_preflight_input_paths_implementations_identical():
+    """trend report와 strategy simulation의 _input_paths 및 경로 헬퍼는
+    동일 구현을 유지해야 한다 (loop 13/17/18에서 이 중복이 각각 어긋나 버그가 됐다)."""
+    shared_helpers = ["_input_paths", "_resolve_explicit_input_path", "_unique_paths"]
+    dumps = {}
+    for rel in ("scripts/source_preflight_trend_report.py", "scripts/source_preflight_strategy_simulation.py"):
+        tree = ast.parse((ROOT / rel).read_text(encoding="utf-8"))
+        found = {
+            node.name: ast.dump(node)
+            for node in ast.walk(tree)
+            if isinstance(node, ast.FunctionDef) and node.name in shared_helpers
+        }
+        assert set(found) == set(shared_helpers), f"{rel}에 {set(shared_helpers) - set(found)} 누락"
+        dumps[rel] = found
+    a, b = dumps.values()
+    for name in shared_helpers:
+        assert a[name] == b[name], f"{name} 구현이 두 스크립트 간에 어긋남"
 
 
 POWERSHELL_QUOTE_MODULES = [

@@ -433,7 +433,7 @@
 - ~~`_process_single_post_legacy()` 제거~~ → 이미 완료됨 (2026-06-12 확인: 코드에 부재, D-032 게이트는 유일한 active staged 경로에 적용 중)
 - stage helper 파일 분리, 레거시 `classification_rules.yaml` 소비 경로 정리 (주의: rules.py/regulation_checker.py/분석 스크립트가 활성 소비 중 — 단순 삭제 불가)
 - 선별 정확도 후속: 운영 데이터 누적 후 `min_editorial_score` 임계값 튜닝, Notion 카드에 `editorial_fit` 진단 노출 검토
-- scripts 후속 통합 후보: `_as_float` 2벌(build_weekly_report, review_experiment_dry_run), `_input_paths` 2벌(source_preflight_strategy_simulation, trend_report) — 계약 테스트 패턴으로 동치 고정 가능
+- ~~scripts 후속 통합~~ → 완료 (2026-06-12): `_as_float` 2벌 canonical 정렬(bool→None 명세 — bool이 1.0으로 승격되던 build_weekly_report 모순 해소), `_input_paths`+경로 헬퍼 2벌 AST 동일성 계약 고정. `test_boolean_coercion_contract.py` 38개로 확장, 전체 단위 2506 passed
 ## DONE (2026-06-11 Codex)
 - Debug loop 5: weekly smoke repair-command contract fixed
   - Reproduced failing copy-ready command: `source_preflight_evidence_doctor.py --input .tmp\source_browser_preflight-blind.json --fail-on-warning --json` returned missing JSON.

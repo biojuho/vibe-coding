@@ -200,14 +200,17 @@ def _as_list(value: Any) -> list[Any]:
     return []
 
 
-def _as_float(value: Any) -> float | None:
-    if isinstance(value, bool):
+def _as_float(value) -> float | None:
+    if value is None or isinstance(value, bool):
         return None
-    if isinstance(value, int | float):
+    if isinstance(value, (int, float)):
         return float(value)
     if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
         try:
-            return float(value.strip())
+            return float(text)
         except ValueError:
             return None
     return None

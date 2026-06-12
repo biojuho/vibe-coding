@@ -186,9 +186,10 @@ def as_bool(value, *, default: bool = False) -> bool:
 
 def as_optional_float(value) -> float | None:
     """숫자 해석: 유효한 0을 보존한다. `or` fallback으로 0이 기본값에 먹히는
-    버그 클래스의 방지 지점. None/공백/비수치만 None."""
+    버그 클래스의 방지 지점. None/bool/공백/비수치는 None — bool을 1.0/0.0으로
+    승격하면 점수 필드가 silent하게 오염된다."""
     if value is None or isinstance(value, bool):
-        return float(value) if isinstance(value, bool) else None
+        return None
     if isinstance(value, (int, float)):
         return float(value)
     if isinstance(value, str):

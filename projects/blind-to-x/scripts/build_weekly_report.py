@@ -38,12 +38,19 @@ def _load_live_report_dependencies():
 
 
 def _as_float(value) -> float | None:
-    try:
-        if value in (None, ""):
-            return None
-        return float(value)
-    except (TypeError, ValueError):
+    if value is None or isinstance(value, bool):
         return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        try:
+            return float(text)
+        except ValueError:
+            return None
+    return None
 
 
 def _format_number(value) -> str:
@@ -111,6 +118,45 @@ def _repair_remaining_count(manual_ready_gate: dict) -> int:
     if isinstance(commands, list):
         return max(0, len(commands) - 1)
     return 0
+
+
+def _repair_queue_count_total(items) -> int:
+    if not isinstance(items, list):
+        return 0
+    total = 0
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        try:
+            count = int(item.get("count") or 0)
+        except (TypeError, ValueError):
+            continue
+        total += max(0, count)
+    return total
+
+
+def _repair_queue_consistency(summary: dict, *, repair_command_count: int, queue_count_total: int) -> dict:
+    consistency = (
+        summary.get("repair_command_queue_consistency")
+        if isinstance(summary.get("repair_command_queue_consistency"), dict)
+        else {}
+    )
+    try:
+        consistency_command_count = int(consistency.get("repair_command_count") or repair_command_count)
+    except (TypeError, ValueError):
+        consistency_command_count = repair_command_count
+    try:
+        consistency_queue_total = int(consistency.get("queue_count_total") or queue_count_total)
+    except (TypeError, ValueError):
+        consistency_queue_total = queue_count_total
+    status = str(consistency.get("status") or "").strip()
+    if status not in {"ok", "mismatch"}:
+        status = "ok" if consistency_command_count == consistency_queue_total else "mismatch"
+    return {
+        "status": status,
+        "repair_command_count": max(0, consistency_command_count),
+        "queue_count_total": max(0, consistency_queue_total),
+    }
 
 
 _SOURCE_STRATEGY_BLOCKER_ACTIONS = {
@@ -353,12 +399,51 @@ def _render_review_experiment_section(experiment: dict | None) -> str:
                 f"delta={_format_number(summary.get('average_operator_action_delta'))}",
             ]
         )
+        top_actions = _format_review_top_operator_actions(summary.get("candidate_top_operator_actions"))
+        if top_actions != "-":
+            lines.append(f"- Review top operator actions: {top_actions}")
         missing_counts = summary.get("candidate_missing_metric_counts")
         if isinstance(missing_counts, dict):
             lines.append(
                 f"- Missing metrics: rate={_format_percent(summary.get('candidate_missing_metric_rate'))}; "
                 f"top={_format_counts(missing_counts)}"
             )
+        missing_owners = _format_review_missing_metric_owners(summary.get("candidate_top_missing_metric_owners"))
+        if missing_owners != "-":
+            lines.append(f"- Missing metric owners: {missing_owners}")
+        safety_risk_flags = summary.get("candidate_safety_risk_flag_counts")
+        safety_risk_item_count = int(_as_float(summary.get("candidate_safety_risk_item_count")) or 0)
+        if safety_risk_item_count or (isinstance(safety_risk_flags, dict) and safety_risk_flags):
+            lines.append(
+                f"- Safety risk flags: items={safety_risk_item_count}; "
+                f"flags={_format_counts(safety_risk_flags if isinstance(safety_risk_flags, dict) else {})}"
+            )
+        provider_failure_categories = summary.get("candidate_provider_failure_category_counts")
+        provider_failure_providers = summary.get("candidate_provider_failure_provider_counts")
+        primary_provider_failure_categories = summary.get("candidate_primary_provider_failure_category_counts")
+        primary_provider_failure_providers = summary.get("candidate_primary_provider_failure_provider_counts")
+        if (
+            isinstance(provider_failure_categories, dict)
+            and provider_failure_categories
+            or isinstance(provider_failure_providers, dict)
+            and provider_failure_providers
+            or isinstance(primary_provider_failure_categories, dict)
+            and primary_provider_failure_categories
+            or isinstance(primary_provider_failure_providers, dict)
+            and primary_provider_failure_providers
+        ):
+            lines.append(
+                "- Provider failures: "
+                f"categories={_format_counts(provider_failure_categories if isinstance(provider_failure_categories, dict) else {})}; "
+                f"providers={_format_counts(provider_failure_providers if isinstance(provider_failure_providers, dict) else {})}; "
+                f"primary_categories={_format_counts(primary_provider_failure_categories if isinstance(primary_provider_failure_categories, dict) else {})}; "
+                f"primary_providers={_format_counts(primary_provider_failure_providers if isinstance(primary_provider_failure_providers, dict) else {})}"
+            )
+        provider_failure_repairs = _format_provider_failure_repair_actions(
+            summary.get("candidate_primary_provider_failure_actions")
+        )
+        if provider_failure_repairs != "-":
+            lines.append(f"- Provider failure repair: {provider_failure_repairs}")
         lines.append(
             f"- Operator buckets: errors={_format_counts(summary.get('candidate_operator_error_bucket_counts') or {})}; "
             f"reasons={_format_counts(summary.get('candidate_operator_reason_bucket_counts') or {})}; "
@@ -367,6 +452,11 @@ def _render_review_experiment_section(experiment: dict | None) -> str:
         rollout_reason = str(summary.get("candidate_rollout_reason") or "").strip()
         if rollout_reason:
             lines.append(f"- Rollout gate: {rollout_reason}")
+        rollout_blocker_actions = _format_review_rollout_blocker_actions(
+            summary.get("candidate_rollout_blocker_actions")
+        )
+        if rollout_blocker_actions != "-":
+            lines.append(f"- Rollout blocker actions: {rollout_blocker_actions}")
         if next_action:
             lines.append(f"- Next manual action: {next_action}")
     elif comparison is not None and variants is not None:
@@ -402,6 +492,96 @@ def _render_review_experiment_section(experiment: dict | None) -> str:
         ]
     )
     return "\n".join(lines)
+
+
+def _format_review_top_operator_actions(items, *, limit: int = 2) -> str:
+    if not isinstance(items, list):
+        return "-"
+    parts = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        action = str(item.get("action") or "").strip()
+        if not action:
+            continue
+        count = item.get("count", 0)
+        priority_value = item.get("priority")
+        priority = "-" if priority_value in (None, "") else str(priority_value).strip()
+        reason = str(item.get("reason") or "").strip() or "-"
+        parts.append(f"{count}x {action} priority={priority} reason={reason}")
+        if len(parts) >= limit:
+            break
+    return " | ".join(parts) if parts else "-"
+
+
+def _format_provider_failure_repair_actions(items, *, limit: int = 2) -> str:
+    if not isinstance(items, list):
+        return "-"
+    parts = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        provider = str(item.get("provider") or "-").strip() or "-"
+        category = str(item.get("category") or "-").strip() or "-"
+        action = str(item.get("operator_action") or "-").strip() or "-"
+        if provider == "-" and category == "-" and action == "-":
+            continue
+        count = item.get("count", 0)
+        model = str(item.get("model") or "-").strip() or "-"
+        retryable = _format_bool(item.get("retryable"))
+        circuit_breaker = _format_bool(item.get("circuit_breaker_candidate"))
+        parts.append(
+            f"{count}x provider={provider} category={category} model={model} "
+            f"retryable={retryable} circuit_breaker={circuit_breaker} action={action}"
+        )
+        if len(parts) >= limit:
+            break
+    return " | ".join(parts) if parts else "-"
+
+
+def _format_review_missing_metric_owners(items, *, limit: int = 2) -> str:
+    if not isinstance(items, list):
+        return "-"
+    parts = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        owner = str(item.get("owner") or "").strip()
+        if not owner:
+            continue
+        count = item.get("count", 0)
+        top_metric = str(item.get("top_metric") or "-").strip() or "-"
+        action = str(item.get("operator_action") or "-").strip() or "-"
+        parts.append(f"{count}x {owner} top_metric={top_metric} action={action}")
+        if len(parts) >= limit:
+            break
+    return " | ".join(parts) if parts else "-"
+
+
+def _format_review_rollout_blocker_actions(items, *, limit: int = 2) -> str:
+    if not isinstance(items, list):
+        return "-"
+    parts = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        code = str(item.get("code") or "").strip()
+        if not code:
+            continue
+        source = str(item.get("source") or "-").strip() or "-"
+        action = str(item.get("operator_action") or "-").strip() or "-"
+        details = [f"{code} source={source}"]
+        owner = str(item.get("owner") or "").strip()
+        if owner:
+            details.append(f"owner={owner}")
+        top_metric = str(item.get("top_metric") or "").strip()
+        if top_metric:
+            details.append(f"top_metric={top_metric}")
+        details.append(f"action={action}")
+        parts.append(" ".join(details))
+        if len(parts) >= limit:
+            break
+    return " | ".join(parts) if parts else "-"
 
 
 def _source_preflight_trend_next_action(summary: dict | None, safety: dict, payload: dict) -> str:
@@ -448,6 +628,82 @@ def _format_top_repair_commands(items, *, limit: int = 2) -> str:
     return " | ".join(parts) if parts else "-"
 
 
+def _source_strategy_primary_repair_target(summary: dict, manual_ready_gate: dict) -> dict:
+    repair_command = str(manual_ready_gate.get("primary_repair_command") or "").strip()
+    queue = summary.get("repair_command_queue") if isinstance(summary.get("repair_command_queue"), list) else []
+    fallback = None
+    for item in queue:
+        if not isinstance(item, dict):
+            continue
+        command = str(item.get("command") or "").strip()
+        if fallback is None:
+            fallback = item
+        if repair_command and command == repair_command:
+            return item
+    return fallback if isinstance(fallback, dict) else {}
+
+
+def _format_primary_repair_target(item: dict) -> str:
+    if not isinstance(item, dict) or not item:
+        return "-"
+    sources = item.get("sources") if isinstance(item.get("sources"), dict) else {}
+    buckets = item.get("buckets") if isinstance(item.get("buckets"), dict) else {}
+    parts = [
+        f"type={item.get('type', '-')}",
+        f"count={item.get('count', 0)}",
+    ]
+    if buckets:
+        parts.append(f"buckets={_format_counts(buckets, limit=4)}")
+    if sources:
+        parts.append(f"sources={_format_counts(sources, limit=4)}")
+    return "; ".join(parts)
+
+
+def _format_top_operator_actions(items, *, limit: int = 2) -> str:
+    if not isinstance(items, list):
+        return "-"
+    parts = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        action = str(item.get("operator_action") or "").strip()
+        if not action:
+            continue
+        count = item.get("count", 0)
+        sources = item.get("sources") if isinstance(item.get("sources"), dict) else {}
+        parts.append(f"{count}x sources={_format_counts(sources)} action={action}")
+        if len(parts) >= limit:
+            break
+    return " | ".join(parts) if parts else "-"
+
+
+def _format_top_source_evidence(item: dict | None) -> str:
+    if not isinstance(item, dict):
+        return "-"
+    evidence = item.get("evidence") if isinstance(item.get("evidence"), dict) else {}
+    open_first_field = str(item.get("open_first_field") or "").strip()
+    open_first = str(item.get("open_first") or "").strip()
+    parts = [
+        f"source={item.get('source', '-')}",
+        f"status={item.get('status', '-')}",
+        f"count={item.get('count', 0)}",
+    ]
+    if open_first_field and open_first:
+        parts.append(f"open_first={open_first_field}={open_first}")
+    for key in (
+        "failure_report_path",
+        "trace_path",
+        "screenshot_path",
+        "html_snapshot_path",
+        "click_screenshot_path",
+    ):
+        value = str(evidence.get(key) or "").strip()
+        if not value or key == open_first_field:
+            continue
+        parts.append(f"{key}={value}")
+    return "; ".join(parts)
+
+
 def _render_source_preflight_trend_section(trend: dict | None) -> str:
     if not isinstance(trend, dict):
         return ""
@@ -459,6 +715,9 @@ def _render_source_preflight_trend_section(trend: dict | None) -> str:
     top_source_action = summary.get("top_source_action") if isinstance(summary.get("top_source_action"), dict) else {}
     top_source_remediation = (
         summary.get("top_source_remediation") if isinstance(summary.get("top_source_remediation"), dict) else {}
+    )
+    top_source_evidence = (
+        summary.get("top_source_evidence") if isinstance(summary.get("top_source_evidence"), dict) else {}
     )
     operator_recommendation = (
         summary.get("operator_recommendation") if isinstance(summary.get("operator_recommendation"), dict) else {}
@@ -477,23 +736,34 @@ def _render_source_preflight_trend_section(trend: dict | None) -> str:
         f"- Evidence: failure_report_statuses={_format_counts(summary.get('failure_report_status_counts') or {})}; "
         f"errors={summary.get('error_count', 0)}; warnings={summary.get('warning_count', 0)}; "
         f"top_issue_codes={_format_counts(summary.get('top_issue_codes') or {})}",
+        f"- Evidence fields: {_format_counts(summary.get('evidence_field_counts') or {}, limit=6)}",
         f"- Evidence gates: strategy_change_ready={summary.get('strategy_change_ready_count', 0)}; "
         f"statuses={_format_counts(summary.get('evidence_gate_status_counts') or {})}",
         f"- Repair commands: total={summary.get('repair_command_count', 0)}; "
         f"types={_format_counts(summary.get('repair_command_type_counts') or {})}; "
         f"top={_format_top_repair_commands(summary.get('top_repair_commands'))}",
+        f"- Source trend operator actions: {_format_top_operator_actions(summary.get('top_operator_actions'))}",
         f"- Safety: read_only={_format_bool(safety.get('read_only'))}; "
         f"browser_launches={_format_bool(safety.get('browser_launches'))}; "
         f"notion_writes={_format_bool(safety.get('notion_writes'))}; "
         f"x_posts={_format_bool(safety.get('x_posts'))}; "
         f"manual_publish_required={_format_bool(safety.get('manual_publish_required'))}",
     ]
+    mismatch_count = int(_as_float(summary.get("operator_action_mismatch_count")) or 0)
+    if mismatch_count:
+        lines.insert(
+            -1,
+            f"- Operator action mismatches: count={mismatch_count}; "
+            f"sources={_format_counts(summary.get('operator_action_mismatch_source_counts') or {})}",
+        )
     if top_source_action:
         lines.append(
             f"- Top source action: source={top_source_action.get('source', '-')}; "
             f"status={top_source_action.get('status', '-')}; count={top_source_action.get('count', 0)}; "
             f"action={top_source_action.get('operator_action', '-')}"
         )
+    if top_source_evidence:
+        lines.append(f"- Top source evidence: {_format_top_source_evidence(top_source_evidence)}")
     if operator_recommendation:
         lines.append(
             f"- Operator recommendation: action={operator_recommendation.get('action', '-')}; "
@@ -591,11 +861,22 @@ def _render_source_preflight_strategy_section(simulation: dict | None) -> str:
         f"- Safety risk flags: current={_format_flags(current_signals.get('safety_risk_flags'))}; "
         f"candidate={_format_flags(candidate_signals.get('safety_risk_flags'))}",
         f"- Evidence gates: {_format_counts(gate_counts if isinstance(gate_counts, dict) else {})}",
-        f"- Rollout gate: status={rollout_gate.get('status', '-')}; "
-        f"ready_for_manual_strategy_review={_format_bool(rollout_gate.get('ready_for_manual_strategy_review'))}; "
-        f"auto_apply_allowed={_format_bool(rollout_gate.get('auto_apply_allowed'))}; "
-        f"blocked_by={blocked_by_text}",
     ]
+    mismatch_count = int(_as_float(summary.get("operator_action_mismatch_count")) or 0)
+    if mismatch_count:
+        lines.append(
+            f"- Strategy operator action mismatches: count={mismatch_count}; "
+            f"sources={_format_counts(summary.get('operator_action_mismatch_source_counts') or {})}"
+        )
+    lines.extend(
+        [
+            f"- Source operator actions: {_format_top_operator_actions(summary.get('top_operator_actions'))}",
+            f"- Rollout gate: status={rollout_gate.get('status', '-')}; "
+            f"ready_for_manual_strategy_review={_format_bool(rollout_gate.get('ready_for_manual_strategy_review'))}; "
+            f"auto_apply_allowed={_format_bool(rollout_gate.get('auto_apply_allowed'))}; "
+            f"blocked_by={blocked_by_text}",
+        ]
+    )
     if blocked_checklist:
         lines.append(f"- Blocked checklist: {blocked_checklist}")
     lines.append(f"- Gate action: {rollout_gate.get('operator_action', '-')}")
@@ -626,6 +907,27 @@ def _render_source_preflight_strategy_section(simulation: dict | None) -> str:
                     f"- Repair commands: count={repair_command_count}; "
                     f"primary_shown={_format_bool(bool(repair_command))}; remaining={remaining_repair_commands}"
                 )
+                listed_repair_commands = len(repair_commands)
+                repair_queue_count_total = _repair_queue_count_total(summary.get("repair_command_queue"))
+                repair_queue_consistency = _repair_queue_consistency(
+                    summary,
+                    repair_command_count=repair_command_count,
+                    queue_count_total=repair_queue_count_total,
+                )
+                consistency_queue_total = repair_queue_consistency["queue_count_total"]
+                full_queue_available = (
+                    repair_queue_consistency["status"] == "ok" and consistency_queue_total >= repair_command_count
+                )
+                lines.append(
+                    f"- Repair queue: total={repair_command_count}; listed={listed_repair_commands}; "
+                    f"count_total={consistency_queue_total}; "
+                    f"consistency={repair_queue_consistency['status']}; "
+                    f"full_queue_available={_format_bool(full_queue_available)}; "
+                    "source=manual_ready_gate.repair_commands"
+                )
+                primary_target = _source_strategy_primary_repair_target(summary, manual_ready_gate)
+                if primary_target:
+                    lines.append(f"- Primary repair target: {_format_primary_repair_target(primary_target)}")
             if repair_command:
                 lines.append(f"- Repair command: `{repair_command}`")
             if remaining_repair_commands > 0:
@@ -643,6 +945,50 @@ def _render_source_preflight_strategy_section(simulation: dict | None) -> str:
             "",
         ]
     )
+    return "\n".join(lines)
+
+
+def _render_recompute_runtime_contract_section(contract: dict | None) -> str:
+    if not isinstance(contract, dict):
+        return ""
+
+    runtime_contract = contract.get("runtime_contract") if isinstance(contract.get("runtime_contract"), dict) else {}
+    validation = runtime_contract.get("validation") if isinstance(runtime_contract.get("validation"), dict) else {}
+    scoring_dry_run = (
+        runtime_contract.get("scoring_dry_run") if isinstance(runtime_contract.get("scoring_dry_run"), dict) else {}
+    )
+    safety = contract.get("safety") if isinstance(contract.get("safety"), dict) else {}
+    gate_errors = contract.get("gate_errors") if isinstance(contract.get("gate_errors"), list) else []
+    gate_error_text = ", ".join(str(error) for error in gate_errors if str(error).strip()) or "-"
+    command = str(scoring_dry_run.get("runtime_contract_gate_command") or "").strip()
+    operator_action = str(contract.get("operator_action") or "").strip()
+
+    lines = [
+        "",
+        "## Recompute Scores Runtime Contract (dry-run)",
+        "",
+        f"- Source: {contract.get('input_source', '-')}",
+        f"- Gate: status={contract.get('status', '-')}; ok={_format_bool(contract.get('ok'))}; "
+        f"validation_ok={_format_bool(contract.get('validation_ok'))}; gate_errors={len(gate_errors)}; "
+        f"records={contract.get('record_count', 0)}; "
+        f"candidate_ranking_weights={_format_bool(contract.get('candidate_ranking_weights_present'))}",
+        f"- Runtime: validation_loads_runtime_dependencies="
+        f"{_format_bool(validation.get('loads_runtime_dependencies'))}; "
+        f"validation_scoring_runs={_format_bool(validation.get('scoring_runs'))}; "
+        f"scoring_dependencies_may_initialize="
+        f"{_format_bool(scoring_dry_run.get('scoring_dependencies_may_initialize'))}",
+        f"- Safety: notion_reads={_format_bool(safety.get('notion_reads'))}; "
+        f"notion_writes={_format_bool(safety.get('notion_writes'))}; "
+        f"x_posts={_format_bool(safety.get('x_posts'))}; "
+        f"manual_publish_required={_format_bool(safety.get('manual_publish_required'))}",
+    ]
+    if gate_errors:
+        lines.append(f"- Gate errors: {gate_error_text}")
+    if command:
+        lines.append(f"- Recompute command: `{command}`")
+    if operator_action:
+        lines.append(f"- Next manual action: {operator_action}")
+    lines.append("")
     return "\n".join(lines)
 
 
@@ -682,6 +1028,19 @@ def _load_source_preflight_strategy_report(input_path: str | None) -> dict:
         return payload if isinstance(payload, dict) else {}
     except Exception as exc:
         logger.warning("Source preflight strategy section skipped: %s", exc)
+        return {}
+
+
+def _load_recompute_runtime_contract_report(input_path: str | None) -> dict:
+    if not input_path:
+        return {}
+    try:
+        path = Path(input_path)
+        with path.open(encoding="utf-8-sig") as handle:
+            payload = json.load(handle)
+        return payload if isinstance(payload, dict) else {}
+    except Exception as exc:
+        logger.warning("Recompute runtime contract section skipped: %s", exc)
         return {}
 
 
@@ -763,6 +1122,9 @@ def _render_report(payload: dict, *, best_of_n_days: int = 30) -> str:
     source_strategy_section = _render_source_preflight_strategy_section(payload.get("source_preflight_strategy"))
     if source_strategy_section:
         body += source_strategy_section
+    recompute_section = _render_recompute_runtime_contract_section(payload.get("recompute_runtime_contract"))
+    if recompute_section:
+        body += recompute_section
     tuner_section = _render_best_of_n_section(best_of_n_days)
     if tuner_section:
         body += tuner_section
@@ -776,6 +1138,7 @@ async def run(
     review_experiment_input: str | None = None,
     source_preflight_trend_input: str | None = None,
     source_preflight_strategy_input: str | None = None,
+    recompute_contract_input: str | None = None,
     payload_input: str | None = None,
 ) -> int:
     payload = _load_report_payload(payload_input)
@@ -794,6 +1157,9 @@ async def run(
     source_preflight_strategy = _load_source_preflight_strategy_report(source_preflight_strategy_input)
     if source_preflight_strategy:
         payload["source_preflight_strategy"] = source_preflight_strategy
+    recompute_runtime_contract = _load_recompute_runtime_contract_report(recompute_contract_input)
+    if recompute_runtime_contract:
+        payload["recompute_runtime_contract"] = recompute_runtime_contract
     # tuner sweep 은 더 긴 윈도우(30일)로 보는 게 표본 확보에 유리.
     report = _render_report(payload, best_of_n_days=max(days, 30))
 
@@ -829,6 +1195,11 @@ def main():
         default="",
         help="Optional source_preflight_strategy_simulation JSON to embed as a read-only A/B summary.",
     )
+    parser.add_argument(
+        "--recompute-contract-input",
+        default="",
+        help="Optional recompute_scores --assert-runtime-contract JSON to embed as a dry-run safety summary.",
+    )
     args = parser.parse_args()
 
     from config import load_env, setup_logging
@@ -844,6 +1215,7 @@ def main():
                 review_experiment_input=args.review_experiment_input,
                 source_preflight_trend_input=args.source_preflight_trend_input,
                 source_preflight_strategy_input=args.source_preflight_strategy_input,
+                recompute_contract_input=args.recompute_contract_input,
                 payload_input=args.payload_input,
             )
         )
