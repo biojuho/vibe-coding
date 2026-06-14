@@ -27,7 +27,8 @@ import {
 
 export const metadata = {
 	title: "대시보드 · Joolife 한우",
-	description: "한우 농장 관리 대시보드 — 개체 관리, 수익성 분석, AI 인사이트를 한 곳에서.",
+	description:
+		"한우 농장 관리 대시보드 — 개체 관리, 수익성 분석, AI 인사이트를 한 곳에서.",
 	robots: { index: false, follow: false },
 };
 
@@ -103,7 +104,9 @@ const INITIAL_DATA_LOADERS = [
 
 function isNextControlFlowError(error) {
 	const digest = typeof error?.digest === "string" ? error.digest : "";
-	return digest.startsWith("NEXT_REDIRECT") || digest.startsWith("NEXT_NOT_FOUND");
+	return (
+		digest.startsWith("NEXT_REDIRECT") || digest.startsWith("NEXT_NOT_FOUND")
+	);
 }
 
 function logInitialDataLoadFailure(sectionId, error) {
@@ -147,7 +150,9 @@ async function loadInitialDataSection(loader) {
 }
 
 export async function loadDashboardInitialData() {
-	const results = await Promise.all(INITIAL_DATA_LOADERS.map(loadInitialDataSection));
+	const results = await Promise.all(
+		INITIAL_DATA_LOADERS.map(loadInitialDataSection),
+	);
 	const data = Object.fromEntries(
 		results.map((result) => [result.key, result.value]),
 	);
@@ -172,7 +177,14 @@ export default async function Page() {
 
 	const [initialData, subscriptionStatus] = await Promise.all([
 		loadDashboardInitialData(),
-		getSubscriptionStatus(session.user.id).catch(() => ({ status: "INACTIVE", daysLeft: null })),
+		getSubscriptionStatus(session.user.id).catch((err) => {
+			console.error(
+				"page: subscription status check failed for user",
+				session.user.id,
+				err,
+			);
+			return { status: "INACTIVE", daysLeft: null };
+		}),
 	]);
 
 	return (

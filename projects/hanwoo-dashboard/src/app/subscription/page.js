@@ -6,7 +6,8 @@ import { getSubscriptionStatus } from "@/lib/subscription-queries";
 
 export const metadata = {
 	title: "구독 관리 · Joolife 한우",
-	description: "Joolife 한우 프리미엄 구독을 관리하세요. 월 9,900원으로 AI 인사이트, 수익성 분석, 엑셀 내보내기를 이용하세요.",
+	description:
+		"Joolife 한우 프리미엄 구독을 관리하세요. 월 9,900원으로 AI 인사이트, 수익성 분석, 엑셀 내보내기를 이용하세요.",
 	robots: { index: false, follow: false },
 };
 
@@ -41,12 +42,19 @@ function ActiveSubscriptionView({ daysLeft, nextPaymentDate, cancelSuccess }) {
 			>
 				프리미엄 구독 중
 			</div>
-			<p style={{ color: "var(--color-text-secondary)", fontSize: "14px", marginBottom: "4px" }}>
+			<p
+				style={{
+					color: "var(--color-text-secondary)",
+					fontSize: "14px",
+					marginBottom: "4px",
+				}}
+			>
 				모든 기능을 제한 없이 사용하실 수 있습니다.
 			</p>
 			{nextDate && (
 				<p style={{ color: "var(--color-text-secondary)", fontSize: "13px" }}>
-					다음 결제일: <strong style={{ color: "var(--color-text)" }}>{nextDate}</strong>
+					다음 결제일:{" "}
+					<strong style={{ color: "var(--color-text)" }}>{nextDate}</strong>
 					{daysLeft != null && ` (${daysLeft}일 후)`}
 				</p>
 			)}
@@ -68,7 +76,13 @@ function ActiveSubscriptionView({ daysLeft, nextPaymentDate, cancelSuccess }) {
 	);
 }
 
-function TrialSubscriptionView({ daysLeft, customerKey, amount, orderName, customerName }) {
+function TrialSubscriptionView({
+	daysLeft,
+	customerKey,
+	amount,
+	orderName,
+	customerName,
+}) {
 	return (
 		<div>
 			<div
@@ -85,10 +99,19 @@ function TrialSubscriptionView({ daysLeft, customerKey, amount, orderName, custo
 			>
 				<span style={{ fontSize: "32px" }}>🎉</span>
 				<div>
-					<div style={{ fontSize: "15px", fontWeight: "800", color: "var(--color-text)", marginBottom: "4px" }}>
+					<div
+						style={{
+							fontSize: "15px",
+							fontWeight: "800",
+							color: "var(--color-text)",
+							marginBottom: "4px",
+						}}
+					>
 						무료 체험판 사용 중
 					</div>
-					<div style={{ fontSize: "13px", color: "var(--color-text-secondary)" }}>
+					<div
+						style={{ fontSize: "13px", color: "var(--color-text-secondary)" }}
+					>
 						{daysLeft != null && daysLeft > 0
 							? `${daysLeft}일 남았습니다. 체험이 끝나기 전에 구독하세요.`
 							: "체험 기간이 오늘 만료됩니다."}
@@ -112,12 +135,19 @@ export default async function SubscriptionPage({ searchParams }) {
 	const params = await Promise.resolve(searchParams);
 	const cancelStatus = params?.cancel ?? null;
 	const customerKey = buildCustomerKey(session.user.id);
-	const subscriptionStatus = await getSubscriptionStatus(session.user.id).catch(() => ({
-		status: "INACTIVE",
-		daysLeft: null,
-	}));
+	const subscriptionStatus = await getSubscriptionStatus(session.user.id).catch(
+		(err) => {
+			console.error(
+				"subscription-page: subscription status check failed for user",
+				session.user.id,
+				err,
+			);
+			return { status: "INACTIVE", daysLeft: null };
+		},
+	);
 
-	const customerName = session.user.name || session.user.username || "Joolife 사용자";
+	const customerName =
+		session.user.name || session.user.username || "Joolife 사용자";
 
 	const features = [
 		{ icon: "🤖", title: "AI 인사이트", desc: "매일 농장 상태 분석·조언" },
@@ -152,7 +182,8 @@ export default async function SubscriptionPage({ searchParams }) {
 				Joolife 프리미엄 구독
 			</h1>
 			<p style={{ marginBottom: "24px", color: "var(--color-text-secondary)" }}>
-				월 9,900원으로 농장 운영 기록과 AI 보조 기능을 더 안정적으로 사용해 주세요.
+				월 9,900원으로 농장 운영 기록과 AI 보조 기능을 더 안정적으로 사용해
+				주세요.
 			</p>
 
 			<div
@@ -179,7 +210,9 @@ export default async function SubscriptionPage({ searchParams }) {
 							gap: "10px",
 						}}
 					>
-						<span style={{ fontSize: "20px", lineHeight: 1, flexShrink: 0 }}>{feature.icon}</span>
+						<span style={{ fontSize: "20px", lineHeight: 1, flexShrink: 0 }}>
+							{feature.icon}
+						</span>
 						<div>
 							<div
 								style={{
@@ -212,8 +245,10 @@ export default async function SubscriptionPage({ searchParams }) {
 					style={{
 						marginBottom: "16px",
 						padding: "12px 16px",
-						background: "color-mix(in srgb, var(--color-danger) 10%, transparent)",
-						border: "1px solid color-mix(in srgb, var(--color-danger) 30%, transparent)",
+						background:
+							"color-mix(in srgb, var(--color-danger) 10%, transparent)",
+						border:
+							"1px solid color-mix(in srgb, var(--color-danger) 30%, transparent)",
 						borderRadius: "14px",
 						fontSize: "13px",
 						fontWeight: 600,
