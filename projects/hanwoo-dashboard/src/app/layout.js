@@ -84,12 +84,22 @@ const SCHEMA_ORG_APP = {
 	url: "https://hanwoo.joolife.com",
 	description:
 		"한우 농장의 개체, 번식, 출하, 재고, 일정을 한곳에서 관리하는 운영 대시보드",
-	offers: {
-		"@type": "Offer",
-		price: "0",
-		priceCurrency: "KRW",
-		description: "14일 무료 체험",
-	},
+	offers: [
+		{
+			"@type": "Offer",
+			price: "0",
+			priceCurrency: "KRW",
+			description: "14일 무료 체험 (카드 등록 불필요)",
+			eligibleCustomerType: "NewCustomer",
+		},
+		{
+			"@type": "Offer",
+			price: "9900",
+			priceCurrency: "KRW",
+			description: "프리미엄 월 구독 — AI 인사이트, 수익성 분석, 엑셀 내보내기",
+			billingIncrement: "P1M",
+		},
+	],
 };
 
 export default function RootLayout(options = {}) {
