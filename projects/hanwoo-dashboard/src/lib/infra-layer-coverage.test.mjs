@@ -342,6 +342,20 @@ test("AI chat route exports maxDuration=60 for SSE stream duration", () => {
 	assert.match(chatRoute, /export const maxDuration = 60/);
 });
 
+test("AI insight route returns 403 SUBSCRIPTION_REQUIRED for INACTIVE subscribers", () => {
+	assert.match(insightRoute, /getSubscriptionStatus/);
+	assert.match(insightRoute, /status.*INACTIVE/);
+	assert.match(insightRoute, /status: 403/);
+	assert.match(insightRoute, /SUBSCRIPTION_REQUIRED/);
+});
+
+test("AI chat route returns 403 SUBSCRIPTION_REQUIRED for INACTIVE subscribers", () => {
+	assert.match(chatRoute, /getSubscriptionStatus/);
+	assert.match(chatRoute, /status.*INACTIVE/);
+	assert.match(chatRoute, /status: 403/);
+	assert.match(chatRoute, /SUBSCRIPTION_REQUIRED/);
+});
+
 // ── ErrorBoundary ─────────────────────────────────────────────────────────────
 
 const errorBoundary = readSource("components/ErrorBoundary.js");

@@ -227,7 +227,7 @@ def test_run_retries_when_first_script_is_too_short() -> None:
     client = FakeOpenAIClient([short_payload, long_enough_payload])
     step = ScriptStep(config=make_config(duration_range=(8, 16)), llm_router=client, openai_client=client)
 
-    title, scenes, hook_pattern = step.run("science topic")
+    title, scenes, hook_pattern, _ = step.run("science topic")
 
     assert title == "Longer Draft"
     assert client.calls == 2
@@ -520,7 +520,7 @@ def test_run_applies_research_fixes_and_truncates_when_over_hard_limit() -> None
         patch.object(step, "_truncate_to_fit", side_effect=lambda scenes, *_args: scenes) as truncate,
         patch.object(step, "estimate_total_duration_sec", side_effect=[50.0, 50.0, 40.0]),
     ):
-        title, scenes, _ = step.run(
+        title, scenes, _, _ = step.run(
             "ai topic",
             research_context=research_context,
             structure_outline=structure_outline,
@@ -583,7 +583,7 @@ def test_run_uses_review_retry_when_scores_fail_threshold() -> None:
             "feedback": "Needs more specifics.",
         },
     ):
-        title, scenes, _ = step.run("ai systems")
+        title, scenes, _, _ = step.run("ai systems")
 
     assert title == "Retried draft"
     assert llm_router.generate_json.call_count == 2
@@ -615,7 +615,7 @@ def test_run_skips_review_errors_and_returns_best_result() -> None:
     )
 
     with patch.object(step, "_review_script", side_effect=RuntimeError("review backend down")):
-        title, scenes, _ = step.run("resilient topic")
+        title, scenes, _, _ = step.run("resilient topic")
 
     assert title == "Stable draft"
     assert len(scenes) == 2

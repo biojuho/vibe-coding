@@ -346,7 +346,9 @@ class ScriptReviewMixin:
         from shorts_maker_v2.pipeline.script_prompts import ScriptPromptsMixin
 
         words = forbidden_words if forbidden_words is not None else ScriptPromptsMixin._CTA_FORBIDDEN_WORDS
-        return [w for w in words if w in narration.lower()]
+        # SMV2-CV001: 대소문자 무관 매칭 — 금지어가 대문자 포함이어도 누락 없이 검출
+        narration_lower = narration.lower()
+        return [w for w in words if w.lower() in narration_lower]
 
     @classmethod
     def _score_persona_match(

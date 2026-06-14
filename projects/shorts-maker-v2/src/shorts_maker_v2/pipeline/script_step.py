@@ -488,8 +488,10 @@ class ScriptStep(ScriptPromptsMixin, ScriptReviewMixin):
                 logger.warning("[ScriptReview] scoring failed (skipped): %s", exc)
 
         # ── CTA/Closing 금지어 검증 ────────────────────────────────────────────
+        # SMV2-CV002: 위반 내역을 리스트로 수집 → 오케스트레이터가 degraded_steps에 기록
         final_title, final_scenes = best_result
         ending_scenes = [s for s in final_scenes if s.structure_role in ("cta", "closing")]
+        all_cta_violations: list[dict[str, str]] = []
         for ending_scene in ending_scenes:
             violations = self._validate_cta(ending_scene.narration_ko, self._cta_forbidden_words)
             if violations:
@@ -499,6 +501,11 @@ class ScriptStep(ScriptPromptsMixin, ScriptReviewMixin):
                     ending_scene.structure_role,
                     ", ".join(repr(v) for v in violations),
                 )
+                all_cta_violations.append({
+                    "scene_id": str(ending_scene.scene_id),
+                    "role": ending_scene.structure_role,
+                    "words": ", ".join(violations),
+                })
 
         # ── 페르소나 매칭 스코어 ─────────────────────────────────────────────
         if self.channel_key:
@@ -512,4 +519,4 @@ class ScriptStep(ScriptPromptsMixin, ScriptReviewMixin):
                 " ← LOW: persona drift detected" if persona_score < 0.4 else "",
             )
 
-        return (*best_result, hook_pattern_name)
+        return (*best_result, hook_pattern_name, all_cta_violations)

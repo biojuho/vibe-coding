@@ -357,7 +357,7 @@ class TestRunIntegration:
     def test_cta_violation_detected(self):
         """run() 결과의 CTA 씬에 금지어가 포함되면 _validate_cta()가 감지한다."""
         bad_cta = self._BAD_CTA
-        _, scenes, _ = self._run_with_payload(self._make_payload(bad_cta))
+        _, scenes, _, _ = self._run_with_payload(self._make_payload(bad_cta))
 
         cta_scenes = [s for s in scenes if s.structure_role == "cta"]
         assert cta_scenes, "CTA scene should exist"
@@ -371,10 +371,18 @@ class TestRunIntegration:
         )
         assert "구독" in all_violations
 
+    def test_cta_violation_included_in_run_return(self):
+        """SMV2-CV002: CTA 금지어 위반이 run() 4번째 반환값에 포함돼야 함."""
+        bad_cta = self._BAD_CTA
+        _, _, _, cta_violations = self._run_with_payload(self._make_payload(bad_cta))
+        assert cta_violations, f"Expected CTA violations in 4th return value, got: {cta_violations}"
+        codes = [v.get("words", "") for v in cta_violations]
+        assert any("구독" in c for c in codes), f"Expected '구독' in violation words, got: {codes}"
+
     def test_clean_cta_no_violations(self):
         """금지어 없는 CTA는 _validate_cta()가 빈 리스트를 반환한다."""
         clean_cta = self._CLEAN_CTA
-        _, scenes, _ = self._run_with_payload(self._make_payload(clean_cta))
+        _, scenes, _, _ = self._run_with_payload(self._make_payload(clean_cta))
 
         cta_scenes = [s for s in scenes if s.structure_role == "cta"]
         for s in cta_scenes:
@@ -391,7 +399,7 @@ class TestRunIntegration:
             llm_router=client,
             channel_key="health",
         )
-        _, scenes, _ = step.run("health topic")
+        _, scenes, _, _ = step.run("health topic")
 
         # channel_key=health가 설정되어 있으므로 스코어가 계산되어야 함
         score = ScriptStep._score_persona_match(scenes, "health")
@@ -402,7 +410,7 @@ class TestRunIntegration:
     def test_persona_score_neutral_for_unknown_channel(self):
         """알 수 없는 채널 키는 0.5 중립 스코어를 반환한다."""
         cta = self._CLEAN_CTA
-        _, scenes, _ = self._run_with_payload(self._make_payload(cta))
+        _, scenes, _, _ = self._run_with_payload(self._make_payload(cta))
 
         score = ScriptStep._score_persona_match(scenes, "unknown_xyz_channel")
         assert score == 0.5
@@ -415,7 +423,7 @@ class TestRunIntegration:
         long_hook = "정말 충격적인 사실 하나를 지금 바로 들려드릴게요 그러니 끝까지 보세요 부탁드립니다"
         cta = self._CLEAN_CTA
         payload = self._make_payload(cta, hook=long_hook)
-        _, scenes, _ = self._run_with_payload(payload)
+        _, scenes, _, _ = self._run_with_payload(payload)
 
         hook_scenes = [s for s in scenes if s.structure_role == "hook"]
         assert hook_scenes, "Hook scene should exist"
