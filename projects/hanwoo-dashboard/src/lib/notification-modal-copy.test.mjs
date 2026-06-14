@@ -118,7 +118,7 @@ test("notification modal SMS action uses safe button semantics and Korean copy",
 	assert.match(source, /중요한 알림을 문자로 받아보시겠습니까\?/);
 	assert.match(
 		source,
-		/\{isTestingSMS \? "문자 알림 테스트 전송 중\.\.\." : "문자 알림 테스트 전송"\}/,
+		/\{isTestingSMS[\s\S]*?\? "문자 알림 테스트 전송 중\.\.\."[\s\S]*?: "문자 알림 테스트 전송"\}/,
 	);
 	assert.doesNotMatch(
 		source,
@@ -152,11 +152,11 @@ test("notification modal SMS test action announces completion status", () => {
 	);
 	assert.match(
 		source,
-		/await Promise\.resolve\(onTestSMS\?\.\(\)\);\s+if \(isMountedRef\.current\) \{\s+setSmsTestStatusVariant\("success"\);\s+setSmsTestStatus\(/,
+		/await Promise\.resolve\(onTestSMS\(\)\);\s+if \(isMountedRef\.current\) \{\s+setSmsTestStatusVariant\("success"\);\s+setSmsTestStatus\(/,
 	);
 	assert.match(
 		source,
-		/\} catch \{\s+if \(isMountedRef\.current\) \{\s+setSmsTestStatusVariant\("error"\);\s+setSmsTestStatus\(/,
+		/\} catch \(err\) \{\s+[\s\S]*?if \(isMountedRef\.current\) \{\s+setSmsTestStatusVariant\("error"\);\s+setSmsTestStatus\(/,
 	);
 	assert.match(
 		source,
@@ -200,7 +200,7 @@ test("notification modal SMS test action waits for async sends before re-enablin
 	assert.match(source, /if \(isTestingSMS\) \{\s+return;\s+\}/);
 	assert.match(source, /setSmsTestStatus\(["']["']\);/);
 	assert.match(source, /setIsTestingSMS\(true\);/);
-	assert.match(source, /await Promise\.resolve\(onTestSMS\?\.\(\)\);/);
+	assert.match(source, /await Promise\.resolve\(onTestSMS\(\)\);/);
 	assert.match(
 		source,
 		/setSmsTestStatus\(["']문자 알림 테스트 전송을 완료했습니다\.["']\);/,
