@@ -6,6 +6,7 @@ import {
 } from "@/lib/ai-chat-api.mjs";
 import { requireAuthenticatedSession } from "@/lib/auth-guard";
 import prisma from "@/lib/db";
+import { getSubscriptionStatus } from "@/lib/subscription-queries";
 import { toFiniteNumber } from "@/lib/utils";
 
 const SYSTEM_INSTRUCTION = `
@@ -164,6 +165,36 @@ function createGeminiChatStream(options = {}) {
 }
 
 export async function POST(request) {
+	let session;
+	try {
+		session = await requireAuthenticatedSession();
+	} catch {
+		return Response.json(
+			{ success: false, message: "로그인이 필요합니다.", error: "UNAUTHENTICATED" },
+			{ status: 401 },
+		);
+	}
+	if (!session) {
+		return Response.json(
+			{ success: false, message: "로그인이 필요합니다.", error: "UNAUTHENTICATED" },
+			{ status: 401 },
+		);
+	}
+
+	const subscriptionStatus = await getSubscriptionStatus(session.user?.id).catch(
+		() => ({ status: "INACTIVE" }),
+	);
+	if (subscriptionStatus.status === "INACTIVE") {
+		return Response.json(
+			{
+				success: false,
+				message: "프리미엄 구독이 필요한 기능입니다.",
+				error: "SUBSCRIPTION_REQUIRED",
+			},
+			{ status: 403 },
+		);
+	}
+
 	return handleAiChatRequest(request, {
 		authenticate: requireAuthenticatedSession,
 		getApiKey: () => process.env.GEMINI_API_KEY,

@@ -13,6 +13,7 @@ import {
 	parseInsightResponse,
 } from "@/lib/ai-insight.mjs";
 import { requireAuthenticatedSession } from "@/lib/auth-guard";
+import { getSubscriptionStatus } from "@/lib/subscription-queries";
 
 const SYSTEM_INSTRUCTION = `
 당신은 한우 농가 운영자에게 매일 3개의 우선순위 행동을 권하는 Joolife AI 분석가입니다.
@@ -135,6 +136,20 @@ export async function POST(request) {
 		return Response.json(
 			{ error: "인증이 필요합니다.", code: "UNAUTHENTICATED" },
 			{ status: 401 },
+		);
+	}
+
+	const subscriptionStatus = await getSubscriptionStatus(session.user?.id).catch(
+		() => ({ status: "INACTIVE" }),
+	);
+	if (subscriptionStatus.status === "INACTIVE") {
+		emitInsightMetric({
+			event: "subscription_required",
+			durationMs: Date.now() - startedAt,
+		});
+		return Response.json(
+			{ error: "프리미엄 구독이 필요한 기능입니다.", code: "SUBSCRIPTION_REQUIRED" },
+			{ status: 403 },
 		);
 	}
 
