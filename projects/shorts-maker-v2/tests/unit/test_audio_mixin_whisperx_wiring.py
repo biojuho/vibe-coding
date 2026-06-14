@@ -28,6 +28,13 @@ class _StubMixin(MediaAudioMixin):
         self.openai_client = openai_client
         self._channel_key = "test-channel"
 
+    @staticmethod
+    def _scene_id_from_path(path):
+        import re
+
+        match = re.search(r"scene_(\d+)", Path(path).stem)
+        return int(match.group(1)) if match else None
+
 
 def _make_config(*, use_whisperx: bool, sync_whisper: bool = False) -> SimpleNamespace:
     return SimpleNamespace(
@@ -186,3 +193,104 @@ def test_whisperx_internal_exception_does_not_break_pipeline(monkeypatch, tmp_pa
     # 예외가 발생해도 audio_result 는 반환되어야 한다
     result = mixin._generate_audio("안녕", audio)
     assert result == audio
+
+
+# ── degraded_steps propagation ─────────────────────────────────────────────
+# The lazy import inside _generate_audio goes through shorts_maker_v2.render.__init__
+# which imports caption_pillow → PIL. We inject a fake module to avoid PIL entirely.
+
+import sys
+import types
+
+
+def _inject_fake_whisperx(is_available_fn, align_fn=None, write_fn=None):
+    """Return a context that injects a stub whisperx_aligner into sys.modules."""
+    import contextlib
+
+    @contextlib.contextmanager
+    def _ctx():
+        fake_render = types.ModuleType("shorts_maker_v2.render")
+        fake_aligner = types.ModuleType("shorts_maker_v2.render.whisperx_aligner")
+        fake_aligner.is_available = is_available_fn
+        fake_aligner.align_audio_words = align_fn or (lambda *a, **kw: [])
+        fake_aligner.write_words_json = write_fn or (lambda *a, **kw: None)
+
+        old_render = sys.modules.get("shorts_maker_v2.render")
+        old_aligner = sys.modules.get("shorts_maker_v2.render.whisperx_aligner")
+        sys.modules["shorts_maker_v2.render"] = fake_render
+        sys.modules["shorts_maker_v2.render.whisperx_aligner"] = fake_aligner
+        try:
+            yield
+        finally:
+            if old_render is None:
+                sys.modules.pop("shorts_maker_v2.render", None)
+            else:
+                sys.modules["shorts_maker_v2.render"] = old_render
+            if old_aligner is None:
+                sys.modules.pop("shorts_maker_v2.render.whisperx_aligner", None)
+            else:
+                sys.modules["shorts_maker_v2.render.whisperx_aligner"] = old_aligner
+
+    return _ctx()
+
+
+def test_whisperx_failure_appends_to_pending_audio_warnings(tmp_path, monkeypatch):
+    """WhisperX 정렬 실패 시 _pending_audio_warnings 에 기록되어야 한다."""
+    audio = tmp_path / "scene_02.mp3"
+    _patch_tts_factory(monkeypatch, audio)
+
+    def _explode():
+        raise RuntimeError("GPU OOM")
+
+    with _inject_fake_whisperx(is_available_fn=_explode):
+        config = _make_config(use_whisperx=True, sync_whisper=False)
+        mixin = _StubMixin(config=config)
+        mixin._pending_audio_warnings = []
+
+        result = mixin._generate_audio("안녕하세요 오늘도 좋은 하루", audio)
+
+    assert result == audio
+    assert len(mixin._pending_audio_warnings) == 1
+    warn = mixin._pending_audio_warnings[0]
+    assert warn["step"] == "whisperx_align"
+    assert warn["error_type"] == "sync_loss"
+    assert "GPU OOM" in warn["message"]
+
+
+def test_whisper_sync_failure_appends_to_pending_audio_warnings(tmp_path, monkeypatch):
+    """Whisper word-sync 실패 시 _pending_audio_warnings 에 기록되어야 한다."""
+    audio = tmp_path / "scene_03.mp3"
+    _patch_tts_factory(monkeypatch, audio)
+
+    fake_client = MagicMock()
+    fake_client.transcribe_audio.side_effect = ConnectionError("timeout")
+
+    config = _make_config(use_whisperx=False, sync_whisper=True)
+    mixin = _StubMixin(config=config, openai_client=fake_client)
+    mixin._pending_audio_warnings = []
+
+    result = mixin._generate_audio("안녕하세요 오늘도 좋은 하루", audio)
+
+    assert result == audio
+    assert len(mixin._pending_audio_warnings) == 1
+    warn = mixin._pending_audio_warnings[0]
+    assert warn["step"] == "whisper_sync"
+    assert warn["error_type"] == "sync_loss"
+    assert "timeout" in warn["message"]
+
+
+def test_no_pending_warnings_attr_does_not_crash(tmp_path, monkeypatch):
+    """_pending_audio_warnings 속성이 없는 경우도 안전하게 폴백해야 한다."""
+    audio = tmp_path / "scene_01.mp3"
+    _patch_tts_factory(monkeypatch, audio)
+
+    def _explode():
+        raise RuntimeError("no GPU")
+
+    with _inject_fake_whisperx(is_available_fn=_explode):
+        config = _make_config(use_whisperx=True, sync_whisper=False)
+        mixin = _StubMixin(config=config)
+        # deliberately NOT setting _pending_audio_warnings — tests getattr guard
+        result = mixin._generate_audio("안녕하세요 오늘도 좋은 하루", audio)
+
+    assert result == audio  # must not raise
