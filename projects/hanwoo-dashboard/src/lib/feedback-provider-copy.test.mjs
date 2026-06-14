@@ -161,3 +161,30 @@ test("FeedbackProvider toast region is a named landmark for screen reader naviga
 	assert.match(source, /role=\{isUrgent \? "alert" : "status"\}/);
 	assert.match(source, /aria-live=\{isUrgent \? "assertive" : "polite"\}/);
 });
+
+test("FeedbackProvider normalizes malformed options before destructuring", () => {
+	const source = readSource("components/feedback/FeedbackProvider.js");
+	assert.match(source, /function normalizeFeedbackProviderOptions\(options\)/);
+	assert.match(
+		source,
+		/options && typeof options === "object" && !Array\.isArray\(options\)/,
+	);
+	assert.match(source, /export function FeedbackProvider\(options = \{\}\)/);
+});
+
+test("FeedbackProvider confirm() returns a Promise that resolves via resolverRef", () => {
+	const source = readSource("components/feedback/FeedbackProvider.js");
+	assert.match(source, /confirm\s*=\s*useCallback/);
+	assert.match(source, /return new Promise\(\(resolve\) => \{/);
+	assert.match(source, /resolverRef\.current = resolve/);
+	assert.match(source, /resolverRef\.current\(result\)/);
+	assert.match(source, /resolverRef\.current = null/);
+});
+
+test("FeedbackProvider notify() generates IDs and times out toasts automatically", () => {
+	const source = readSource("components/feedback/FeedbackProvider.js");
+	assert.match(source, /notify\s*=\s*useCallback/);
+	assert.match(source, /`toast_\$\{/);
+	assert.match(source, /setTimeout/);
+	assert.match(source, /setToasts\s*\(\s*\(current\)/);
+});
