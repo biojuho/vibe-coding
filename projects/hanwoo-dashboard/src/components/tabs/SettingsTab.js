@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { LogOut, MapPin, Settings } from "lucide-react";
+import { LogOut, MapPin, Settings, Trash2 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -23,6 +23,7 @@ import {
 	farmSettingsSchema,
 } from "@/lib/formSchemas";
 import { focusElementSafely } from "@/lib/safeFocus";
+import { deleteAccount } from "@/lib/actions";
 
 const errorTextStyle = {
 	fontSize: "12px",
@@ -1311,6 +1312,103 @@ export default function SettingsTab(options = {}) {
 					로그아웃
 				</PremiumButton>
 			</div>
+
+			{/* 계정 삭제 */}
+			<DeleteAccountSection confirm={confirm} />
+		</div>
+	);
+}
+
+const DELETE_ACCOUNT_CONFIRM_MESSAGE =
+	"계정을 삭제하면 로그인이 불가능해집니다. 농장 데이터(개체, 재고, 출하 기록 등)는 삭제되지 않습니다.\n\n정말 삭제하시겠습니까?";
+
+function DeleteAccountSection(options = {}) {
+	const { confirm: confirmDialog } =
+		options && typeof options === "object" && !Array.isArray(options)
+			? options
+			: {};
+	const safeConfirm = typeof confirmDialog === "function" ? confirmDialog : null;
+	const [isDeleting, setIsDeleting] = useState(false);
+	const [deleteError, setDeleteError] = useState("");
+	const isMountedRef = useRef(false);
+	useEffect(() => {
+		isMountedRef.current = true;
+		return () => {
+			isMountedRef.current = false;
+		};
+	}, []);
+
+	const handleDeleteAccount = async () => {
+		if (isDeleting) return;
+		if (safeConfirm) {
+			const confirmed = await safeConfirm(DELETE_ACCOUNT_CONFIRM_MESSAGE);
+			if (!confirmed) return;
+		}
+		setIsDeleting(true);
+		setDeleteError("");
+		try {
+			const result = await deleteAccount();
+			if (!result?.ok) {
+				if (isMountedRef.current) {
+					setDeleteError(result?.error ?? "계정 삭제에 실패했습니다.");
+					setIsDeleting(false);
+				}
+				return;
+			}
+			await signOut({ callbackUrl: "/" });
+		} catch {
+			if (isMountedRef.current) {
+				setDeleteError("계정 삭제 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+				setIsDeleting(false);
+			}
+		}
+	};
+
+	const deleteButtonLabel = isDeleting ? "계정 삭제 중" : "계정 삭제";
+
+	return (
+		<div
+			style={{
+				background: "var(--color-bg-card)",
+				padding: "18px 20px",
+				borderRadius: "20px",
+				border: "1px solid color-mix(in srgb, var(--color-danger) 35%, var(--color-surface-stroke))",
+				marginTop: "20px",
+			}}
+		>
+			<div style={{ fontWeight: 700, fontSize: "14px", color: "var(--color-danger)", marginBottom: "4px" }}>
+				계정 삭제
+			</div>
+			<div style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginBottom: "12px", lineHeight: 1.5 }}>
+				계정을 삭제하면 로그인이 불가능해집니다. 농장 데이터는 삭제되지 않습니다.
+			</div>
+			{deleteError ? (
+				<div
+					role="alert"
+					style={{
+						fontSize: "12px",
+						color: "var(--color-danger)",
+						fontWeight: 600,
+						marginBottom: "10px",
+					}}
+				>
+					{deleteError}
+				</div>
+			) : null}
+			<PremiumButton
+				variant="outline"
+				size="sm"
+				onClick={handleDeleteAccount}
+				disabled={isDeleting}
+				aria-busy={isDeleting}
+				aria-label={deleteButtonLabel}
+				title={deleteButtonLabel}
+				className="gap-1.5"
+				style={{ borderColor: "var(--color-danger)", color: "var(--color-danger)" }}
+			>
+				<Trash2 size={14} aria-hidden="true" />
+				{isDeleting ? "계정 삭제 중..." : "계정 삭제"}
+			</PremiumButton>
 		</div>
 	);
 }

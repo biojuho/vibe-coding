@@ -667,3 +667,49 @@ test("settings tab subscription status is passed from DashboardClient", () => {
 		/subscriptionStatus=\{subscriptionStatus\}/,
 	);
 });
+
+test("settings tab renders delete account section with danger styling and confirm guard", () => {
+	const source = readSource("components/tabs/SettingsTab.js");
+
+	// Component exists and is composed in main SettingsTab output
+	assert.match(source, /function DeleteAccountSection\(options = \{\}\) \{/);
+	assert.match(source, /<DeleteAccountSection confirm=\{confirm\} \/>/);
+
+	// Imports deleteAccount action and Trash2 icon
+	assert.match(source, /import \{ deleteAccount \} from ["']@\/lib\/actions["']/);
+	assert.match(source, /Trash2/);
+
+	// User-facing copy
+	assert.match(source, /계정 삭제/);
+	assert.match(source, /계정을 삭제하면 로그인이 불가능해집니다/);
+	assert.match(source, /농장 데이터는 삭제되지 않습니다/);
+
+	// Accessibility attributes
+	assert.match(source, /aria-busy=\{isDeleting\}/);
+	assert.match(source, /aria-label=\{deleteButtonLabel\}/);
+
+	// Confirmation guard before deleting
+	assert.match(source, /const confirmed = await safeConfirm\(DELETE_ACCOUNT_CONFIRM_MESSAGE\)/);
+	assert.match(source, /if \(!confirmed\) return;/);
+
+	// Calls deleteAccount then signOut on success
+	assert.match(source, /const result = await deleteAccount\(\)/);
+	assert.match(source, /await signOut\(\{ callbackUrl: ["']\/["'] \}\)/);
+});
+
+test("deleteAccount server action anonymizes subscription and deletes user", () => {
+	const source = readSource("lib/actions/system.js");
+
+	assert.match(source, /export async function deleteAccount\(\) \{/);
+	assert.match(source, /const session = await requireAuthenticatedSession\(\)/);
+	// Anonymize subscription by setting userId to null
+	assert.match(
+		source,
+		/prisma\.subscription\.updateMany\(\{\s*where: \{ userId \},\s*data: \{ userId: null \}/,
+	);
+	// Delete user record
+	assert.match(source, /prisma\.user\.delete\(\{ where: \{ id: userId \} \}\)/);
+	// Barrel export
+	const actions = readSource("lib/actions.js");
+	assert.match(actions, /deleteAccount/);
+});

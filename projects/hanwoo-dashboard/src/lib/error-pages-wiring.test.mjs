@@ -225,8 +225,9 @@ test("login page operator eyebrow uses Korean product copy", () => {
 	assert.match(source, /Joolife 한우 운영/);
 	assert.match(source, /오늘의 사육, 재고, 출하 업무를 이어서 관리해 주세요/);
 	assert.doesNotMatch(source, /오늘의 사육, 재고, 출하 업무를 이어서 관리하세요/);
-	assert.match(source, /운영자 계정 안내/);
-	assert.match(source, /발급된 관리자 아이디와 비밀번호로 로그인해 주세요/);
+	assert.doesNotMatch(source, /운영자 계정 안내/);
+	assert.doesNotMatch(source, /발급된 관리자 아이디와 비밀번호로 로그인해 주세요/);
+	assert.doesNotMatch(source, /관리자 아이디/);
 	assert.match(source, /const LOGIN_LEGAL_LINKS = \[/);
 	assert.match(
 		source,

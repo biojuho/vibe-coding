@@ -107,3 +107,29 @@ export async function getProfitabilityData() {
 	await requireAuthenticatedSession();
 	return await getProfitabilityEstimates();
 }
+
+// ============================================================
+// Account Deletion
+// ============================================================
+
+const DELETE_ACCOUNT_ERROR_MESSAGE = "계정 삭제 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
+
+export async function deleteAccount() {
+	const session = await requireAuthenticatedSession();
+	const userId = session.user?.id;
+	if (!userId) {
+		return { ok: false, error: "세션 정보를 확인할 수 없습니다." };
+	}
+	try {
+		// Anonymize subscription records so payment audit trail is preserved
+		await prisma.subscription.updateMany({
+			where: { userId },
+			data: { userId: null },
+		});
+		await prisma.user.delete({ where: { id: userId } });
+		return { ok: true };
+	} catch (error) {
+		console.error("deleteAccount failed:", error);
+		return { ok: false, error: DELETE_ACCOUNT_ERROR_MESSAGE };
+	}
+}

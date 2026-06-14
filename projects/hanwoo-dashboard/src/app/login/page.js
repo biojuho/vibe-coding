@@ -193,25 +193,6 @@ export default function LoginPage() {
 					</div>
 				)}
 
-				{/* 운영자 계정 안내 */}
-				<div style={{
-					backgroundColor: "rgba(99, 102, 241, 0.08)",
-					border: "1px solid rgba(99, 102, 241, 0.2)",
-					borderRadius: "8px",
-					padding: "12px 16px",
-					marginBottom: "20px",
-					fontSize: "14px",
-					color: "#818cf8",
-					display: "flex",
-					flexDirection: "column",
-					gap: "4px"
-				}}>
-					<div style={{ fontWeight: "bold", display: "flex", alignItems: "center", gap: "6px" }}>
-						<ShieldCheck size={16} strokeWidth={2.2} aria-hidden="true" /> 운영자 계정 안내
-					</div>
-					<div>발급된 관리자 아이디와 비밀번호로 로그인해 주세요.</div>
-				</div>
-
 				<form className="login-form" onSubmit={handleSubmit}>
 					<div className="login-field">
 						<label className="login-label" htmlFor={usernameInputId}>
@@ -233,7 +214,7 @@ export default function LoginPage() {
 								autoComplete="username"
 								inputMode="text"
 								enterKeyHint="next"
-								placeholder="관리자 아이디"
+								placeholder="아이디 입력"
 								aria-label="아이디"
 								aria-invalid={Boolean(error)}
 								aria-describedby={error ? loginErrorId : undefined}

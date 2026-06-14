@@ -53,6 +53,7 @@ export {
 } from "./actions/schedule";
 
 export {
+	deleteAccount,
 	getProfitabilityData,
 	getRawData,
 	getSystemDiagnostics,
