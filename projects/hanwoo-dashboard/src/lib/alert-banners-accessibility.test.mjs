@@ -142,3 +142,12 @@ test("CalvingAlertBanner notification list uses role=list/listitem for screen re
 	const source = readSource("components/widgets/AlertBanners.js");
 	assert.match(source, /aria-label="분만 알림 목록"/);
 });
+
+test("all custom SVG icon components in common.js have aria-hidden=true and focusable=false", () => {
+	const source = readSource("components/ui/common.js");
+	// Each named icon must have aria-hidden + focusable so screen readers skip decorative icons
+	for (const icon of ["BackIcon", "PlusIcon", "EditIcon", "TrashIcon", "HeartIcon"]) {
+		const iconRegex = new RegExp(`export const ${icon} = \\(\\) => \\(\\s*<svg\\s+aria-hidden="true"\\s+focusable="false"`);
+		assert.match(source, iconRegex, `${icon} is missing aria-hidden="true" or focusable="false"`);
+	}
+});
