@@ -80,7 +80,7 @@ class TestRelaxPerSourceLimits:
 
 class TestResolveDailyQueueFloor:
     def _run(self, coro):
-        return asyncio.get_event_loop().run_until_complete(coro)
+        return asyncio.run(coro)
 
     def test_review_only_false_returns_inactive(self):
         state = self._run(resolve_daily_queue_floor(None, MagicMock(), review_only=False))
