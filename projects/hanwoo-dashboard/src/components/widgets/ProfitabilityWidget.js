@@ -148,7 +148,7 @@ export function ProfitabilityWidget(options = {}) {
 				</div>
 			) : null}
 			<PremiumCardContent className="p-0">
-				<div className="divide-y divide-gray-100">
+				<div className="divide-y divide-gray-100" role="list" aria-label="출하 수익성 분석 목록">
 					{visibleData.map((rawItem) => {
 						const item = {
 							...rawItem,
@@ -164,6 +164,7 @@ export function ProfitabilityWidget(options = {}) {
 						return (
 							<div
 								key={item.id}
+								role="listitem"
 								className="p-4 transition-colors hover:bg-[color:var(--color-surface-elevated)]"
 							>
 								<div className="flex justify-between items-start mb-2">

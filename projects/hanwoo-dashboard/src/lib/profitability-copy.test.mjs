@@ -280,3 +280,12 @@ test("premium card header renders profitability widget title props as visible co
 	assert.match(headerSource, /\{children\}/);
 	assert.doesNotMatch(headerSource, /\{\.\.\.props\}\s*\/>/);
 });
+
+test("ProfitabilityWidget uses list semantics for screen reader navigation", () => {
+	const source = readSource("components/widgets/ProfitabilityWidget.js");
+
+	// List container and items provide structured navigation for screen readers
+	assert.match(source, /role="list"/);
+	assert.match(source, /aria-label="출하 수익성 분석 목록"/);
+	assert.match(source, /role="listitem"/);
+});
