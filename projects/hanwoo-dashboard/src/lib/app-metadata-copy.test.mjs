@@ -62,6 +62,16 @@ test("root layout has openGraph and twitter social share images", () => {
 	assert.match(layoutSource, /twitter:[\s\S]{0,200}images:/);
 });
 
+test("root layout has metadataBase so OG image URLs resolve to absolute paths", () => {
+	const layoutSource = readProjectFile("src/app/layout.js");
+
+	// Without metadataBase, OG image paths like /icon-512x512.png stay relative
+	// and Kakao/Twitter crawlers reject them — they require absolute URLs
+	assert.match(layoutSource, /metadataBase:/);
+	assert.match(layoutSource, /new URL\(/);
+	assert.match(layoutSource, /hanwoo\.joolife\.com/);
+});
+
 test("proxy leaves public health and PWA assets outside auth redirects", () => {
 	const proxySource = readProjectFile("src/proxy.js");
 

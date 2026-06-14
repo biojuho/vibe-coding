@@ -29,6 +29,9 @@ const cormorantGaramond = Cormorant_Garamond({
 });
 
 export const metadata = {
+	metadataBase: new URL(
+		process.env.NEXTAUTH_URL || process.env.AUTH_URL || "https://hanwoo.joolife.com",
+	),
 	title: "Joolife 한우 농장 관리",
 	description:
 		"한우 농장의 개체, 번식, 출하, 재고, 일정을 한곳에서 관리하는 운영 대시보드",
