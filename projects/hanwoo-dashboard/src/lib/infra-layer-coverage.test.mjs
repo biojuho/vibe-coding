@@ -653,3 +653,27 @@ test("feedRecordSchema enforces required roughage and concentrate as positive nu
 	assert.match(validationLib, /배합사료량은 0보다 커야 합니다/);
 });
 
+// ── actions/schedule.js ───────────────────────────────────────────────────────
+
+const scheduleAction = readSource("lib/actions/schedule.js");
+
+test("createScheduleEvent validates input before DB write and returns error on invalid data", () => {
+	assert.match(scheduleAction, /validateScheduleEventInput/);
+	assert.match(scheduleAction, /validation\.success/);
+	assert.match(scheduleAction, /success: false/);
+});
+
+test("scheduleEventSchema enforces title (max 120), date, and type enum", () => {
+	const validationLib = readSource("lib/action-validation.mjs");
+	assert.match(validationLib, /scheduleEventSchema/);
+	assert.match(validationLib, /title.*requiredText.*120|requiredText.*120.*title/);
+	assert.match(validationLib, /z\.enum\(\["General", "Vaccination", "Checkup", "Breeding", "Other"\]\)/);
+	assert.match(validationLib, /일정을 등록할 제목을 입력해 주세요/);
+});
+
+test("toggleEventCompletion guards id and isCompleted type before DB update", () => {
+	assert.match(scheduleAction, /typeof isCompleted !== "boolean"/);
+	assert.match(scheduleAction, /typeof id === "string" \? id\.trim\(\) : ""/);
+	assert.match(scheduleAction, /if \(!normalizedId\)/);
+});
+
