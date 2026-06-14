@@ -142,8 +142,12 @@ class ScriptPromptsMixin:
 
     duration_estimate_chars_per_sec = 2.8  # 실측 SSML+edge-tts 보정: 씬별 prosody/emphasis/break 오버헤드 반영
 
-    # 4가지 Hook 패턴 (로테이션)
+    # 5가지 Hook 패턴 (로테이션) — cognitive_dissonance는 topic_angle_generator의 주요 패턴
     HOOK_PATTERNS: list[tuple[str, str]] = [
+        (
+            "cognitive_dissonance",
+            "Open with a result that defies expectation: [반전 결과] + [이유]. Make viewers think '어? 왜?' instantly.",
+        ),
         ("shocking_stat", "Open with a shocking statistic or number that makes the viewer stop scrolling."),
         (
             "relatable_frustration",
