@@ -328,3 +328,113 @@ test("validateInventoryQuantityInput blocks negative quantities", () => {
 	assert.equal(valid.success, true);
 	assert.equal(valid.data.quantity, 0);
 });
+
+// ── Cattle weight custom refine (> 2000 kg) ───────────────────────────────────
+
+test("validateCattleMutationInput rejects cattle weight above 2000 kg", () => {
+	const result = validateCattleMutationInput({
+		name: "테스트",
+		tagNumber: "ABC-001",
+		buildingId: "building-1",
+		penNumber: "3",
+		gender: "수",
+		birthDate: "2024-01-01",
+		status: "비육우",
+		weight: "2001", // over the custom limit
+	});
+	assert.equal(result.success, false);
+	assert.ok(result.validationErrors.weight?.length);
+});
+
+test("validateCattleMutationInput accepts weight exactly at 2000 kg boundary", () => {
+	const result = validateCattleMutationInput({
+		name: "테스트",
+		tagNumber: "ABC-001",
+		buildingId: "building-1",
+		penNumber: "3",
+		gender: "수",
+		birthDate: "2024-01-01",
+		status: "비육우",
+		weight: "2000",
+	});
+	assert.equal(result.success, true);
+	assert.equal(result.data.weight, 2000);
+});
+
+// ── Future date rejection (requiredPastOrTodayDate) ───────────────────────────
+
+test("validateCattleMutationInput rejects a clearly-future birthDate", () => {
+	const futureDate = new Date();
+	futureDate.setFullYear(futureDate.getFullYear() + 2);
+	const dateStr = futureDate.toISOString().slice(0, 10);
+	const result = validateCattleMutationInput({
+		name: "테스트",
+		tagNumber: "ABC-001",
+		buildingId: "building-1",
+		penNumber: "3",
+		gender: "수",
+		birthDate: dateStr,
+		status: "비육우",
+		weight: "400",
+	});
+	assert.equal(result.success, false);
+	assert.ok(result.validationErrors.birthDate?.length);
+});
+
+test("validateSalesRecordInput rejects a clearly-future saleDate", () => {
+	const futureDate = new Date();
+	futureDate.setFullYear(futureDate.getFullYear() + 1);
+	const dateStr = futureDate.toISOString().slice(0, 10);
+	const result = validateSalesRecordInput({
+		saleDate: dateStr,
+		price: "5000000",
+		cattleId: "cattle-1",
+		grade: "1",
+	});
+	assert.equal(result.success, false);
+	assert.ok(result.validationErrors.saleDate?.length);
+});
+
+// ── Farm coordinates boundary values ─────────────────────────────────────────
+
+test("validateFarmSettingsInput accepts coordinates at exact boundaries (±90, ±180)", () => {
+	const at90 = validateFarmSettingsInput({
+		name: "농장",
+		location: "location",
+		latitude: "90",
+		longitude: "180",
+	});
+	assert.equal(at90.success, true);
+	assert.equal(at90.data.latitude, 90);
+	assert.equal(at90.data.longitude, 180);
+
+	const neg = validateFarmSettingsInput({
+		name: "농장",
+		location: "location",
+		latitude: "-90",
+		longitude: "-180",
+	});
+	assert.equal(neg.success, true);
+	assert.equal(neg.data.latitude, -90);
+	assert.equal(neg.data.longitude, -180);
+});
+
+test("validateFarmSettingsInput rejects latitude below -90 and longitude above 180", () => {
+	const badLat = validateFarmSettingsInput({
+		name: "농장",
+		location: "location",
+		latitude: "-91",
+		longitude: "127",
+	});
+	assert.equal(badLat.success, false);
+	assert.ok(badLat.validationErrors.latitude?.length);
+
+	const badLon = validateFarmSettingsInput({
+		name: "농장",
+		location: "location",
+		latitude: "37",
+		longitude: "181",
+	});
+	assert.equal(badLon.success, false);
+	assert.ok(badLon.validationErrors.longitude?.length);
+});
