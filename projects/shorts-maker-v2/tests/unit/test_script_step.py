@@ -279,6 +279,18 @@ def test_validate_cta_and_persona_score_handle_edge_cases() -> None:
     assert neutral_score == 0.5
 
 
+def test_cognitive_dissonance_hook_pattern_is_recognized() -> None:
+    """topic_angle_generator가 반환하는 cognitive_dissonance 패턴이 HOOK_PATTERNS에 존재해야 한다."""
+    step = ScriptStep(
+        config=make_config(),
+        llm_router=FakeOpenAIClient([]),
+        channel_hook_pattern="cognitive_dissonance",
+    )
+    name, instruction = step._get_hook_pattern()
+    assert name == "cognitive_dissonance"
+    assert "반전" in instruction or "defies" in instruction.lower() or "dissonance" in instruction.lower()
+
+
 def test_get_hook_pattern_falls_back_when_fixed_pattern_is_missing() -> None:
     step = ScriptStep(
         config=make_config(),
