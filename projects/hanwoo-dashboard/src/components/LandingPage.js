@@ -45,6 +45,8 @@ export default function LandingPage() {
 		>
 			{/* Header */}
 			<header
+				role="banner"
+				aria-label="Joolife 한우 사이트 헤더"
 				style={{
 					borderBottom: "1px solid var(--color-surface-stroke)",
 					padding: "0 24px",
@@ -96,6 +98,7 @@ export default function LandingPage() {
 				</div>
 			</header>
 
+			<main>
 			{/* Hero */}
 			<section
 				style={{
@@ -286,6 +289,7 @@ export default function LandingPage() {
 					지금 시작하기
 				</Link>
 			</section>
+			</main>
 
 			{/* Footer */}
 			<footer

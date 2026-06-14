@@ -2105,3 +2105,28 @@ test("dashboard API fallback messages stay operator-facing Korean", () => {
 		/must be a positive integer|cursor.*malformed|valid YYYY-MM-DD|before or equal/,
 	);
 });
+
+test("landing page uses semantic HTML landmarks for accessibility", () => {
+	const source = readSource("components/LandingPage.js");
+
+	// Proper landmark roles
+	assert.match(source, /role="banner"/);
+	assert.match(source, /<main>/);
+	assert.match(source, /<\/main>/);
+	assert.match(source, /<footer/);
+	assert.match(source, /<header/);
+
+	// Sections inside main
+	assert.match(source, /<section/);
+
+	// No bare divs wrapping the entire content area (main is the semantic container)
+	assert.match(source, /무료로 시작하기/);
+	assert.match(source, /14일 무료 체험/);
+});
+
+test("subscription page has metadata title", () => {
+	const source = readSource("app/subscription/page.js");
+
+	assert.match(source, /구독 관리 · Joolife 한우/);
+	assert.match(source, /export const metadata = /);
+});
