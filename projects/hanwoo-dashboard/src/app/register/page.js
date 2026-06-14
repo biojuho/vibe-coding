@@ -30,6 +30,7 @@ export default function RegisterPage() {
 	const [username, setUsername] = useState("");
 	const [password, setPassword] = useState("");
 	const [confirm, setConfirm] = useState("");
+	const [agreed, setAgreed] = useState(false);
 	const [error, setError] = useState("");
 	const [loading, setLoading] = useState(false);
 
@@ -39,6 +40,10 @@ export default function RegisterPage() {
 
 		if (password !== confirm) {
 			setError("비밀번호가 일치하지 않습니다.");
+			return;
+		}
+		if (!agreed) {
+			setError("이용약관 및 개인정보처리방침에 동의해 주세요.");
 			return;
 		}
 
@@ -196,6 +201,46 @@ export default function RegisterPage() {
 							/>
 						</div>
 					</div>
+
+					<label
+						htmlFor="reg-agree"
+						style={{
+							display: "flex",
+							alignItems: "flex-start",
+							gap: "10px",
+							marginBottom: "8px",
+							cursor: "pointer",
+						}}
+					>
+						<input
+							id="reg-agree"
+							type="checkbox"
+							checked={agreed}
+							onChange={(e) => { setAgreed(e.target.checked); setError(""); }}
+							required
+							style={{ marginTop: "2px", accentColor: "var(--color-primary-custom)", flexShrink: 0 }}
+						/>
+						<span style={{ fontSize: "12px", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
+							<Link
+								href="/terms"
+								target="_blank"
+								rel="noopener noreferrer"
+								style={{ color: "var(--color-primary-custom)", fontWeight: 700, textDecoration: "none" }}
+							>
+								이용약관
+							</Link>
+							{" 및 "}
+							<Link
+								href="/privacy"
+								target="_blank"
+								rel="noopener noreferrer"
+								style={{ color: "var(--color-primary-custom)", fontWeight: 700, textDecoration: "none" }}
+							>
+								개인정보처리방침
+							</Link>
+							에 동의합니다 (필수)
+						</span>
+					</label>
 
 					{error && (
 						<div
