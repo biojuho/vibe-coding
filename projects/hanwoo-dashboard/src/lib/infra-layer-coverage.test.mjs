@@ -309,6 +309,28 @@ test("payments/confirm applies per-user rate limiting with 429 response", () => 
 	assert.match(paymentConfirm, /Retry-After/);
 });
 
+test("payments/confirm verifies orderId belongs to session user (IDOR guard) with 403 response", () => {
+	// Prevents user A from confirming user B's payment by submitting B's orderId
+	assert.match(paymentConfirm, /parseCustomerKeyFromOrderId/);
+	assert.match(paymentConfirm, /buildCustomerKey\(session\.user\.id\)/);
+	assert.match(paymentConfirm, /orderCustomerKey !== expectedCustomerKey/);
+	assert.match(paymentConfirm, /이 결제 요청은 현재 로그인 사용자와 일치하지 않습니다/);
+	assert.match(paymentConfirm, /status: 403/);
+});
+
+test("payments/confirm validates amount matches PREMIUM_SUBSCRIPTION price to prevent price tampering", () => {
+	// Prevents a client from submitting amount=1 to get a subscription for less
+	assert.match(paymentConfirm, /amount !== PREMIUM_SUBSCRIPTION\.amount/);
+	assert.match(paymentConfirm, /결제 금액이 구독 상품 금액과 일치하지 않습니다/);
+});
+
+test("payments/confirm uses atomic Prisma transaction to prevent partial payment/subscription state", () => {
+	// PaymentLog upsert + Subscription upsert must both succeed or both fail
+	assert.match(paymentConfirm, /prisma\.\$transaction/);
+	assert.match(paymentConfirm, /paymentLog\.upsert/);
+	assert.match(paymentConfirm, /subscription\.upsert/);
+});
+
 // ── actions/cattle.js and actions/sales.js ────────────────────────────────────
 
 const cattleActions = readSource("lib/actions/cattle.js");

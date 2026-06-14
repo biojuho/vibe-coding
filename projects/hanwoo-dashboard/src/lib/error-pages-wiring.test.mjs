@@ -629,3 +629,17 @@ test("subscription error page is a client component with accessible structure an
 	assert.match(source, /console\.error/);
 	assert.match(source, /useEffect/);
 });
+
+test("admin/diagnostics error.js is a client component with accessible structure and safe reset guard", () => {
+	const source = readSource("app/admin/diagnostics/error.js");
+
+	assert.match(source, /["']use client["']/);
+	assert.match(source, /aria-labelledby=["']diagnostics-error-title["']/);
+	assert.match(source, /id=["']diagnostics-error-title["']/);
+	assert.match(source, /id=["']main-content["']/);
+	assert.match(source, /normalizeReset/);
+	assert.match(source, /typeof reset === ["']function["']/);
+	assert.match(source, /onClick=\{.*safeReset/);
+	assert.match(source, /console\.error/);
+	assert.match(source, /useEffect/);
+});
