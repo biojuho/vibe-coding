@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import DashboardClient from "@/components/DashboardClient";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import LandingPage from "@/components/LandingPage";
+import { getSubscriptionStatus } from "@/lib/subscription-queries";
 import {
 	getBuildings,
 	getExpenseRecords,
@@ -163,7 +164,10 @@ export default async function Page() {
 		return <LandingPage />;
 	}
 
-	const initialData = await loadDashboardInitialData();
+	const [initialData, subscriptionStatus] = await Promise.all([
+		loadDashboardInitialData(),
+		getSubscriptionStatus(session.user.id).catch(() => ({ status: "INACTIVE", daysLeft: null })),
+	]);
 
 	return (
 		<ErrorBoundary>
@@ -182,6 +186,7 @@ export default async function Page() {
 				initialMarketPrice={initialData.marketPrice}
 				initialProfitability={initialData.profitability}
 				initialDataLoadStatus={initialData.initialDataLoadStatus}
+				subscriptionStatus={subscriptionStatus}
 			/>
 		</ErrorBoundary>
 	);

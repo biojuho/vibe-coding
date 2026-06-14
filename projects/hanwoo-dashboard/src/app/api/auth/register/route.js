@@ -56,10 +56,26 @@ export async function POST(request) {
 			);
 		}
 
+		const { buildCustomerKey, addDays, TRIAL_DAYS } = await import("@/lib/subscription.js");
+
 		const hashedPassword = await bcrypt.hash(password, 12);
-		await prisma.user.create({
+		const user = await prisma.user.create({
 			data: { username, password: hashedPassword },
 		});
+
+		// Auto-create a 14-day free trial for the new user
+		try {
+			await prisma.subscription.create({
+				data: {
+					userId: user.id,
+					customerKey: buildCustomerKey(user.id),
+					status: "TRIAL",
+					trialEndDate: addDays(new Date(), TRIAL_DAYS),
+				},
+			});
+		} catch {
+			// Trial creation failure must not block registration
+		}
 
 		return NextResponse.json({ ok: true }, { status: 201 });
 	} catch {

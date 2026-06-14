@@ -48,6 +48,8 @@ export function parseCustomerKeyFromOrderId(orderId) {
 	return match ? match[1] : null;
 }
 
+export const TRIAL_DAYS = 14;
+
 export function addDays(baseDate, days) {
 	const next =
 		baseDate instanceof Date

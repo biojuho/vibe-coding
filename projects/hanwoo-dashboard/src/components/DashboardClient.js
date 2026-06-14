@@ -308,6 +308,7 @@ function normalizeDashboardClientOptions(options) {
 		initialDataLoadStatus: normalizeDashboardInitialDataLoadStatus(
 			safeOptions.initialDataLoadStatus,
 		),
+		subscriptionStatus: safeOptions.subscriptionStatus ?? null,
 	};
 }
 
@@ -419,6 +420,7 @@ export default function DashboardClient(options = {}) {
 		initialMarketPrice,
 		initialProfitability,
 		initialDataLoadStatus,
+		subscriptionStatus,
 	} = normalizeDashboardClientOptions(options);
 	const router = useRouter();
 	const { theme, toggleTheme } = useTheme();
@@ -2373,6 +2375,44 @@ export default function DashboardClient(options = {}) {
 						status={initialDataLoadStatus}
 						onRetry={handleRefreshInitialData}
 					/>
+					{subscriptionStatus?.status === "TRIAL" && (
+						<a
+							href="/subscription"
+							className="mb-3 flex items-center gap-2.5 rounded-[20px] px-4 py-3 text-sm font-bold text-white shadow-[var(--shadow-md)] no-underline"
+							style={{
+								background:
+									"linear-gradient(145deg, color-mix(in srgb, var(--color-accent) 80%, white 20%), var(--color-accent))",
+								border: "1px solid rgba(255,255,255,0.2)",
+							}}
+						>
+							<span style={{ fontSize: "18px", lineHeight: 1, flexShrink: 0 }}>🎉</span>
+							무료 체험판 사용 중
+							{subscriptionStatus.daysLeft != null && (
+								<Badge
+									variant="secondary"
+									className="ml-1 border-white/15 bg-white/25 text-white text-xs shadow-none"
+								>
+									{subscriptionStatus.daysLeft}일 남음
+								</Badge>
+							)}
+							<span className="ml-auto text-xs font-normal opacity-90">프리미엄 업그레이드 →</span>
+						</a>
+					)}
+					{subscriptionStatus?.status === "INACTIVE" && (
+						<a
+							href="/subscription"
+							className="mb-3 flex items-center gap-2.5 rounded-[20px] px-4 py-3 text-sm font-bold text-white shadow-[var(--shadow-md)] no-underline"
+							style={{
+								background:
+									"linear-gradient(145deg, color-mix(in srgb, var(--color-warning) 72%, white 28%), var(--color-warning))",
+								border: "1px solid rgba(255,255,255,0.2)",
+							}}
+						>
+							<span style={{ fontSize: "18px", lineHeight: 1, flexShrink: 0 }}>⭐</span>
+							월 9,900원으로 AI 인사이트·수익성 분석·엑셀 내보내기를 사용해 보세요
+							<span className="ml-auto text-xs font-normal opacity-90">구독하기 →</span>
+						</a>
+					)}
 					{!isOnline && (
 						<div
 							className="mb-3 flex items-center gap-2.5 rounded-[20px] px-4 py-3 text-sm font-bold text-white shadow-[var(--shadow-md)]"
