@@ -151,3 +151,61 @@ class TestEmotionTrendDirection:
     def test_stable(self):
         t = EmotionTrend("공감", 5, 5.0, 1.0, "stable")
         assert t.direction == "stable"
+
+
+# ── T-AB023: EMOTION_LEXICON 확장 ─────────────────────────────────────────────
+
+
+class TestEmotionLexiconExpansion:
+    """T-AB023: 신규/확장 어휘가 올바른 감정 카테고리로 분류되는지 검증."""
+
+    @pytest.mark.parametrize(
+        "keyword,expected_emotion",
+        [
+            # 분노 신규
+            ("킹받", "분노"),
+            ("열폭", "분노"),
+            # 공감 신규
+            ("ㅇㅈ", "공감"),
+            ("맞아", "공감"),
+            ("진짜임", "공감"),
+            # 웃김 신규
+            ("빵터", "웃김"),
+            ("ㅎㅎ", "웃김"),
+            # 현타 신규
+            ("퇴사", "현타"),
+            ("현생", "현타"),
+            # 불안 신규
+            ("답답", "불안"),
+            ("공황", "불안"),
+            # 통쾌 전체 (신규 카테고리)
+            ("사이다", "통쾌"),
+            ("속시원", "통쾌"),
+            ("통쾌", "통쾌"),
+            ("응징", "통쾌"),
+        ],
+    )
+    def test_new_keywords_resolve_correctly(self, tracker, keyword, expected_emotion):
+        assert tracker._keyword_to_emotion(keyword) == expected_emotion
+
+    def test_tongkwae_category_detected_in_record(self, tracker):
+        """'사이다' 게시물이 통쾌 카테고리로 집계되어야 함."""
+        matched = tracker.record(
+            url="https://blind.co.kr/post/1",
+            title="오늘 드디어 복수했다",
+            content="진짜 속시원하다. 사이다 결말. 쌤통이다 그 팀장.",
+            emotion_axis="통쾌",
+        )
+        assert "사이다" in matched
+        assert "속시원" in matched
+        assert "쌤통" in matched
+
+    def test_kingbat_detected_in_record(self, tracker):
+        """킹받 키워드가 분노로 집계되어야 함."""
+        matched = tracker.record(
+            url="https://blind.co.kr/post/2",
+            title="킹받는 회의",
+            content="오늘 회의 진짜 킹받았어요",
+            emotion_axis="분노",
+        )
+        assert "킹받" in matched
