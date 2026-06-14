@@ -98,6 +98,9 @@ class GoogleClient:
             ),
         )
 
+        if not response.candidates:
+            raise RuntimeError("Gemini image generation returned no candidates.")
+
         for part in response.candidates[0].content.parts:
             if part.inline_data is not None:
                 image_data = part.inline_data.data

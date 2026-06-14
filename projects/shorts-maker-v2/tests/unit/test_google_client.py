@@ -303,6 +303,19 @@ class TestGenerateImage:
         with pytest.raises(RuntimeError, match="no image data"):
             client.generate_image(prompt="cat", output_path=out)
 
+    @patch("shorts_maker_v2.providers.google_client.genai")
+    def test_empty_candidates_raises_runtime_error(self, mock_genai, tmp_path: Path):
+        """GC-001: 빈 candidates 반환 시 IndexError 대신 RuntimeError (조기 가드)."""
+        out = tmp_path / "img.png"
+        mock_client = mock_genai.Client.return_value
+        response = MagicMock()
+        response.candidates = []
+        mock_client.models.generate_content.return_value = response
+
+        client = google_client.GoogleClient(api_key="k")
+        with pytest.raises(RuntimeError, match="no candidates"):
+            client.generate_image(prompt="cat", output_path=out)
+
 
 # ═══════════════════════════════════════════════════════════════════
 # generate_image_imagen3
