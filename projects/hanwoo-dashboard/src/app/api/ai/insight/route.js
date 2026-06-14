@@ -6,17 +6,17 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 export const maxDuration = 60;
 
 import {
+	buildHeuristicInsights,
+	buildInsightPrompt,
+	MAX_INSIGHTS,
+	parseInsightResponse,
+} from "@/lib/ai-insight.mjs";
+import {
 	buildCacheKey,
 	dropCachedInsight,
 	loadCachedInsight,
 	saveCachedInsight,
 } from "@/lib/ai-insight-cache.mjs";
-import {
-	MAX_INSIGHTS,
-	buildHeuristicInsights,
-	buildInsightPrompt,
-	parseInsightResponse,
-} from "@/lib/ai-insight.mjs";
 import { requireAuthenticatedSession } from "@/lib/auth-guard";
 import { checkRateLimit } from "@/lib/rate-limit.mjs";
 import { getSubscriptionStatus } from "@/lib/subscription-queries";
@@ -145,16 +145,19 @@ export async function POST(request) {
 		);
 	}
 
-	const subscriptionStatus = await getSubscriptionStatus(session.user?.id).catch(
-		() => ({ status: "INACTIVE" }),
-	);
+	const subscriptionStatus = await getSubscriptionStatus(
+		session.user?.id,
+	).catch(() => ({ status: "INACTIVE" }));
 	if (subscriptionStatus.status === "INACTIVE") {
 		emitInsightMetric({
 			event: "subscription_required",
 			durationMs: Date.now() - startedAt,
 		});
 		return Response.json(
-			{ error: "프리미엄 구독이 필요한 기능입니다.", code: "SUBSCRIPTION_REQUIRED" },
+			{
+				error: "프리미엄 구독이 필요한 기능입니다.",
+				code: "SUBSCRIPTION_REQUIRED",
+			},
 			{ status: 403 },
 		);
 	}
@@ -165,12 +168,26 @@ export async function POST(request) {
 			: null;
 
 	if (userId) {
-		const rateResult = checkRateLimit(`ai-insight:${userId}`, { maxRequests: 20, windowMs: 3600000 });
+		const rateResult = checkRateLimit(`ai-insight:${userId}`, {
+			maxRequests: 20,
+			windowMs: 3600000,
+		});
 		if (!rateResult.allowed) {
-			emitInsightMetric({ event: "rate_limited", durationMs: Date.now() - startedAt });
+			emitInsightMetric({
+				event: "rate_limited",
+				durationMs: Date.now() - startedAt,
+			});
 			return Response.json(
-				{ error: "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.", code: "RATE_LIMITED" },
-				{ status: 429, headers: { "Retry-After": String(rateResult.retryAfterSeconds ?? 3600) } },
+				{
+					error: "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.",
+					code: "RATE_LIMITED",
+				},
+				{
+					status: 429,
+					headers: {
+						"Retry-After": String(rateResult.retryAfterSeconds ?? 3600),
+					},
+				},
 			);
 		}
 	}
@@ -197,13 +214,15 @@ export async function POST(request) {
 	}
 
 	const hasUserId = userId !== null;
-	const cacheKey = userId
-		? buildCacheKey({ userId, summary })
-		: null;
+	const cacheKey = userId ? buildCacheKey({ userId, summary }) : null;
 
 	if (cacheKey && !forceRefresh) {
 		const hit = await loadCachedInsight(cacheKey);
-		if (hit && Array.isArray(hit.insights) && hit.insights.length === MAX_INSIGHTS) {
+		if (
+			hit &&
+			Array.isArray(hit.insights) &&
+			hit.insights.length === MAX_INSIGHTS
+		) {
 			emitInsightMetric({
 				event: "cache_hit",
 				source: "ai",

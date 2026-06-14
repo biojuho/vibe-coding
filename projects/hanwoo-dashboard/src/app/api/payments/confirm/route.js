@@ -4,7 +4,6 @@ import {
 	isAuthenticationError,
 	requireAuthenticatedSession,
 } from "@/lib/auth-guard";
-import { checkRateLimit } from "@/lib/rate-limit.mjs";
 import prisma from "@/lib/db";
 import { fetchWithTimeout, isTimeoutError } from "@/lib/fetchWithTimeout";
 import {
@@ -12,6 +11,7 @@ import {
 	PAYMENT_CONFIRMATION_PENDING_MESSAGE,
 	readJsonResponseSafely,
 } from "@/lib/payment-confirmation.mjs";
+import { checkRateLimit } from "@/lib/rate-limit.mjs";
 import {
 	addDays,
 	buildCustomerKey,
@@ -201,7 +201,10 @@ export async function POST(req) {
 		const rateCheck = checkRateLimit(rateLimitKey, PAYMENT_CONFIRM_RATE_LIMIT);
 		if (!rateCheck.allowed) {
 			return NextResponse.json(
-				{ success: false, message: "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요." },
+				{
+					success: false,
+					message: "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.",
+				},
 				{
 					status: 429,
 					headers: { "Retry-After": String(rateCheck.retryAfterSeconds) },

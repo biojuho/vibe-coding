@@ -6,13 +6,13 @@ import {
 	requireAuthenticatedSession,
 } from "@/lib/auth-guard";
 import { DASHBOARD_CACHE_TTLS } from "@/lib/dashboard/cache";
-import { checkRateLimit } from "@/lib/rate-limit.mjs";
 import {
 	getDashboardSummarySnapshot,
 	saveDashboardSummarySnapshot,
 } from "@/lib/dashboard/read-models";
 import { buildDashboardSummaryPayload } from "@/lib/dashboard/summary-service";
 import prisma from "@/lib/db";
+import { checkRateLimit } from "@/lib/rate-limit.mjs";
 
 const DASHBOARD_SUMMARY_ERROR_MESSAGE = "대시보드 요약을 불러오지 못했습니다.";
 
@@ -44,11 +44,20 @@ export async function GET(request) {
 		const session = await requireAuthenticatedSession();
 
 		if (session?.user?.id) {
-			const rl = checkRateLimit(`dashboard-summary:${session.user.id}`, { maxRequests: 60, windowMs: 300000 });
+			const rl = checkRateLimit(`dashboard-summary:${session.user.id}`, {
+				maxRequests: 60,
+				windowMs: 300000,
+			});
 			if (!rl.allowed) {
 				return NextResponse.json(
-					{ success: false, message: "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요." },
-					{ status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds ?? 300) } },
+					{
+						success: false,
+						message: "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.",
+					},
+					{
+						status: 429,
+						headers: { "Retry-After": String(rl.retryAfterSeconds ?? 300) },
+					},
 				);
 			}
 		}

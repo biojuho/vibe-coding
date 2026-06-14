@@ -41,7 +41,10 @@ export async function POST(req) {
 		const rateCheck = checkRateLimit(rateLimitKey, PAYMENT_PREPARE_RATE_LIMIT);
 		if (!rateCheck.allowed) {
 			return NextResponse.json(
-				{ success: false, message: "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요." },
+				{
+					success: false,
+					message: "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.",
+				},
 				{
 					status: 429,
 					headers: { "Retry-After": String(rateCheck.retryAfterSeconds) },
@@ -80,7 +83,8 @@ export async function POST(req) {
 				success: true,
 				orderId: buildOrderId(customerKey),
 				orderName: body?.orderName || PREMIUM_SUBSCRIPTION.displayName,
-				customerName: body?.customerName || session.user.name || "Joolife 사용자",
+				customerName:
+					body?.customerName || session.user.name || "Joolife 사용자",
 				customerEmail: body?.customerEmail || null,
 				amount,
 			},

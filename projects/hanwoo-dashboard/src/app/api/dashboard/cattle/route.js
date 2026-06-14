@@ -21,11 +21,20 @@ export async function GET(request) {
 		const session = await requireAuthenticatedSession();
 
 		if (session?.user?.id) {
-			const rl = checkRateLimit(`dashboard-cattle:${session.user.id}`, { maxRequests: 300, windowMs: 300000 });
+			const rl = checkRateLimit(`dashboard-cattle:${session.user.id}`, {
+				maxRequests: 300,
+				windowMs: 300000,
+			});
 			if (!rl.allowed) {
 				return NextResponse.json(
-					{ success: false, message: "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요." },
-					{ status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds ?? 300) } },
+					{
+						success: false,
+						message: "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.",
+					},
+					{
+						status: 429,
+						headers: { "Retry-After": String(rl.retryAfterSeconds ?? 300) },
+					},
 				);
 			}
 		}

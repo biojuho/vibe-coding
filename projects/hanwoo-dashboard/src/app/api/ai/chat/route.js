@@ -60,11 +60,7 @@ function formatSaleDateForContext(value) {
 }
 
 function isFarmContextRow(value) {
-	return (
-		value !== null &&
-		typeof value === "object" &&
-		!Array.isArray(value)
-	);
+	return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function normalizeFarmContextRows(rows) {
@@ -124,7 +120,9 @@ async function buildFarmContext() {
 							};
 							const cattleName = sale.cattle.name || "개체명 미등록";
 							const tagNumber = sale.cattle.tagNumber || "이력번호 미등록";
-				const priceManwon = (toFiniteNumber(sale.price) / 10000).toFixed(0);
+							const priceManwon = (toFiniteNumber(sale.price) / 10000).toFixed(
+								0,
+							);
 							const saleDate = formatSaleDateForContext(sale.saleDate);
 							return `${cattleName}(${tagNumber}) ${priceManwon}만원 (${saleDate})`;
 						})
@@ -153,12 +151,8 @@ function normalizeGeminiChatStreamOptions(options) {
 }
 
 function createGeminiChatStream(options = {}) {
-	const {
-		apiKey,
-		message,
-		history,
-		systemInstruction,
-	} = normalizeGeminiChatStreamOptions(options);
+	const { apiKey, message, history, systemInstruction } =
+		normalizeGeminiChatStreamOptions(options);
 	const genAI = new GoogleGenerativeAI(apiKey);
 	const model = genAI.getGenerativeModel({
 		model: "gemini-2.0-flash",
@@ -175,20 +169,28 @@ export async function POST(request) {
 		session = await requireAuthenticatedSession();
 	} catch {
 		return Response.json(
-			{ success: false, message: "로그인이 필요합니다.", error: "UNAUTHENTICATED" },
+			{
+				success: false,
+				message: "로그인이 필요합니다.",
+				error: "UNAUTHENTICATED",
+			},
 			{ status: 401 },
 		);
 	}
 	if (!session) {
 		return Response.json(
-			{ success: false, message: "로그인이 필요합니다.", error: "UNAUTHENTICATED" },
+			{
+				success: false,
+				message: "로그인이 필요합니다.",
+				error: "UNAUTHENTICATED",
+			},
 			{ status: 401 },
 		);
 	}
 
-	const subscriptionStatus = await getSubscriptionStatus(session.user?.id).catch(
-		() => ({ status: "INACTIVE" }),
-	);
+	const subscriptionStatus = await getSubscriptionStatus(
+		session.user?.id,
+	).catch(() => ({ status: "INACTIVE" }));
 	if (subscriptionStatus.status === "INACTIVE") {
 		return Response.json(
 			{
@@ -201,7 +203,10 @@ export async function POST(request) {
 	}
 
 	if (session.user?.id) {
-		const rateResult = checkRateLimit(`ai-chat:${session.user.id}`, { maxRequests: 30, windowMs: 3600000 });
+		const rateResult = checkRateLimit(`ai-chat:${session.user.id}`, {
+			maxRequests: 30,
+			windowMs: 3600000,
+		});
 		if (!rateResult.allowed) {
 			return Response.json(
 				{
@@ -209,7 +214,12 @@ export async function POST(request) {
 					message: "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.",
 					error: "RATE_LIMITED",
 				},
-				{ status: 429, headers: { "Retry-After": String(rateResult.retryAfterSeconds ?? 3600) } },
+				{
+					status: 429,
+					headers: {
+						"Retry-After": String(rateResult.retryAfterSeconds ?? 3600),
+					},
+				},
 			);
 		}
 	}
