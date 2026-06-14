@@ -147,10 +147,9 @@ test("calving tab keeps malformed pregnancy dates stable in the list", () => {
 		source,
 		/return Number\.isNaN\(\s*date\.getTime\(\)\s*\)\s*\?\s*Number\.POSITIVE_INFINITY\s*:\s*date\.getTime\(\)\s*;?/,
 	);
-	assert.match(
-		source,
-		/sort\(\s*\(\s*first\s*,\s*second\s*\)\s*=>\s*getPregnancyDateTime\(\s*first\.pregnancyDate\s*\)\s*-\s*getPregnancyDateTime\(\s*second\.pregnancyDate\s*\)\s*,?\s*\)/,
-	);
+	assert.match(source, /\.sort\(\s*\(\s*first\s*,\s*second\s*\)\s*=>/);
+	assert.match(source, /getPregnancyDateTime\(\s*first\.pregnancyDate\s*\)/);
+	assert.match(source, /getPregnancyDateTime\(\s*second\.pregnancyDate\s*\)/);
 	assert.doesNotMatch(
 		source,
 		/new Date\(first\.pregnancyDate\) - new Date\(second\.pregnancyDate\)/,

@@ -85,6 +85,8 @@ export function EstrusAlertBanner(options = {}) {
 						<HeartIcon />
 					</span>
 					<span
+						role="heading"
+						aria-level={2}
 						style={{
 							fontWeight: 700,
 							fontSize: "15px",
@@ -190,6 +192,8 @@ export function CalvingAlertBanner(options = {}) {
 						🍼
 					</span>
 					<span
+						role="heading"
+						aria-level={2}
 						style={{
 							fontWeight: 700,
 							fontSize: "15px",
