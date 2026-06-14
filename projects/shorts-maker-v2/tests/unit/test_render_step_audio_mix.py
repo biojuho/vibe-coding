@@ -137,6 +137,23 @@ def test_classify_mood_gpt_all_fail_returns_none() -> None:
     assert result is None
 
 
+def test_generate_bgm_clip_none_duration_returns_none(tmp_path: Path) -> None:
+    """T-RS001: final_video.duration=None → (None, None) early return, no TypeError."""
+    step = _make_render_step()
+    final_video = MagicMock()
+    final_video.duration = None
+
+    bgm_clip, original_bgm_clip = step._generate_bgm_clip(
+        final_video=final_video,
+        run_dir=tmp_path,
+        title="테스트",
+        topic="테스트 주제",
+    )
+
+    assert bgm_clip is None
+    assert original_bgm_clip is None
+
+
 def test_classify_mood_gpt_then_keyword_fallback() -> None:
     """_classify_mood: GPT 실패 → 키워드 폴백."""
     step = _make_render_step()

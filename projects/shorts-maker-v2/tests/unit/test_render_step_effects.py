@@ -201,7 +201,7 @@ def test_apply_transitions_single_clip_replace_last_no_crash() -> None:
         return [], replacement_clip  # replace_last != None 반환
 
     with patch.dict(render_effects._TRANSITION_DISPATCH, {"custom_test": _fake_handler}):
-        result = step._apply_transitions([clip], roles=None)
+        result = step._apply_transitions([clip], 1080, 1920, roles=None)
 
     # 빈 result 에 교체 시도해도 크래시 없이 빈 리스트 반환
     assert result == []

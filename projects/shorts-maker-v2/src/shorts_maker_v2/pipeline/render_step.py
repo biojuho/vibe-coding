@@ -805,6 +805,8 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
 
     def _generate_bgm_clip(self, *, final_video, run_dir: Path, title: str, topic: str):
         target_dur = final_video.duration
+        if not target_dur:
+            return None, None
         bgm_clip = None
         original_bgm_clip = None
 
