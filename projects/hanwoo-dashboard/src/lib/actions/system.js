@@ -93,8 +93,13 @@ export async function getRawData(modelName) {
 	}
 }
 
+const TAG_NUMBER_RE = /^[A-Za-z0-9\-]{1,30}$/;
+
 export async function lookupCattleTag(tagNumber) {
 	await requireAuthenticatedSession();
+	if (typeof tagNumber !== "string" || !TAG_NUMBER_RE.test(tagNumber)) {
+		return { success: false, message: "유효하지 않은 이력번호 형식입니다." };
+	}
 	const { lookupCattleByTag } = await import("../mtrace");
 	return lookupCattleByTag(tagNumber);
 }
@@ -105,7 +110,12 @@ export async function lookupCattleTag(tagNumber) {
 
 export async function getProfitabilityData() {
 	await requireAuthenticatedSession();
-	return await getProfitabilityEstimates();
+	try {
+		return await getProfitabilityEstimates();
+	} catch (err) {
+		console.error("getProfitabilityData failed:", err);
+		return { success: false, message: "수익성 데이터를 불러오지 못했습니다." };
+	}
 }
 
 // ============================================================

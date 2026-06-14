@@ -5,6 +5,7 @@ import {
 	isAuthenticationError,
 	requireAuthenticatedSession,
 } from "@/lib/auth-guard";
+import { checkRateLimit } from "@/lib/rate-limit.mjs";
 import {
 	buildCustomerKey,
 	buildOrderId,
@@ -30,9 +31,24 @@ function normalizePaymentPrepareBody(body) {
 	return body && typeof body === "object" && !Array.isArray(body) ? body : {};
 }
 
+// 10 payment prepare attempts per hour per user is generous for legitimate use
+const PAYMENT_PREPARE_RATE_LIMIT = { maxRequests: 10, windowMs: 3600000 };
+
 export async function POST(req) {
 	try {
 		const session = await requireAuthenticatedSession();
+		const rateLimitKey = `payment-prepare:${session.user.id}`;
+		const rateCheck = checkRateLimit(rateLimitKey, PAYMENT_PREPARE_RATE_LIMIT);
+		if (!rateCheck.allowed) {
+			return NextResponse.json(
+				{ success: false, message: "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요." },
+				{
+					status: 429,
+					headers: { "Retry-After": String(rateCheck.retryAfterSeconds) },
+				},
+			);
+		}
+
 		const body = normalizePaymentPrepareBody(await req.json());
 		const amount = parsePaymentAmount(
 			body?.amount ?? PREMIUM_SUBSCRIPTION.amount,
@@ -81,7 +97,7 @@ export async function POST(req) {
 				success: false,
 				message: "결제를 준비하지 못했습니다. 잠시 후 다시 시도해 주세요.",
 			},
-			{ status: 400 },
+			{ status: 500 },
 		);
 	}
 }

@@ -246,3 +246,65 @@ test("actions barrel covers all 9 domain modules", () => {
 		assert.ok(actions.includes(domain), `Missing domain in barrel: ${domain}`);
 	}
 });
+
+// ── actions/subscription.js ───────────────────────────────────────────────────
+
+const subscription = readSource("lib/actions/subscription.js");
+
+test("cancelSubscription wraps Prisma lookup in try/catch for connection-failure resilience", () => {
+	assert.match(subscription, /try \{[\s\S]{1,100}prisma\.subscription\.findFirst/);
+	assert.match(subscription, /ok: false, message:/);
+});
+
+test("cancelSubscription wraps Prisma update in try/catch to prevent unhandled rejection", () => {
+	assert.match(subscription, /try \{[\s\S]{1,100}prisma\.subscription\.update/);
+});
+
+// ── actions/market.js ────────────────────────────────────────────────────────
+
+const market = readSource("lib/actions/market.js");
+
+test("getRealTimeMarketPrice wraps live KAPE fetch in try/catch and falls back gracefully", () => {
+	assert.match(market, /try \{[\s\S]{1,80}rawMarketPrice = await fetchMarketPrice\(\)/);
+	assert.match(market, /cachedMarketPrice \?\? buildUnavailableMarketPrice\(\)/);
+});
+
+// ── actions/system.js ────────────────────────────────────────────────────────
+
+const system = readSource("lib/actions/system.js");
+
+test("lookupCattleTag validates tagNumber format before calling mtrace API", () => {
+	assert.match(system, /TAG_NUMBER_RE/);
+	assert.match(system, /typeof tagNumber !== ["']string["'] \|\| !TAG_NUMBER_RE\.test\(tagNumber\)/);
+	assert.match(system, /유효하지 않은 이력번호 형식입니다/);
+});
+
+test("getProfitabilityData wraps estimate calculation in try/catch", () => {
+	assert.match(system, /getProfitabilityData/);
+	assert.match(system, /try \{[\s\S]{1,80}return await getProfitabilityEstimates\(\)/);
+});
+
+// ── payment routes ────────────────────────────────────────────────────────────
+
+const paymentPrepare = readSource("app/api/payments/prepare/route.js");
+const paymentConfirm = readSource("app/api/payments/confirm/route.js");
+
+test("payments/prepare applies per-user rate limiting with 429 response", () => {
+	assert.match(paymentPrepare, /checkRateLimit/);
+	assert.match(paymentPrepare, /payment-prepare:/);
+	assert.match(paymentPrepare, /status: 429/);
+	assert.match(paymentPrepare, /Retry-After/);
+});
+
+test("payments/prepare returns 500 for unexpected server errors not 400", () => {
+	// 400 = bad client input; 500 = unexpected server fault
+	assert.doesNotMatch(paymentPrepare, /결제를 준비하지 못했습니다[\s\S]{0,80}status: 400/);
+	assert.match(paymentPrepare, /결제를 준비하지 못했습니다[\s\S]{0,80}status: 500/);
+});
+
+test("payments/confirm applies per-user rate limiting with 429 response", () => {
+	assert.match(paymentConfirm, /checkRateLimit/);
+	assert.match(paymentConfirm, /payment-confirm:/);
+	assert.match(paymentConfirm, /status: 429/);
+	assert.match(paymentConfirm, /Retry-After/);
+});

@@ -837,21 +837,7 @@ export default function CattleDetailModal({
 										{/* Icon — elevated with subtle shadow */}
 										<div
 											aria-hidden="true"
-											style={{
-												width: "34px",
-												height: "34px",
-												borderRadius: "50%",
-												background: "var(--color-surface-elevated)",
-												border: "1px solid var(--color-surface-stroke)",
-												display: "flex",
-												alignItems: "center",
-												justifyContent: "center",
-												fontSize: "16px",
-												flexShrink: 0,
-												zIndex: 1,
-												boxShadow: "var(--shadow-sm)",
-												transition: "transform 0.2s ease",
-											}}
+											style={TIMELINE_ICON_STYLE}
 										>
 											{HISTORY_ICONS[h.eventType] || "📌"}
 										</div>

@@ -41,7 +41,15 @@ export async function getRealTimeMarketPrice() {
 		console.warn("Market price cache read degraded (falling back to API):", err);
 	}
 
-	const marketPrice = normalizeLiveMarketPrice(await fetchMarketPrice());
+	let rawMarketPrice;
+	try {
+		rawMarketPrice = await fetchMarketPrice();
+	} catch (err) {
+		console.error("getRealTimeMarketPrice: KAPE fetch failed:", err);
+		return cachedMarketPrice ?? buildUnavailableMarketPrice();
+	}
+
+	const marketPrice = normalizeLiveMarketPrice(rawMarketPrice);
 
 	if (shouldPersistLiveMarketPrice(marketPrice)) {
 		try {

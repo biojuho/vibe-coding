@@ -4,6 +4,7 @@ import {
 	isAuthenticationError,
 	requireAuthenticatedSession,
 } from "@/lib/auth-guard";
+import { checkRateLimit } from "@/lib/rate-limit.mjs";
 import prisma from "@/lib/db";
 import { fetchWithTimeout, isTimeoutError } from "@/lib/fetchWithTimeout";
 import {
@@ -190,9 +191,24 @@ async function lookupTossPayment({
 	return isMatchingPayment ? result : null;
 }
 
+// 5 confirmation attempts per hour per user — covers retry after transient failure
+const PAYMENT_CONFIRM_RATE_LIMIT = { maxRequests: 5, windowMs: 3600000 };
+
 export async function POST(req) {
 	try {
 		const session = await requireAuthenticatedSession();
+		const rateLimitKey = `payment-confirm:${session.user.id}`;
+		const rateCheck = checkRateLimit(rateLimitKey, PAYMENT_CONFIRM_RATE_LIMIT);
+		if (!rateCheck.allowed) {
+			return NextResponse.json(
+				{ success: false, message: "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요." },
+				{
+					status: 429,
+					headers: { "Retry-After": String(rateCheck.retryAfterSeconds) },
+				},
+			);
+		}
+
 		const body = normalizePaymentConfirmBody(await req.json());
 		const paymentKey = normalizePaymentKey(body?.paymentKey);
 		const orderId = normalizePaymentOrderId(body?.orderId);

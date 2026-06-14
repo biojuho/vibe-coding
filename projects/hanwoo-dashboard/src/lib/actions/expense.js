@@ -95,9 +95,6 @@ export async function createExpenseRecord(data) {
 		}
 
 		const payload = validation.data;
-		if (!data.date || !data.category || !data.amount) {
-			return { success: false, message: "날짜, 카테고리, 금액은 필수입니다." };
-		}
 		if (payload.cattleId) {
 			const cattle = await prisma.cattle.findUnique({
 				where: { id: payload.cattleId },
