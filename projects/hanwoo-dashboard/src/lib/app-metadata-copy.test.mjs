@@ -189,6 +189,23 @@ test("security headers allow geolocation for weather widget but block microphone
 	assert.doesNotMatch(configSource, /geolocation=\(\)/);
 });
 
+test("next.config security headers include clickjacking, MIME-sniff, HSTS, and referrer guards", () => {
+	const configSource = readProjectFile("next.config.mjs");
+
+	// Deny all framing — app handles payments and must not be embedded
+	assert.match(configSource, /X-Frame-Options.*DENY|DENY.*X-Frame-Options/);
+	// Prevent MIME-type sniffing attacks
+	assert.match(configSource, /X-Content-Type-Options.*nosniff|nosniff.*X-Content-Type-Options/);
+	// Enforce HTTPS for 2 years including subdomains
+	assert.match(configSource, /Strict-Transport-Security/);
+	assert.match(configSource, /max-age=63072000/);
+	assert.match(configSource, /includeSubDomains/);
+	// Limit referrer data sent to external origins
+	assert.match(configSource, /Referrer-Policy.*strict-origin-when-cross-origin/);
+	// All headers must apply to every route
+	assert.match(configSource, /source.*\(.*\.\*\).*headers.*SECURITY_HEADERS/s);
+});
+
 test("globals.css has print styles that hide chrome and preserve content", () => {
 	const cssSource = readProjectFile("src/app/globals.css");
 
