@@ -1674,3 +1674,32 @@ async def test_update_collection_properties_uses_database_endpoint(mock_client_c
     assert "databases/test_db_id" in args[0]
     assert kwargs["json"] == {"properties": payload}
     assert mock_ensure_schema.await_count == 2
+
+
+# BTX-UPL001 — _build_scalar_property_payload "number" type safety
+class TestBuildScalarPropertyPayloadNumberType:
+    """float() in the 'number' lambda must not raise on bad input (BTX-UPL001)."""
+
+    def _call(self, value):
+        from pipeline.notion._upload import NotionUploadMixin
+
+        return NotionUploadMixin._build_scalar_property_payload("number", value)
+
+    def test_valid_int_returns_payload(self):
+        assert self._call(42) == {"number": 42.0}
+
+    def test_valid_float_returns_payload(self):
+        assert self._call(3.14) == {"number": 3.14}
+
+    def test_numeric_string_returns_payload(self):
+        assert self._call("75.5") == {"number": 75.5}
+
+    def test_non_numeric_string_returns_none(self):
+        # "N/A" from a corrupt DB row must not raise ValueError
+        assert self._call("N/A") is None
+
+    def test_empty_string_returns_none(self):
+        assert self._call("") is None
+
+    def test_none_returns_none(self):
+        assert self._call(None) is None

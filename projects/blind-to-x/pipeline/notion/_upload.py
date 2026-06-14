@@ -71,11 +71,18 @@ class NotionUploadMixin:
     def _build_scalar_property_payload(prop_type: str | None, value: Any) -> dict[str, Any] | None:
         if prop_type == "rich_text" and value == "":
             return {"rich_text": []}
+
+        def _number_payload(item):
+            try:
+                return {"number": float(item)}
+            except (TypeError, ValueError):
+                return None
+
         builders = {
             "title": lambda item: {"title": [{"text": {"content": str(item)[:1990]}}]},
             "rich_text": lambda item: {"rich_text": [{"text": {"content": str(item)[:1990]}}]},
             "checkbox": lambda item: {"checkbox": bool(item)},
-            "number": lambda item: {"number": float(item)},
+            "number": _number_payload,
             "url": lambda item: {"url": str(item)},
             "status": lambda item: {"status": {"name": str(item)}},
             "select": lambda item: {"select": {"name": str(item)}},
