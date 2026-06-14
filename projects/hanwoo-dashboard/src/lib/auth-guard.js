@@ -44,3 +44,38 @@ export function isAuthenticationError(error) {
 		error?.name === "AuthenticationError"
 	);
 }
+
+export class AdminAuthorizationError extends Error {
+	constructor(message = "관리자 권한이 필요합니다.") {
+		super(message);
+		this.name = "AdminAuthorizationError";
+	}
+}
+
+function normalizeAdminOptions(value) {
+	return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+export async function requireAdminSession(options = {}) {
+	const { redirectToLogin = false, redirectToHome = false } = normalizeAdminOptions(options);
+
+	const session = await requireAuthenticatedSession({ redirectToLogin });
+
+	const isDev = process.env.NODE_ENV === "development";
+	if (!isDev) {
+		const adminUsernames = (process.env.ADMIN_USERNAMES ?? "")
+			.split(",")
+			.map((s) => s.trim())
+			.filter(Boolean);
+		const username = session.user?.name ?? "";
+		if (!adminUsernames.includes(username)) {
+			if (redirectToHome) {
+				const { redirect } = await import("next/navigation");
+				redirect("/");
+			}
+			throw new AdminAuthorizationError();
+		}
+	}
+
+	return session;
+}

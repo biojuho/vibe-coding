@@ -1,7 +1,7 @@
 import DiagnosticsPageClient from "@/components/admin/DiagnosticsPageClient";
-import { requireAuthenticatedSession } from "@/lib/auth-guard";
+import { requireAdminSession } from "@/lib/auth-guard";
 
 export default async function DiagnosticsPage() {
-	await requireAuthenticatedSession({ redirectToLogin: true });
+	await requireAdminSession({ redirectToLogin: true, redirectToHome: true });
 	return <DiagnosticsPageClient />;
 }

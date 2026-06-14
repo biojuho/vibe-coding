@@ -1,6 +1,6 @@
 "use server";
 
-import { requireAuthenticatedSession } from "@/lib/auth-guard";
+import { requireAdminSession, requireAuthenticatedSession } from "@/lib/auth-guard";
 import { getProfitabilityEstimates } from "../dashboard/profitability-service";
 import { prisma } from "./_helpers";
 
@@ -27,7 +27,7 @@ function normalizeRawDataActionRows(rows) {
 }
 
 export async function getSystemDiagnostics() {
-	await requireAuthenticatedSession();
+	await requireAdminSession();
 	try {
 		const start = Date.now();
 		const cattleCount = await prisma.cattle.count();
@@ -62,7 +62,7 @@ export async function getSystemDiagnostics() {
 }
 
 export async function getRawData(modelName) {
-	await requireAuthenticatedSession();
+	await requireAdminSession();
 	try {
 		const allowedModels = [
 			"cattle",
