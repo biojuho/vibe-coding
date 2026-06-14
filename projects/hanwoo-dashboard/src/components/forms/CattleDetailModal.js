@@ -807,11 +807,13 @@ export default function CattleDetailModal({
 						>
 							<SectionTitle icon="📜" title="이력 타임라인" />
 							<div
-								style={{ display: "flex", flexDirection: "column", gap: "0" }}
+								role="list"
+							style={{ display: "flex", flexDirection: "column", gap: "0" }}
 							>
 								{history.map((h, idx) => (
 									<div
 										key={h.id}
+										role="listitem"
 										style={{
 											display: "flex",
 											gap: "12px",

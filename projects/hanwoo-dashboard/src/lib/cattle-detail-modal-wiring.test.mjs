@@ -843,3 +843,9 @@ test("CattleForm and CattleDetailModal trap Tab focus within the dialog (WCAG 2.
 		assert.match(source, /event\.shiftKey/, `${name}: Shift+Tab support missing`);
 	}
 });
+
+test("CattleDetailModal timeline history list uses role=list/listitem for screen reader navigation", () => {
+	const source = readSource("components/forms/CattleDetailModal.js");
+	assert.match(source, /role="list"/);
+	assert.match(source, /role="listitem"/);
+});
