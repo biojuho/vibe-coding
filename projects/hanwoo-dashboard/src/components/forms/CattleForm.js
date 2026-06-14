@@ -394,6 +394,7 @@ export default function CattleForm({
 								className="input"
 								style={inputStyle}
 								placeholder="예: 순심이"
+								aria-required="true"
 								aria-invalid={Boolean(errors.name)}
 								aria-describedby={errors.name ? "cattle-name-error" : undefined}
 								{...cattleNameRegistration}
@@ -421,6 +422,7 @@ export default function CattleForm({
 									className="input"
 									style={{ ...inputStyle, flex: 1 }}
 									placeholder="002082037849"
+									aria-required="true"
 									aria-invalid={Boolean(errors.tagNumber)}
 									aria-describedby={tagNumberDescriptionIds}
 									{...register("tagNumber")}
@@ -489,6 +491,7 @@ export default function CattleForm({
 									id="cattle-building"
 									className="input"
 									style={inputStyle}
+									aria-required="true"
 									aria-invalid={Boolean(errors.buildingId)}
 									aria-describedby={
 										errors.buildingId ? "cattle-building-error" : undefined
@@ -520,6 +523,7 @@ export default function CattleForm({
 									id="cattle-pen-number"
 									className="input"
 									style={inputStyle}
+									aria-required="true"
 									aria-invalid={Boolean(errors.penNumber)}
 									aria-describedby={
 										errors.penNumber ? "cattle-pen-number-error" : undefined
@@ -559,6 +563,7 @@ export default function CattleForm({
 									id="cattle-gender"
 									className="input"
 									style={inputStyle}
+									aria-required="true"
 									aria-invalid={Boolean(errors.gender)}
 									aria-describedby={
 										errors.gender ? "cattle-gender-error" : undefined
@@ -587,6 +592,7 @@ export default function CattleForm({
 									id="cattle-status"
 									className="input"
 									style={inputStyle}
+									aria-required="true"
 									aria-invalid={Boolean(errors.status)}
 									aria-describedby={
 										errors.status ? "cattle-status-error" : undefined
@@ -620,6 +626,7 @@ export default function CattleForm({
 								type="date"
 								className="input"
 								style={inputStyle}
+								aria-required="true"
 								aria-invalid={Boolean(errors.birthDate)}
 								aria-describedby={
 									errors.birthDate ? "cattle-birth-date-error" : undefined

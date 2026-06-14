@@ -849,3 +849,29 @@ test("CattleDetailModal timeline history list uses role=list/listitem for screen
 	assert.match(source, /role="list"/);
 	assert.match(source, /role="listitem"/);
 });
+
+test("CattleForm marks all 7 required inputs with aria-required for screen reader field discovery", () => {
+	const source = readSource("components/forms/CattleForm.js");
+	// WCAG 4.1.2: required fields must expose their required state programmatically
+	// React Hook Form register() does not add aria-required automatically
+	const requiredCount = (source.match(/aria-required="true"/g) || []).length;
+	assert.ok(requiredCount >= 7, `Expected ≥7 aria-required="true" attributes, found ${requiredCount}`);
+	// Verify on specific fields: name, tagNumber, buildingId, penNumber, gender, status, birthDate
+	const requiredFields = [
+		"cattle-name",
+		"cattle-tag-number",
+		"cattle-building",
+		"cattle-pen-number",
+		"cattle-gender",
+		"cattle-status",
+		"cattle-birth-date",
+	];
+	for (const fieldId of requiredFields) {
+		// Each required field should have aria-required="true" appearing between its id and its aria-invalid
+		const idIdx = source.indexOf(`id="${fieldId}"`);
+		const ariaRequiredIdx = source.indexOf('aria-required="true"', idIdx);
+		const ariaInvalidIdx = source.indexOf("aria-invalid=", idIdx);
+		assert.ok(idIdx !== -1, `Field id="${fieldId}" not found`);
+		assert.ok(ariaRequiredIdx !== -1 && ariaRequiredIdx < ariaInvalidIdx, `aria-required missing or after aria-invalid for ${fieldId}`);
+	}
+});
