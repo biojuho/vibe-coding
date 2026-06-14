@@ -435,3 +435,18 @@ test("dashboard/summary route applies per-user rate limiting to prevent abuse", 
 	assert.match(summaryRoute, /status: 429/);
 });
 
+// ── Dashboard list-queries: page-size cap ─────────────────────────────────────
+
+const listQueries = readSource("lib/dashboard/list-queries.js");
+
+test("dashboard list-queries enforces MAX_LIMIT=100 to prevent oversized DB fetches", () => {
+	assert.match(listQueries, /const MAX_LIMIT = 100/);
+	assert.match(listQueries, /Math\.min\(parsed, MAX_LIMIT\)/);
+});
+
+test("dashboard list-queries applies MAX_LIMIT cap in both cattle and sales parsers", () => {
+	// Both parseCattleListQuery and parseSalesListQuery must delegate to parseLimit
+	const parseLimitCount = (listQueries.match(/parseLimit\(/g) || []).length;
+	assert.ok(parseLimitCount >= 2, `Expected parseLimit used ≥2 times, found ${parseLimitCount}`);
+});
+
