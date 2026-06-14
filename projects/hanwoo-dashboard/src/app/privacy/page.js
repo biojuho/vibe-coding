@@ -1,5 +1,10 @@
 import LegalDocumentLayout from "@/components/layout/LegalDocumentLayout";
 
+export const metadata = {
+	title: "개인정보처리방침 · Joolife 한우",
+	description: "주라이프 한우 농장 관리 서비스가 수집·이용·보관하는 개인정보 항목과 처리 기준을 안내합니다.",
+};
+
 const sections = [
 	{
 		title: "1. 개인정보의 처리 목적",

@@ -62,6 +62,23 @@ test("proxy leaves public health and PWA assets outside auth redirects", () => {
 	assert.match(proxySource, /subscription\/fail/);
 });
 
+test("public-facing pages have distinct Korean page titles for SEO", () => {
+	const loginLayout = readProjectFile("src/app/login/layout.js");
+	const registerLayout = readProjectFile("src/app/register/layout.js");
+	const termsSource = readProjectFile("src/app/terms/page.js");
+	const privacySource = readProjectFile("src/app/privacy/page.js");
+
+	assert.match(loginLayout, /로그인 · Joolife 한우/);
+	assert.match(registerLayout, /회원가입 · Joolife 한우/);
+	assert.match(registerLayout, /14일 무료/);
+	assert.match(termsSource, /이용약관 · Joolife 한우/);
+	assert.match(privacySource, /개인정보처리방침 · Joolife 한우/);
+
+	// Layout files must pass children through so they don't break rendering
+	assert.match(loginLayout, /export default function LoginLayout/);
+	assert.match(registerLayout, /export default function RegisterLayout/);
+});
+
 test("committed service worker fallback stays build-agnostic", () => {
 	const serviceWorkerSource = readProjectFile("public/sw.js");
 

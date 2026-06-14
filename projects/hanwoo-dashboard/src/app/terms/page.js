@@ -1,5 +1,10 @@
 import LegalDocumentLayout from "@/components/layout/LegalDocumentLayout";
 
+export const metadata = {
+	title: "이용약관 · Joolife 한우",
+	description: "주라이프 한우 농장 관리 서비스 이용약관 — 회원 권리, 의무 및 결제·구독 조건을 안내합니다.",
+};
+
 const sections = [
 	{
 		title: "제1조 목적",
