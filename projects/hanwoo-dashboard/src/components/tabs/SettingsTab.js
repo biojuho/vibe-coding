@@ -138,6 +138,7 @@ export default function SettingsTab(options = {}) {
 		widgetVisible = {},
 		onToggleWidget,
 		quickActionIntent = null,
+		subscriptionStatus = null,
 	} = normalizeSettingsTabOptions(options);
 	const safeBuildings = normalizeSettingsBuildings(buildings);
 	const safeWidgetRegistry = normalizeSettingsWidgetRegistry(widgetRegistry);
@@ -1171,6 +1172,105 @@ export default function SettingsTab(options = {}) {
 					</PremiumButton>
 				</form>
 			</div>
+
+			{/* 구독 현황 */}
+			{subscriptionStatus && (
+				<div
+					style={{
+						background: "var(--color-bg-card)",
+						padding: "18px 20px",
+						borderRadius: "20px",
+						border: "1px solid var(--color-surface-stroke)",
+						marginTop: "20px",
+					}}
+				>
+					<div style={{ fontWeight: 700, fontSize: "14px", color: "var(--color-text)", marginBottom: "12px" }}>
+						구독 현황
+					</div>
+					<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px" }}>
+						<div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+							{subscriptionStatus.status === "ACTIVE" && (
+								<>
+									<span
+										style={{
+											display: "inline-flex",
+											alignItems: "center",
+											padding: "3px 10px",
+											borderRadius: "999px",
+											background: "color-mix(in srgb, #16a34a 12%, transparent)",
+											color: "#16a34a",
+											fontWeight: 700,
+											fontSize: "11px",
+											letterSpacing: "0.03em",
+										}}
+									>
+										프리미엄 구독 중
+									</span>
+									{subscriptionStatus.daysLeft != null && (
+										<span style={{ fontSize: "12px", color: "var(--color-text-secondary)" }}>
+											{subscriptionStatus.daysLeft}일 후 갱신
+										</span>
+									)}
+								</>
+							)}
+							{subscriptionStatus.status === "TRIAL" && (
+								<>
+									<span
+										style={{
+											display: "inline-flex",
+											alignItems: "center",
+											padding: "3px 10px",
+											borderRadius: "999px",
+											background: "color-mix(in srgb, var(--color-accent) 12%, transparent)",
+											color: "var(--color-accent)",
+											fontWeight: 700,
+											fontSize: "11px",
+											letterSpacing: "0.03em",
+										}}
+									>
+										무료 체험 중
+									</span>
+									{subscriptionStatus.daysLeft != null && (
+										<span style={{ fontSize: "12px", color: "var(--color-text-secondary)" }}>
+											{subscriptionStatus.daysLeft > 0
+												? `${subscriptionStatus.daysLeft}일 남음`
+												: "오늘 만료"}
+										</span>
+									)}
+								</>
+							)}
+							{subscriptionStatus.status === "INACTIVE" && (
+								<span
+									style={{
+										display: "inline-flex",
+										alignItems: "center",
+										padding: "3px 10px",
+										borderRadius: "999px",
+										background: "color-mix(in srgb, var(--color-text-muted) 12%, transparent)",
+										color: "var(--color-text-secondary)",
+										fontWeight: 700,
+										fontSize: "11px",
+										letterSpacing: "0.03em",
+									}}
+								>
+									미구독
+								</span>
+							)}
+						</div>
+						<a
+							href="/subscription"
+							style={{
+								fontSize: "12px",
+								color: "var(--color-accent)",
+								fontWeight: 600,
+								textDecoration: "none",
+							}}
+						>
+							{subscriptionStatus.status === "ACTIVE" ? "구독 관리" : "구독하기"} →
+						</a>
+					</div>
+				</div>
+			)}
 
 			{/* 로그아웃 */}
 			<div

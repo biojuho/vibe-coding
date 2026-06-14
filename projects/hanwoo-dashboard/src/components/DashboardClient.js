@@ -2014,6 +2014,7 @@ export default function DashboardClient(options = {}) {
 					widgetVisible={widgetSettings.visible}
 					onToggleWidget={widgetSettings.toggle}
 					quickActionIntent={quickActionIntent}
+					subscriptionStatus={subscriptionStatus}
 				/>
 			);
 		}

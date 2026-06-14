@@ -72,15 +72,17 @@ data: {"error":"Failed to generate an AI response."}
 
 - `400` for malformed JSON or invalid input.
 - `401` for missing or invalid session.
+- `403` with `{ error: "SUBSCRIPTION_REQUIRED" }` if subscription status is INACTIVE.
+- `429` with `Retry-After` header if rate limit exceeded (30 requests/hour per userId).
 - `500` when `GEMINI_API_KEY` is not configured or chat startup fails.
 
 ## Existing API Surface
 
 - `GET|POST /api/auth/[...nextauth]`: public Auth.js control-plane route for sign-in/session/callback handling. This route is intentionally outside `requireAuthenticatedSession()` so users can create or refresh a session.
-- `POST /api/auth/register`: public user registration endpoint. Accepts `{ username, password }` JSON. Validates username (3–30 chars, lowercase/digits/underscore) and password (min 8 chars), hashes with bcrypt (cost 12), creates a new User row. Returns `201 { ok: true }` on success, `400` on validation failure, `409` on duplicate username, `500` on internal error.
-- `POST /api/auth/change-password`: authenticated password change endpoint. Requires a valid session. Accepts `{ currentPassword, newPassword }`. Verifies current password with bcrypt, rejects if new == current or new < 8 chars, updates with bcrypt hash (cost 12). Returns `200 { ok: true }`, `400` on validation error or wrong current password, `401` without session, `404` if user not found. Accepts `{ username, password }` JSON. Validates username (3–30 chars, lowercase/digits/underscore) and password (min 8 chars), hashes with bcrypt (cost 12), creates a new User row. Returns `201 { ok: true }` on success, `400` on validation failure, `409` on duplicate username, `500` on internal error.
+- `POST /api/auth/register`: public user registration endpoint. Rate-limited to 5 requests/hour per IP. Accepts `{ username, password }` JSON. Validates username (3–30 chars, lowercase/digits/underscore) and password (min 8 chars), hashes with bcrypt (cost 12), creates a new User row and auto-creates a 14-day TRIAL subscription. Returns `201 { ok: true }` on success, `400` on validation failure, `409` on duplicate username, `429` on rate limit, `500` on internal error.
+- `POST /api/auth/change-password`: authenticated password change endpoint. Rate-limited to 5 requests/hour per userId. Requires a valid session. Accepts `{ currentPassword, newPassword }`. Verifies current password with bcrypt, rejects if new == current or new < 8 chars, updates with bcrypt hash (cost 12). Returns `200 { ok: true }`, `400` on validation error or wrong current password, `401` without session, `404` if user not found, `429` on rate limit.
 - `GET /api/health`: public health probe. Build/CI requests skip the database ping; runtime requests return degraded health instead of exposing a protected dashboard payload.
-- `POST /api/ai/insight`: authenticated daily insight endpoint with AI/cache/heuristic fallback. Unauthenticated requests return `401`.
+- `POST /api/ai/insight`: authenticated daily insight endpoint with AI/cache/heuristic fallback. Requires active subscription (TRIAL or ACTIVE); INACTIVE returns `403 { code: "SUBSCRIPTION_REQUIRED" }`. Rate-limited to 20 requests/hour per userId. Unauthenticated requests return `401`.
 - `GET /api/dashboard/summary`: authenticated dashboard aggregate summary.
 - `GET /api/dashboard/cattle`: authenticated cattle list with cursor pagination and query validation.
 - `GET /api/dashboard/sales`: authenticated sales list with cursor pagination and query validation.

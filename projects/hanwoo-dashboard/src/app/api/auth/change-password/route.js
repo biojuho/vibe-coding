@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuthenticatedSession } from "@/lib/auth-guard";
+import { checkRateLimit } from "@/lib/rate-limit.mjs";
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -31,6 +32,16 @@ export async function POST(request) {
 			{ error: "로그인이 필요합니다." },
 			{ status: 401 },
 		);
+	}
+
+	if (session.user?.id) {
+		const rateResult = checkRateLimit(`change-password:${session.user.id}`, { maxRequests: 5, windowMs: 3600000 });
+		if (!rateResult.allowed) {
+			return NextResponse.json(
+				{ error: "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요." },
+				{ status: 429, headers: { "Retry-After": String(rateResult.retryAfterSeconds ?? 3600) } },
+			);
+		}
 	}
 
 	let body;

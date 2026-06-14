@@ -641,3 +641,29 @@ test("settings building delete action waits for async deletes before re-enabling
 	assert.match(source, /disabled=\{isDeletingBuilding\}/);
 	assert.match(source, /aria-busy=\{isDeletingBuilding\}/);
 });
+
+test("settings tab renders subscription status section when subscriptionStatus is provided", () => {
+	const source = readSource("components/tabs/SettingsTab.js");
+
+	assert.match(source, /subscriptionStatus = null/);
+	assert.match(source, /\{subscriptionStatus && \(/);
+	assert.match(source, /구독 현황/);
+	assert.match(source, /subscriptionStatus\.status === ["']ACTIVE["']/);
+	assert.match(source, /subscriptionStatus\.status === ["']TRIAL["']/);
+	assert.match(source, /subscriptionStatus\.status === ["']INACTIVE["']/);
+	assert.match(source, /href=["']\/subscription["']/);
+	assert.match(source, /구독 관리/);
+	assert.match(source, /구독하기/);
+	assert.match(source, /프리미엄 구독 중/);
+	assert.match(source, /무료 체험 중/);
+	assert.match(source, /미구독/);
+});
+
+test("settings tab subscription status is passed from DashboardClient", () => {
+	const dashboardSource = readSource("components/DashboardClient.js");
+
+	assert.match(
+		dashboardSource,
+		/subscriptionStatus=\{subscriptionStatus\}/,
+	);
+});
