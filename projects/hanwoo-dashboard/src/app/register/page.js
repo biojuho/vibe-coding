@@ -172,6 +172,7 @@ export default function RegisterPage() {
 								value={password}
 								onChange={(e) => setPassword(e.target.value)}
 								required
+								maxLength={72}
 								style={{ ...FIELD_STYLE, paddingRight: "44px" }}
 							/>
 							<button
@@ -224,6 +225,7 @@ export default function RegisterPage() {
 								value={confirm}
 								onChange={(e) => setConfirm(e.target.value)}
 								required
+								maxLength={72}
 								aria-invalid={passwordMismatch}
 								aria-describedby={passwordMismatch ? "reg-confirm-error" : undefined}
 								style={{

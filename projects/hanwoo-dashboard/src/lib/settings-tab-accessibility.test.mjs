@@ -831,3 +831,10 @@ test("SettingsTab defers dead-letter state init with queueMicrotask to avoid Rea
 	// Must NOT use direct synchronous call
 	assert.doesNotMatch(source, /^\s*setDeadLetterItems\(getDeadLetterQueue\(\)\);/m);
 });
+
+test("SettingsTab change-password inputs have maxLength=72 to prevent bcrypt DoS via long password input", () => {
+	const source = readSource("components/tabs/SettingsTab.js");
+	// All three password PremiumInput fields must have maxLength={72} (current, new, confirm)
+	const matches = [...source.matchAll(/maxLength=\{72\}/g)];
+	assert.ok(matches.length >= 3, `Expected at least 3 maxLength={72} on password inputs, found ${matches.length}`);
+});

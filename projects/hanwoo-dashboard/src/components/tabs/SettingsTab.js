@@ -1146,6 +1146,7 @@ export default function SettingsTab(options = {}) {
 							aria-label="현재 비밀번호"
 							aria-required="true"
 							autoComplete="current-password"
+							maxLength={72}
 							style={{ paddingRight: "44px" }}
 						/>
 						<button
@@ -1169,6 +1170,7 @@ export default function SettingsTab(options = {}) {
 							aria-label="새 비밀번호"
 							aria-required="true"
 							autoComplete="new-password"
+							maxLength={72}
 							style={{ paddingRight: "44px" }}
 						/>
 						<button
@@ -1193,6 +1195,7 @@ export default function SettingsTab(options = {}) {
 							autoComplete="new-password"
 							aria-required="true"
 							aria-invalid={pwNewMismatch}
+							maxLength={72}
 							style={{ paddingRight: "44px", borderColor: pwNewMismatch ? "var(--color-danger)" : undefined }}
 						/>
 						<button

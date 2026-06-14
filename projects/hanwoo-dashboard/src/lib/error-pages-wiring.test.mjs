@@ -593,3 +593,10 @@ test("register page has password visibility toggles and real-time mismatch feedb
 	assert.match(source, /id=\{registerErrorId\}/);
 	assert.match(source, /const registerErrorId = ["']register-error-message["']/);
 });
+
+test("register page password inputs have maxLength=72 to prevent bcrypt DoS via long password input", () => {
+	const source = readSource("app/register/page.js");
+	// Both reg-password and reg-confirm must carry maxLength={72}
+	const matches = [...source.matchAll(/maxLength=\{72\}/g)];
+	assert.ok(matches.length >= 2, `Expected at least 2 maxLength={72} on register password inputs, found ${matches.length}`);
+});
