@@ -287,7 +287,8 @@ def run_jinsol(haewon_output: dict[str, Any], llm_router: Any, channel_context: 
     try:
         char_min_str, char_max_str = target_chars.replace("–", "-").split("-")
         char_range_hint = f"총 글자 수(띄어쓰기 포함)는 반드시 {char_min_str.strip()}~{char_max_str.strip()}자로 맞추십시오. (채널 TTS 속도 기준 약 {target_sec}초 분량)"
-    except Exception:
+    except Exception as exc:
+        logger.debug("char_range_hint parse failed for target_chars=%r: %s — using default 245~275", target_chars, exc)
         char_range_hint = "총 글자 수(띄어쓰기 포함)는 반드시 245~275자로 맞추십시오."
 
     # ── 채널별 금지 표현 추출 ──────────────────────────────────────────────────

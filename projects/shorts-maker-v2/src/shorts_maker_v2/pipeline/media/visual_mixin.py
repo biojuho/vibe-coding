@@ -135,7 +135,8 @@ class MediaVisualMixin:
                 if len(hex_colors) >= n_colors:
                     break
             return ", ".join(hex_colors)
-        except Exception:
+        except Exception as exc:
+            logger.debug("_extract_dominant_colors: palette extraction failed: %s", exc)
             return ""
 
     @staticmethod

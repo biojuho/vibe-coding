@@ -255,6 +255,7 @@ class SeriesEngine:
                             "comments": 0,
                         }
                     )
-            except Exception:
+            except Exception as exc:
+                logger.debug("_scan_manifests: skipping %s (parse error: %s)", f.name, exc)
                 continue
         return results

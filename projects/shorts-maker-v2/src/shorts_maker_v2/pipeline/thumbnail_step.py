@@ -314,7 +314,8 @@ def _generate_pillow_thumbnail(
 
             bg = ImageEnhance.Brightness(bg).enhance(0.5)
             img = bg
-        except Exception:
+        except Exception as exc:
+            logger.warning("thumbnail: bg image load failed for %s — using gradient fallback: %s", bg_image_path, exc)
             img = _pillow_gradient_bg(W, H)
     else:
         img = _pillow_gradient_bg(W, H)
