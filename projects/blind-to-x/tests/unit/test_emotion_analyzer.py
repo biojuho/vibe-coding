@@ -203,7 +203,7 @@ class TestKoteMapping:
     def test_all_axes_reachable(self):
         """Verify every target axis has at least one mapped emotion."""
         axes = set(_KOTE_TO_AXIS.values())
-        expected = {"분노", "허탈", "현타", "공감", "웃김", "경악", "통찰"}
+        expected = {"분노", "허탈", "현타", "공감", "웃김", "경악", "통찰", "통쾌"}
         assert axes == expected
 
     def test_all_group_labels_exist(self):
