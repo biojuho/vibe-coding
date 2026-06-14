@@ -26,7 +26,7 @@ test("excel export button uses a real decorative download icon", () => {
 	assert.match(source, /export default function ExcelExportButton\(options = \{\}\) \{/);
 	assert.match(
 		source,
-		/const \{ cattleList = \[\], resolveCattleList = null, buildings = \[\] \} =\s+normalizeExcelExportButtonOptions\(options\);/,
+		/const \{ cattleList = \[\], resolveCattleList = null, buildings = \[\], isPremium = true \} =\s+normalizeExcelExportButtonOptions\(options\);/,
 	);
 	assert.doesNotMatch(source, /export default function ExcelExportButton\(\{\s+cattleList = \[\],\s+resolveCattleList = null,\s+\}\)/);
 	assert.match(source, /import \{ Download \} from ["']lucide-react["'];/);

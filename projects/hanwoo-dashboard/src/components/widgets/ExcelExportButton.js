@@ -37,7 +37,7 @@ function normalizeExcelExportButtonOptions(options) {
 }
 
 export default function ExcelExportButton(options = {}) {
-	const { cattleList = [], resolveCattleList = null, buildings = [] } =
+	const { cattleList = [], resolveCattleList = null, buildings = [], isPremium = true } =
 		normalizeExcelExportButtonOptions(options);
 	const { notify } = useAppFeedback();
 	const [isPreparing, setIsPreparing] = useState(false);
@@ -103,6 +103,24 @@ export default function ExcelExportButton(options = {}) {
 			}
 		}
 	};
+
+	if (!isPremium) {
+		return (
+			<a
+				href="/subscription"
+				className="inline-flex items-center gap-1.5 min-h-11 px-3 py-2 rounded-[12px] text-sm font-bold shadow-md no-underline"
+				style={{
+					background: "var(--surface-gradient-primary)",
+					color: "white",
+				}}
+				aria-label="구독하면 개체 엑셀 다운로드를 사용할 수 있습니다"
+				title="구독 후 엑셀 다운로드"
+			>
+				<Download size={14} aria-hidden="true" />
+				엑셀 내보내기 (구독 필요)
+			</a>
+		);
+	}
 
 	return (
 		<PremiumButton

@@ -38,8 +38,28 @@ function normalizeProfitabilityWidgetOptions(options) {
 }
 
 export function ProfitabilityWidget(options = {}) {
-	const { data, isLoading, error, meta = null } =
+	const { data, isLoading, error, meta = null, isPremium = true } =
 		normalizeProfitabilityWidgetOptions(options);
+
+	if (!isPremium) {
+		return (
+			<PremiumCard className="mb-4">
+				<PremiumCardHeader title="출하 수익성 분석" icon="📈" />
+				<PremiumCardContent>
+					<p className="text-sm text-[color:var(--color-text-muted)] mb-3">
+						개체별 예상 수익을 자동 계산합니다. 프리미엄 구독 시 이용 가능합니다.
+					</p>
+					<a
+						href="/subscription"
+						className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[12px] text-sm font-bold no-underline text-white"
+						style={{ background: "var(--surface-gradient-primary)" }}
+					>
+						구독하고 수익성 분석 보기 →
+					</a>
+				</PremiumCardContent>
+			</PremiumCard>
+		);
+	}
 	const visibleData = normalizeProfitabilityItems(data);
 	const isCustomized = Boolean(meta?.isCustomized);
 	const feedCostLabel = formatPerHeadFeedCost(meta?.monthlyFeedCost);

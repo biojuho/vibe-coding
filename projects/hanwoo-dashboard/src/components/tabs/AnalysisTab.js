@@ -94,6 +94,7 @@ export default function AnalysisTab(options = {}) {
 		expenseRecords = [],
 		marketPrice = null,
 		profitability = null,
+		isPremium = true,
 	} = normalizeAnalysisTabOptions(options);
 	const safeSaleRecords = useMemo(
 		() => normalizeAnalysisItems(saleRecords),
@@ -592,6 +593,7 @@ export default function AnalysisTab(options = {}) {
 				data={profitability?.data}
 				error={profitability?.error}
 				meta={profitability?.meta ?? null}
+				isPremium={isPremium}
 			/>
 		</div>
 	);

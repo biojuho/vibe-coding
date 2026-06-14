@@ -225,7 +225,7 @@ test("profitability widget normalizes malformed top-level props before rendering
 	assert.match(source, /export function ProfitabilityWidget\(options = \{\}\) \{/);
 	assert.match(
 		source,
-		/const \{ data, isLoading, error, meta = null \} =\s*normalizeProfitabilityWidgetOptions\(options\);/,
+		/const \{ data, isLoading, error, meta = null, isPremium = true \} =\s*normalizeProfitabilityWidgetOptions\(options\);/,
 	);
 	assert.match(
 		source,

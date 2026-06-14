@@ -422,6 +422,7 @@ export default function DashboardClient(options = {}) {
 		initialDataLoadStatus,
 		subscriptionStatus,
 	} = normalizeDashboardClientOptions(options);
+	const isPremium = subscriptionStatus?.status !== "INACTIVE";
 	const router = useRouter();
 	const { theme, toggleTheme } = useTheme();
 	const { notify, confirm } = useAppFeedback();
@@ -1990,6 +1991,7 @@ export default function DashboardClient(options = {}) {
 					expenseRecords={expenseRecords}
 					marketPrice={initialMarketPrice}
 					profitability={initialProfitability}
+					isPremium={isPremium}
 				/>
 			);
 		}
@@ -2046,6 +2048,7 @@ export default function DashboardClient(options = {}) {
 							cattleList={cattleList}
 							resolveCattleList={ensureAllCattleLoaded}
 							buildings={safeBuildings}
+							isPremium={isPremium}
 						/>
 						<PremiumButton
 							ref={notificationTriggerRef}
@@ -2119,6 +2122,7 @@ export default function DashboardClient(options = {}) {
 						error={initialProfitability?.error}
 						isLoading={false}
 						meta={initialProfitability?.meta ?? null}
+						isPremium={isPremium}
 					/>
 				)}
 				{widgetSettings.visible.aiInsight && (
