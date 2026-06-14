@@ -163,8 +163,17 @@ review_copy:
         Score 7-8 (GOOD): Counterintuitive fact, paradox, or hyper-relatable problem stated in under 20 Korean characters. Creates curiosity gap.
         Score 9-10 (EXCELLENT): Specific + shocking + curiosity gap in ONE punchy sentence. Viewer cannot scroll past. No filler words.
         Deduct 2 points automatically if the hook ends with a generic question that does not create genuine tension (e.g. '~알고 계셨나요?', '~해본 적 있으신가요?').
-      flow_score : How naturally does the Body build and connect? (1=choppy, 10=seamless)
-      cta_score  : How well does the closing land as a quiet, lingering thought? (1=abrupt or commanding CTA-style ending, 10=memorable afterimage with no action demands)
+      flow_score : How naturally does the Body build knowledge and connect scenes?
+        Score 1-3 (FAIL): Scenes feel like disconnected bullet points; each starts a new topic without bridging from the previous.
+        Score 4-6 (MEDIOCRE): Has some connective tissue but order feels arbitrary; could rearrange scenes without losing meaning.
+        Score 7-8 (GOOD): Each scene sets up the next; analogy → fact → cause/solution flows naturally. Viewer never wonders "why is this here?"
+        Score 9-10 (EXCELLENT): The body builds like a satisfying mini-story — the analogy makes the fact land harder, and the solution feels inevitable.
+      cta_score  : How well does the closing leave a quiet, lingering afterimage (여운)?
+        Score 1-3 (FAIL): Contains action demands ('구독', '좋아요', '알림', '댓글', '저장해두세요', '여러분도 한번'), abrupt cut, or preachy lesson.
+        Score 4-6 (MEDIOCRE): Ends without action demand but feels flat — no emotional resonance, no invitation to reflect.
+        Score 7-8 (GOOD): Ends with a gentle observation or poetic thought that stays with the viewer. Feels like the last line of a bedtime story.
+        Score 9-10 (EXCELLENT): A single sentence that distills the entire video's meaning into a new perspective. Viewer thinks about it after the video ends.
+        Auto-fail (score ≤2) for any closing that contains: '구독', '좋아요', '알림', '팔로우', '눌러', '댓글', '저장해두세요'.
       verifiability_score : Can a viewer Google each factual claim and confirm it? (1=all claims feel fabricated/unverifiable, 10=every claim is well-known or easily verifiable)
       spelling_score : Is the Korean spelling (맞춤법) and spacing (띄어쓰기) correct? (1=many errors, 10=perfect Korean). If errors found, list them in 'spelling_fixes'.
   feedback_rule: |
