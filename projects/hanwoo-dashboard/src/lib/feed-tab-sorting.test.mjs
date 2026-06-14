@@ -30,3 +30,10 @@ test("FeedTab: doesNotMatch unguarded NEGATIVE_INFINITY subtraction in sort", ()
 		/\.sort\(\s*\(\s*first,\s*second\s*\)\s*=>\s*getFeedDateTime/,
 	);
 });
+
+test("FeedTab recent feed history uses role=list/listitem for screen reader navigation", () => {
+	const source = readSource("components/tabs/FeedTab.js");
+	assert.match(source, /role="list"/);
+	assert.match(source, /aria-label="최근 사료 기록 목록"/);
+	assert.match(source, /role="listitem"/);
+});

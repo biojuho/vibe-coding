@@ -618,10 +618,11 @@ export default function FeedTab(options = {}) {
 				>
 					최근 기록
 				</div>
-				<div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+				<div role="list" aria-label="최근 사료 기록 목록" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
 					{safeFeedHistory.slice(0, 5).map((record, index) => (
 						<div
 							key={record.id ?? `feed-record-${index}`}
+							role="listitem"
 							style={{
 								background: "var(--surface-gradient)",
 								borderRadius: "18px",
