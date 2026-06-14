@@ -1,11 +1,12 @@
 import PaymentWidget from "@/components/payment/PaymentWidget";
+import CancelSubscriptionButton from "@/components/subscription/CancelSubscriptionButton";
 import { requireAuthenticatedSession } from "@/lib/auth-guard";
 import { buildCustomerKey, PREMIUM_SUBSCRIPTION } from "@/lib/subscription";
 import { getSubscriptionStatus } from "@/lib/subscription-queries";
 
 const clientKey = process.env.NEXT_PUBLIC_TOSS_PAYMENTS_CLIENT_KEY || "";
 
-function ActiveSubscriptionView({ daysLeft, nextPaymentDate }) {
+function ActiveSubscriptionView({ daysLeft, nextPaymentDate, cancelSuccess }) {
 	const nextDate =
 		nextPaymentDate instanceof Date
 			? nextPaymentDate.toLocaleDateString("ko-KR")
@@ -43,6 +44,20 @@ function ActiveSubscriptionView({ daysLeft, nextPaymentDate }) {
 					{daysLeft != null && ` (${daysLeft}일 후)`}
 				</p>
 			)}
+			{cancelSuccess && (
+				<p
+					role="alert"
+					style={{
+						marginTop: "12px",
+						fontSize: "13px",
+						color: "var(--color-danger)",
+						fontWeight: 600,
+					}}
+				>
+					구독이 해지되었습니다. 이미 결제된 기간은 환불되지 않습니다.
+				</p>
+			)}
+			<CancelSubscriptionButton />
 		</div>
 	);
 }
@@ -86,8 +101,10 @@ function TrialSubscriptionView({ daysLeft, customerKey, amount, orderName, custo
 	);
 }
 
-export default async function SubscriptionPage() {
+export default async function SubscriptionPage({ searchParams }) {
 	const session = await requireAuthenticatedSession({ redirectToLogin: true });
+	const params = await Promise.resolve(searchParams);
+	const cancelStatus = params?.cancel ?? null;
 	const customerKey = buildCustomerKey(session.user.id);
 	const subscriptionStatus = await getSubscriptionStatus(session.user.id).catch(() => ({
 		status: "INACTIVE",
@@ -182,6 +199,7 @@ export default async function SubscriptionPage() {
 				<ActiveSubscriptionView
 					daysLeft={subscriptionStatus.daysLeft}
 					nextPaymentDate={subscriptionStatus.nextPaymentDate}
+					cancelSuccess={cancelStatus === "success"}
 				/>
 			) : subscriptionStatus.status === "TRIAL" ? (
 				<TrialSubscriptionView
