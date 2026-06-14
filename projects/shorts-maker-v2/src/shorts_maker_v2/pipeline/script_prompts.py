@@ -324,8 +324,9 @@ class ScriptPromptsMixin:
             "       (~인 이유, ~하는 방법, ~의 비결, ~의 원인, ~의 진실)\n"
             "    4) A specific proper noun (named person, org, place, brand —\n"
             "       e.g. NASA, MIT, 하버드, 일론 머스크, 1500년대 베네치아)\n"
-            "  - Vague openers are FORBIDDEN: '오늘은', '한번', '이번에는', '여러분',\n"
-            "    '지금부터', '잠깐만' — start with the most concrete element instead.\n"
+            "  - Vague openers are FORBIDDEN: '오늘은', '오늘의', '이번에는', '이번엔',\n"
+            "    '여러분', '우리는', '우리가', '안녕하세요', '지금부터', '잠깐만',\n"
+            "    '~에 대해 알아볼게요' — start with the most concrete element instead.\n"
             "  - Keep {narration_field} ≤ 25 characters when possible (the brevity scorer\n"
             "    rewards ≤15 chars maximally and penalizes ≥40 chars).\n"
         ),
