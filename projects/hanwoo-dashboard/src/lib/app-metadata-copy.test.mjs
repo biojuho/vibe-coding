@@ -53,6 +53,15 @@ test("app metadata and PWA manifest use product-ready Korean copy", () => {
 	assert.equal(manifest.lang, "ko-KR");
 });
 
+test("root layout has openGraph and twitter social share images", () => {
+	const layoutSource = readProjectFile("src/app/layout.js");
+
+	// Social share images make link previews usable (Kakao, Twitter, etc.)
+	assert.match(layoutSource, /openGraph:[\s\S]{0,200}images:/);
+	assert.match(layoutSource, /icon-512x512\.png/);
+	assert.match(layoutSource, /twitter:[\s\S]{0,200}images:/);
+});
+
 test("proxy leaves public health and PWA assets outside auth redirects", () => {
 	const proxySource = readProjectFile("src/proxy.js");
 

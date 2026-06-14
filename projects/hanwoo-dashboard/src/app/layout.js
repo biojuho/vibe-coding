@@ -40,11 +40,13 @@ export const metadata = {
 		title: "Joolife 한우 | 한우 농장 관리 SaaS",
 		description: "개체 관리, AI 인사이트, 수익성 분석, KAPE 시세 연동 — 한우 농장을 스마트하게 관리하세요.",
 		siteName: "Joolife 한우",
+		images: [{ url: "/icon-512x512.png", width: 512, height: 512, alt: "Joolife 한우 농장 관리" }],
 	},
 	twitter: {
 		card: "summary",
 		title: "Joolife 한우 | 한우 농장 관리 SaaS",
 		description: "개체 관리, AI 인사이트, 수익성 분석, KAPE 시세 연동",
+		images: ["/icon-512x512.png"],
 	},
 	appleWebApp: {
 		capable: true,
