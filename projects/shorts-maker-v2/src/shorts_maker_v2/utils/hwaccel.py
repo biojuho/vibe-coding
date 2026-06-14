@@ -110,11 +110,9 @@ def detect_hw_encoder(preference: str = "auto") -> tuple[str, list[str]]:
     for codec, params in _HW_ENCODERS:
         if _encoder_available(codec) and _test_encode(codec):
             logger.info("[HW_ACCEL] detected: %s", codec)
-            print(f"[HW_ACCEL] detected: {codec}")
             return codec, params
 
-    logger.info("[HW_ACCEL] no HW encoder found, using libx264")
-    print("[HW_ACCEL] no HW encoder found, using libx264 (CPU)")
+    logger.info("[HW_ACCEL] no HW encoder found, using libx264 (CPU)")
     return _CPU_FALLBACK
 
 

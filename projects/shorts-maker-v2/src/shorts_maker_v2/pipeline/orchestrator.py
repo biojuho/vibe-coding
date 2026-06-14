@@ -1357,7 +1357,6 @@ class PipelineOrchestrator:
         # [PERF] 스텝별 타이밍 요약 로그
         perf_parts = [f"{k}={v:.1f}s" for k, v in step_timings.items()]
         logger.info("[PERF] %s", " | ".join(perf_parts))
-        print(f"\n[PERF] {' | '.join(perf_parts)}\n")
 
         run_manifest_path, output_manifest_path = self._save_manifest(manifest, run_dir=run_dir)
         jlog.info(

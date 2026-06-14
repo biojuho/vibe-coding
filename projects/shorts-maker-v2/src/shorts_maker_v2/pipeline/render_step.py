@@ -965,11 +965,6 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
             speed_ratio,
             "faster than realtime" if speed_ratio > 1.0 else "slower than realtime",
         )
-        print(
-            f"\n[BENCHMARK] {hw_codec} | "
-            f"video {video_duration:.1f}s -> render {render_elapsed:.1f}s "
-            f"({speed_ratio:.2f}x {'fast' if speed_ratio > 1.0 else 'slow'})\n"
-        )
 
     @staticmethod
     def _close_render_resources(
