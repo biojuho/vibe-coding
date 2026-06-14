@@ -170,4 +170,8 @@ test("legal pages expose stable support channels without personal contact detail
 		/<ArrowLeft className="h-4 w-4" aria-hidden="true" \/>/,
 	);
 	assert.doesNotMatch(returnLinkSource, /홈으로 돌아가기/);
+	// SSR/empty-locationHref guard: if !callbackUrl OR !locationHref → return plain login target
+	// This prevents a fake "http://localhost" origin from being used during SSR
+	assert.match(returnLinkSource, /if \(!callbackUrl \|\| !locationHref\)/);
+	assert.doesNotMatch(returnLinkSource, /locationHref \|\| ["']http:\/\/localhost["']/);
 });

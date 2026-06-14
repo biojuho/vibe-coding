@@ -98,14 +98,14 @@ test("root layout includes skip-to-main-content link for keyboard accessibility"
 	assert.match(loginSource, /id="main-content"/);
 });
 
-test("home page and admin diagnostics page have metadata", () => {
+test("home page and admin diagnostics layout have metadata", () => {
 	const homeSource = readProjectFile("src/app/page.js");
-	const adminSource = readProjectFile("src/app/admin/diagnostics/page.js");
+	const adminLayoutSource = readProjectFile("src/app/admin/diagnostics/layout.js");
 
 	assert.match(homeSource, /export const metadata = \{/);
 	assert.match(homeSource, /대시보드 · Joolife 한우/);
-	assert.match(adminSource, /export const metadata = \{/);
-	assert.match(adminSource, /진단 · Joolife 한우 관리자/);
+	assert.match(adminLayoutSource, /export const metadata = \{/);
+	assert.match(adminLayoutSource, /시스템 진단 · Joolife 한우/);
 });
 
 test("AIChatWidget non-premium close button has aria-label for screen readers", () => {

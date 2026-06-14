@@ -33,12 +33,12 @@ function buildLoginReturnHref(callbackTarget = "") {
 
 function resolveLegalLoginReturnTarget(searchParams, locationHref = "") {
 	const callbackUrl = searchParams?.get("callbackUrl");
-	if (!callbackUrl) {
+	if (!callbackUrl || !locationHref) {
 		return LEGAL_RETURN_TARGETS.login;
 	}
 
 	try {
-		const currentUrl = new URL(locationHref || "http://localhost");
+		const currentUrl = new URL(locationHref);
 		const loginUrl = new URL(LEGAL_RETURN_TARGETS.login.href, currentUrl.origin);
 		loginUrl.searchParams.set("callbackUrl", callbackUrl);
 		const redirectTarget = getSafeLoginRedirectTarget(loginUrl.href);
