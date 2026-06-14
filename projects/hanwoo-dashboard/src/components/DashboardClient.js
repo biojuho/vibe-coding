@@ -2356,7 +2356,7 @@ export default function DashboardClient(options = {}) {
 					</div>
 				) : null}
 
-				<AIChatWidget />
+				<AIChatWidget isPremium={isPremium} />
 			</>
 		);
 	};

@@ -189,7 +189,7 @@ async function streamChat(options = {}) {
 	}
 }
 
-export default function AIChatWidget() {
+export default function AIChatWidget({ isPremium = true } = {}) {
 	const [isOpen, setIsOpen] = useState(false);
 	const [messages, setMessages] = useState(INITIAL_MESSAGES);
 	const [input, setInput] = useState("");
@@ -375,6 +375,66 @@ export default function AIChatWidget() {
 			closeWidget();
 		}
 	};
+
+	if (!isPremium && isOpen) {
+		return (
+			<div
+				role="dialog"
+				aria-modal="true"
+				aria-label="AI 농장 비서 - 구독 필요"
+				style={{
+					position: "fixed",
+					bottom: "90px",
+					right: "20px",
+					width: "min(300px, calc(100vw - 32px))",
+					background: "var(--color-bg-card)",
+					borderRadius: "var(--radius-xl)",
+					boxShadow: "var(--shadow-lg)",
+					zIndex: 999,
+					padding: "24px",
+					textAlign: "center",
+					border: "1px solid var(--color-border)",
+				}}
+			>
+				<div style={{ fontSize: "36px", marginBottom: "12px" }}>🤖</div>
+				<p style={{ fontSize: "14px", fontWeight: 700, marginBottom: "8px", color: "var(--color-text)" }}>
+					AI 농장 비서
+				</p>
+				<p style={{ fontSize: "13px", color: "var(--color-text-secondary)", marginBottom: "16px", lineHeight: 1.5 }}>
+					발정, 사양, 급여, 시세 등 궁금한 점을<br />24시간 답변해 드립니다.
+				</p>
+				<a
+					href="/subscription"
+					style={{
+						display: "block",
+						background: "var(--surface-gradient-primary)",
+						color: "white",
+						borderRadius: "12px",
+						padding: "10px",
+						fontSize: "14px",
+						fontWeight: 700,
+						textDecoration: "none",
+						marginBottom: "8px",
+					}}
+				>
+					구독하고 AI 비서 이용하기
+				</a>
+				<button
+					type="button"
+					onClick={() => setIsOpen(false)}
+					style={{
+						background: "none",
+						border: "none",
+						fontSize: "13px",
+						color: "var(--color-text-secondary)",
+						cursor: "pointer",
+					}}
+				>
+					닫기
+				</button>
+			</div>
+		);
+	}
 
 	if (!isOpen) {
 		return (
