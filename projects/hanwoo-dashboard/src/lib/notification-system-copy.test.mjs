@@ -214,4 +214,7 @@ test("clickable dropdown menu items use native button semantics", () => {
 	assert.match(source, /if \(!React\.isValidElement\(children\)\) \{\s+return null;\s+\}/);
 	assert.match(source, /focus:ring-2/);
 	assert.doesNotMatch(source, /<div\s+[^>]*onClick=\{onClick\}/);
+	// WCAG 4.1.2: dropdown content must declare role=menu and items role=menuitem
+	assert.match(source, /role="menu"/);
+	assert.match(source, /role="menuitem"/);
 });

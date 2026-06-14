@@ -27,7 +27,7 @@ export function DropdownMenuContent(options = {}) {
 			className={`clay-surface absolute right-0 mt-2 w-56 origin-top-right divide-y rounded-[22px] focus:outline-none z-50 ${className}`}
 			style={{ borderColor: "var(--color-surface-stroke)" }}
 		>
-			<div className="py-1">{children}</div>
+			<div role="menu" className="py-1">{children}</div>
 		</div>
 	);
 }
@@ -41,6 +41,7 @@ export function DropdownMenuItem(options = {}) {
 	return (
 		<Element
 			type={handleClick ? "button" : undefined}
+			role="menuitem"
 			className={`block w-full cursor-pointer rounded-[14px] px-4 py-2 text-left text-sm transition-colors hover:bg-background/70 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${className}`}
 			style={{ color: "var(--color-text)" }}
 			onClick={handleClick}
