@@ -79,6 +79,17 @@ class MediaAudioMixin:
                     logger.debug("[MediaStep] whisperx 미설치 → 기본 동기화 유지")
             except Exception as exc:
                 logger.warning("[MediaStep] WhisperX 정렬 실패 (기본 동기화 폴백): %s", exc)
+                scene_id = self._scene_id_from_path(audio_result)
+                pending = getattr(self, "_pending_audio_warnings", None)
+                if pending is not None:
+                    pending.append(
+                        {
+                            "step": "whisperx_align",
+                            "code": type(exc).__name__,
+                            "message": f"scene {scene_id}: WhisperX 정렬 실패 — {str(exc)[:120]}",
+                            "error_type": "sync_loss",
+                        }
+                    )
 
         # chatterbox/cosyvoice/openvoice/edge-tts는 자체적으로 _words.json을 생성
         # OpenAI TTS만 Whisper fallback 필요
@@ -95,5 +106,16 @@ class MediaAudioMixin:
                 words_json_path.write_text(json.dumps(words, ensure_ascii=False, indent=2), encoding="utf-8")
             except Exception as exc:
                 logger.warning("[MediaStep] Whisper sync 실패 (자막 동기화 스킵): %s", exc)
+                scene_id = self._scene_id_from_path(audio_result)
+                pending = getattr(self, "_pending_audio_warnings", None)
+                if pending is not None:
+                    pending.append(
+                        {
+                            "step": "whisper_sync",
+                            "code": type(exc).__name__,
+                            "message": f"scene {scene_id}: Whisper sync 실패 — {str(exc)[:120]}",
+                            "error_type": "sync_loss",
+                        }
+                    )
 
         return audio_result

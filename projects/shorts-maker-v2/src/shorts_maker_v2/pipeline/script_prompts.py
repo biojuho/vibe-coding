@@ -173,6 +173,12 @@ class ScriptPromptsMixin:
     _tone_counter: int = 0
     _structure_counter: int = 0  # YPP: 구조 프리셋 로테이션
 
+    @classmethod
+    def _reset_counters(cls) -> None:
+        """Reset rotation counters to 0. Intended for test isolation only."""
+        cls._tone_counter = 0
+        cls._structure_counter = 0
+
     # ── 채널별 페르소나 정의 ──────────────────────────────────────────────────
     _CHANNEL_PERSONA: dict[str, dict[str, str]] = {
         "ai_tech": {
