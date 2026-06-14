@@ -616,3 +616,40 @@ test("normalizeHealthWarning accepts Error objects and strings, falls back to de
 	assert.doesNotMatch(healthResponseLib, /warning: error\.message/);
 });
 
+// ── actions/building.js ───────────────────────────────────────────────────────
+
+const buildingAction = readSource("lib/actions/building.js");
+
+test("createBuilding validates input before DB write and returns error on invalid data", () => {
+	assert.match(buildingAction, /validateBuildingInput/);
+	assert.match(buildingAction, /validation\.success/);
+	assert.match(buildingAction, /success: false/);
+});
+
+test("createBuilding uses buildingMutationSchema with name (max 40) and penCount (1–200)", () => {
+	const validationLib = readSource("lib/action-validation.mjs");
+	assert.match(validationLib, /buildingMutationSchema/);
+	assert.match(validationLib, /name.*requiredText.*40|requiredText.*40.*name/);
+	assert.match(validationLib, /penCount.*requiredPositiveInt.*200|requiredPositiveInt.*200.*penCount/);
+	assert.match(validationLib, /칸 수는 1 이상이어야 합니다/);
+});
+
+// ── actions/feed.js ───────────────────────────────────────────────────────────
+
+const feedAction = readSource("lib/actions/feed.js");
+
+test("createFeedRecord validates input before DB write and returns error on invalid data", () => {
+	assert.match(feedAction, /validateFeedRecordInput/);
+	assert.match(feedAction, /validation\.success/);
+	assert.match(feedAction, /success: false/);
+});
+
+test("feedRecordSchema enforces required roughage and concentrate as positive numbers", () => {
+	const validationLib = readSource("lib/action-validation.mjs");
+	assert.match(validationLib, /feedRecordSchema/);
+	assert.match(validationLib, /roughage.*requiredPositiveNumber|requiredPositiveNumber.*roughage/);
+	assert.match(validationLib, /concentrate.*requiredPositiveNumber|requiredPositiveNumber.*concentrate/);
+	assert.match(validationLib, /조사료량은 0보다 커야 합니다/);
+	assert.match(validationLib, /배합사료량은 0보다 커야 합니다/);
+});
+
