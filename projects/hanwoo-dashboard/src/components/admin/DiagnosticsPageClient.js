@@ -213,7 +213,6 @@ export default function DiagnosticsPageClient() {
 		}
 
 		if (!isDatabaseAvailable) {
-			const requestId = ++rawDataRequestRef.current;
 			setDataLoading(false);
 			setRawData(null);
 			setRawDataErrorMessage(DATABASE_UNAVAILABLE_RAW_DATA_MESSAGE);
