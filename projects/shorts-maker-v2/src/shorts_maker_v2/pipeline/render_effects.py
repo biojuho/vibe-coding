@@ -502,7 +502,7 @@ class RenderEffectsMixin:
                 prev_clip=result[-1] if result else None,
             )
 
-            if replace_last is not None:
+            if replace_last is not None and result:
                 result[-1] = replace_last
             result.extend(clips_to_add)
 

@@ -853,5 +853,26 @@ class TestCandidatePublishabilityScore(unittest.TestCase):
         self.assertEqual(score, 0.0)
 
 
+class TestScoring6DEdgeCases(unittest.TestCase):
+    """T-AB051: scoring_6d ZeroDivision 방어."""
+
+    def test_pearson_empty_lists_returns_zero(self):
+        """_pearson([],[]) → 0.0 (was ZeroDivisionError)."""
+        from pipeline.content_intelligence.scoring_6d import _pearson
+
+        result = _pearson([], [])
+        self.assertEqual(result, 0.0)
+
+    def test_normalize_calibration_weights_zero_total(self):
+        """_normalize_calibration_weights({all: 0.0}) → 합계 0이어도 크래시 없음."""
+        from pipeline.content_intelligence.scoring_6d import DIMENSION_KEYS, _normalize_calibration_weights
+
+        zero_corrs = {dim: 0.0 for dim in DIMENSION_KEYS}
+        result = _normalize_calibration_weights(zero_corrs)
+        self.assertEqual(set(result.keys()), set(DIMENSION_KEYS))
+        # weights must still sum to ~1.0
+        self.assertAlmostEqual(sum(result.values()), 1.0, places=3)
+
+
 if __name__ == "__main__":
     unittest.main()

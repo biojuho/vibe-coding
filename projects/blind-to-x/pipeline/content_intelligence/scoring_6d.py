@@ -225,6 +225,8 @@ def _dimension_proxies(rows: list[Any]) -> dict[str, list[float]]:
 
 def _pearson(x: list[float], y: list[float]) -> float:
     n = len(x)
+    if n == 0:
+        return 0.0
     mx = sum(x) / n
     my = sum(y) / n
     cov = sum((xi - mx) * (yi - my) for xi, yi in zip(x, y))
@@ -244,6 +246,8 @@ def _calibration_correlations(rows: list[Any]) -> dict[str, float]:
 
 def _normalize_calibration_weights(correlations: dict[str, float]) -> dict[str, float]:
     total_corr = sum(correlations.values())
+    if not total_corr:
+        total_corr = 1.0
     weights = {dim: max(0.05, min(0.40, correlations[dim] / total_corr)) for dim in DIMENSION_KEYS}
     weight_sum = sum(weights.values())
     return {key: round(value / weight_sum, 4) for key, value in weights.items()}
