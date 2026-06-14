@@ -66,3 +66,30 @@ test("subscription trial view shows days remaining and payment widget", () => {
 	assert.match(source, /일 남았습니다/);
 	assert.match(source, /<PaymentWidget/);
 });
+
+test("subscription success page uses main landmark and has aria-live for payment status", () => {
+	const source = readSource("app/subscription/success/page.js");
+
+	assert.match(source, /id="main-content"/);
+	assert.match(source, /<main\b/);
+	assert.match(source, /<\/main>/);
+	assert.match(source, /aria-live="polite"/);
+	assert.match(source, /aria-atomic="true"/);
+	assert.match(source, /결제가 완료되었습니다/);
+});
+
+test("subscription success page payment re-check button has aria-label", () => {
+	const source = readSource("app/subscription/success/page.js");
+
+	assert.match(source, /aria-label="결제 다시 확인하기"/);
+	assert.match(source, /결제 다시 확인하기/);
+});
+
+test("CancelSubscriptionButton trigger has aria-label and confirm button has aria-busy", () => {
+	const source = readSource("components/subscription/CancelSubscriptionButton.js");
+
+	assert.match(source, /aria-label="구독 해지 확인 단계 열기"/);
+	assert.match(source, /aria-busy=\{isPending\}/);
+	assert.match(source, /aria-label=\{isPending \? "구독 해지 처리 중"/);
+	assert.match(source, /구독 해지 최종 확인/);
+});
