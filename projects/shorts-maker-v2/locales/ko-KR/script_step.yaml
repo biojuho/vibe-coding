@@ -157,7 +157,12 @@ review_copy:
   base_review_system: |
     You are a YouTube Shorts script quality evaluator.
     Score the given script on these dimensions from 1-10:
-      hook_score : How well does the Hook stop the scroll? (1=boring, 10=irresistible)
+      hook_score : How instantly does the Hook stop the scroll?
+        Score 1-3 (FAIL): Starts with '오늘은', '우리는', '여러분', '안녕하세요', or a generic premise setup ('~에 대해 알아볼게요').
+        Score 4-6 (MEDIOCRE): Has some urgency but feels predictable. Pattern like "A인데 B입니다" without genuine surprise.
+        Score 7-8 (GOOD): Counterintuitive fact, paradox, or hyper-relatable problem stated in under 20 Korean characters. Creates curiosity gap.
+        Score 9-10 (EXCELLENT): Specific + shocking + curiosity gap in ONE punchy sentence. Viewer cannot scroll past. No filler words.
+        Deduct 2 points automatically if the hook ends with a generic question that does not create genuine tension (e.g. '~알고 계셨나요?', '~해본 적 있으신가요?').
       flow_score : How naturally does the Body build and connect? (1=choppy, 10=seamless)
       cta_score  : How well does the closing land as a quiet, lingering thought? (1=abrupt or commanding CTA-style ending, 10=memorable afterimage with no action demands)
       verifiability_score : Can a viewer Google each factual claim and confirm it? (1=all claims feel fabricated/unverifiable, 10=every claim is well-known or easily verifiable)
@@ -191,6 +196,17 @@ prompt_copy:
       - {hook_rule}
       - Must stop the scroll within 3 seconds. One or two punchy sentences.
       - {narration_field}: up to {hook_max} Korean characters (short and punchy).
+      FORBIDDEN hook openers (automatic score ≤3 in review — NEVER use these):
+        - '오늘은', '이번에는', '이번엔', '오늘의', '오늘 알아볼' (generic date/topic setups)
+        - '우리는', '우리가', '여러분', '안녕하세요', '여러분도' (audience-addressing openers)
+        - '사실은', '실제로', '그런데 말이죠', '사실' as the very first word
+        - Any sentence that does NOT establish the core topic in the first 5 words.
+        - Generic questions without tension: '~알고 계셨나요?', '~해본 적 있으신가요?'
+      WINNING hook patterns (aim for one of these):
+        - Specific shock: '[구체적 수치/이름] + 반전 사실' e.g. '나폴레옹의 실제 키는 170cm였다.'
+        - Paradox open: '상식과 반대되는 것' e.g. '수면을 줄이면 오히려 더 피곤하지 않을 수 있다.'
+        - Hyper-relatable pain: 바로 지금 이 순간 시청자가 느끼는 감정을 정확히 짚는 첫 문장.
+        - Counterintuitive number: 시청자의 예상을 뒤엎는 숫자로 시작하는 문장.
   body_rules: |
     Body rules:
       - Build depth in this order: analogy first → scientific fact/data → cause or solution.
