@@ -22,6 +22,14 @@ const src = readFileSync(
 
 // ── Inline re-implementations ─────────────────────────────────────────────────
 
+function startOfCurrentMonth(now = new Date()) {
+	return new Date(now.getFullYear(), now.getMonth(), 1);
+}
+
+function startOfRecentMonthWindow(monthCount, now = new Date()) {
+	return new Date(now.getFullYear(), now.getMonth() - (monthCount - 1), 1);
+}
+
 function toFiniteNumber(value) {
 	const n = Number(value);
 	return Number.isFinite(n) ? n : 0;
@@ -344,4 +352,53 @@ test("buildFinancialSeries tolerates null/non-object options input", () => {
 	assert.doesNotThrow(() => buildFinancialSeries("bad"));
 	const series = buildFinancialSeries(null);
 	assert.equal(series.length, 6);
+});
+
+// ── startOfCurrentMonth behavioral tests ─────────────────────────────────────
+
+test("startOfCurrentMonth returns the first day of the given month", () => {
+	const now = new Date(2026, 5, 15); // June 15 2026 (local)
+	const result = startOfCurrentMonth(now);
+	assert.equal(result.getFullYear(), 2026);
+	assert.equal(result.getMonth(), 5); // June = index 5
+	assert.equal(result.getDate(), 1);
+});
+
+test("startOfCurrentMonth preserves year and month, sets day to 1", () => {
+	const now = new Date(2026, 0, 31); // Jan 31 2026
+	const result = startOfCurrentMonth(now);
+	assert.equal(result.getFullYear(), 2026);
+	assert.equal(result.getMonth(), 0);
+	assert.equal(result.getDate(), 1);
+});
+
+test("startOfCurrentMonth with monthCount=1 equals startOfCurrentMonth", () => {
+	const now = new Date(2026, 5, 15);
+	assert.deepEqual(startOfRecentMonthWindow(1, now), startOfCurrentMonth(now));
+});
+
+// ── startOfRecentMonthWindow behavioral tests ──────────────────────────────────
+
+test("startOfRecentMonthWindow(3) returns 2 months before current month", () => {
+	const now = new Date(2026, 5, 15); // June 2026
+	const result = startOfRecentMonthWindow(3, now);
+	assert.equal(result.getFullYear(), 2026);
+	assert.equal(result.getMonth(), 3); // April = index 3
+	assert.equal(result.getDate(), 1);
+});
+
+test("startOfRecentMonthWindow wraps year correctly across December", () => {
+	const now = new Date(2026, 5, 15); // June 2026
+	const result = startOfRecentMonthWindow(7, now); // 6 months back = Dec 2025
+	assert.equal(result.getFullYear(), 2025);
+	assert.equal(result.getMonth(), 11); // December = index 11
+	assert.equal(result.getDate(), 1);
+});
+
+test("startOfRecentMonthWindow(6) spans Jan-Jun for June 2026", () => {
+	const now = new Date(2026, 5, 15); // June 2026
+	const result = startOfRecentMonthWindow(6, now); // 5 months back = Jan 2026
+	assert.equal(result.getFullYear(), 2026);
+	assert.equal(result.getMonth(), 0); // January = index 0
+	assert.equal(result.getDate(), 1);
 });
