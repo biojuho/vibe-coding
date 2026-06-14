@@ -305,3 +305,10 @@ test("notification modal visible copy is readable Korean product copy", () => {
 		assert.equal(dashboardSource.includes(broken), false);
 	}
 });
+
+test("NotificationModal notification list uses role=list/listitem for screen reader navigation", () => {
+	const source = readSource("components/ui/NotificationModal.js");
+	assert.match(source, /role="list"/);
+	assert.match(source, /aria-label="알림 목록"/);
+	assert.match(source, /role="listitem"/);
+});

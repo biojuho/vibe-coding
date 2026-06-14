@@ -215,10 +215,11 @@ export default function NotificationModal(options = {}) {
 							새로운 알림이 없습니다.
 						</div>
 					) : (
-						<div style={{ display: "grid", gap: "12px" }}>
+						<div role="list" aria-label="알림 목록" style={{ display: "grid", gap: "12px" }}>
 							{visibleNotifications.map((notification, index) => (
 								<div
 									key={index}
+									role="listitem"
 									className="animate-fadeInUp"
 									style={{
 										background:
