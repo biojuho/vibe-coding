@@ -14,7 +14,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, NamedTuple
 
-
 DEFAULT_OBJECTIVE = (
     "Product launch evidence covers direct target product readiness, auto-research self-improvement loop, "
     "GitHub project inventory, browser-click QA, A/B adoption, current-code triage, current-head release "
@@ -23,6 +22,7 @@ DEFAULT_OBJECTIVE = (
 SKILL_ARTIFACTS = (
     ".agents/skills/auto-research/SKILL.md",
     ".agents/skills/auto-research/scripts/ab_decision.py",
+    ".agents/skills/auto-research/scripts/approval_pathspec_consistency.py",
     ".agents/skills/auto-research/scripts/browser_qa_inventory.py",
     ".agents/skills/auto-research/scripts/completion_audit.py",
     ".agents/skills/auto-research/scripts/debug_loop_inventory.py",
@@ -32,6 +32,7 @@ SKILL_ARTIFACTS = (
     ".agents/skills/auto-research/scripts/launch_objective_audit.py",
     ".agents/skills/auto-research/scripts/llm_wiki_release_summary.py",
     ".agents/skills/auto-research/scripts/next_experiment_selector.py",
+    ".agents/skills/auto-research/scripts/refresh_current_evidence.py",
     ".agents/skills/auto-research/scripts/release_authorization_packet.py",
 )
 AI_RELAY_ARTIFACTS = (
@@ -73,7 +74,7 @@ QUALITY_ITERATION_TERMS = (
 )
 AB_MANIFEST_GLOBS = ("ab-manifest-*.json", "ab-*.json")
 AB_DECISION_RESULT_FILENAMES = {"ab-decision-result.json"}
-AB_DECISION_RESULT_PREFIXES = ("ab-result-",)
+AB_DECISION_RESULT_PREFIXES = ("ab-candidates-", "ab-decision-", "ab-result-")
 TASK_ID_RE = re.compile(r"\b[Tt][-_]?(\d{3,6})([a-zA-Z])?\b")
 GOAL_STATUS_RE = re.compile(r"^-\s*Status:\s*(.*?)\s*$", re.IGNORECASE | re.MULTILINE)
 MARKDOWN_CHECKBOX_RE = re.compile(r"^\s*-\s*\[([ xX])\]\s+(.*)$")
@@ -102,6 +103,7 @@ GRAPH_RELEVANT_SUFFIXES = {
 GRAPH_RELEVANT_FILENAMES = {"Dockerfile", "Makefile", "commit-msg", "pre-commit"}
 GOAL_ACTIVE_STATUSES = {"active", "enabled", "in_progress", "in-progress", "blocked", "waiting"}
 DEFAULT_INVENTORY_CACHE_MAX_AGE_SECONDS = 6 * 60 * 60
+AB_MANIFEST_COLLISION_WARNING_LIMIT = 5
 RECENT_INVENTORY_FALLBACKS = {
     "browser_inventory": ".tmp/browser-qa-inventory.json",
 }
@@ -138,14 +140,21 @@ class ProjectReadinessValues(NamedTuple):
     qc_stale: bool
 
 
+class _WriteFailure(Exception):
+    def __init__(self, path: Path, cause: OSError) -> None:
+        super().__init__(f"{type(cause).__name__}: {cause}")
+        self.path = path
+        self.cause = cause
+
+
 def _exists(root: Path, rel_path: str) -> bool:
-    return (root / rel_path).exists()
+    return (root / rel_path).is_file()
 
 
 def _read_text(root: Path, rel_path: str) -> str:
     try:
         return (root / rel_path).read_text(encoding="utf-8", errors="replace")
-    except FileNotFoundError:
+    except (FileNotFoundError, OSError):
         return ""
 
 
@@ -158,8 +167,20 @@ def _rel(root: Path, path: Path) -> str:
 
 def _load_json_object(path: Path) -> dict[str, Any] | None:
     try:
-        parsed = json.loads(path.read_text(encoding="utf-8-sig"))
-    except (FileNotFoundError, OSError, UnicodeError, json.JSONDecodeError):
+        raw = path.read_bytes()
+    except (FileNotFoundError, OSError):
+        return None
+    for encoding in ("utf-8-sig", "utf-16"):
+        try:
+            text = raw.decode(encoding)
+            break
+        except UnicodeError:
+            continue
+    else:
+        return None
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
         return None
     return parsed if isinstance(parsed, dict) else None
 
@@ -212,6 +233,26 @@ def _with_recent_inventory_fallback(root: Path, label: str, result: dict[str, An
 
 def _dirty_handoff_plan_from_cache(root: Path) -> dict[str, Any] | None:
     return _load_json_object(root / DIRTY_HANDOFF_PLAN_CACHE)
+
+
+def _dirty_handoff_group_summary(root: Path) -> str:
+    dirty_plan = _dirty_handoff_plan_from_cache(root) or {}
+    groups = dirty_plan.get("group_order")
+    if not isinstance(groups, list):
+        return ""
+    rows: list[str] = []
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        key = str(group.get("key") or "").strip()
+        if not key:
+            continue
+        try:
+            path_count = int(group.get("path_count") or 0)
+        except (TypeError, ValueError):
+            path_count = 0
+        rows.append(f"{key}={path_count}")
+    return ", ".join(rows)
 
 
 def _ab_manifest_sort_key(path: Path) -> tuple[int, str] | None:
@@ -324,7 +365,33 @@ def _ab_manifest_candidates(root: Path, tmp_dir: Path) -> tuple[list[AbManifestC
             continue
         task_id = _ab_manifest_task_id_parts(path, data)
         candidates.append(AbManifestCandidate(path=path, data=data, sort_key=sort_key, task_id=task_id))
+    errors.extend(_ab_manifest_task_id_collision_warnings(root, candidates))
     return candidates, errors
+
+
+def _ab_manifest_task_id_collision_warnings(root: Path, candidates: list[AbManifestCandidate]) -> list[str]:
+    paths_by_task_id: dict[tuple[int, str], list[str]] = {}
+    for candidate in candidates:
+        if candidate.task_id is None:
+            continue
+        paths_by_task_id.setdefault(candidate.task_id, []).append(_rel(root, candidate.path))
+
+    collisions = [
+        (task_id, paths) for task_id, paths in sorted(paths_by_task_id.items(), reverse=True) if len(paths) >= 2
+    ]
+
+    warnings: list[str] = []
+    for (task_number, task_suffix), paths in collisions[:AB_MANIFEST_COLLISION_WARNING_LIMIT]:
+        task_label = f"T-{task_number}{task_suffix}"
+        warnings.append(f"A/B manifest task id collision detected for {task_label}: {', '.join(sorted(paths))}.")
+    omitted_count = len(collisions) - AB_MANIFEST_COLLISION_WARNING_LIMIT
+    if omitted_count > 0:
+        omitted_task_ids = [
+            f"T-{task_number}{task_suffix}"
+            for (task_number, task_suffix), _paths in collisions[AB_MANIFEST_COLLISION_WARNING_LIMIT:]
+        ]
+        warnings.append(f"A/B manifest task id collision hidden task ids: {', '.join(omitted_task_ids)}.")
+    return warnings
 
 
 def _run_json(root: Path, args: list[str], timeout: int) -> dict[str, Any]:
@@ -645,6 +712,7 @@ def _skill_item(root: Path) -> dict[str, Any]:
     skill_text = _read_text(root, ".agents/skills/auto-research/SKILL.md").lower()
     required_terms = (
         "ab_decision.py",
+        "approval_pathspec_consistency.py",
         "browser_qa_inventory.py",
         "completion_audit.py",
         "dependency_freshness_inventory.py",
@@ -652,6 +720,7 @@ def _skill_item(root: Path) -> dict[str, Any]:
         "github_project_inventory.py",
         "launch_objective_audit.py",
         "next_experiment_selector.py",
+        "refresh_current_evidence.py",
         "release_authorization_packet.py",
     )
     missing_terms = [term for term in required_terms if term not in skill_text]
@@ -660,7 +729,7 @@ def _skill_item(root: Path) -> dict[str, Any]:
         f"{len(SKILL_ARTIFACTS) - len(missing)}/{len(SKILL_ARTIFACTS)} required auto-research artifacts exist.",
         "SKILL.md documents A/B, completion audit, next experiment selector, launch objective audit, "
         "direction alignment audit, GitHub inventory, browser QA inventory, dependency freshness, "
-        "and release authorization packet commands."
+        "approval pathspec consistency, current evidence refresh, and release authorization packet commands."
         if not missing_terms
         else "SKILL.md is missing documented command reference(s): " + ", ".join(missing_terms),
     ]
@@ -678,7 +747,7 @@ def _skill_item(root: Path) -> dict[str, Any]:
     )
 
 
-def _github_item(github_inventory: dict[str, Any]) -> dict[str, Any]:
+def _github_item(root: Path, github_inventory: dict[str, Any]) -> dict[str, Any]:
     git = github_inventory.get("git") if isinstance(github_inventory.get("git"), dict) else {}
     open_prs = github_inventory.get("open_prs") if isinstance(github_inventory.get("open_prs"), dict) else {}
     projects = github_inventory.get("projects") if isinstance(github_inventory.get("projects"), list) else []
@@ -699,7 +768,18 @@ def _github_item(github_inventory: dict[str, Any]) -> dict[str, Any]:
         blockers.append(f"{open_pr_count} open PR(s) remain.")
     if dirty_count:
         blockers.append(f"Git inventory reports dirty_count={dirty_count}.")
-    blockers.extend(str(item) for item in recommendations)
+    dirty_groups_summary = _dirty_handoff_group_summary(root)
+    if dirty_groups_summary:
+        blockers.extend(
+            re.sub(
+                r"Dirty groups:\s*.+$",
+                f"Dirty groups: {dirty_groups_summary}.",
+                str(item),
+            )
+            for item in recommendations
+        )
+    else:
+        blockers.extend(str(item) for item in recommendations)
     return _item(
         "Find GitHub-related projects and PR/workflow surfaces before choosing improvements.",
         [".github/workflows", ".github/dependabot.yml", "projects"],
@@ -1703,6 +1783,7 @@ def _ab_loop_item(root: Path, *, ab_manifest_path: Path | None = None) -> dict[s
 
 def _relay_item(root: Path) -> dict[str, Any]:
     missing = [path for path in AI_RELAY_ARTIFACTS if not _exists(root, path)]
+    artifacts = [path for path in AI_RELAY_ARTIFACTS if path not in missing]
     goal_text = _read_text(root, ".ai/GOAL.md")
     goal_status_match = GOAL_STATUS_RE.search(goal_text)
     goal_status = goal_status_match.group(1).strip() if goal_status_match else "unknown"
@@ -1720,7 +1801,7 @@ def _relay_item(root: Path) -> dict[str, Any]:
             blockers.append("GOAL.md does not describe the current product launch/auto-research objective.")
     return _item(
         "Keep the self-improvement loop resumable across tools and sessions.",
-        list(AI_RELAY_ARTIFACTS),
+        artifacts,
         [
             f"{len(AI_RELAY_ARTIFACTS) - len(missing)}/{len(AI_RELAY_ARTIFACTS)} relay files exist.",
             "HANDOFF/TASKS/SESSION_LOG/CONTEXT/GOAL provide the next-session continuation surface.",
@@ -1748,7 +1829,7 @@ def build_manifest(
     root = root.resolve()
     items = [
         _skill_item(root),
-        _github_item(github_inventory or {}),
+        _github_item(root, github_inventory or {}),
         _browser_item(browser_inventory or {}),
         _dependency_item(
             dependency_inventory or {},
@@ -1830,6 +1911,21 @@ def collect_current_inputs(root: Path, timeout: int) -> dict[str, dict[str, Any]
     return collected
 
 
+def _write_manifest_json(path: Path, manifest: dict[str, Any]) -> None:
+    tmp = path.with_name(f"{path.name}.refresh-tmp")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp.write_text(json.dumps(manifest, ensure_ascii=True, indent=2) + "\n", encoding="utf-8", newline="\n")
+        tmp.replace(path)
+    except OSError as exc:
+        try:
+            if tmp.is_file() or tmp.is_symlink():
+                tmp.unlink()
+        except OSError:
+            pass
+        raise _WriteFailure(path, exc) from exc
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path("."), help="Workspace root")
@@ -1867,8 +1963,15 @@ def main(argv: list[str] | None = None) -> int:
     }
 
     if args.output:
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(json.dumps(manifest, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+        try:
+            _write_manifest_json(args.output, manifest)
+        except _WriteFailure as exc:
+            manifest["status"] = "write_failed"
+            manifest["write_error"] = str(exc)
+            manifest["write_error_path"] = exc.path.as_posix()
+            json.dump(manifest, sys.stdout, ensure_ascii=True, indent=2)
+            print()
+            return 4
 
     if args.json or not args.output:
         json.dump(manifest, sys.stdout, ensure_ascii=True, indent=2)

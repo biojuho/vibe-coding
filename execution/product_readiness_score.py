@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import importlib.util
 import json
 import re
@@ -13,7 +14,6 @@ from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
-
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -27,15 +27,47 @@ ACTIVE_PROJECTS = (
 )
 QC_FRESH_DAYS = 7
 PROJECT_QC_ARTIFACT = Path(".tmp") / "project_qc_runner_latest.json"
+PROJECT_QC_PARTIAL_ARTIFACT = Path(".tmp") / "project_qc_runner_partial_latest.json"
 LEGACY_QAQC_ARTIFACTS = (
     Path("projects") / "knowledge-dashboard" / "data" / "qaqc_result.json",
     Path("projects") / "knowledge-dashboard" / "public" / "qaqc_result.json",
 )
 PROJECT_QC_SOURCE = "project_qc_runner"
+PROJECT_QC_PROJECT_SOURCES_KEY = "_project_qc_sources"
 REQUIRED_GITHUB_WORKFLOWS = ("root-quality-gate", "active-project-matrix")
 PROJECT_QC_ARTIFACT_CONTRACT_MISMATCH = "artifact_schema_version"
 PROJECT_QC_ARTIFACT_HEAD_STALE = "artifact_head"
 PROJECT_QC_GLOBAL_STALE_PATHS = ("execution/project_qc_runner.py",)
+
+
+class _WriteFailure(Exception):
+    def __init__(self, path: Path, cause: OSError) -> None:
+        super().__init__(f"{type(cause).__name__}: {cause}")
+        self.path = path
+        self.cause = cause
+
+
+def _write_report_json(path: Path, report: dict[str, Any]) -> None:
+    tmp = path.with_name(f"{path.name}.refresh-tmp")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
+        tmp.replace(path)
+    except OSError as exc:
+        try:
+            if tmp.is_file() or tmp.is_symlink():
+                tmp.unlink()
+        except OSError:
+            pass
+        raise _WriteFailure(path, exc) from exc
+
+
+def _write_failed_report(report: dict[str, Any], exc: _WriteFailure) -> dict[str, Any]:
+    failed = dict(report)
+    failed["status"] = "write_failed"
+    failed["write_error"] = str(exc)
+    failed["write_error_path"] = exc.path.as_posix()
+    return failed
 
 
 @dataclass(frozen=True)
@@ -200,35 +232,106 @@ def _read_json(path: Path) -> dict[str, Any]:
         return {}
 
 
+def _project_qc_artifact_for_project(qaqc_data: dict[str, Any], project_name: str) -> dict[str, Any]:
+    sources = qaqc_data.get(PROJECT_QC_PROJECT_SOURCES_KEY)
+    if isinstance(sources, dict):
+        source = sources.get(project_name)
+        if isinstance(source, dict):
+            return source
+    return qaqc_data
+
+
+def _project_qc_result_is_complete(result: Any) -> bool:
+    return isinstance(result, dict) and result.get("coverage") == "complete"
+
+
+def _project_qc_source_copy(artifact: dict[str, Any]) -> dict[str, Any]:
+    source = copy.deepcopy(artifact)
+    source.pop(PROJECT_QC_PROJECT_SOURCES_KEY, None)
+    return source
+
+
+def _artifact_timestamp_is_at_least(candidate: dict[str, Any], current: dict[str, Any]) -> bool:
+    candidate_timestamp = _parse_timestamp(candidate.get("timestamp"))
+    current_timestamp = _parse_timestamp(current.get("timestamp"))
+    if current_timestamp is None:
+        return candidate_timestamp is not None
+    if candidate_timestamp is None:
+        return False
+    return candidate_timestamp >= current_timestamp
+
+
+def _merge_project_qc_artifacts(base: dict[str, Any], candidate: dict[str, Any]) -> dict[str, Any]:
+    """Merge newer complete per-project QC into the canonical workspace artifact."""
+    if not candidate or candidate.get("source") != PROJECT_QC_SOURCE:
+        return base
+    candidate_projects = candidate.get("projects")
+    if not isinstance(candidate_projects, dict):
+        return base
+
+    if not base:
+        return copy.deepcopy(candidate)
+
+    base_projects = base.get("projects")
+    if not isinstance(base_projects, dict):
+        return base
+
+    merged = copy.deepcopy(base)
+    merged_projects = merged.setdefault("projects", {})
+    if not isinstance(merged_projects, dict):
+        return base
+
+    sources: dict[str, Any] = {
+        name: _project_qc_source_copy(base)
+        for name, result in base_projects.items()
+        if isinstance(name, str) and isinstance(result, dict)
+    }
+    existing_sources = base.get(PROJECT_QC_PROJECT_SOURCES_KEY)
+    if isinstance(existing_sources, dict):
+        for name, source in existing_sources.items():
+            if isinstance(name, str) and isinstance(source, dict):
+                sources[name] = _project_qc_source_copy(source)
+
+    for project_name, candidate_result in candidate_projects.items():
+        if not isinstance(project_name, str) or not isinstance(candidate_result, dict):
+            continue
+        candidate_source = _project_qc_artifact_for_project(candidate, project_name)
+        current_source = sources.get(project_name, base)
+        current_result = merged_projects.get(project_name)
+        if not isinstance(current_result, dict) or (
+            _project_qc_result_is_complete(candidate_result)
+            and _artifact_timestamp_is_at_least(candidate_source, current_source)
+        ):
+            merged_projects[project_name] = copy.deepcopy(candidate_result)
+            sources[project_name] = _project_qc_source_copy(candidate_source)
+
+    if sources:
+        merged[PROJECT_QC_PROJECT_SOURCES_KEY] = sources
+    return merged
+
+
 def _read_default_qc_data(repo_root: Path) -> dict[str, Any]:
-    for relative in (PROJECT_QC_ARTIFACT, *LEGACY_QAQC_ARTIFACTS):
+    project_qc_data = _read_json(repo_root / PROJECT_QC_ARTIFACT)
+    partial_project_qc_data = _read_json(repo_root / PROJECT_QC_PARTIAL_ARTIFACT)
+    merged_project_qc_data = _merge_project_qc_artifacts(project_qc_data, partial_project_qc_data)
+    if merged_project_qc_data:
+        return merged_project_qc_data
+
+    for relative in LEGACY_QAQC_ARTIFACTS:
         data = _read_json(repo_root / relative)
         if data:
             return data
     return {}
 
 
-def _run_git_status(repo_root: Path) -> str:
-    try:
-        completed = subprocess.run(
-            ["git", "status", "--porcelain"],
-            cwd=repo_root,
-            check=False,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=10,
-        )
-    except Exception:
-        return ""
-
-    if completed.returncode != 0:
-        return ""
-    return completed.stdout
-
-
-def _run_json_command(repo_root: Path, command: list[str], timeout: int = 15) -> Any:
+def _run_command(
+    repo_root: Path,
+    command: list[str],
+    *,
+    default: Any = "",
+    timeout: int = 10,
+    parse_json: bool = False,
+) -> Any:
     try:
         completed = subprocess.run(
             command,
@@ -241,34 +344,17 @@ def _run_json_command(repo_root: Path, command: list[str], timeout: int = 15) ->
             timeout=timeout,
         )
     except Exception:
-        return None
+        return default
 
     if completed.returncode != 0:
-        return None
-    try:
-        return json.loads(completed.stdout or "null")
-    except json.JSONDecodeError:
-        return None
-
-
-def _run_text_command(repo_root: Path, command: list[str], timeout: int = 10) -> str:
-    try:
-        completed = subprocess.run(
-            command,
-            cwd=repo_root,
-            check=False,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=timeout,
-        )
-    except Exception:
-        return ""
-
-    if completed.returncode != 0:
-        return ""
-    return completed.stdout.strip()
+        return default
+    stdout = completed.stdout
+    if parse_json:
+        try:
+            return json.loads(stdout or "null")
+        except json.JSONDecodeError:
+            return None
+    return stdout.strip()
 
 
 def _normalize_git_path(path: str) -> str:
@@ -317,7 +403,7 @@ def _project_qc_head_freshness(
         return {}
 
     artifact_head = _project_qc_artifact_head(qaqc_data)
-    current_head = current_head_sha or _run_text_command(repo_root, ["git", "rev-parse", "HEAD"])
+    current_head = current_head_sha or _run_command(repo_root, ["git", "rev-parse", "HEAD"])
     result: dict[str, Any] = {
         "artifact_head_sha": artifact_head,
         "current_head_sha": current_head or None,
@@ -382,14 +468,16 @@ def _github_release_status(repo_root: Path) -> dict[str, Any]:
     if not (repo_root / ".git").exists():
         return _unavailable_github_release_status()
 
-    head_sha = _run_text_command(repo_root, ["git", "rev-parse", "HEAD"])
-    branch_status = _run_text_command(repo_root, ["git", "status", "--short", "--branch"])
+    head_sha = _run_command(repo_root, ["git", "rev-parse", "HEAD"])
+    branch_status = _run_command(repo_root, ["git", "status", "--short", "--branch"])
     ahead_count = _git_ahead_count(branch_status)
-    open_prs = _run_json_command(
+    open_prs = _run_command(
         repo_root,
         ["gh", "pr", "list", "--state", "open", "--json", "number,title,url,headRefName"],
+        parse_json=True,
+        default=None,
     )
-    runs = _run_json_command(
+    runs = _run_command(
         repo_root,
         [
             "gh",
@@ -403,6 +491,8 @@ def _github_release_status(repo_root: Path) -> dict[str, Any]:
             "databaseId,headSha,workflowName,status,conclusion,createdAt,url",
         ],
         timeout=20,
+        parse_json=True,
+        default=None,
     )
 
     checks: list[dict[str, Any]] = []
@@ -641,12 +731,11 @@ def _qc_freshness(qaqc_data: dict[str, Any], now: datetime) -> dict[str, Any]:
     }
 
 
-def _project_qc_status(
+def _project_qc_freshness(
     qaqc_data: dict[str, Any],
     project_name: str,
     now: datetime,
-    *,
-    head_freshness: dict[str, Any] | None = None,
+    head_freshness: dict[str, Any] | None,
 ) -> dict[str, Any]:
     time_freshness = _qc_freshness(qaqc_data, now)
     head_freshness = head_freshness or {}
@@ -657,71 +746,105 @@ def _project_qc_status(
         stale_reasons.append("age")
     if head_stale:
         stale_reasons.append(PROJECT_QC_ARTIFACT_HEAD_STALE)
+
     freshness = {
         **time_freshness,
         "stale": bool(time_freshness.get("stale")) or head_stale,
         "stale_reasons": stale_reasons,
     }
-    if head_freshness:
-        freshness.update(
-            {
-                "artifact_head_sha": head_freshness.get("artifact_head_sha"),
-                "current_head_sha": head_freshness.get("current_head_sha"),
-                "head_stale": head_stale,
-                "changed_paths_available": head_freshness.get("changed_paths_available", False),
-                "relevant_changes_since_qc": relevant_changes[:20],
-            }
-        )
-        if head_freshness.get("changed_paths_error"):
-            freshness["changed_paths_error"] = head_freshness.get("changed_paths_error")
+    if not head_freshness:
+        return freshness
+
+    freshness.update(
+        {
+            "artifact_head_sha": head_freshness.get("artifact_head_sha"),
+            "current_head_sha": head_freshness.get("current_head_sha"),
+            "head_stale": head_stale,
+            "changed_paths_available": head_freshness.get("changed_paths_available", False),
+            "relevant_changes_since_qc": relevant_changes[:20],
+        }
+    )
+    if head_freshness.get("changed_paths_error"):
+        freshness["changed_paths_error"] = head_freshness.get("changed_paths_error")
+    return freshness
+
+
+def _project_qc_empty_status(freshness: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "available": False,
+        "status": "UNKNOWN",
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "missing_checks": [],
+        "contract_mismatches": [],
+        **freshness,
+    }
+
+
+def _project_qc_contract_state(
+    qaqc_data: dict[str, Any],
+    project_name: str,
+    result: dict[str, Any],
+    missing_checks: list[str],
+) -> tuple[list[str], list[str]]:
+    contract_mismatches: list[str] = []
+    if qaqc_data.get("source") != PROJECT_QC_SOURCE:
+        return missing_checks, contract_mismatches
+
+    current_schema_version = _current_project_qc_artifact_schema_version()
+    if current_schema_version is not None and qaqc_data.get("schema_version") != current_schema_version:
+        contract_mismatches.append(PROJECT_QC_ARTIFACT_CONTRACT_MISMATCH)
+
+    current_expected_checks = _current_project_qc_expected_checks().get(project_name, ())
+    if current_expected_checks:
+        observed_checks = set(_observed_project_qc_checks(result))
+        drift_missing_checks = sorted(set(current_expected_checks) - observed_checks)
+        missing_checks = sorted(set(missing_checks) | set(drift_missing_checks))
+    return missing_checks, contract_mismatches
+
+
+def _project_qc_counts(result: dict[str, Any]) -> dict[str, int]:
+    return {
+        "passed": int(result.get("passed") or 0),
+        "failed": int(result.get("failed") or 0) + int(result.get("errors") or 0),
+        "skipped": int(result.get("skipped") or 0),
+    }
+
+
+def _project_qc_status(
+    qaqc_data: dict[str, Any],
+    project_name: str,
+    now: datetime,
+    *,
+    head_freshness: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    source_data = _project_qc_artifact_for_project(qaqc_data, project_name)
+    freshness = _project_qc_freshness(source_data, project_name, now, head_freshness)
     projects = qaqc_data.get("projects")
     if not isinstance(projects, dict):
-        return {
-            "available": False,
-            "status": "UNKNOWN",
-            "passed": 0,
-            "failed": 0,
-            "skipped": 0,
-            "missing_checks": [],
-            "contract_mismatches": [],
-            **freshness,
-        }
+        return _project_qc_empty_status(freshness)
 
     result = projects.get(project_name)
     if not isinstance(result, dict):
-        return {
-            "available": False,
-            "status": "UNKNOWN",
-            "passed": 0,
-            "failed": 0,
-            "skipped": 0,
-            "missing_checks": [],
-            "contract_mismatches": [],
-            **freshness,
-        }
+        return _project_qc_empty_status(freshness)
 
     status = str(result.get("status") or "UNKNOWN").upper()
     missing_checks = [str(check) for check in result.get("missing_checks") or []]
-    is_project_qc = qaqc_data.get("source") == PROJECT_QC_SOURCE
-    contract_mismatches: list[str] = []
-    if is_project_qc:
-        current_schema_version = _current_project_qc_artifact_schema_version()
-        if current_schema_version is not None and qaqc_data.get("schema_version") != current_schema_version:
-            contract_mismatches.append(PROJECT_QC_ARTIFACT_CONTRACT_MISMATCH)
-
-        current_expected_checks = _current_project_qc_expected_checks().get(project_name, ())
-        if current_expected_checks:
-            observed_checks = set(_observed_project_qc_checks(result))
-            drift_missing_checks = sorted(set(current_expected_checks) - observed_checks)
-            missing_checks = sorted(set(missing_checks) | set(drift_missing_checks))
+    is_project_qc = source_data.get("source") == PROJECT_QC_SOURCE
+    missing_checks, contract_mismatches = _project_qc_contract_state(
+        source_data,
+        project_name,
+        result,
+        missing_checks,
+    )
+    counts = _project_qc_counts(result)
 
     if is_project_qc and (result.get("coverage") != "complete" or missing_checks or contract_mismatches):
         return {
             "available": False,
             "status": "PARTIAL",
-            "passed": int(result.get("passed") or 0),
-            "failed": int(result.get("failed") or 0) + int(result.get("errors") or 0),
-            "skipped": int(result.get("skipped") or 0),
+            **counts,
             "missing_checks": missing_checks,
             "contract_mismatches": contract_mismatches,
             **freshness,
@@ -729,9 +852,7 @@ def _project_qc_status(
     return {
         "available": True,
         "status": status,
-        "passed": int(result.get("passed") or 0),
-        "failed": int(result.get("failed") or 0) + int(result.get("errors") or 0),
-        "skipped": int(result.get("skipped") or 0),
+        **counts,
         "missing_checks": missing_checks,
         "contract_mismatches": contract_mismatches,
         **freshness,
@@ -804,141 +925,330 @@ def _missing_or_placeholder_keys(assignments: dict[str, str], keys: tuple[str, .
     return [key for key in keys if key not in assignments or _looks_placeholder(assignments[key])]
 
 
-def _env_status(repo_root: Path, profile: ProjectProfile) -> dict[str, Any]:
-    checks: list[dict[str, Any]] = []
-    if "blind_to_x_launch_env" in profile.env_checks:
-        env_path = repo_root / profile.path / ".env"
-        assignments = _read_env_assignments(env_path)
+def _env_check(name: str, ok: bool, message: str, *, severity: str | None = None) -> dict[str, Any]:
+    return {
+        "name": name,
+        "ok": ok,
+        "severity": severity or ("ok" if ok else "blocker"),
+        "message": message,
+    }
 
-        missing_notion_keys = _missing_or_placeholder_keys(assignments, BLIND_TO_X_NOTION_KEYS)
-        if not env_path.exists():
-            notion_message = (
-                "projects/blind-to-x/.env is missing; configure NOTION_API_KEY and NOTION_DATABASE_ID before launch."
-            )
-        elif missing_notion_keys:
-            notion_message = (
-                "Missing usable blind-to-x Notion env key(s) in projects/blind-to-x/.env: "
-                + ", ".join(missing_notion_keys)
-                + "."
-            )
-        else:
-            notion_message = "Notion review queue keys are configured."
-        checks.append(
-            {
-                "name": "Notion review queue keys",
-                "ok": not missing_notion_keys,
-                "severity": "blocker" if missing_notion_keys else "ok",
-                "message": notion_message,
-            }
-        )
 
-        present_provider_keys = _usable_keys(assignments, BLIND_TO_X_PROVIDER_KEYS)
-        if not env_path.exists():
-            provider_message = "projects/blind-to-x/.env is missing; add at least one LLM provider API key."
-        elif not present_provider_keys:
-            provider_message = "No usable blind-to-x LLM provider API key is configured in projects/blind-to-x/.env."
-        else:
-            provider_message = f"{len(present_provider_keys)} blind-to-x LLM provider key(s) are configured."
-        checks.append(
-            {
-                "name": "blind-to-x LLM provider keys",
-                "ok": bool(present_provider_keys),
-                "severity": "blocker" if not present_provider_keys else "ok",
-                "message": provider_message,
-            }
-        )
+def _blind_to_x_launch_env_checks(repo_root: Path, profile: ProjectProfile) -> list[dict[str, Any]]:
+    env_path = repo_root / profile.path / ".env"
+    assignments = _read_env_assignments(env_path)
 
-    if "supabase_password" in profile.env_checks:
-        env_path = repo_root / profile.path / ".env"
-        assignments = _read_env_assignments(env_path)
-        database_line = "DATABASE_URL" in assignments
-        database_url = assignments.get("DATABASE_URL", "")
-        placeholder = _looks_placeholder(database_url)
-        configured = bool(database_url) and not placeholder
-        if not env_path.exists():
-            message = "projects/hanwoo-dashboard/.env is missing; configure Supabase DATABASE_URL before live checks."
-        elif not database_line:
-            message = "Supabase DATABASE_URL is missing from projects/hanwoo-dashboard/.env."
-        elif not database_url:
-            message = "Supabase DATABASE_URL is empty in projects/hanwoo-dashboard/.env."
-        elif placeholder:
-            message = "Supabase DATABASE_URL still contains a placeholder."
-        else:
-            message = "DATABASE_URL is present; run the live Prisma check to verify current Supabase credentials."
-        checks.append(
-            {
-                "name": "Supabase DATABASE_URL",
-                "ok": configured,
-                "severity": "blocker" if not configured else "ok",
-                "message": message,
-            }
+    missing_notion_keys = _missing_or_placeholder_keys(assignments, BLIND_TO_X_NOTION_KEYS)
+    if not env_path.exists():
+        notion_message = (
+            "projects/blind-to-x/.env is missing; configure NOTION_API_KEY and NOTION_DATABASE_ID before launch."
         )
-    if "shorts_provider_keys" in profile.env_checks:
-        env_path = repo_root / profile.path / ".env"
-        assignments = _read_env_assignments(env_path)
-        present_keys = _usable_keys(assignments, SHORTS_PROVIDER_KEYS)
-        if not env_path.exists():
-            message = "projects/shorts-maker-v2/.env is missing; add at least one generation provider API key."
-        elif not present_keys:
-            message = "No usable Shorts generation provider API key is configured in projects/shorts-maker-v2/.env."
-        else:
-            message = f"{len(present_keys)} Shorts generation provider key(s) are configured."
-        checks.append(
-            {
-                "name": "Shorts generation provider keys",
-                "ok": bool(present_keys),
-                "severity": "blocker" if not present_keys else "ok",
-                "message": message,
-            }
+    elif missing_notion_keys:
+        notion_message = (
+            "Missing usable blind-to-x Notion env key(s) in projects/blind-to-x/.env: "
+            + ", ".join(missing_notion_keys)
+            + "."
         )
-    if "dashboard_runtime_auth" in profile.env_checks:
-        project_root = repo_root / profile.path
-        env_path, assignments = _read_first_project_env(project_root, KNOWLEDGE_DASHBOARD_ENV_FILES)
-        dashboard_key = assignments.get("DASHBOARD_API_KEY", "")
-        dashboard_key_configured = bool(dashboard_key) and not _looks_placeholder(dashboard_key)
-        if env_path is None:
-            dashboard_message = (
-                "projects/knowledge-dashboard/.env.local or .env is missing; configure DASHBOARD_API_KEY before launch."
-            )
-        elif "DASHBOARD_API_KEY" not in assignments:
-            dashboard_message = f"DASHBOARD_API_KEY is missing from {env_path.relative_to(repo_root).as_posix()}."
-        elif not dashboard_key:
-            dashboard_message = f"DASHBOARD_API_KEY is empty in {env_path.relative_to(repo_root).as_posix()}."
-        elif _looks_placeholder(dashboard_key):
-            dashboard_message = "DASHBOARD_API_KEY still contains a placeholder."
-        else:
-            dashboard_message = "DASHBOARD_API_KEY is configured for authenticated dashboard routes."
-        checks.append(
-            {
-                "name": "Dashboard API key",
-                "ok": dashboard_key_configured,
-                "severity": "blocker" if not dashboard_key_configured else "ok",
-                "message": dashboard_message,
-            }
-        )
+    else:
+        notion_message = "Notion review queue keys are configured."
 
-        session_secret = assignments.get("DASHBOARD_SESSION_SECRET", "")
-        dedicated_secret_configured = bool(session_secret) and not _looks_placeholder(session_secret)
-        session_message = (
-            "Dedicated DASHBOARD_SESSION_SECRET is configured."
-            if dedicated_secret_configured
-            else "DASHBOARD_SESSION_SECRET is optional; DASHBOARD_API_KEY fallback will sign sessions."
-        )
-        checks.append(
-            {
-                "name": "Dashboard session signing secret",
-                "ok": True,
-                "severity": "ok" if dedicated_secret_configured else "watch",
-                "message": session_message,
-            }
-        )
+    present_provider_keys = _usable_keys(assignments, BLIND_TO_X_PROVIDER_KEYS)
+    if not env_path.exists():
+        provider_message = "projects/blind-to-x/.env is missing; add at least one LLM provider API key."
+    elif not present_provider_keys:
+        provider_message = "No usable blind-to-x LLM provider API key is configured in projects/blind-to-x/.env."
+    else:
+        provider_message = f"{len(present_provider_keys)} blind-to-x LLM provider key(s) are configured."
 
+    return [
+        _env_check("Notion review queue keys", not missing_notion_keys, notion_message),
+        _env_check("blind-to-x LLM provider keys", bool(present_provider_keys), provider_message),
+    ]
+
+
+def _supabase_password_env_checks(repo_root: Path, profile: ProjectProfile) -> list[dict[str, Any]]:
+    env_path = repo_root / profile.path / ".env"
+    assignments = _read_env_assignments(env_path)
+    database_line = "DATABASE_URL" in assignments
+    database_url = assignments.get("DATABASE_URL", "")
+    placeholder = _looks_placeholder(database_url)
+    configured = bool(database_url) and not placeholder
+    if not env_path.exists():
+        message = "projects/hanwoo-dashboard/.env is missing; configure Supabase DATABASE_URL before live checks."
+    elif not database_line:
+        message = "Supabase DATABASE_URL is missing from projects/hanwoo-dashboard/.env."
+    elif not database_url:
+        message = "Supabase DATABASE_URL is empty in projects/hanwoo-dashboard/.env."
+    elif placeholder:
+        message = "Supabase DATABASE_URL still contains a placeholder."
+    else:
+        message = "DATABASE_URL is present; run the live Prisma check to verify current Supabase credentials."
+    return [_env_check("Supabase DATABASE_URL", configured, message)]
+
+
+def _supabase_database_url_check(repo_root: Path, profile: ProjectProfile) -> dict[str, Any]:
+    return _supabase_password_env_checks(repo_root, profile)[0]
+
+
+def _shorts_provider_env_checks(repo_root: Path, profile: ProjectProfile) -> list[dict[str, Any]]:
+    env_path = repo_root / profile.path / ".env"
+    assignments = _read_env_assignments(env_path)
+    present_keys = _usable_keys(assignments, SHORTS_PROVIDER_KEYS)
+    if not env_path.exists():
+        message = "projects/shorts-maker-v2/.env is missing; add at least one generation provider API key."
+    elif not present_keys:
+        message = "No usable Shorts generation provider API key is configured in projects/shorts-maker-v2/.env."
+    else:
+        message = f"{len(present_keys)} Shorts generation provider key(s) are configured."
+    return [_env_check("Shorts generation provider keys", bool(present_keys), message)]
+
+
+def _shorts_provider_key_check(repo_root: Path, profile: ProjectProfile) -> dict[str, Any]:
+    return _shorts_provider_env_checks(repo_root, profile)[0]
+
+
+def _dashboard_runtime_auth_env_checks(repo_root: Path, profile: ProjectProfile) -> list[dict[str, Any]]:
+    project_root = repo_root / profile.path
+    env_path, assignments = _read_first_project_env(project_root, KNOWLEDGE_DASHBOARD_ENV_FILES)
+    dashboard_key = assignments.get("DASHBOARD_API_KEY", "")
+    dashboard_key_configured = bool(dashboard_key) and not _looks_placeholder(dashboard_key)
+    if env_path is None:
+        dashboard_message = (
+            "projects/knowledge-dashboard/.env.local or .env is missing; configure DASHBOARD_API_KEY before launch."
+        )
+    elif "DASHBOARD_API_KEY" not in assignments:
+        dashboard_message = f"DASHBOARD_API_KEY is missing from {env_path.relative_to(repo_root).as_posix()}."
+    elif not dashboard_key:
+        dashboard_message = f"DASHBOARD_API_KEY is empty in {env_path.relative_to(repo_root).as_posix()}."
+    elif _looks_placeholder(dashboard_key):
+        dashboard_message = "DASHBOARD_API_KEY still contains a placeholder."
+    else:
+        dashboard_message = "DASHBOARD_API_KEY is configured for authenticated dashboard routes."
+
+    session_secret = assignments.get("DASHBOARD_SESSION_SECRET", "")
+    dedicated_secret_configured = bool(session_secret) and not _looks_placeholder(session_secret)
+    session_message = (
+        "Dedicated DASHBOARD_SESSION_SECRET is configured."
+        if dedicated_secret_configured
+        else "DASHBOARD_SESSION_SECRET is optional; DASHBOARD_API_KEY fallback will sign sessions."
+    )
+
+    return [
+        _env_check("Dashboard API key", dashboard_key_configured, dashboard_message),
+        _env_check(
+            "Dashboard session signing secret",
+            True,
+            session_message,
+            severity="ok" if dedicated_secret_configured else "watch",
+        ),
+    ]
+
+
+def _dashboard_runtime_auth_checks(repo_root: Path, profile: ProjectProfile) -> list[dict[str, Any]]:
+    return _dashboard_runtime_auth_env_checks(repo_root, profile)
+
+
+def _env_status_result(checks: list[dict[str, Any]]) -> dict[str, Any]:
     if not checks:
         return {"available": False, "score": 10, "checks": []}
 
     blocker_count = sum(1 for check in checks if check["severity"] == "blocker")
     score = 0 if blocker_count else 15
     return {"available": True, "score": score, "checks": checks}
+
+
+def _env_status(repo_root: Path, profile: ProjectProfile) -> dict[str, Any]:
+    checks: list[dict[str, Any]] = []
+    if "blind_to_x_launch_env" in profile.env_checks:
+        checks.extend(_blind_to_x_launch_env_checks(repo_root, profile))
+    if "supabase_password" in profile.env_checks:
+        checks.extend(_supabase_password_env_checks(repo_root, profile))
+    if "shorts_provider_keys" in profile.env_checks:
+        checks.extend(_shorts_provider_env_checks(repo_root, profile))
+    if "dashboard_runtime_auth" in profile.env_checks:
+        checks.extend(_dashboard_runtime_auth_env_checks(repo_root, profile))
+    return _env_status_result(checks)
+
+
+def _project_qc_score(qc: dict[str, Any]) -> int:
+    qc_score = 12
+    if qc["available"] and qc["status"] == "PASS" and qc["failed"] == 0:
+        qc_score = 35
+    elif qc["available"] and qc["failed"] == 0:
+        qc_score = 25
+    elif qc["available"]:
+        qc_score = 0
+    if qc.get("stale"):
+        qc_score = min(qc_score, 20)
+    return qc_score
+
+
+def _project_task_blockers(
+    project_tasks: list[dict[str, str]],
+) -> tuple[list[dict[str, str]], list[dict[str, str]], list[dict[str, str]]]:
+    active_blockers = [task for task in project_tasks if _is_active_task(task)]
+    user_task_blockers = [task for task in active_blockers if _is_user_owned_task(task)]
+    agent_task_blockers = [task for task in active_blockers if not _is_user_owned_task(task)]
+    return active_blockers, user_task_blockers, agent_task_blockers
+
+
+def _project_blocker_score(active_blockers: list[dict[str, str]]) -> int:
+    return 25 if not active_blockers else max(0, 25 - 14 * len(active_blockers))
+
+
+def _project_docs_score(docs: list[dict[str, Any]]) -> float:
+    return 15 * (sum(1 for item in docs if item["present"]) / max(1, len(docs)))
+
+
+def _project_worktree_score(dirty_paths: list[str]) -> int:
+    return 10 if not dirty_paths else max(2, 10 - len(dirty_paths) * 2)
+
+
+def _project_score_value(
+    *,
+    qc_score: int,
+    active_blockers: list[dict[str, str]],
+    docs: list[dict[str, Any]],
+    dirty_paths: list[str],
+    env: dict[str, Any],
+) -> int:
+    return _round_score(
+        qc_score
+        + _project_blocker_score(active_blockers)
+        + _project_docs_score(docs)
+        + _project_worktree_score(dirty_paths)
+        + env["score"]
+    )
+
+
+def _project_state(
+    *,
+    env_blocked: bool,
+    user_task_blockers: list[dict[str, str]],
+    qc: dict[str, Any],
+    score: int,
+) -> str:
+    if env_blocked or user_task_blockers:
+        return "blocked"
+    if qc.get("stale"):
+        return "needs-review"
+    if score >= 85:
+        return "ready"
+    if score >= 70:
+        return "needs-review"
+    return "at-risk"
+
+
+def _env_blocker_recommendation(env_blockers: list[dict[str, Any]]) -> str | None:
+    if not env_blockers:
+        return None
+    return next(
+        (str(check.get("message")) for check in env_blockers if check.get("message")),
+        "Configure the required project environment variables and rerun live checks.",
+    )
+
+
+def _qc_recommendation(qc: dict[str, Any], qc_score: int) -> str | None:
+    if qc.get("stale"):
+        if qc.get("head_stale"):
+            return "Refresh project QC; latest recorded run predates current project changes."
+        age = qc.get("age_days")
+        suffix = f" ({age} days old)" if isinstance(age, int) else ""
+        return f"Refresh project QC; latest recorded run is stale{suffix}."
+    if qc_score < 35:
+        return "Refresh project QC so the score reflects the latest test/lint/build/smoke state."
+    return None
+
+
+def _project_recommendations(
+    *,
+    env_blockers: list[dict[str, Any]],
+    active_blockers: list[dict[str, str]],
+    user_task_blockers: list[dict[str, str]],
+    agent_task_blockers: list[dict[str, str]],
+    qc: dict[str, Any],
+    qc_score: int,
+    docs: list[dict[str, Any]],
+    dirty_paths: list[str],
+) -> list[str]:
+    recommendations = [
+        recommendation
+        for recommendation in (
+            _env_blocker_recommendation(env_blockers),
+            _task_blocker_recommendation(
+                active_blockers=active_blockers,
+                user_task_blockers=user_task_blockers,
+                agent_task_blockers=agent_task_blockers,
+            ),
+            _qc_recommendation(qc, qc_score),
+        )
+        if recommendation
+    ]
+    if any(not item["present"] for item in docs):
+        recommendations.append("Add or repair the missing product documentation files.")
+    if dirty_paths:
+        recommendations.append("Commit or hand off the current project worktree changes.")
+    if not recommendations:
+        recommendations.append("Keep the current release path warm with scheduled QC and smoke checks.")
+    return recommendations[:3]
+
+
+def _project_env_blockers(env: dict[str, Any]) -> list[dict[str, Any]]:
+    return [check for check in env.get("checks", []) if check.get("severity") == "blocker"]
+
+
+def _project_blocker_breakdown(
+    *,
+    active_blockers: list[dict[str, str]],
+    user_task_blockers: list[dict[str, str]],
+    agent_task_blockers: list[dict[str, str]],
+    env_blockers: list[dict[str, Any]],
+) -> dict[str, int]:
+    return {
+        "task_count": len(active_blockers),
+        "user_task_count": len(user_task_blockers),
+        "agent_task_count": len(agent_task_blockers),
+        "environment_count": len(env_blockers),
+    }
+
+
+def _project_result(
+    *,
+    profile: ProjectProfile,
+    score: int,
+    qc: dict[str, Any],
+    active_blockers: list[dict[str, str]],
+    user_task_blockers: list[dict[str, str]],
+    agent_task_blockers: list[dict[str, str]],
+    env_blockers: list[dict[str, Any]],
+    dirty_paths: list[str],
+    docs: list[dict[str, Any]],
+    env: dict[str, Any],
+    recommendations: list[str],
+) -> dict[str, Any]:
+    return {
+        "name": profile.name,
+        "path": profile.path,
+        "score": score,
+        "state": _project_state(
+            env_blocked=bool(env_blockers),
+            user_task_blockers=user_task_blockers,
+            qc=qc,
+            score=score,
+        ),
+        "qc": qc,
+        "tasks": active_blockers,
+        "blocker_breakdown": _project_blocker_breakdown(
+            active_blockers=active_blockers,
+            user_task_blockers=user_task_blockers,
+            agent_task_blockers=agent_task_blockers,
+            env_blockers=env_blockers,
+        ),
+        "dirty_paths": dirty_paths,
+        "docs": docs,
+        "env": env,
+        "recommendations": recommendations,
+    }
 
 
 def _score_project(
@@ -955,90 +1265,40 @@ def _score_project(
     docs = _required_file_status(repo_root, profile)
     env = _env_status(repo_root, profile)
 
-    qc_score = 12
-    if qc["available"] and qc["status"] == "PASS" and qc["failed"] == 0:
-        qc_score = 35
-    elif qc["available"] and qc["failed"] == 0:
-        qc_score = 25
-    elif qc["available"]:
-        qc_score = 0
-    if qc.get("stale"):
-        qc_score = min(qc_score, 20)
-
-    active_blockers = [task for task in project_tasks if _is_active_task(task)]
-    user_task_blockers = [task for task in active_blockers if _is_user_owned_task(task)]
-    agent_task_blockers = [task for task in active_blockers if not _is_user_owned_task(task)]
-    blocker_score = 25 if not active_blockers else max(0, 25 - 14 * len(active_blockers))
-    docs_score = 15 * (sum(1 for item in docs if item["present"]) / max(1, len(docs)))
-    worktree_score = 10 if not dirty_paths else max(2, 10 - len(dirty_paths) * 2)
-    env_score = env["score"]
-    score = _round_score(qc_score + blocker_score + docs_score + worktree_score + env_score)
-
-    env_blockers = [check for check in env.get("checks", []) if check.get("severity") == "blocker"]
-    env_blocked = bool(env_blockers)
-    if env_blocked or user_task_blockers:
-        state = "blocked"
-    elif qc.get("stale"):
-        state = "needs-review"
-    elif score >= 85:
-        state = "ready"
-    elif score >= 70:
-        state = "needs-review"
-    else:
-        state = "at-risk"
-
-    recommendations: list[str] = []
-    if env_blocked:
-        env_message = next(
-            (
-                str(check.get("message"))
-                for check in env.get("checks", [])
-                if check.get("severity") == "blocker" and check.get("message")
-            ),
-            "Configure the required project environment variables and rerun live checks.",
-        )
-        recommendations.append(env_message)
-    task_recommendation = _task_blocker_recommendation(
+    qc_score = _project_qc_score(qc)
+    active_blockers, user_task_blockers, agent_task_blockers = _project_task_blockers(project_tasks)
+    score = _project_score_value(
+        qc_score=qc_score,
+        active_blockers=active_blockers,
+        docs=docs,
+        dirty_paths=dirty_paths,
+        env=env,
+    )
+    env_blockers = _project_env_blockers(env)
+    recommendations = _project_recommendations(
+        env_blockers=env_blockers,
         active_blockers=active_blockers,
         user_task_blockers=user_task_blockers,
         agent_task_blockers=agent_task_blockers,
+        qc=qc,
+        qc_score=qc_score,
+        docs=docs,
+        dirty_paths=dirty_paths,
     )
-    if task_recommendation:
-        recommendations.append(task_recommendation)
-    if qc.get("stale"):
-        if qc.get("head_stale"):
-            recommendations.append("Refresh project QC; latest recorded run predates current project changes.")
-        else:
-            age = qc.get("age_days")
-            suffix = f" ({age} days old)" if isinstance(age, int) else ""
-            recommendations.append(f"Refresh project QC; latest recorded run is stale{suffix}.")
-    elif qc_score < 35:
-        recommendations.append("Refresh project QC so the score reflects the latest test/lint/build/smoke state.")
-    if any(not item["present"] for item in docs):
-        recommendations.append("Add or repair the missing product documentation files.")
-    if dirty_paths:
-        recommendations.append("Commit or hand off the current project worktree changes.")
-    if not recommendations:
-        recommendations.append("Keep the current release path warm with scheduled QC and smoke checks.")
 
-    return {
-        "name": profile.name,
-        "path": profile.path,
-        "score": score,
-        "state": state,
-        "qc": qc,
-        "tasks": active_blockers,
-        "blocker_breakdown": {
-            "task_count": len(active_blockers),
-            "user_task_count": len(user_task_blockers),
-            "agent_task_count": len(agent_task_blockers),
-            "environment_count": len(env_blockers),
-        },
-        "dirty_paths": dirty_paths,
-        "docs": docs,
-        "env": env,
-        "recommendations": recommendations[:3],
-    }
+    return _project_result(
+        profile=profile,
+        score=score,
+        qc=qc,
+        active_blockers=active_blockers,
+        user_task_blockers=user_task_blockers,
+        agent_task_blockers=agent_task_blockers,
+        env_blockers=env_blockers,
+        dirty_paths=dirty_paths,
+        docs=docs,
+        env=env,
+        recommendations=recommendations,
+    )
 
 
 def build_report(
@@ -1054,15 +1314,21 @@ def build_report(
     generated_at = now.astimezone().isoformat()
     qaqc_data = _read_json(qaqc_path) if qaqc_path is not None else _read_default_qc_data(repo_root)
     tasks = _tasks_by_project(repo_root)
-    status_text = git_status_text if git_status_text is not None else _run_git_status(repo_root)
+    status_text = (
+        git_status_text if git_status_text is not None else _run_command(repo_root, ["git", "status", "--porcelain"])
+    )
     dirty = _dirty_paths_by_project(status_text)
     worktree_release = _worktree_release_status(_dirty_workspace_paths(status_text))
     github_release = github_status if github_status is not None else _github_release_status(repo_root)
-    qc_head_freshness = _project_qc_head_freshness(
-        repo_root=repo_root,
-        qaqc_data=qaqc_data,
-        current_head_sha=github_release.get("head_sha") if isinstance(github_release.get("head_sha"), str) else None,
-    )
+    current_head_sha = github_release.get("head_sha") if isinstance(github_release.get("head_sha"), str) else None
+    qc_head_freshness_by_project = {
+        name: _project_qc_head_freshness(
+            repo_root=repo_root,
+            qaqc_data=_project_qc_artifact_for_project(qaqc_data, name),
+            current_head_sha=current_head_sha,
+        )
+        for name in ACTIVE_PROJECTS
+    }
 
     projects = [
         _score_project(
@@ -1072,7 +1338,7 @@ def build_report(
             project_tasks=tasks.get(name, []),
             dirty_paths=dirty.get(name, []),
             now=now,
-            qc_head_freshness=qc_head_freshness,
+            qc_head_freshness=qc_head_freshness_by_project.get(name),
         )
         for name in ACTIVE_PROJECTS
     ]
@@ -1179,7 +1445,7 @@ def build_report(
     }
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument(
@@ -1192,11 +1458,18 @@ def main() -> int:
         / "product_readiness.json",
     )
     parser.add_argument("--json", action="store_true", help="Print the report JSON to stdout.")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     report = build_report(args.repo_root)
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    try:
+        _write_report_json(args.output, report)
+    except _WriteFailure as exc:
+        failed = _write_failed_report(report, exc)
+        if args.json:
+            print(json.dumps(failed, ensure_ascii=False, indent=2))
+        else:
+            print(f"Product readiness write_failed: {exc.path} ({exc})")
+        return 4
     if args.json:
         print(json.dumps(report, ensure_ascii=False, indent=2))
     else:

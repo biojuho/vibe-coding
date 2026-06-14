@@ -3,14 +3,15 @@ Production-ready REST API template using FastAPI.
 Includes pagination, filtering, error handling, and best practices.
 """
 
-from fastapi import FastAPI, HTTPException, Query, Path, status
+from datetime import datetime
+from enum import Enum
+from typing import Any, List, Optional
+
+from fastapi import FastAPI, HTTPException, Path, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, EmailStr, ConfigDict
-from typing import Optional, List, Any
-from datetime import datetime
-from enum import Enum
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 app = FastAPI(title="API Template", version="1.0.0", docs_url="/api/docs")
 

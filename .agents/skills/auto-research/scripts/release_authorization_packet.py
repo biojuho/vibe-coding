@@ -12,11 +12,17 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-
 DEFAULT_REQUIRED_WORKFLOWS = ("root-quality-gate", "active-project-matrix")
-DEFAULT_COMMIT_PREVIEW_LIMIT = 25
+DEFAULT_COMMIT_PREVIEW_LIMIT = 35
 DEFAULT_ACTIONS_RUN_LIMIT = 20
 DEFAULT_LLM_WIKI_STRICT_EVIDENCE_PATH = Path(".tmp/llm-wiki-strict-audit-current.json")
+
+
+class _WriteFailure(Exception):
+    def __init__(self, path: Path, cause: OSError) -> None:
+        super().__init__(f"{type(cause).__name__}: {cause}")
+        self.path = path
+        self.cause = cause
 
 
 def _run(root: Path, args: list[str], timeout: int) -> dict[str, Any]:
@@ -44,8 +50,20 @@ def _run(root: Path, args: list[str], timeout: int) -> dict[str, Any]:
 
 def _load_json(path: Path) -> dict[str, Any]:
     try:
-        parsed = json.loads(path.read_text(encoding="utf-8-sig"))
-    except (FileNotFoundError, OSError, json.JSONDecodeError):
+        raw = path.read_bytes()
+    except (FileNotFoundError, OSError):
+        return {}
+    for encoding in ("utf-8-sig", "utf-16"):
+        try:
+            text = raw.decode(encoding)
+            break
+        except UnicodeError:
+            continue
+    else:
+        return {}
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
         return {}
     return parsed if isinstance(parsed, dict) else {}
 
@@ -622,6 +640,21 @@ def build_packet(
     }
 
 
+def _write_packet_json(path: Path, text: str) -> None:
+    tmp = path.with_name(f"{path.name}.refresh-tmp")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp.write_text(text + "\n", encoding="utf-8", newline="\n")
+        tmp.replace(path)
+    except OSError as exc:
+        try:
+            if tmp.is_file() or tmp.is_symlink():
+                tmp.unlink()
+        except OSError:
+            pass
+        raise _WriteFailure(path, exc) from exc
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path("."))
@@ -649,8 +682,14 @@ def main(argv: list[str] | None = None) -> int:
     text = json.dumps(packet, ensure_ascii=True, indent=2)
     if args.output:
         output = args.output if args.output.is_absolute() else root / args.output
-        output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(text + "\n", encoding="utf-8")
+        try:
+            _write_packet_json(output, text)
+        except _WriteFailure as exc:
+            packet["status"] = "write_failed"
+            packet["write_error"] = str(exc)
+            packet["write_error_path"] = exc.path.as_posix()
+            print(json.dumps(packet, ensure_ascii=True, indent=2))
+            return 4
     if args.json or not args.output:
         print(text)
     return 0

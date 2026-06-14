@@ -1,11 +1,11 @@
 import os
+
 import numpy as np
-from matplotlib import pyplot as plt
 from matplotlib import gridspec as gridspec
+from matplotlib import pyplot as plt
 from matplotlib.collections import LineCollection
 from matplotlib.colors import to_rgba
 from matplotlib.lines import Line2D
-
 
 data_posttraining = {
     "methods": [

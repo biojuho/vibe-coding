@@ -1,8 +1,8 @@
 import os
-import numpy as np
-from matplotlib import pyplot as plt
-from matplotlib import gridspec as gridspec
 
+import numpy as np
+from matplotlib import gridspec as gridspec
+from matplotlib import pyplot as plt
 
 data_math_correcting_llm = {
     "methods": [

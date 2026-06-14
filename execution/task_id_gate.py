@@ -19,7 +19,6 @@ import re
 import subprocess
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parent.parent
 AI_CONTEXT_PREFIX = "[ai-context]"
 _TASK_ID_PATTERN = re.compile(r"\bT-(\d{4,})([a-z])?\b")

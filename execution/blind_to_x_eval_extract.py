@@ -158,9 +158,9 @@ def load_blind_config(config_path: Path) -> dict[str, Any]:
 
 def _query_notion_pages(database_id: str, max_pages: int) -> list[dict[str, Any]]:
     """Notion DB 전체 페이지를 cursor 기반으로 조회. CLI 전용."""
-    from notion_client import Client  # type: ignore[import-not-found]
-
     import os
+
+    from notion_client import Client  # type: ignore[import-not-found]
 
     token = os.getenv("NOTION_API_KEY") or os.getenv("NOTION_TOKEN")
     if not token:

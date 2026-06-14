@@ -32,7 +32,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 REPO_ROOT_DEFAULT = Path(__file__).resolve().parents[1]
-CURRENT_ADDENDUM_HEADING = "## Current Addendum"
+CURRENT_ADDENDUM_HEADING_RE = re.compile(r"^##\s+Current Addendum(?:\s|$)")
 DATE_RE = re.compile(r"^\|\s*Date\s*\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*$")
 HEADER_RE = re.compile(r"^\|\s*Field\s*\|\s*Value\s*\|\s*$")
 SEPARATOR_RE = re.compile(r"^\|[\s\-:|]+\|\s*$")
@@ -46,6 +46,19 @@ class Addendum:
     date: date
 
 
+@dataclass(frozen=True)
+class _PreparedWrite:
+    target: Path
+    temp: Path
+
+
+class _WriteFailure(Exception):
+    def __init__(self, path: Path, error: OSError) -> None:
+        self.path = path
+        self.error = error
+        super().__init__(f"{path}: {error}")
+
+
 def find_current_addendum_range(lines: list[str]) -> tuple[int, int] | None:
     """Return absolute (start, end) line indices of the Current Addendum body.
 
@@ -54,7 +67,7 @@ def find_current_addendum_range(lines: list[str]) -> tuple[int, int] | None:
     """
     start: int | None = None
     for i, line in enumerate(lines):
-        if line.rstrip() == CURRENT_ADDENDUM_HEADING:
+        if CURRENT_ADDENDUM_HEADING_RE.match(line.rstrip()):
             start = i + 1
             break
     if start is None:
@@ -227,13 +240,28 @@ def rotate(
     archive_file = archive_dir / f"HANDOFF_archive_{today.isoformat()}.md"
 
     if not dry_run:
-        archive_dir.mkdir(parents=True, exist_ok=True)
-        if archive_file.exists():
-            existing = archive_file.read_text(encoding="utf-8").rstrip()
-            archive_file.write_text(existing + "\n\n" + archive_block, encoding="utf-8")
-        else:
-            archive_file.write_text(archive_block, encoding="utf-8")
-        handoff.write_text(new_text, encoding="utf-8")
+        try:
+            if archive_file.exists():
+                existing = archive_file.read_text(encoding="utf-8").rstrip()
+                archive_text = existing + "\n\n" + archive_block
+            else:
+                archive_text = archive_block
+            prepared = [
+                _prepare_text_write(archive_file, archive_text),
+                _prepare_text_write(handoff, new_text),
+            ]
+            _commit_prepared_writes(prepared)
+        except _WriteFailure as exc:
+            return {
+                "status": "write_failed",
+                "kept": len(to_keep),
+                "archived": len(to_archive),
+                "cutoff": cutoff.isoformat(),
+                "archive_file": str(archive_file.relative_to(repo_root)).replace("\\", "/"),
+                "dry_run": dry_run,
+                "write_error": str(exc.error),
+                "write_error_path": str(exc.path),
+            }
 
     return {
         "status": "rotated",
@@ -258,6 +286,39 @@ def _collapse_blank_runs(lines: list[str]) -> list[str]:
             blank = 0
             out.append(line)
     return out
+
+
+def _prepare_text_write(path: Path, text: str) -> _PreparedWrite:
+    tmp = path.with_name(f"{path.name}.tmp")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if tmp.exists() or tmp.is_symlink():
+            if tmp.is_dir() and not tmp.is_symlink():
+                raise IsADirectoryError(f"temporary output path is a directory: {tmp}")
+            tmp.unlink()
+        tmp.write_text(text, encoding="utf-8", newline="\n")
+    except OSError as exc:
+        raise _WriteFailure(tmp, exc) from exc
+    return _PreparedWrite(target=path, temp=tmp)
+
+
+def _commit_prepared_writes(prepared: list[_PreparedWrite]) -> None:
+    replaced: list[_PreparedWrite] = []
+    try:
+        for item in prepared:
+            item.temp.replace(item.target)
+            replaced.append(item)
+    except OSError as exc:
+        path = item.target if "item" in locals() else prepared[0].target
+        raise _WriteFailure(path, exc) from exc
+    finally:
+        for item in prepared:
+            if item not in replaced:
+                try:
+                    if item.temp.exists() or item.temp.is_symlink():
+                        item.temp.unlink()
+                except OSError:
+                    pass
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -316,6 +377,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(result, ensure_ascii=False))
     else:
         print(result)
+    if result.get("status") == "write_failed":
+        return 4
     return 0
 
 

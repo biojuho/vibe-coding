@@ -35,7 +35,6 @@ import sys
 from collections import Counter
 from pathlib import PurePosixPath
 
-
 # ── 상수 ──
 
 DEFAULT_THRESHOLD = 7  # CLAUDE.md "~250줄, 7개 파일 이하" 규칙과 일치

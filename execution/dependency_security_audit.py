@@ -18,12 +18,12 @@ from typing import Any
 
 # Rich imports
 try:
+    from rich.align import Align
+    from rich.box import ASCII, HEAVY, ROUNDED
     from rich.console import Console
     from rich.panel import Panel
     from rich.table import Table
     from rich.text import Text
-    from rich.align import Align
-    from rich.box import ROUNDED, HEAVY, ASCII
 
     RICH_AVAILABLE = True
 except ImportError:

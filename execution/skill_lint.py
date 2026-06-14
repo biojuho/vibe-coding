@@ -12,7 +12,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
@@ -162,22 +161,22 @@ def _candidate_refs(text: str) -> set[str]:
     return refs
 
 
-def _reference_exists(repo_root: Path, skill_path: Path, reference: str) -> bool:
-    clean = reference.strip().strip('"').strip("'").replace("\\", "/")
-    if not clean or clean.startswith("$") or clean.startswith("<"):
-        return True
-    if " " in clean or clean.startswith("~") or re.search(r"\bYYYY\b", clean):
-        return True
-    if clean.startswith(GENERATED_ARTIFACT_ROOTS):
-        return True
-    if clean.startswith(("http://", "https://", "app://", "plugin://")):
-        return True
-    if re.match(r"^[A-Za-z]:/", clean):
-        return True
-    if clean.startswith("/"):
-        candidate = repo_root / clean.lstrip("/")
-        return candidate.exists()
+def _clean_reference(reference: str) -> str:
+    return reference.strip().strip('"').strip("'").replace("\\", "/")
 
+
+def _reference_is_optional(clean: str) -> bool:
+    return (
+        not clean
+        or clean.startswith(("$", "<", *GENERATED_ARTIFACT_ROOTS))
+        or " " in clean
+        or clean.startswith(("~", "http://", "https://", "app://", "plugin://"))
+        or bool(re.search(r"\bYYYY\b", clean))
+        or bool(re.match(r"^[A-Za-z]:/", clean))
+    )
+
+
+def _reference_candidates(repo_root: Path, skill_path: Path, clean: str) -> list[Path]:
     candidates = [
         skill_path.parent / clean,
         repo_root / clean,
@@ -186,8 +185,18 @@ def _reference_exists(repo_root: Path, skill_path: Path, reference: str) -> bool
         candidates.append(repo_root / ".agents" / clean)
     if clean.startswith("execution/"):
         candidates.append(repo_root / "workspace" / clean)
+    return candidates
 
-    if any(candidate.exists() for candidate in candidates):
+
+def _reference_exists(repo_root: Path, skill_path: Path, reference: str) -> bool:
+    clean = _clean_reference(reference)
+    if _reference_is_optional(clean):
+        return True
+    if clean.startswith("/"):
+        candidate = repo_root / clean.lstrip("/")
+        return candidate.exists()
+
+    if any(candidate.exists() for candidate in _reference_candidates(repo_root, skill_path, clean)):
         return True
 
     if "/" not in clean:
@@ -196,50 +205,67 @@ def _reference_exists(repo_root: Path, skill_path: Path, reference: str) -> bool
     return False
 
 
+def _skill_metadata_issues(skill: SkillFile, name_counts: Counter[str]) -> tuple[list[dict[str, str]], str]:
+    issues: list[dict[str, str]] = []
+    if skill.read_error:
+        issues.append(_issue(skill, "warning", "read_error", skill.read_error))
+
+    if not skill.frontmatter:
+        issues.append(_issue(skill, "error", "missing_frontmatter", "SKILL.md must start with YAML frontmatter."))
+
+    name = skill.frontmatter.get("name", "").strip()
+    description = skill.frontmatter.get("description", "").strip()
+    if not name:
+        issues.append(_issue(skill, "error", "missing_name", "Frontmatter is missing `name`."))
+    if not description:
+        issues.append(_issue(skill, "error", "missing_description", "Frontmatter is missing `description`."))
+    elif len(description) < MIN_DESCRIPTION_LENGTH:
+        issues.append(
+            _issue(
+                skill,
+                "warning",
+                "short_description",
+                f"Description is under {MIN_DESCRIPTION_LENGTH} characters.",
+            )
+        )
+
+    if name and name_counts[name.lower()] > 1:
+        issues.append(_issue(skill, "warning", "duplicate_name", f"`{name}` is used by multiple skills."))
+
+    return issues, description
+
+
+def _skill_trigger_issues(skill: SkillFile, description: str) -> list[dict[str, str]]:
+    trigger_text = f"{description}\n{skill.body}".lower()
+    if any(marker in trigger_text for marker in TRIGGER_MARKERS):
+        return []
+    return [
+        _issue(
+            skill,
+            "warning",
+            "missing_trigger_guidance",
+            "Skill should state when an agent should use it.",
+        )
+    ]
+
+
+def _skill_reference_issues(repo_root: Path, skill: SkillFile) -> list[dict[str, str]]:
+    issues: list[dict[str, str]] = []
+    for reference in sorted(_candidate_refs(skill.body)):
+        if not _reference_exists(repo_root, skill.absolute_path, reference):
+            issues.append(_issue(skill, "warning", "broken_reference", f"Referenced path not found: {reference}"))
+    return issues
+
+
 def lint_skills(repo_root: Path, skills: list[SkillFile]) -> list[dict[str, str]]:
     issues: list[dict[str, str]] = []
     name_counts = Counter(skill.name.lower() for skill in skills)
 
     for skill in skills:
-        if skill.read_error:
-            issues.append(_issue(skill, "warning", "read_error", skill.read_error))
-
-        if not skill.frontmatter:
-            issues.append(_issue(skill, "error", "missing_frontmatter", "SKILL.md must start with YAML frontmatter."))
-
-        name = skill.frontmatter.get("name", "").strip()
-        description = skill.frontmatter.get("description", "").strip()
-        if not name:
-            issues.append(_issue(skill, "error", "missing_name", "Frontmatter is missing `name`."))
-        if not description:
-            issues.append(_issue(skill, "error", "missing_description", "Frontmatter is missing `description`."))
-        elif len(description) < MIN_DESCRIPTION_LENGTH:
-            issues.append(
-                _issue(
-                    skill,
-                    "warning",
-                    "short_description",
-                    f"Description is under {MIN_DESCRIPTION_LENGTH} characters.",
-                )
-            )
-
-        if name and name_counts[name.lower()] > 1:
-            issues.append(_issue(skill, "warning", "duplicate_name", f"`{name}` is used by multiple skills."))
-
-        trigger_text = f"{description}\n{skill.body}".lower()
-        if not any(marker in trigger_text for marker in TRIGGER_MARKERS):
-            issues.append(
-                _issue(
-                    skill,
-                    "warning",
-                    "missing_trigger_guidance",
-                    "Skill should state when an agent should use it.",
-                )
-            )
-
-        for reference in sorted(_candidate_refs(skill.body)):
-            if not _reference_exists(repo_root, skill.absolute_path, reference):
-                issues.append(_issue(skill, "warning", "broken_reference", f"Referenced path not found: {reference}"))
+        metadata_issues, description = _skill_metadata_issues(skill, name_counts)
+        issues.extend(metadata_issues)
+        issues.extend(_skill_trigger_issues(skill, description))
+        issues.extend(_skill_reference_issues(repo_root, skill))
 
     return issues
 

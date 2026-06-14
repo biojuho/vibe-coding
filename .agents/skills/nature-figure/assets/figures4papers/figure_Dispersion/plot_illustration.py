@@ -1,11 +1,11 @@
 import os
-import numpy as np
+
+import matplotlib.cm as cm
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.lines import Line2D
 from matplotlib.patches import FancyArrowPatch
 from mpl_toolkits.mplot3d import proj3d
-import matplotlib.cm as cm
-
 
 EPSILON = 1e-6
 

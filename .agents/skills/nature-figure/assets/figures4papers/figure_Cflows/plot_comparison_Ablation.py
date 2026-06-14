@@ -1,7 +1,7 @@
 import os
+
 import numpy as np
 from matplotlib import pyplot as plt
-
 
 data_comparison_Ablation = {
     "methods": [r"OT-CFM", r"SB-CFM", r"SF2M", r"Cflows (w/o growth + energy)", r"Cflows (w/o growth)", r"Cflows"],

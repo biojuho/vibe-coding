@@ -10,7 +10,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-
 DEFAULT_DIRECTION = (
     "Vibe coding should operate as an evidence-based product operations hub that turns vague improvement "
     "requests into externally benchmarked, evidence-backed experiments while preserving explicit local-first "
@@ -57,8 +56,14 @@ LOOP_ARTIFACTS = (
 BOUNDARY_ARTIFACTS = (
     ".agents/skills/auto-research/scripts/release_authorization_packet.py",
     ".tmp/scoped-dirty-worktree-handoff-plan-current.json",
-    ".tmp/next-experiment-continuation.json",
+    ".tmp/next-experiment-current.json",
 )
+
+
+class _WriteFailure(Exception):
+    def __init__(self, path: Path, original: OSError) -> None:
+        self.path = path
+        super().__init__(f"{type(original).__name__}: {original}")
 
 
 def _rel(root: Path, path: Path) -> str:
@@ -71,7 +76,7 @@ def _rel(root: Path, path: Path) -> str:
 def _read_text(root: Path, rel_path: str) -> str:
     try:
         return (root / rel_path).read_text(encoding="utf-8", errors="replace")
-    except FileNotFoundError:
+    except (FileNotFoundError, OSError):
         return ""
 
 
@@ -83,13 +88,40 @@ def _load_json(root: Path, rel_path: str) -> dict[str, Any]:
     return parsed if isinstance(parsed, dict) else {}
 
 
+def _load_selector_json(root: Path) -> tuple[dict[str, Any], str]:
+    current = _load_json(root, ".tmp/next-experiment-current.json")
+    if current:
+        return current, ".tmp/next-experiment-current.json"
+    return _load_json(root, ".tmp/next-experiment-continuation.json"), ".tmp/next-experiment-continuation.json"
+
+
+def _write_text(path: Path, text: str) -> None:
+    tmp = path.with_name(f"{path.name}.refresh-tmp")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp.write_text(text, encoding="utf-8", newline="\n")
+        tmp.replace(path)
+    except OSError as exc:
+        try:
+            if tmp.is_file() or tmp.is_symlink():
+                tmp.unlink()
+        except OSError:
+            pass
+        raise _WriteFailure(path, exc) from exc
+
+
+def _write_json(path: Path, payload: dict[str, Any]) -> None:
+    _write_text(path, json.dumps(payload, ensure_ascii=True, indent=2) + "\n")
+
+
 def _artifact_check(root: Path, rel_path: str) -> dict[str, Any]:
     path = root / rel_path
+    ok = path.is_file()
     return {
         "label": f"artifact exists: {rel_path}",
-        "ok": path.exists(),
-        "artifacts": [rel_path] if path.exists() else [],
-        "evidence": f"{rel_path} exists={path.exists()}",
+        "ok": ok,
+        "artifacts": [rel_path] if ok else [],
+        "evidence": f"{rel_path} is_file={ok}",
     }
 
 
@@ -193,7 +225,7 @@ def build_audit(
         )
     )
     dirty_plan = _load_json(root, ".tmp/scoped-dirty-worktree-handoff-plan-current.json")
-    selector = _load_json(root, ".tmp/next-experiment-continuation.json")
+    selector, selector_artifact = _load_selector_json(root)
     selector_selected = selector.get("selected") if isinstance(selector.get("selected"), dict) else {}
     selector_summary = selector.get("summary") if isinstance(selector.get("summary"), dict) else {}
     selector_guardrails = (
@@ -231,7 +263,7 @@ def build_audit(
                     "selector artifact is machine-readable",
                     bool(selector),
                     f"selector status={selector.get('status') or 'missing'}",
-                    [".tmp/next-experiment-continuation.json"],
+                    [selector_artifact],
                 ),
             ],
         ),
@@ -255,7 +287,7 @@ def build_audit(
                     any("push" in str(item).lower() for item in selector_guardrails)
                     and any("t-251" in str(item).lower() for item in selector_guardrails),
                     "selector guardrails=" + (" | ".join(str(item) for item in selector_guardrails) or "missing"),
-                    [".tmp/next-experiment-continuation.json"],
+                    [selector_artifact],
                 ),
                 _term_check(
                     "relay text keeps T-251 user-owned",
@@ -344,8 +376,18 @@ def main(argv: list[str] | None = None) -> int:
     references = [_parse_reference(item) for item in args.reference] if args.reference else None
     audit = build_audit(args.root, direction=args.direction, references=references)
     if args.output:
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(json.dumps(audit, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+        try:
+            _write_json(args.output, audit)
+        except _WriteFailure as exc:
+            audit["status"] = "write_failed"
+            audit["write_error"] = str(exc)
+            audit["write_error_path"] = exc.path.as_posix()
+            if args.json:
+                json.dump(audit, sys.stdout, ensure_ascii=True, indent=2)
+                print()
+            else:
+                print(f"direction alignment audit: write_failed path={exc.path.as_posix()} error={exc}", flush=True)
+            return 4
     if args.json or not args.output:
         json.dump(audit, sys.stdout, ensure_ascii=True, indent=2)
         print()

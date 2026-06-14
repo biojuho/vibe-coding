@@ -23,18 +23,18 @@ refs.txt format:
   # Lines starting with # are comments
 """
 
+import argparse
+import json
 import os
 import time
-import json
-import argparse
 import xml.etree.ElementTree as ET
-from urllib.request import urlopen
 from urllib.parse import urlencode
+from urllib.request import urlopen
 
 from converters import (
-    convert_from_medline,
-    convert_from_crossref,
     convert_from_arxiv,
+    convert_from_crossref,
+    convert_from_medline,
     get_extension,
 )
 
@@ -305,7 +305,7 @@ def self_test():
 
     # 1. Module import check
     try:
-        from converters import convert_from_medline, convert_from_crossref
+        from converters import convert_from_crossref, convert_from_medline
 
         print("  [OK] Module imports")
     except Exception as e:
@@ -339,8 +339,8 @@ def self_test():
     doi = "10.1038/nature14539"
     print(f"  Testing CrossRef (DOI {doi})...")
     try:
-        from urllib.request import urlopen
         import json
+        from urllib.request import urlopen
 
         time.sleep(0.5)
         url = f"https://api.crossref.org/works/{doi}"

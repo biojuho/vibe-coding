@@ -15,7 +15,6 @@ import re
 from typing import Any
 
 from mcp.server import FastMCP
-
 from sources import ArxivSource, CrossRefSource, PubMedSource
 from utils import DataSourceError, setup_logging
 

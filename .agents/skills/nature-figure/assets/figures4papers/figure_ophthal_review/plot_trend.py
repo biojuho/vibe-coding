@@ -1,9 +1,9 @@
 import os
-import numpy as np
-from matplotlib import pyplot as plt
 from datetime import datetime
-from dateutil.relativedelta import relativedelta
 
+import numpy as np
+from dateutil.relativedelta import relativedelta
+from matplotlib import pyplot as plt
 
 DATA = {
     "names": [

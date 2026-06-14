@@ -3,7 +3,6 @@
 from urllib.parse import quote
 
 import requests
-
 from utils.config import get_config
 from utils.errors import DataSourceError
 

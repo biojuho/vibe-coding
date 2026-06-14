@@ -438,8 +438,8 @@
         ]
       },
       "constant_lines": {
-        "DEFAULT_PROVIDER_ORDER": 32,
-        "PROVIDER_ALIASES": 21
+        "DEFAULT_PROVIDER_ORDER": 34,
+        "PROVIDER_ALIASES": 23
       },
       "constants": {
         "DEFAULT_PROVIDER_ORDER": [
@@ -502,7 +502,7 @@
       "status": "ok"
     }
   ],
-  "generated_at": "2026-06-11",
+  "generated_at": "2026-06-13",
   "policy": {
     "method": "Python AST parse plus ast.literal_eval for module-level literal constants.",
     "non_goal": "This manifest does not prove that prose claims are semantically correct; it makes code drift visible before review.",

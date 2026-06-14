@@ -16,7 +16,6 @@ import argparse
 import subprocess
 from pathlib import Path, PurePosixPath
 
-
 AI_CONTEXT_PREFIX = "[ai-context]"
 ALLOWED_EXACT = {
     ".ai/HANDOFF.md",

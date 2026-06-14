@@ -10,15 +10,32 @@ import sys
 from pathlib import Path
 from typing import Any
 
-
 VALID_DIRECTIONS = {"higher", "lower", "equal"}
+
+
+class _WriteFailure(Exception):
+    def __init__(self, path: Path, error: OSError) -> None:
+        super().__init__(f"{type(error).__name__}: {error}")
+        self.path = path
 
 
 def _load_json(path: Path) -> dict[str, Any]:
     try:
-        data = json.loads(path.read_text(encoding="utf-8-sig"))
+        raw = path.read_bytes()
     except FileNotFoundError as exc:
         raise SystemExit(f"manifest not found: {path}") from exc
+    except (OSError, UnicodeError) as exc:
+        raise SystemExit(f"manifest unreadable: {path}: {exc}") from exc
+    for encoding in ("utf-8-sig", "utf-16"):
+        try:
+            text = raw.decode(encoding)
+            break
+        except UnicodeError:
+            continue
+    else:
+        raise SystemExit(f"manifest must be readable as UTF-8 or UTF-16 JSON: {path}")
+    try:
+        data = json.loads(text)
     except json.JSONDecodeError as exc:
         raise SystemExit(f"invalid JSON in {path}: {exc}") from exc
     if not isinstance(data, dict):
@@ -211,13 +228,44 @@ def _print_text(result: dict[str, Any]) -> None:
         )
 
 
+def _write_json(path: Path, payload: dict[str, Any]) -> None:
+    tmp = path.with_name(f"{path.name}.refresh-tmp")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8", newline="\n")
+        tmp.replace(path)
+    except OSError as exc:
+        try:
+            if tmp.is_file() or tmp.is_symlink():
+                tmp.unlink()
+        except OSError:
+            pass
+        raise _WriteFailure(path, exc) from exc
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("manifest", type=Path, help="Path to A/B manifest JSON")
+    parser.add_argument("--output", type=Path, help="Optional path to write the decision JSON")
     parser.add_argument("--json", action="store_true", help="Emit JSON instead of text")
     args = parser.parse_args(argv)
 
     result = decide(_load_json(args.manifest))
+    if args.output:
+        try:
+            _write_json(args.output, result)
+        except _WriteFailure as exc:
+            result["decision"] = "write_failed"
+            result["write_error"] = str(exc)
+            result["write_error_path"] = exc.path.as_posix()
+            if args.json:
+                json.dump(result, sys.stdout, ensure_ascii=True, indent=2)
+                print()
+            else:
+                print(f"ab decision: write_failed path={exc.path.as_posix()} error={exc}")
+            return 4
+    result["write_error"] = ""
+    result["write_error_path"] = ""
     if args.json:
         json.dump(result, sys.stdout, ensure_ascii=True, indent=2)
         print()

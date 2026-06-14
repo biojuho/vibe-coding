@@ -7,7 +7,6 @@ import xml.etree.ElementTree as ET
 from typing import Any
 
 import requests
-
 from utils.config import get_config
 from utils.errors import DataSourceError
 from utils.logging import setup_logging

@@ -1,8 +1,8 @@
 import os
-import numpy as np
-from matplotlib import pyplot as plt
-from matplotlib import gridspec as gridspec
 
+import numpy as np
+from matplotlib import gridspec as gridspec
+from matplotlib import pyplot as plt
 
 data_rewriting_math = {
     "methods": [r"DeepSeek R1 Distill Llama 70B", r"deepseek-reasoner (Deepseek-R1)", r"OpenAI o3"],

@@ -19,14 +19,13 @@ import ast
 import json
 import re
 import sys
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Callable, Iterable
 from urllib.parse import unquote, urlparse
 
 import yaml
-
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -1473,47 +1472,57 @@ def _audit_source_inventory(
     return issues
 
 
-def _audit_code_facts(
+def _audit_manifest_facts(
     repo_root: Path,
     wiki_dir: Path,
     markdown_files: Iterable[Path],
     *,
     today: date,
+    manifest_name: str,
+    schema_version: str,
+    missing_code: str,
+    invalid_code: str,
+    schema_mismatch_code: str,
+    drift_code: str,
+    drift_message: str,
+    wiki_mentions: Callable[[Iterable[Path]], bool],
+    build_current: Callable[[Path, date], dict[str, Any]],
+    stable_payload: Callable[[dict[str, Any]], Any],
 ) -> list[Issue]:
     issues: list[Issue] = []
-    manifest_path = wiki_dir / CODE_FACTS_NAME
+    manifest_path = wiki_dir / manifest_name
     rel_manifest = _repo_rel(repo_root, manifest_path)
 
-    if _wiki_mentions_code_facts(markdown_files) and not manifest_path.exists():
+    if wiki_mentions(markdown_files) and not manifest_path.exists():
         return [
             Issue(
                 severity="error",
-                code="missing_code_facts",
+                code=missing_code,
                 path=rel_manifest,
-                message=f"{CODE_FACTS_NAME} is required when the LLM wiki references code facts.",
+                message=f"{manifest_name} is required when the LLM wiki references it.",
             )
         ]
     if not manifest_path.exists():
         return issues
 
-    manifest, error = _read_json(manifest_path, root_label="code facts root")
+    manifest, error = _read_json(manifest_path, root_label=f"{manifest_name} root")
     if error:
         return [
             Issue(
                 severity="error",
-                code="invalid_code_facts",
+                code=invalid_code,
                 path=rel_manifest,
                 message=error,
             )
         ]
 
-    if manifest.get("schema_version") != CODE_FACTS_SCHEMA_VERSION:
+    if manifest.get("schema_version") != schema_version:
         issues.append(
             Issue(
                 severity="error",
-                code="code_facts_schema_mismatch",
+                code=schema_mismatch_code,
                 path=rel_manifest,
-                message=f"Expected schema_version {CODE_FACTS_SCHEMA_VERSION}.",
+                message=f"Expected schema_version {schema_version}.",
             )
         )
 
@@ -1522,27 +1531,52 @@ def _audit_code_facts(
             *issues,
             Issue(
                 severity="error",
-                code="invalid_code_facts",
+                code=invalid_code,
                 path=rel_manifest,
                 message="facts must be a list.",
             ),
         ]
 
-    current = build_code_facts(repo_root, today=today)
-    if _stable_code_facts_payload(manifest) != _stable_code_facts_payload(current):
+    current = build_current(repo_root, today=today)
+    if stable_payload(manifest) != stable_payload(current):
         issues.append(
             Issue(
                 severity="error",
-                code="code_facts_drift",
+                code=drift_code,
                 path=rel_manifest,
-                message=(
-                    "Current Python code facts differ from code-facts.json; "
-                    "run --write-code-facts and review affected wiki claims."
-                ),
+                message=drift_message,
             )
         )
 
     return issues
+
+
+def _audit_code_facts(
+    repo_root: Path,
+    wiki_dir: Path,
+    markdown_files: Iterable[Path],
+    *,
+    today: date,
+) -> list[Issue]:
+    return _audit_manifest_facts(
+        repo_root,
+        wiki_dir,
+        markdown_files,
+        today=today,
+        manifest_name=CODE_FACTS_NAME,
+        schema_version=CODE_FACTS_SCHEMA_VERSION,
+        missing_code="missing_code_facts",
+        invalid_code="invalid_code_facts",
+        schema_mismatch_code="code_facts_schema_mismatch",
+        drift_code="code_facts_drift",
+        drift_message=(
+            "Current Python code facts differ from code-facts.json; "
+            "run --write-code-facts and review affected wiki claims."
+        ),
+        wiki_mentions=_wiki_mentions_code_facts,
+        build_current=build_code_facts,
+        stable_payload=_stable_code_facts_payload,
+    )
 
 
 def _audit_config_facts(
@@ -1552,69 +1586,25 @@ def _audit_config_facts(
     *,
     today: date,
 ) -> list[Issue]:
-    issues: list[Issue] = []
-    manifest_path = wiki_dir / CONFIG_FACTS_NAME
-    rel_manifest = _repo_rel(repo_root, manifest_path)
-
-    if _wiki_mentions_config_facts(markdown_files) and not manifest_path.exists():
-        return [
-            Issue(
-                severity="error",
-                code="missing_config_facts",
-                path=rel_manifest,
-                message=f"{CONFIG_FACTS_NAME} is required when the LLM wiki references config facts.",
-            )
-        ]
-    if not manifest_path.exists():
-        return issues
-
-    manifest, error = _read_json(manifest_path, root_label="config facts root")
-    if error:
-        return [
-            Issue(
-                severity="error",
-                code="invalid_config_facts",
-                path=rel_manifest,
-                message=error,
-            )
-        ]
-
-    if manifest.get("schema_version") != CONFIG_FACTS_SCHEMA_VERSION:
-        issues.append(
-            Issue(
-                severity="error",
-                code="config_facts_schema_mismatch",
-                path=rel_manifest,
-                message=f"Expected schema_version {CONFIG_FACTS_SCHEMA_VERSION}.",
-            )
-        )
-
-    if not isinstance(manifest.get("facts"), list):
-        return [
-            *issues,
-            Issue(
-                severity="error",
-                code="invalid_config_facts",
-                path=rel_manifest,
-                message="facts must be a list.",
-            ),
-        ]
-
-    current = build_config_facts(repo_root, today=today)
-    if _stable_config_facts_payload(manifest) != _stable_config_facts_payload(current):
-        issues.append(
-            Issue(
-                severity="error",
-                code="config_facts_drift",
-                path=rel_manifest,
-                message=(
-                    "Current tracked YAML config facts differ from config-facts.json; "
-                    "run --write-config-facts and review affected wiki claims."
-                ),
-            )
-        )
-
-    return issues
+    return _audit_manifest_facts(
+        repo_root,
+        wiki_dir,
+        markdown_files,
+        today=today,
+        manifest_name=CONFIG_FACTS_NAME,
+        schema_version=CONFIG_FACTS_SCHEMA_VERSION,
+        missing_code="missing_config_facts",
+        invalid_code="invalid_config_facts",
+        schema_mismatch_code="config_facts_schema_mismatch",
+        drift_code="config_facts_drift",
+        drift_message=(
+            "Current tracked YAML config facts differ from config-facts.json; "
+            "run --write-config-facts and review affected wiki claims."
+        ),
+        wiki_mentions=_wiki_mentions_config_facts,
+        build_current=build_config_facts,
+        stable_payload=_stable_config_facts_payload,
+    )
 
 
 def _audit_external_sources(
@@ -1887,8 +1877,32 @@ def _wiki_dir_path(repo_root: Path, wiki_dir: Path) -> Path:
     return wiki_dir if wiki_dir.is_absolute() else repo_root / wiki_dir
 
 
+class _WriteFailure(Exception):
+    def __init__(self, path: Path, error: OSError) -> None:
+        self.path = path
+        self.error = error
+        super().__init__(f"{path}: {error}")
+
+
 def _write_json_file(path: Path, payload: dict, *, sort_keys: bool = False) -> None:
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=sort_keys) + "\n", encoding="utf-8")
+    text = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=sort_keys) + "\n"
+    temp_path = path.with_name(f"{path.name}.tmp")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if temp_path.exists() or temp_path.is_symlink():
+            if temp_path.is_dir() and not temp_path.is_symlink():
+                raise IsADirectoryError(temp_path)
+            temp_path.unlink()
+        temp_path.write_text(text, encoding="utf-8", newline="\n")
+        temp_path.replace(path)
+    except OSError as exc:
+        if temp_path.exists() or temp_path.is_symlink():
+            try:
+                if not (temp_path.is_dir() and not temp_path.is_symlink()):
+                    temp_path.unlink()
+            except OSError:
+                pass
+        raise _WriteFailure(path, exc) from exc
 
 
 def _write_requested_audit_artifacts(args: argparse.Namespace, *, today: date) -> None:
@@ -1919,7 +1933,6 @@ def _write_strict_release_evidence(args: argparse.Namespace, report: dict, *, to
 
     repo_root = args.repo_root.resolve()
     evidence_path = _repo_output_path(repo_root, args.strict_release_evidence_path)
-    evidence_path.parent.mkdir(parents=True, exist_ok=True)
     strict_failure = bool(report["summary"].get("strict_manifest_warning_failure"))
     evidence_status = "fail" if report["summary"]["status"] == "fail" or strict_failure else "pass"
     report["summary"]["strict_release_evidence_path"] = _repo_rel(repo_root, evidence_path.resolve())
@@ -2011,11 +2024,48 @@ def _audit_exit_code(report: dict, *, strict_manifest_warning_failure: bool) -> 
     return 1 if report["summary"]["status"] == "fail" or strict_manifest_warning_failure else 0
 
 
+def _write_failure_payload(error: _WriteFailure, *, report: dict | None = None) -> dict:
+    payload = report if report is not None else {"summary": {"status": "write_failed"}, "issues": []}
+    payload["status"] = "write_failed"
+    payload["write_error"] = str(error.error)
+    payload["write_error_path"] = str(error.path)
+    payload["summary"]["write_status"] = "write_failed"
+    return payload
+
+
+def _emit_write_failure(
+    error: _WriteFailure,
+    *,
+    report: dict | None,
+    json_output: bool,
+    strict_manifest_warning_failure: bool = False,
+    unexpected_manifest_warning_count: int = 0,
+    write_strict_release_evidence: bool = False,
+) -> None:
+    payload = _write_failure_payload(error, report=report)
+    if write_strict_release_evidence:
+        payload["summary"]["strict_release_evidence_write_status"] = "write_failed"
+    if json_output:
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return
+    _emit_text_report(
+        payload,
+        strict_manifest_warning_failure=strict_manifest_warning_failure,
+        unexpected_manifest_warning_count=unexpected_manifest_warning_count,
+        write_strict_release_evidence=write_strict_release_evidence,
+    )
+    print(f"Write failed: {error.path} ({error.error})")
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parse_llm_wiki_audit_args(argv)
 
     today = date.fromisoformat(args.today) if args.today else date.today()
-    _write_requested_audit_artifacts(args, today=today)
+    try:
+        _write_requested_audit_artifacts(args, today=today)
+    except _WriteFailure as exc:
+        _emit_write_failure(exc, report=None, json_output=args.json)
+        return 4
 
     report = build_report(
         args.repo_root,
@@ -2027,7 +2077,18 @@ def main(argv: list[str] | None = None) -> int:
         report,
         args,
     )
-    _write_strict_release_evidence(args, report, today=today)
+    try:
+        _write_strict_release_evidence(args, report, today=today)
+    except _WriteFailure as exc:
+        _emit_write_failure(
+            exc,
+            report=report,
+            json_output=args.json,
+            strict_manifest_warning_failure=strict_manifest_warning_failure,
+            unexpected_manifest_warning_count=unexpected_manifest_warning_count,
+            write_strict_release_evidence=args.write_strict_release_evidence,
+        )
+        return 4
     _emit_report(
         report,
         json_output=args.json,

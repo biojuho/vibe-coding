@@ -26,8 +26,14 @@ import sys
 from pathlib import Path
 from typing import Any
 
-
 PASSING_COVERAGE = {"complete", "covered", "pass", "passed"}
+
+
+class _WriteFailure(Exception):
+    def __init__(self, path: Path, cause: OSError) -> None:
+        super().__init__(f"{type(cause).__name__}: {cause}")
+        self.path = path
+        self.cause = cause
 
 
 def _read_manifest_text(path: Path) -> str:
@@ -35,6 +41,8 @@ def _read_manifest_text(path: Path) -> str:
         raw = path.read_bytes()
     except FileNotFoundError as exc:
         raise SystemExit(f"manifest not found: {path}") from exc
+    except OSError as exc:
+        raise SystemExit(f"manifest unreadable: {path}: {exc}") from exc
 
     for encoding in ("utf-8-sig", "utf-16"):
         try:
@@ -212,38 +220,81 @@ def build_template(objective: str) -> dict[str, Any]:
     }
 
 
-def _print_text(result: dict[str, Any]) -> None:
-    print(f"status: {result['status']}")
-    print(f"objective: {result['objective']}")
+def _format_text(result: dict[str, Any]) -> str:
+    lines = [
+        f"status: {result['status']}",
+        f"objective: {result['objective']}",
+    ]
     summary = result["summary"]
-    print(
+    lines.append(
         "summary: "
         f"{summary['complete_count']}/{summary['item_count']} complete, "
         f"{summary['issue_count']} issue(s), {summary['blocked_count']} blocked"
     )
     if result["issues"]:
-        print("issues:")
+        lines.append("issues:")
         for issue in result["issues"]:
-            print(f"  - item {issue['index']}: {issue['code']} - {issue['message']}")
+            lines.append(f"  - item {issue['index']}: {issue['code']} - {issue['message']}")
             blockers = issue.get("blockers")
             if isinstance(blockers, list):
                 for blocker in blockers:
-                    print(f"    blocker: {blocker}")
+                    lines.append(f"    blocker: {blocker}")
+    return "\n".join(lines) + "\n"
+
+
+def _write_output(path: Path, text: str) -> None:
+    tmp = path.with_name(f"{path.name}.refresh-tmp")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp.write_text(text, encoding="utf-8", newline="\n")
+        tmp.replace(path)
+    except OSError as exc:
+        try:
+            if tmp.is_file() or tmp.is_symlink():
+                tmp.unlink()
+        except OSError:
+            pass
+        raise _WriteFailure(path, exc) from exc
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("manifest", nargs="?", type=Path, help="Completion audit manifest JSON")
     parser.add_argument("--template", action="store_true", help="Print a starter manifest and exit")
+    parser.add_argument(
+        "--template-output",
+        type=Path,
+        help="Write the starter manifest as UTF-8 without relying on shell redirection",
+    )
     parser.add_argument("--objective", default="Define the product objective here", help="Objective for --template")
     parser.add_argument("--json", action="store_true", help="Emit JSON instead of text")
+    parser.add_argument(
+        "--output", type=Path, help="Write the audit result as UTF-8 without relying on shell redirection"
+    )
     parser.add_argument("--allow-incomplete", action="store_true", help="Exit 0 even when the audit is incomplete")
     args = parser.parse_args(argv)
 
     if args.template:
         template = build_template(args.objective)
-        json.dump(template, sys.stdout, ensure_ascii=True, indent=2)
-        print()
+        output_text = json.dumps(template, ensure_ascii=True, indent=2) + "\n"
+        if args.template_output is not None:
+            try:
+                _write_output(args.template_output, output_text)
+            except _WriteFailure as exc:
+                sys.stdout.write(
+                    json.dumps(
+                        {
+                            "status": "write_failed",
+                            "write_error": str(exc),
+                            "write_error_path": exc.path.as_posix(),
+                        },
+                        ensure_ascii=True,
+                        indent=2,
+                    )
+                    + "\n"
+                )
+                return 4
+        sys.stdout.write(output_text)
         return 0
 
     if args.manifest is None:
@@ -251,10 +302,25 @@ def main(argv: list[str] | None = None) -> int:
 
     result = audit_manifest(_load_json(args.manifest))
     if args.json:
-        json.dump(result, sys.stdout, ensure_ascii=True, indent=2)
-        print()
+        output_text = json.dumps(result, ensure_ascii=True, indent=2) + "\n"
     else:
-        _print_text(result)
+        output_text = _format_text(result)
+
+    if args.output is not None:
+        try:
+            _write_output(args.output, output_text)
+        except _WriteFailure as exc:
+            result["status"] = "write_failed"
+            result["write_error"] = str(exc)
+            result["write_error_path"] = exc.path.as_posix()
+            if args.json:
+                sys.stdout.write(json.dumps(result, ensure_ascii=True, indent=2) + "\n")
+            else:
+                sys.stdout.write(_format_text(result))
+                sys.stdout.write(f"write_error_path: {exc.path.as_posix()}\n")
+                sys.stdout.write(f"write_error: {exc}\n")
+            return 4
+    sys.stdout.write(output_text)
 
     if result["status"] != "complete" and not args.allow_incomplete:
         return 1

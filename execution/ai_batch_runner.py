@@ -23,7 +23,7 @@ import sys
 import traceback
 from typing import Any
 
-from openai import AsyncOpenAI
+from openai import APIConnectionError, APIStatusError, AsyncOpenAI
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -65,7 +65,7 @@ async def process_item(
                     raise ValueError("null content")
 
                 return {**item, "output": output_text, "status": "success"}
-            except Exception as e:
+            except (APIStatusError, APIConnectionError, ValueError, asyncio.TimeoutError) as e:
                 logger.warning(
                     "Attempt %d/%d failed for task %s: %s", attempt + 1, max_retries, item.get("id", "unknown"), e
                 )
@@ -80,12 +80,15 @@ async def process_item(
     return {**item, "error": "Unknown error", "status": "failed"}
 
 
-async def main_async(input_file: str, output_file: str, model: str, concurrency: int, max_retries: int):
+async def main_async(input_file: str, output_file: str, model: str, concurrency: int, max_retries: int) -> None:
     if not os.path.exists(input_file):
         logger.error("Input file not found: %s", input_file)
         sys.exit(1)
 
-    api_key = os.environ.get("OPENAI_API_KEY", "dummy-key-if-not-required")
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        logger.error("OPENAI_API_KEY environment variable is not set")
+        sys.exit(1)
     client = AsyncOpenAI(api_key=api_key)
 
     # 환경 변수에 BASE_URL이 설정되어 있다면 (예: vLLM, LiteLLM 호환용도)
@@ -126,7 +129,7 @@ async def main_async(input_file: str, output_file: str, model: str, concurrency:
     logger.info("Results saved to %s", output_file)
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="비동기형 AI 배치 실행기 (JSONL 입력 기반)")
     parser.add_argument("--input", required=True, help="Input JSONL file")
     parser.add_argument("--output", required=True, help="Output JSONL file")

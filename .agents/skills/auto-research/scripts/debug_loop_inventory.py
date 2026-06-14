@@ -12,16 +12,16 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-
 DEFAULT_OUTPUT_MD = Path(".tmp/debug-loop-known-bugs-current.md")
 DEFAULT_OUTPUT_JSON = Path(".tmp/debug-loop-known-bugs-current.json")
 DEFAULT_LAUNCH_AUDIT = Path(".tmp/launch-objective-audit-current.json")
+DEFAULT_LAUNCH_AUDIT_REFRESH = Path(".tmp/launch-objective-audit-refresh.json")
 DEFAULT_DIRTY_HANDOFF_PLAN = Path(".tmp/scoped-dirty-worktree-handoff-plan-current.json")
 DEFAULT_DIRTY_HANDOFF_PLAN_MD = Path(".tmp/scoped-dirty-worktree-handoff-plan-current.md")
 DEFAULT_DIRTY_HANDOFF_PLAN_REFRESH = Path(".tmp/scoped-dirty-worktree-handoff-plan-refresh.json")
 DEFAULT_DIRTY_HANDOFF_PLAN_REFRESH_MD = Path(".tmp/scoped-dirty-worktree-handoff-plan-refresh.md")
 COMPLETION_BLOCKED_EXIT_CODE = 1
-LAUNCH_AUDIT_TIMEOUT_MULTIPLIER = 3
+LAUNCH_AUDIT_TIMEOUT_MULTIPLIER = 5
 SELECTOR_TIMEOUT_MULTIPLIER = 2
 _PROVIDED_INPUT_KEYS = (
     "session_orient",
@@ -60,6 +60,24 @@ class PrimaryBoundaryState:
     has_publish_boundary: bool
 
 
+@dataclass(frozen=True)
+class RefreshPromotionFailure(Exception):
+    path: Path
+    detail: str
+
+
+class OutputWriteFailure(Exception):
+    def __init__(self, path: Path, error: OSError) -> None:
+        super().__init__(f"{type(error).__name__}: {error}")
+        self.path = path
+
+
+@dataclass(frozen=True)
+class _PreparedWrite:
+    target: Path
+    tmp: Path
+
+
 def _as_dict(value: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
@@ -95,8 +113,12 @@ def _load_json(path: Path | None) -> dict[str, Any]:
     if path is None:
         return {}
     try:
-        parsed = json.loads(path.read_text(encoding="utf-8-sig"))
-    except (FileNotFoundError, OSError, json.JSONDecodeError):
+        try:
+            raw = path.read_text(encoding="utf-8-sig")
+        except UnicodeError:
+            raw = path.read_text(encoding="utf-16")
+        parsed = json.loads(raw)
+    except (FileNotFoundError, OSError, UnicodeError, json.JSONDecodeError):
         return {}
     return parsed if isinstance(parsed, dict) else {}
 
@@ -105,9 +127,64 @@ def _json_payload_text(payload: dict[str, Any]) -> str:
     return json.dumps(payload, ensure_ascii=True, indent=2) + "\n"
 
 
+def _atomic_write_text(path: Path, text: str) -> None:
+    prepared = _prepare_text_write(path, text)
+    _commit_prepared_writes([prepared])
+
+
+def _prepare_text_write(path: Path, text: str) -> _PreparedWrite:
+    tmp = path.with_name(f"{path.name}.refresh-tmp")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp.write_text(text, encoding="utf-8", newline="\n")
+    except OSError as exc:
+        try:
+            if tmp.is_file() or tmp.is_symlink():
+                tmp.unlink()
+        except OSError:
+            pass
+        raise OutputWriteFailure(path, exc) from exc
+    return _PreparedWrite(path, tmp)
+
+
+def _commit_prepared_writes(prepared: list[_PreparedWrite]) -> None:
+    completed: list[_PreparedWrite] = []
+    try:
+        for item in prepared:
+            item.tmp.replace(item.target)
+            completed.append(item)
+    except OSError as exc:
+        failing = next((item for item in prepared if item not in completed), prepared[-1])
+        for item in prepared:
+            try:
+                if item.tmp.is_file() or item.tmp.is_symlink():
+                    item.tmp.unlink()
+            except OSError:
+                pass
+        raise OutputWriteFailure(failing.target, exc) from exc
+
+
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(_json_payload_text(payload), encoding="utf-8")
+    _atomic_write_text(path, _json_payload_text(payload))
+
+
+def _replace_refresh_file(refresh_path: Path, current_path: Path) -> None:
+    try:
+        refresh_path.replace(current_path)
+    except OSError as exc:
+        raise RefreshPromotionFailure(
+            current_path,
+            f"{type(exc).__name__}: {exc}",
+        ) from exc
+
+
+def _refresh_promotion_error(exc: RefreshPromotionFailure) -> dict[str, Any]:
+    return {
+        "reason": "refresh_promotion_failed",
+        "returncode": 1,
+        "path": exc.path.as_posix(),
+        "detail": exc.detail,
+    }
 
 
 def _discard_regenerated_file(path: Path) -> None:
@@ -1889,15 +1966,20 @@ def _apply_dirty_handoff_plan_refresh(
     plan_md_path: Path,
     refresh_path: Path,
     refresh_md_path: Path,
-) -> None:
+) -> dict[str, Any]:
     if not _has_input_error(refresh_result) and refresh_path.is_file():
-        refresh_path.replace(plan_path)
-        if refresh_md_path.is_file():
-            refresh_md_path.replace(plan_md_path)
-        else:
-            _discard_regenerated_file(plan_md_path)
+        try:
+            _replace_refresh_file(refresh_path, plan_path)
+            if refresh_md_path.is_file():
+                _replace_refresh_file(refresh_md_path, plan_md_path)
+            else:
+                _discard_regenerated_file(plan_md_path)
+        except RefreshPromotionFailure as exc:
+            _discard_regenerated_files(refresh_path, refresh_md_path)
+            return _refresh_promotion_error(exc)
     else:
         _discard_regenerated_files(refresh_path, refresh_md_path)
+    return {}
 
 
 def _dirty_handoff_plan_refresh_paths(root: Path) -> tuple[Path, Path]:
@@ -1917,7 +1999,7 @@ def _refresh_dirty_handoff_plan_input(root: Path, timeout: int) -> dict[str, Any
         _dirty_handoff_plan_refresh_command(),
         timeout,
     )
-    _apply_dirty_handoff_plan_refresh(
+    promotion_error = _apply_dirty_handoff_plan_refresh(
         refresh_result=dirty_plan_refresh_result,
         plan_path=dirty_handoff_plan,
         plan_md_path=dirty_handoff_plan_md,
@@ -1928,17 +2010,19 @@ def _refresh_dirty_handoff_plan_input(root: Path, timeout: int) -> dict[str, Any
     if _has_input_error(dirty_plan_refresh_result):
         error = _as_dict(dirty_plan_refresh_result.get("_input_error"))
         dirty_handoff_plan_input = _add_input_error(dirty_handoff_plan_input, error)
+    if promotion_error:
+        dirty_handoff_plan_input = _add_input_error(dirty_handoff_plan_input, promotion_error)
     return dirty_handoff_plan_input
 
 
-def _launch_objective_audit_command() -> list[str]:
+def _launch_objective_audit_command(output_path: Path = DEFAULT_LAUNCH_AUDIT) -> list[str]:
     return [
         sys.executable,
         ".agents/skills/auto-research/scripts/launch_objective_audit.py",
         "--root",
         ".",
         "--output",
-        str(DEFAULT_LAUNCH_AUDIT),
+        str(output_path),
         "--json",
     ]
 
@@ -1957,6 +2041,10 @@ def _launch_audit_path(root: Path) -> Path:
     return root / DEFAULT_LAUNCH_AUDIT
 
 
+def _launch_audit_refresh_path(root: Path) -> Path:
+    return root / DEFAULT_LAUNCH_AUDIT_REFRESH
+
+
 def _launch_objective_audit_timeout(timeout: int) -> int:
     return max(1, timeout) * LAUNCH_AUDIT_TIMEOUT_MULTIPLIER
 
@@ -1971,25 +2059,34 @@ def _completion_audit_input_from_launch_audit(
     launch_audit_result: dict[str, Any],
     timeout: int,
 ) -> dict[str, Any]:
+    if _has_input_error(launch_audit_result):
+        return {"_input_error": _as_dict(launch_audit_result.get("_input_error"))}
     if launch_audit.is_file():
         return _run_json(
             root,
             _completion_audit_command(launch_audit),
             timeout,
         )
-    if _has_input_error(launch_audit_result):
-        return {"_input_error": _as_dict(launch_audit_result.get("_input_error"))}
     return {}
 
 
 def _collect_completion_audit_input(root: Path, timeout: int) -> dict[str, Any]:
     launch_audit = _launch_audit_path(root)
-    _discard_regenerated_file(launch_audit)
+    launch_audit_refresh = _launch_audit_refresh_path(root)
+    _discard_regenerated_file(launch_audit_refresh)
     launch_audit_result = _run_json(
         root,
-        _launch_objective_audit_command(),
+        _launch_objective_audit_command(DEFAULT_LAUNCH_AUDIT_REFRESH),
         _launch_objective_audit_timeout(timeout),
     )
+    if launch_audit_refresh.is_file() and not _has_input_error(launch_audit_result):
+        try:
+            _replace_refresh_file(launch_audit_refresh, launch_audit)
+        except RefreshPromotionFailure as exc:
+            _discard_regenerated_file(launch_audit_refresh)
+            return {"_input_error": _refresh_promotion_error(exc)}
+    else:
+        _discard_regenerated_file(launch_audit_refresh)
     return _completion_audit_input_from_launch_audit(root, launch_audit, launch_audit_result, timeout)
 
 
@@ -2119,8 +2216,7 @@ def _inventory_output_paths(root: Path, output_md_arg: Path, output_json_arg: Pa
 
 
 def _write_inventory_markdown(path: Path, inventory: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(render_markdown(inventory), encoding="utf-8")
+    _atomic_write_text(path, render_markdown(inventory))
 
 
 def _write_inventory_json(path: Path, inventory: dict[str, Any]) -> None:
@@ -2134,8 +2230,11 @@ def _write_inventory_outputs(
     output_json_arg: Path,
 ) -> tuple[Path, Path]:
     output_md, output_json = _inventory_output_paths(root, output_md_arg, output_json_arg)
-    _write_inventory_markdown(output_md, inventory)
-    _write_inventory_json(output_json, inventory)
+    prepared = [
+        _prepare_text_write(output_md, render_markdown(inventory)),
+        _prepare_text_write(output_json, _json_payload_text(inventory)),
+    ]
+    _commit_prepared_writes(prepared)
     return output_md, output_json
 
 
@@ -2204,7 +2303,17 @@ def _emit_completion_blocked_message(inventory: dict[str, Any], exit_code: int) 
 def _run_inventory_from_args(args: argparse.Namespace) -> int:
     root = _inventory_root_from_args(args)
     inventory = _build_inventory_from_args(root, args)
-    output_md, output_json = _write_inventory_outputs(root, inventory, args.output_md, args.output_json)
+    try:
+        output_md, output_json = _write_inventory_outputs(root, inventory, args.output_md, args.output_json)
+    except OutputWriteFailure as exc:
+        inventory["status"] = "write_failed"
+        inventory["write_error"] = str(exc)
+        inventory["write_error_path"] = exc.path.as_posix()
+        if args.json:
+            _emit_inventory_json(inventory)
+        else:
+            print(f"debug loop inventory: write_failed path={exc.path.as_posix()} error={exc}")
+        return 4
 
     _emit_inventory_output(inventory, output_md, output_json, args.json)
     exit_code = _completion_blocked_exit_code(inventory, args.fail_on_completion_blocked)

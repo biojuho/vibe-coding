@@ -11,7 +11,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-
 PROJECT_MARKERS = (
     "package.json",
     "pyproject.toml",
@@ -85,6 +84,13 @@ DIRTY_PATH_FALLBACK_PREFIX_GROUPS = (
 )
 
 
+class _WriteFailure(Exception):
+    def __init__(self, path: Path, cause: OSError) -> None:
+        super().__init__(f"{type(cause).__name__}: {cause}")
+        self.path = path
+        self.cause = cause
+
+
 def _run(args: list[str], cwd: Path, timeout: int = 20) -> dict[str, Any]:
     try:
         completed = subprocess.run(
@@ -123,7 +129,7 @@ def _read_package_scripts(path: Path) -> dict[str, str]:
     package_path = path / "package.json"
     try:
         data = json.loads(package_path.read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError):
+    except (FileNotFoundError, OSError, UnicodeError, json.JSONDecodeError):
         return {}
     scripts = data.get("scripts")
     if not isinstance(scripts, dict):
@@ -458,8 +464,18 @@ def build_inventory(root: Path, include_prs: bool) -> dict[str, Any]:
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+    tmp = path.with_name(f"{path.name}.refresh-tmp")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8", newline="\n")
+        tmp.replace(path)
+    except OSError as exc:
+        try:
+            if tmp.is_file() or tmp.is_symlink():
+                tmp.unlink()
+        except OSError:
+            pass
+        raise _WriteFailure(path, exc) from exc
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -476,7 +492,15 @@ def main(argv: list[str] | None = None) -> int:
 
     inventory = build_inventory(args.root, args.include_prs)
     if args.output:
-        _write_json(args.output, inventory)
+        try:
+            _write_json(args.output, inventory)
+        except _WriteFailure as exc:
+            inventory["status"] = "write_failed"
+            inventory["write_error"] = str(exc)
+            inventory["write_error_path"] = exc.path.as_posix()
+            json.dump(inventory, sys.stdout, ensure_ascii=True, indent=2)
+            print()
+            return 4
     json.dump(inventory, sys.stdout, ensure_ascii=True, indent=2)
     print()
     return 0

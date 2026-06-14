@@ -16,7 +16,6 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
@@ -139,9 +138,7 @@ def _missing_blockers(required: dict[str, bool]) -> list[str]:
     return [f"Missing or stale evidence: {name}" for name, present in required.items() if not present]
 
 
-def build_manifest(repo_root: Path, *, today: date | None = None) -> dict[str, Any]:
-    repo_root = repo_root.resolve()
-    today = today or date.today()
+def _manifest_context(repo_root: Path, today: date) -> dict[str, Any]:
     report = _llm_wiki_report(repo_root, today=today)
     summary = report.get("summary", {})
     summary = summary if isinstance(summary, dict) else {}
@@ -151,17 +148,78 @@ def build_manifest(repo_root: Path, *, today: date | None = None) -> dict[str, A
     tasks = _read_text(repo_root, ".ai/TASKS.md")
     session_log = _read_text(repo_root, ".ai/SESSION_LOG.md")
     ai_text = "\n".join([handoff, tasks, session_log])
-    ab_count = _ab_page_count(repo_root)
-    selector_kind = _selector_kind(repo_root)
 
-    audit_status = str(summary.get("status", "unknown"))
-    source_inventory_count = _summary_int(summary, "source_inventory_count")
-    source_page_count = _summary_int(summary, "source_page_count")
-    code_fact_count = _summary_int(summary, "code_fact_count")
-    config_fact_count = _summary_int(summary, "config_fact_count")
-    unexpected_warning_count = _summary_int(summary, "manifest_check_unexpected_warning_count")
-    accepted_warning_count = _summary_int(summary, "manifest_check_accepted_warning_count")
-    release_summary_status = str(summary.get("release_summary_contract_status", "unknown"))
+    return {
+        "readme": readme,
+        "handoff": handoff,
+        "tasks": tasks,
+        "session_log": session_log,
+        "ai_text": ai_text,
+        "ab_count": _ab_page_count(repo_root),
+        "selector_kind": _selector_kind(repo_root),
+        "audit_status": str(summary.get("status", "unknown")),
+        "source_inventory_count": _summary_int(summary, "source_inventory_count"),
+        "source_page_count": _summary_int(summary, "source_page_count"),
+        "code_fact_count": _summary_int(summary, "code_fact_count"),
+        "config_fact_count": _summary_int(summary, "config_fact_count"),
+        "unexpected_warning_count": _summary_int(summary, "manifest_check_unexpected_warning_count"),
+        "accepted_warning_count": _summary_int(summary, "manifest_check_accepted_warning_count"),
+        "release_summary_status": str(summary.get("release_summary_contract_status", "unknown")),
+    }
+
+
+def _active_loop_blockers(selector_kind: str, ai_text: str) -> list[str]:
+    blockers = ["Objective is an active autonomous loop until the user explicitly says stop."]
+    if selector_kind:
+        blockers.append(f"Current selector boundary remains {selector_kind}.")
+    if "T-251" in ai_text:
+        blockers.append("Workspace launch boundary still includes user-owned Hanwoo T-251.")
+    return blockers
+
+
+def _manifest_item_counts(items: list[dict[str, Any]]) -> tuple[int, int]:
+    complete_items = sum(1 for item in items if item["coverage"] == "complete" and not item["blockers"])
+    blocked_items = sum(1 for item in items if item["blockers"])
+    return complete_items, blocked_items
+
+
+def build_manifest(repo_root: Path, *, today: date | None = None) -> dict[str, Any]:
+    repo_root = repo_root.resolve()
+    today = today or date.today()
+    context = _manifest_context(repo_root, today)
+    (
+        readme,
+        handoff,
+        tasks,
+        session_log,
+        ai_text,
+        ab_count,
+        selector_kind,
+        audit_status,
+        source_inventory_count,
+        source_page_count,
+        code_fact_count,
+        config_fact_count,
+        unexpected_warning_count,
+        accepted_warning_count,
+        release_summary_status,
+    ) = (
+        context["readme"],
+        context["handoff"],
+        context["tasks"],
+        context["session_log"],
+        context["ai_text"],
+        context["ab_count"],
+        context["selector_kind"],
+        context["audit_status"],
+        context["source_inventory_count"],
+        context["source_page_count"],
+        context["code_fact_count"],
+        context["config_fact_count"],
+        context["unexpected_warning_count"],
+        context["accepted_warning_count"],
+        context["release_summary_status"],
+    )
 
     items: list[dict[str, Any]] = []
 
@@ -352,11 +410,7 @@ def build_manifest(repo_root: Path, *, today: date | None = None) -> dict[str, A
         )
     )
 
-    active_loop_blockers = ["Objective is an active autonomous loop until the user explicitly says stop."]
-    if selector_kind:
-        active_loop_blockers.append(f"Current selector boundary remains {selector_kind}.")
-    if "T-251" in ai_text:
-        active_loop_blockers.append("Workspace launch boundary still includes user-owned Hanwoo T-251.")
+    active_loop_blockers = _active_loop_blockers(selector_kind, ai_text)
     items.append(
         _item(
             "종료 조건: 사용자가 중단을 말하기 전까지 루프는 complete로 주장하지 않는다.",
@@ -370,8 +424,7 @@ def build_manifest(repo_root: Path, *, today: date | None = None) -> dict[str, A
         )
     )
 
-    complete_items = sum(1 for item in items if item["coverage"] == "complete" and not item["blockers"])
-    blocked_items = sum(1 for item in items if item["blockers"])
+    complete_items, blocked_items = _manifest_item_counts(items)
     return {
         "schema_version": 1,
         "objective": (

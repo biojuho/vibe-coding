@@ -7,14 +7,30 @@ import argparse
 import json
 import os
 import shutil
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-
 
 DEFAULT_PACKET_PATH = Path(".tmp/release-authorization-packet.json")
 DEFAULT_OUTPUT_PATH = Path(".tmp/llm-wiki-release-summary.md")
 DEFAULT_ARTIFACT_NAME = "llm-wiki-release-evidence"
 UPLOAD_ARTIFACT_ACTION = "actions/upload-artifact@v7"
+
+
+class _WriteFailure(RuntimeError):
+    def __init__(self, path: Path, error: BaseException | str) -> None:
+        message = f"{type(error).__name__}: {error}" if isinstance(error, BaseException) else error
+        super().__init__(message)
+        self.path = path
+        self.message = message
+
+
+@dataclass(frozen=True)
+class _PreparedCopy:
+    source: Path
+    target: Path
+    temp: Path
+    rel_target: str
 
 
 def _as_dict(value: Any) -> dict[str, Any]:
@@ -64,9 +80,64 @@ def _rel(root: Path, path: Path | None) -> str:
 def _load_json(path: Path) -> dict[str, Any]:
     try:
         parsed = json.loads(path.read_text(encoding="utf-8-sig"))
-    except (FileNotFoundError, OSError, json.JSONDecodeError):
+    except (FileNotFoundError, OSError, UnicodeError, json.JSONDecodeError):
         return {}
     return parsed if isinstance(parsed, dict) else {}
+
+
+def _cleanup_temp(path: Path) -> None:
+    try:
+        if path.is_file() or path.is_symlink():
+            path.unlink()
+    except OSError:
+        pass
+
+
+def _write_text_atomic(path: Path, text: str) -> None:
+    tmp = path.with_name(f"{path.name}.refresh-tmp")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp.write_text(text, encoding="utf-8", newline="\n")
+        tmp.replace(path)
+    except OSError as exc:
+        _cleanup_temp(tmp)
+        raise _WriteFailure(path, exc) from exc
+
+
+def _prepare_copy(root: Path, source: Path, target: Path) -> _PreparedCopy:
+    tmp = target.with_name(f"{target.name}.refresh-tmp")
+    try:
+        if tmp.exists() or tmp.is_symlink():
+            if tmp.is_dir() and not tmp.is_symlink():
+                raise IsADirectoryError(tmp)
+            tmp.unlink()
+        shutil.copyfile(source, tmp)
+    except OSError as exc:
+        _cleanup_temp(tmp)
+        raise _WriteFailure(target, exc) from exc
+    return _PreparedCopy(source=source, target=target, temp=tmp, rel_target=_rel(root, target))
+
+
+def _commit_prepared_copies(prepared: list[_PreparedCopy]) -> list[str]:
+    copied: list[str] = []
+    try:
+        for item in prepared:
+            item.temp.replace(item.target)
+            copied.append(item.rel_target)
+    except OSError as exc:
+        for pending in prepared:
+            _cleanup_temp(pending.temp)
+        raise _WriteFailure(item.target, exc) from exc
+    return copied
+
+
+def _append_text(path: Path, text: str) -> None:
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8", newline="\n") as handle:
+            handle.write(text)
+    except OSError as exc:
+        raise _WriteFailure(path, exc) from exc
 
 
 def _hidden_path_risk(path: str) -> bool:
@@ -116,17 +187,29 @@ def _artifact_paths(
             "copied": [],
         }
 
-    artifact_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        artifact_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise _WriteFailure(artifact_dir, exc) from exc
     summary_target = artifact_dir / "llm-wiki-release-summary.md"
     evidence_target = artifact_dir / "llm-wiki-strict-audit-current.json"
-    copied: list[str] = []
+    prepared: list[_PreparedCopy] = []
 
-    if output_path.exists() and output_path.resolve() != summary_target.resolve():
-        shutil.copyfile(output_path, summary_target)
-        copied.append(_rel(root, summary_target))
-    if raw_source and raw_source.exists():
-        shutil.copyfile(raw_source, evidence_target)
-        copied.append(_rel(root, evidence_target))
+    try:
+        if output_path.exists() and output_path.resolve() != summary_target.resolve():
+            prepared.append(_prepare_copy(root, output_path, summary_target))
+        if raw_source and raw_source.exists():
+            if raw_source.resolve() != evidence_target.resolve():
+                prepared.append(_prepare_copy(root, raw_source, evidence_target))
+        copied = _commit_prepared_copies(prepared)
+    except _WriteFailure:
+        for pending in prepared:
+            _cleanup_temp(pending.temp)
+        raise
+    except OSError as exc:
+        for pending in prepared:
+            _cleanup_temp(pending.temp)
+        raise _WriteFailure(artifact_dir, exc) from exc
 
     rel_dir = _rel(root, artifact_dir)
     return {
@@ -137,6 +220,13 @@ def _artifact_paths(
         "hidden_path_risk": _hidden_path_risk(rel_dir),
         "copied": copied,
     }
+
+
+def _preflight_artifact_dir(artifact_dir: Path) -> None:
+    try:
+        artifact_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise _WriteFailure(artifact_dir, exc) from exc
 
 
 def build_summary(
@@ -248,23 +338,35 @@ def main(argv: list[str] | None = None) -> int:
     packet = _load_json(packet_path or root / DEFAULT_PACKET_PATH)
     if output_path is None:
         output_path = root / DEFAULT_OUTPUT_PATH
-    output_path.parent.mkdir(parents=True, exist_ok=True)
 
     result = build_summary(packet, root=root, output_path=output_path, artifact_dir=None)
-    output_path.write_text(result["summary_markdown"] + "\n", encoding="utf-8")
+    try:
+        if artifact_dir is not None:
+            _preflight_artifact_dir(artifact_dir)
+        _write_text_atomic(output_path, result["summary_markdown"] + "\n")
 
-    if artifact_dir is not None:
-        result = build_summary(packet, root=root, output_path=output_path, artifact_dir=artifact_dir)
+        if artifact_dir is not None:
+            result = build_summary(packet, root=root, output_path=output_path, artifact_dir=artifact_dir)
 
-    step_summary_result = {"appended": False, "path": _rel(root, step_summary) if step_summary else None}
-    if step_summary is not None:
-        step_summary.parent.mkdir(parents=True, exist_ok=True)
-        with step_summary.open("a", encoding="utf-8") as handle:
-            handle.write(result["summary_markdown"])
-            handle.write("\n")
-        step_summary_result["appended"] = True
+        step_summary_result = {"appended": False, "path": _rel(root, step_summary) if step_summary else None}
+        if step_summary is not None:
+            _append_text(step_summary, result["summary_markdown"] + "\n")
+            step_summary_result["appended"] = True
+    except _WriteFailure as exc:
+        result["status"] = "write_failed"
+        result["write_error"] = exc.message
+        result["write_error_path"] = _rel(root, exc.path)
+        result.pop("summary_markdown", None)
+        text = json.dumps(result, ensure_ascii=True, indent=2)
+        if args.json:
+            print(text)
+        else:
+            print(f"write_failed: {_rel(root, exc.path)}: {exc.message}")
+        return 4
     result["output"] = _rel(root, output_path)
     result["github_step_summary"] = step_summary_result
+    result["write_error"] = ""
+    result["write_error_path"] = ""
     result.pop("summary_markdown", None)
 
     text = json.dumps(result, ensure_ascii=True, indent=2)

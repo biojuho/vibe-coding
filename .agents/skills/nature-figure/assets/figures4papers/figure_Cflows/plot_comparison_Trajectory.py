@@ -1,7 +1,7 @@
 import os
+
 import numpy as np
 from matplotlib import pyplot as plt
-
 
 data_comparison_Trajectory = {
     "methods": [r"TrajectoryNet", r"OT-CFM", r"SB-CFM", r"BEMIOflow (ours)"],

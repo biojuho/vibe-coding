@@ -48,6 +48,15 @@ python .agents/skills/auto-research/scripts/dirty_worktree_handoff_plan.py --roo
 ```
 
 Treat the plan as handoff evidence only. It does not authorize staging, committing, pushing, reverting, or retrying user-owned external blockers.
+When scoped authorization coverage is stale, regenerate the pathspec coverage artifacts without staging anything:
+
+```bash
+python .agents/skills/auto-research/scripts/approval_pathspec_consistency.py --root . --json
+python .agents/skills/auto-research/scripts/scoped_authorization_menu.py --root . --json
+python .agents/skills/auto-research/scripts/scoped_authorization_menu.py --root . --check --json
+```
+
+Run the scoped authorization menu check sequentially, not in parallel with `next_experiment_selector.py`, `refresh_current_evidence.py`, or any command that rewrites `.tmp/scoped-dirty-worktree-handoff-plan-current.json`; otherwise the check can report transient `status=drift` while coverage is current.
 
 When a user-confirmed direction hypothesis is driving the loop, generate a direction-alignment scorecard before editing:
 
@@ -111,15 +120,25 @@ python .agents/skills/auto-research/scripts/completion_audit.py .tmp/completion-
 ```
 
 Read `references/completion-audit.md` for the manifest shape. A `complete` result requires every explicit requirement to have artifacts, current evidence, `verified: true`, and complete coverage. Incomplete or blocked items mean the next auto-research cycle must continue instead of declaring success.
+Use `completion_audit.py --template --template-output .tmp/completion-audit-template.json` for saved starter manifests so PowerShell redirection cannot introduce UTF-16 or UTF-8 BOM drift.
 
 To generate a launch-objective manifest from current workspace evidence first, run:
 
 ```bash
 python .agents/skills/auto-research/scripts/launch_objective_audit.py --root . --output .tmp/launch-objective-audit.json --json
-python .agents/skills/auto-research/scripts/completion_audit.py .tmp/launch-objective-audit.json --json --allow-incomplete
+python .agents/skills/auto-research/scripts/completion_audit.py .tmp/launch-objective-audit.json --json --allow-incomplete --output .tmp/launch-objective-completion-audit.json
 ```
 
 The launch manifest must include direct target project readiness evidence, including `shorts-maker-v2` when it is the launch target, not just workspace-level proxy signals.
+Use `--output` for saved completion-audit JSON so PowerShell redirection cannot introduce UTF-16 or UTF-8 BOM drift.
+
+To refresh every active current-evidence artifact without PowerShell BOM/UTF-16 drift, run:
+
+```bash
+python .agents/skills/auto-research/scripts/refresh_current_evidence.py --root . --timeout 180 --json
+```
+
+The helper refreshes product readiness, GitHub project inventory, browser QA inventory, dependency freshness inventory, direction-alignment audit, scoped dirty handoff, release authorization, approval/pathspec consistency, launch-objective audit, completion audit, launch prompt-to-artifact checklist, session orientation, next experiment selection, the legacy selector-current alias, approval execution matrix, blocker burndown, debug-loop inventory, scoped authorization menu, and AI context relay packet files as BOM-free current JSON/Markdown evidence.
 
 For the `/goal` reproduce -> isolate -> root-cause -> fix -> verify debugging loop, keep the 0-step bug/anomaly inventory generated from live evidence instead of editing stale counts by hand:
 
@@ -206,10 +225,10 @@ The helper appends to `GITHUB_STEP_SUMMARY` when that environment file exists, o
 Create a manifest and score it:
 
 ```bash
-python .agents/skills/auto-research/scripts/ab_decision.py .tmp/ab-manifest.json
+python .agents/skills/auto-research/scripts/ab_decision.py .tmp/ab-manifest.json --output .tmp/ab-decision.json --json
 ```
 
-Use this for deterministic keep-or-adopt decisions. Do not use it as a substitute for reading failures or inspecting screenshots.
+Use this for deterministic keep-or-adopt decisions. Prefer `--output` for saved decision JSON so PowerShell redirection cannot introduce UTF-16 or UTF-8 BOM drift. Do not use it as a substitute for reading failures or inspecting screenshots.
 
 ## Stop Conditions
 

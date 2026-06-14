@@ -13,7 +13,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, NamedTuple
 
-
 BROWSER_DEPENDENCIES = {
     "@playwright/test",
     "@vitejs/plugin-react",
@@ -94,6 +93,13 @@ class PngChunkScan(NamedTuple):
     issues: list[str]
 
 
+class _WriteFailure(Exception):
+    def __init__(self, path: Path, cause: OSError) -> None:
+        super().__init__(f"{type(cause).__name__}: {cause}")
+        self.path = path
+        self.cause = cause
+
+
 def _relative(path: Path, root: Path) -> str:
     try:
         return path.relative_to(root).as_posix()
@@ -104,7 +110,7 @@ def _relative(path: Path, root: Path) -> str:
 def _load_json(path: Path) -> dict[str, Any]:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError):
+    except (FileNotFoundError, OSError, UnicodeError, json.JSONDecodeError):
         return {}
     return data if isinstance(data, dict) else {}
 
@@ -775,9 +781,19 @@ def _print_text(inventory: dict[str, Any]) -> None:
         print(f"recommendation: {recommendation}")
 
 
-def _write_json(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+def _write_json_output(path: Path, payload: dict[str, Any]) -> None:
+    tmp = path.with_name(f"{path.name}.refresh-tmp")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8", newline="\n")
+        tmp.replace(path)
+    except OSError as exc:
+        try:
+            if tmp.is_file() or tmp.is_symlink():
+                tmp.unlink()
+        except OSError:
+            pass
+        raise _WriteFailure(path, exc) from exc
 
 
 def _browser_inventory_args_from_argv(argv: list[str] | None) -> argparse.Namespace:
@@ -794,7 +810,20 @@ def main(argv: list[str] | None = None) -> int:
 
     inventory = build_inventory(args.root, args.include_non_browser)
     if args.output:
-        _write_json(args.output, inventory)
+        try:
+            _write_json_output(args.output, inventory)
+        except _WriteFailure as exc:
+            inventory["status"] = "write_failed"
+            inventory["write_error"] = str(exc)
+            inventory["write_error_path"] = exc.path.as_posix()
+            if args.json:
+                json.dump(inventory, sys.stdout, ensure_ascii=True, indent=2)
+                print()
+            else:
+                print("browser QA inventory: write_failed")
+                print(f"path: {exc.path.as_posix()}")
+                print(f"error: {exc}")
+            return 4
     if args.json:
         json.dump(inventory, sys.stdout, ensure_ascii=True, indent=2)
         print()

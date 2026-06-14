@@ -12,7 +12,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-
 DEFAULT_JSON_PATH = Path(".tmp/scoped-dirty-worktree-handoff-plan-current.json")
 DEFAULT_MARKDOWN_PATH = Path(".tmp/scoped-dirty-worktree-handoff-plan-current.md")
 GITHUB_INVENTORY_GATE = (
@@ -34,6 +33,14 @@ SOURCE_REFERENCES = [
         "note": "Use standard exclude rules for untracked-file evidence.",
     },
 ]
+
+
+class _WriteFailure(Exception):
+    def __init__(self, path: Path, cause: OSError) -> None:
+        super().__init__(f"{type(cause).__name__}: {cause}")
+        self.path = path
+        self.cause = cause
+
 
 GROUP_ORDER = [
     "auto-research",
@@ -151,14 +158,28 @@ def _load_json(path: Path | None) -> dict[str, Any]:
         return {}
     try:
         parsed = json.loads(path.read_text(encoding="utf-8-sig"))
-    except (FileNotFoundError, OSError, json.JSONDecodeError):
+    except (FileNotFoundError, OSError, UnicodeError, json.JSONDecodeError):
         return {}
     return parsed if isinstance(parsed, dict) else {}
 
 
+def _write_text(path: Path, text: str) -> None:
+    tmp = path.with_name(f"{path.name}.refresh-tmp")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp.write_text(text, encoding="utf-8", newline="\n")
+        tmp.replace(path)
+    except OSError as exc:
+        try:
+            if tmp.is_file() or tmp.is_symlink():
+                tmp.unlink()
+        except OSError:
+            pass
+        raise _WriteFailure(path, exc) from exc
+
+
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+    _write_text(path, json.dumps(payload, ensure_ascii=True, indent=2) + "\n")
 
 
 def _run_json(root: Path, args: list[str], timeout: int) -> dict[str, Any]:
@@ -608,9 +629,21 @@ def main(argv: list[str] | None = None) -> int:
         code_review_gate=code_review_gate,
         previous_plan=previous_plan,
     )
-    _write_json(output_json, plan)
-    output_md.parent.mkdir(parents=True, exist_ok=True)
-    output_md.write_text(render_markdown(plan), encoding="utf-8")
+    try:
+        _write_json(output_json, plan)
+        _write_text(output_md, render_markdown(plan))
+    except _WriteFailure as exc:
+        plan["status"] = "write_failed"
+        plan["write_error"] = str(exc)
+        plan["write_error_path"] = exc.path.as_posix()
+        if args.json:
+            json.dump(plan, sys.stdout, ensure_ascii=True, indent=2)
+            print()
+        else:
+            print("dirty handoff plan: write_failed")
+            print(f"path: {_rel(root, exc.path)}")
+            print(f"error: {exc}")
+        return 4
 
     if args.json:
         json.dump(plan, sys.stdout, ensure_ascii=True, indent=2)

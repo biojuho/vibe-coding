@@ -1,6 +1,5 @@
 import numpy as np
 
-
 data_comparison_IEDB = {
     "methods": [
         r"Prime-2.1",

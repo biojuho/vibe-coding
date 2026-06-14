@@ -1,7 +1,7 @@
 import os
+
 import numpy as np
 from matplotlib import pyplot as plt
-
 
 data_comparison_GeneRegulatory = {
     "methods": [r"OCE", r"PC", r"mTE", r"mMI", r"NRI", r"DCRNN", r"GTS", r"NIR", r"GC (ours)"],

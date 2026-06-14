@@ -1,7 +1,8 @@
 import os
+
 import numpy as np
 from matplotlib import pyplot as plt
-from matplotlib.ticker import LinearLocator, FormatStrFormatter
+from matplotlib.ticker import FormatStrFormatter, LinearLocator
 
 
 def load_freq_prior_data(data_dir):

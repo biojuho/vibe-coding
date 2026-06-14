@@ -1,7 +1,7 @@
 import os
-import numpy as np
-import matplotlib.pyplot as plt
 
+import matplotlib.pyplot as plt
+import numpy as np
 
 EPSILON = 1e-6
 

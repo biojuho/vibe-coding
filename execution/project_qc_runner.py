@@ -8,7 +8,7 @@ repeatable from one entry point without changing the commands themselves.
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
+import copy
 import json
 import os
 import re
@@ -18,9 +18,9 @@ import sys
 import threading
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
-
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_TAIL_CHARS = 4000
@@ -32,7 +32,14 @@ PROJECT_QC_TRANSIENT_RETRY_SECONDS = max(0, int(os.environ.get("PROJECT_QC_TRANS
 DEFAULT_ARTIFACT_PATH = REPO_ROOT / ".tmp" / "project_qc_runner_latest.json"
 DEFAULT_PARTIAL_ARTIFACT_PATH = REPO_ROOT / ".tmp" / "project_qc_runner_partial_latest.json"
 READINESS_ARTIFACT_SCHEMA_VERSION = 3
+PROJECT_QC_PROJECT_SOURCES_KEY = "_project_qc_sources"
 NEXT_BUILD_LOCK_TEXT = "Another next build process is already running"
+WINDOWS_PYTEST_POSTPASS_RETURNCODES = {-1, 4294967295}
+PYTEST_SUCCESS_SUMMARY_RE = re.compile(
+    r"(?m)^\d+\s+passed"
+    r"(?:,\s+\d+\s+(?:skipped|deselected|xfailed|xpassed|warnings?))*"
+    r"\s+in\s+[\d.]+s(?:\s+\([^)]+\))?\s*$"
+)
 
 if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
     try:
@@ -61,6 +68,12 @@ class PlanItem:
     project: str
     cwd: Path
     check: CheckCommand
+
+
+class ArtifactWriteFailure(Exception):
+    def __init__(self, path: Path, message: str) -> None:
+        super().__init__(message)
+        self.path = path
 
 
 PROJECTS: dict[str, ProjectChecks] = {
@@ -323,6 +336,21 @@ def tail_text(text: str | None, limit: int = OUTPUT_TAIL_CHARS) -> str:
     return text[-limit:]
 
 
+def pytest_stdout_reports_success(stdout: str | None) -> bool:
+    return bool(PYTEST_SUCCESS_SUMMARY_RE.search(stdout or ""))
+
+
+def normalized_returncode(command: tuple[str, ...], completed: subprocess.CompletedProcess[str]) -> tuple[int, str]:
+    if (
+        _is_pytest_command(command)
+        and completed.returncode in WINDOWS_PYTEST_POSTPASS_RETURNCODES
+        and not (completed.stderr or "").strip()
+        and pytest_stdout_reports_success(completed.stdout)
+    ):
+        return 0, "windows_pytest_postpass_returncode"
+    return int(completed.returncode), ""
+
+
 def serialize_plan(plan: list[PlanItem]) -> list[dict[str, str]]:
     return [
         {
@@ -370,18 +398,22 @@ def run_item(item: PlanItem, timeout_seconds: int) -> dict[str, object]:
             if PROJECT_QC_TRANSIENT_RETRY_SECONDS:
                 time.sleep(PROJECT_QC_TRANSIENT_RETRY_SECONDS)
         duration = time.monotonic() - started
-        status = "passed" if completed.returncode == 0 else "failed"
+        returncode, normalized_reason = normalized_returncode(resolved_command, completed)
+        status = "passed" if returncode == 0 else "failed"
         result = {
             "project": item.project,
             "check": item.check.id,
             "status": status,
-            "returncode": completed.returncode,
+            "returncode": returncode,
             "duration_seconds": round(duration, 2),
             "command": command_to_string(item.check.command),
             "resolved_command": command_to_string(resolved_command),
             "stdout_tail": tail_text(completed.stdout),
             "stderr_tail": tail_text(completed.stderr),
         }
+        if normalized_reason:
+            result["raw_returncode"] = completed.returncode
+            result["returncode_normalized_reason"] = normalized_reason
         if attempts > 1:
             result["attempts"] = attempts
             result["transient_retry_count"] = transient_retry_count
@@ -609,6 +641,89 @@ def artifact_has_full_workspace_coverage(artifact: dict[str, object]) -> bool:
     return all(isinstance(project, dict) and project.get("coverage") == "complete" for project in projects.values())
 
 
+def _artifact_source_copy(artifact: dict[str, object]) -> dict[str, object]:
+    source = copy.deepcopy(artifact)
+    source.pop(PROJECT_QC_PROJECT_SOURCES_KEY, None)
+    return source
+
+
+def _read_artifact(path: Path) -> dict[str, object]:
+    try:
+        parsed = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (FileNotFoundError, OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def _artifact_sources_by_project(artifact: dict[str, object]) -> dict[str, object]:
+    projects = artifact.get("projects")
+    if not isinstance(projects, dict):
+        return {}
+    sources = {
+        name: _artifact_source_copy(artifact)
+        for name, result in projects.items()
+        if isinstance(name, str) and isinstance(result, dict)
+    }
+    existing_sources = artifact.get(PROJECT_QC_PROJECT_SOURCES_KEY)
+    if isinstance(existing_sources, dict):
+        for name, source in existing_sources.items():
+            if isinstance(name, str) and isinstance(source, dict):
+                sources[name] = _artifact_source_copy(source)
+    return sources
+
+
+def _artifact_total(projects: dict[str, object]) -> dict[str, object]:
+    project_values = [project for project in projects.values() if isinstance(project, dict)]
+    return {
+        "passed": sum(int(project.get("passed") or 0) for project in project_values),
+        "failed": sum(int(project.get("failed") or 0) for project in project_values),
+        "errors": sum(int(project.get("errors") or 0) for project in project_values),
+        "skipped": sum(int(project.get("skipped") or 0) for project in project_values),
+        "timeout": [
+            name
+            for name, project in projects.items()
+            if isinstance(project, dict) and project.get("status") == "TIMEOUT"
+        ],
+    }
+
+
+def _artifact_status(projects: dict[str, object]) -> str:
+    project_values = [project for project in projects.values() if isinstance(project, dict)]
+    return "passed" if all(project.get("status") == "PASS" for project in project_values) else "failed"
+
+
+def merge_partial_readiness_artifact(existing: dict[str, object], update: dict[str, object]) -> dict[str, object]:
+    update_projects = update.get("projects")
+    if not isinstance(update_projects, dict):
+        return update
+    existing_projects = existing.get("projects")
+    if not isinstance(existing_projects, dict):
+        return copy.deepcopy(update)
+
+    merged = copy.deepcopy(existing)
+    merged_projects = copy.deepcopy(existing_projects)
+    sources = _artifact_sources_by_project(existing)
+    update_source = _artifact_source_copy(update)
+
+    for project_name, result in update_projects.items():
+        if not isinstance(project_name, str) or not isinstance(result, dict):
+            continue
+        merged_projects[project_name] = copy.deepcopy(result)
+        sources[project_name] = update_source
+
+    merged.update(
+        {
+            "timestamp": update.get("timestamp", existing.get("timestamp")),
+            "git": copy.deepcopy(update.get("git", existing.get("git"))),
+            "status": _artifact_status(merged_projects),
+            "projects": merged_projects,
+            "total": _artifact_total(merged_projects),
+            PROJECT_QC_PROJECT_SOURCES_KEY: sources,
+        }
+    )
+    return merged
+
+
 def _same_path(left: Path, right: Path) -> bool:
     try:
         return left.resolve() == right.resolve()
@@ -626,11 +741,28 @@ def _select_artifact_write_path(path: Path, artifact: dict[str, object]) -> tupl
     return path, _same_path(path, DEFAULT_ARTIFACT_PATH), ""
 
 
+def _write_json_artifact(path: Path, artifact: dict[str, object]) -> None:
+    text = json.dumps(artifact, ensure_ascii=False, indent=2) + "\n"
+    tmp_path = path.with_name(f"{path.name}.refresh-tmp")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path.write_text(text, encoding="utf-8")
+        tmp_path.replace(path)
+    except OSError as exc:
+        if tmp_path.exists() and (tmp_path.is_file() or tmp_path.is_symlink()):
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
+        raise ArtifactWriteFailure(path, str(exc)) from exc
+
+
 def write_readiness_artifact(results: list[dict[str, object]], path: Path) -> tuple[dict[str, object], Path, bool, str]:
     artifact = build_readiness_artifact(results)
     write_path, canonical_latest_written, note = _select_artifact_write_path(path, artifact)
-    write_path.parent.mkdir(parents=True, exist_ok=True)
-    write_path.write_text(json.dumps(artifact, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    if _same_path(write_path, DEFAULT_PARTIAL_ARTIFACT_PATH):
+        artifact = merge_partial_readiness_artifact(_read_artifact(write_path), artifact)
+    _write_json_artifact(write_path, artifact)
     return artifact, write_path, canonical_latest_written, note
 
 
@@ -690,75 +822,116 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = build_parser()
-    args = parser.parse_args(argv)
-
+def _project_names_from_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> list[str]:
     try:
-        project_names = normalize_project_names(args.project)
+        return normalize_project_names(args.project)
     except ValueError as exc:
         parser.error(str(exc))
 
-    plan = build_plan(project_names, args.check)
-    payload: dict[str, object]
 
-    if args.list:
-        payload = {
-            "status": "configured",
-            "projects": {
-                name: {
-                    "path": project.path,
-                    "status": project.status,
-                    "checks": [
-                        {
-                            "id": check.id,
-                            "description": check.description,
-                            "command": command_to_string(check.command),
-                        }
-                        for check in project.checks
-                    ],
-                }
-                for name, project in PROJECTS.items()
-            },
-        }
-        if args.json:
-            print(json.dumps(payload, ensure_ascii=False, indent=2))
-        else:
-            for name, project in PROJECTS.items():
-                print(f"{name} ({project.status}) - {project.path}")
-                for check in project.checks:
-                    print(f"  - {check.id}: {command_to_string(check.command)}")
-        return 0
+def _configured_payload() -> dict[str, object]:
+    return {
+        "status": "configured",
+        "projects": {
+            name: {
+                "path": project.path,
+                "status": project.status,
+                "checks": [
+                    {
+                        "id": check.id,
+                        "description": check.description,
+                        "command": command_to_string(check.command),
+                    }
+                    for check in project.checks
+                ],
+            }
+            for name, project in PROJECTS.items()
+        },
+    }
 
-    if args.dry_run:
-        payload = {"status": "planned", "plan": serialize_plan(plan)}
-        if args.json:
-            print(json.dumps(payload, ensure_ascii=False, indent=2))
-        else:
-            print_human_plan(plan)
-        return 0
 
+def _print_configured_projects() -> None:
+    for name, project in PROJECTS.items():
+        print(f"{name} ({project.status}) - {project.path}")
+        for check in project.checks:
+            print(f"  - {check.id}: {command_to_string(check.command)}")
+
+
+def _print_payload_json(payload: dict[str, object]) -> None:
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+
+
+def _emit_configured(json_output: bool) -> int:
+    payload = _configured_payload()
+    if json_output:
+        _print_payload_json(payload)
+    else:
+        _print_configured_projects()
+    return 0
+
+
+def _emit_plan(plan: list[PlanItem], json_output: bool) -> int:
+    payload = {"status": "planned", "plan": serialize_plan(plan)}
+    if json_output:
+        _print_payload_json(payload)
+    else:
+        print_human_plan(plan)
+    return 0
+
+
+def _results_payload(results: list[dict[str, object]], artifact_path: Path, no_artifact: bool) -> dict[str, object]:
+    results_status = "passed" if exit_code_for_results(results) == 0 else "failed"
+    payload: dict[str, object] = {
+        "status": results_status,
+        "results": results,
+    }
+    if no_artifact:
+        return payload
+    try:
+        artifact, written_path, canonical_latest_written, artifact_note = write_readiness_artifact(
+            results,
+            artifact_path,
+        )
+        payload["artifact_path"] = str(written_path)
+        payload["artifact_status"] = artifact["status"]
+        payload["artifact_full_workspace_coverage"] = artifact_has_full_workspace_coverage(artifact)
+        payload["artifact_canonical_latest_written"] = canonical_latest_written
+        if artifact_note:
+            payload["artifact_note"] = artifact_note
+    except ArtifactWriteFailure as exc:
+        payload["status"] = "artifact_write_failed"
+        payload["results_status"] = results_status
+        payload["artifact_error"] = str(exc)
+        payload["artifact_error_path"] = str(exc.path)
+        payload["artifact_intended_path"] = str(artifact_path)
+    return payload
+
+
+def _run_and_emit_results(plan: list[PlanItem], args: argparse.Namespace) -> int:
     results = run_plan(plan, args.timeout_seconds, args.stop_on_failure)
-    payload = {"status": "passed" if exit_code_for_results(results) == 0 else "failed", "results": results}
-    if not args.no_artifact:
-        try:
-            artifact, artifact_path, canonical_latest_written, artifact_note = write_readiness_artifact(
-                results,
-                args.artifact,
-            )
-            payload["artifact_path"] = str(artifact_path)
-            payload["artifact_status"] = artifact["status"]
-            payload["artifact_full_workspace_coverage"] = artifact_has_full_workspace_coverage(artifact)
-            payload["artifact_canonical_latest_written"] = canonical_latest_written
-            if artifact_note:
-                payload["artifact_note"] = artifact_note
-        except OSError as exc:
-            payload["artifact_error"] = str(exc)
+    payload = _results_payload(results, args.artifact, args.no_artifact)
     if args.json:
-        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        _print_payload_json(payload)
     else:
         print_human_results(results)
+        if payload.get("status") == "artifact_write_failed":
+            print(f"Artifact write failed: {payload.get('artifact_error_path')} ({payload.get('artifact_error')})")
+    if payload.get("status") == "artifact_write_failed":
+        return 4
     return exit_code_for_results(results)
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    project_names = _project_names_from_args(parser, args)
+    plan = build_plan(project_names, args.check)
+
+    if args.list:
+        return _emit_configured(args.json)
+    if args.dry_run:
+        return _emit_plan(plan, args.json)
+    return _run_and_emit_results(plan, args)
 
 
 if __name__ == "__main__":

@@ -35,12 +35,12 @@ from typing import Any
 
 # Rich imports
 try:
+    from rich.align import Align
+    from rich.box import ASCII, ROUNDED
     from rich.console import Console
     from rich.panel import Panel
     from rich.table import Table
     from rich.text import Text
-    from rich.align import Align
-    from rich.box import ROUNDED, ASCII
 
     RICH_AVAILABLE = True
 except ImportError:
@@ -54,11 +54,14 @@ HEAD_CLAIM_RE = re.compile(
     re.IGNORECASE,
 )
 NEXT_PRIORITIES_ROW_RE = re.compile(r"^\|\s*Next Priorities\s*\|\s*(.*?)\s*\|\s*$", re.IGNORECASE | re.MULTILINE)
+WORK_ROW_RE = re.compile(r"^\|\s*Work\s*\|\s*(.*?)\s*\|\s*$", re.IGNORECASE | re.MULTILINE)
+PRIMARY_WORK_TASK_ID_RE = re.compile(r"^\s*(?:[*_`]+)?\s*T-(\d{1,6})(?:[a-z])?\b", re.IGNORECASE)
 NEXT_PRIORITY_CLOSEOUT_ACTION_RE = re.compile(r"\b(commit(?:ted)?|push(?:ed)?|rerun|re-run)\b", re.IGNORECASE)
 NEXT_PRIORITY_CLOSEOUT_CONTEXT_RE = re.compile(
     r"\b(closeout|context head|new context head|final live checks|release[- ]gates?|relay update|clean[- ]state|completion audit|launch[- ]objective audit)\b|\bpost[- ]push\b",
     re.IGNORECASE,
 )
+TASK_ID_RE = re.compile(r"\bT-(\d{1,6})(?:[a-z])?\b", re.IGNORECASE)
 REQUIRED_RELEASE_WORKFLOWS = frozenset({"root-quality-gate", "active-project-matrix"})
 IS_WINDOWS = sys.platform == "win32"
 
@@ -134,11 +137,52 @@ def _parse_recent_commits(log_out: str) -> list[dict[str, str]]:
     return commits
 
 
-def _latest_current_addendum_text(lines: list[str]) -> str:
-    """Return the first addendum block under `## Current Addendum`."""
+def _current_addendum_dates(lines: list[str]) -> list[date]:
+    """Parse dated rows inside the HANDOFF Current Addendum section."""
     in_current = False
-    in_first_block = False
-    block: list[str] = []
+    dates: list[date] = []
+    for line in lines:
+        stripped = line.rstrip()
+        if stripped == "## Current Addendum":
+            in_current = True
+            continue
+        if in_current and stripped.startswith("## "):
+            break
+        if not in_current:
+            continue
+        match = DATE_LINE_RE.match(stripped)
+        if match:
+            dates.append(date.fromisoformat(match.group(1)))
+    return dates
+
+
+def _handoff_rotation_fields(dates: list[date], today: date) -> dict[str, Any]:
+    """Build HANDOFF rotation metadata from parsed addendum dates."""
+    if not dates:
+        return {
+            "archivable_addendum_count": 0,
+            "rotation_suggested": False,
+        }
+
+    oldest = min(dates)
+    newest = max(dates)
+    cutoff = today - timedelta(days=7)
+    archivable_count = sum(1 for entry_date in dates if entry_date < cutoff)
+    return {
+        "oldest_addendum": oldest.isoformat(),
+        "newest_addendum": newest.isoformat(),
+        "oldest_age_days": (today - oldest).days,
+        "rotation_cutoff": cutoff.isoformat(),
+        "archivable_addendum_count": archivable_count,
+        "rotation_suggested": archivable_count > 0,
+    }
+
+
+def _current_addendum_blocks(lines: list[str]) -> list[str]:
+    """Return addendum blocks under `## Current Addendum` in document order."""
+    in_current = False
+    current_block: list[str] = []
+    blocks: list[str] = []
 
     for line in lines:
         stripped = line.rstrip()
@@ -150,13 +194,72 @@ def _latest_current_addendum_text(lines: list[str]) -> str:
         if not in_current:
             continue
         if stripped.startswith("| Field | Value |"):
-            if in_first_block:
-                break
-            in_first_block = True
-        if in_first_block:
-            block.append(stripped)
+            if current_block:
+                blocks.append("\n".join(current_block))
+                current_block = []
+        if stripped or current_block:
+            current_block.append(stripped)
 
-    return "\n".join(block)
+    if current_block:
+        blocks.append("\n".join(current_block))
+
+    return blocks
+
+
+def _latest_current_addendum_text(lines: list[str]) -> str:
+    """Return the first addendum block under `## Current Addendum`."""
+    blocks = _current_addendum_blocks(lines)
+    return blocks[0] if blocks else ""
+
+
+def _highest_task_id(text: str) -> int | None:
+    work_match = WORK_ROW_RE.search(text)
+    if work_match:
+        task_source = work_match.group(1)
+        primary_match = PRIMARY_WORK_TASK_ID_RE.search(task_source)
+        if primary_match:
+            return int(primary_match.group(1))
+    else:
+        task_source = text
+    values = [int(match.group(1)) for match in TASK_ID_RE.finditer(task_source)]
+    return max(values) if values else None
+
+
+def _effective_latest_addendum_by_task_id(blocks: list[str]) -> tuple[str, int | None]:
+    """Return the block with the highest task id, falling back to document order."""
+    if not blocks:
+        return "", None
+
+    best_block = blocks[0]
+    best_task_id = _highest_task_id(best_block)
+    for block in blocks[1:]:
+        task_id = _highest_task_id(block)
+        if task_id is not None and (best_task_id is None or task_id > best_task_id):
+            best_block = block
+            best_task_id = task_id
+    return best_block, best_task_id
+
+
+def _handoff_task_order_issue(blocks: list[str]) -> dict[str, Any] | None:
+    """Detect when a later Current Addendum has a higher T-ID than the first block."""
+    if len(blocks) < 2:
+        return None
+
+    first_id = _highest_task_id(blocks[0])
+    later_ids = [_highest_task_id(block) for block in blocks[1:]]
+    later_ids = [task_id for task_id in later_ids if task_id is not None]
+    if first_id is None or not later_ids:
+        return None
+
+    max_later = max(later_ids)
+    if max_later <= first_id:
+        return None
+
+    return {
+        "first_task_id": f"T-{first_id}",
+        "newer_task_id": f"T-{max_later}",
+        "reason": f"Current Addendum first block is T-{first_id}, but a later block mentions T-{max_later}.",
+    }
 
 
 def _extract_head_claims(text: str) -> list[str]:
@@ -333,35 +436,17 @@ def handoff_snapshot(
         "available": True,
         "line_count": len(lines),
     }
-    # Parse | Date | YYYY-MM-DD | rows within "## Current Addendum" only.
-    in_current = False
-    dates: list[date] = []
-    for line in lines:
-        if line.rstrip() == "## Current Addendum":
-            in_current = True
-            continue
-        if in_current and line.startswith("## "):
-            break
-        if in_current:
-            m = DATE_LINE_RE.match(line.rstrip())
-            if m:
-                dates.append(date.fromisoformat(m.group(1)))
+    dates = _current_addendum_dates(lines)
     snap["current_addendum_count"] = len(dates)
-    if dates:
-        snap["oldest_addendum"] = min(dates).isoformat()
-        snap["newest_addendum"] = max(dates).isoformat()
-        days_old = (today - min(dates)).days
-        snap["oldest_age_days"] = days_old
-        cutoff = today - timedelta(days=7)
-        archivable_count = sum(1 for entry_date in dates if entry_date < cutoff)
-        snap["rotation_cutoff"] = cutoff.isoformat()
-        snap["archivable_addendum_count"] = archivable_count
-        snap["rotation_suggested"] = archivable_count > 0
-    else:
-        snap["archivable_addendum_count"] = 0
-        snap["rotation_suggested"] = False
+    snap.update(_handoff_rotation_fields(dates, today))
 
-    latest_addendum = _latest_current_addendum_text(lines)
+    addendum_blocks = _current_addendum_blocks(lines)
+    latest_addendum = addendum_blocks[0] if addendum_blocks else ""
+    effective_latest_addendum, effective_latest_task_id = _effective_latest_addendum_by_task_id(addendum_blocks)
+    task_order_issue = _handoff_task_order_issue(addendum_blocks)
+    snap["latest_addendum_order_status"] = "out_of_order" if task_order_issue else "ok"
+    snap["latest_addendum_order_issue"] = task_order_issue
+    snap["effective_latest_task_id"] = f"T-{effective_latest_task_id}" if effective_latest_task_id is not None else None
     head_claims = _extract_head_claims(latest_addendum)
     snap["latest_head_claims"] = head_claims
     if current_head:
@@ -379,13 +464,17 @@ def handoff_snapshot(
         snap["head_claim_status"] = "unavailable" if head_claims else "none"
 
     next_priorities = _extract_next_priorities(latest_addendum)
+    effective_next_priorities = _extract_next_priorities(effective_latest_addendum)
     stale_next_priority_reason = _stale_next_priority_reason(next_priorities, git_clean_synced, release_checks_green)
     latest_next_priority_note = _next_priority_note(next_priorities, worktree_clean, git_clean_synced)
     snap["latest_next_priorities"] = next_priorities
+    snap["effective_latest_next_priorities"] = effective_next_priorities
     snap["stale_next_priority_reason"] = stale_next_priority_reason
     snap["latest_next_priority_note"] = latest_next_priority_note
     if not next_priorities:
         snap["latest_next_priority_status"] = "none"
+    elif task_order_issue:
+        snap["latest_next_priority_status"] = "out_of_order"
     elif stale_next_priority_reason:
         snap["latest_next_priority_status"] = "stale"
     elif (
@@ -641,6 +730,16 @@ def _render_handoff_section(h: dict[str, Any]) -> list[str]:
             )
         if h.get("latest_next_priority_status") == "stale":
             lines.append(f"    stale latest next priority: {h.get('stale_next_priority_reason')}")
+        if h.get("latest_next_priority_status") == "out_of_order":
+            issue = h.get("latest_addendum_order_issue") or {}
+            lines.append(
+                f"    out-of-order latest addendum: {issue.get('reason', 'newer addendum appears below first block')}"
+            )
+            if h.get("effective_latest_task_id"):
+                lines.append(
+                    "    effective latest next priority "
+                    f"({h.get('effective_latest_task_id')}): {h.get('effective_latest_next_priorities', '')}"
+                )
         if h.get("latest_next_priority_note"):
             lines.append(f"    latest next priority note: {h.get('latest_next_priority_note')}")
         return lines
@@ -715,219 +814,272 @@ def render_text(snap: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def render_rich_dashboard(snap: dict[str, Any]) -> None:
-    """Rich TUI Dashboard renderer with CP949 compatibility guards."""
-    console = Console(safe_box=True)
-    box_style = ASCII if IS_WINDOWS else ROUNDED
-
-    # 1. Title Banner
+def _rich_dashboard_title_panel() -> Any:
     title_text = Text(
         f"\n {SYM_ROCKET} VIBE CODING - COLLABORATIVE SESSION DASHBOARD {SYM_ROCKET} \n",
         style="bold white on rgb(65,40,90)",
     )
-    title_align = Align.center(title_text)
-    console.print(Panel(title_align, box=ROUNDED if not IS_WINDOWS else ASCII, border_style="rgb(120,60,200)"))
+    return Panel(
+        Align.center(title_text),
+        box=ROUNDED if not IS_WINDOWS else ASCII,
+        border_style="rgb(120,60,200)",
+    )
 
-    # 2. Key Metrics Columns
+
+def _rich_worktree_details(worktree: dict[str, Any]) -> list[str]:
+    details = []
+    if worktree.get("staged", 0) > 0:
+        details.append(f"[bold green]Staged: {worktree['staged']}[/]")
+    if worktree.get("modified", 0) > 0:
+        details.append(f"[bold yellow]Modified: {worktree['modified']}[/]")
+    if worktree.get("untracked", 0) > 0:
+        details.append(f"[bold cyan]Untracked: {worktree['untracked']}[/]")
+    if worktree.get("unmerged", 0) > 0:
+        details.append(f"[bold red]Unmerged: {worktree['unmerged']}[/]")
+    return details
+
+
+def _rich_git_panel(git_snap: dict[str, Any], box_style: Any) -> Any:
+    if not git_snap.get("available"):
+        return Panel(
+            "[bold red]Git Unavailable[/]",
+            title=f"{SYM_GIT} Git Repository",
+            border_style="red",
+            box=box_style,
+        )
+
+    ahead = git_snap.get("ahead", 0)
+    behind = git_snap.get("behind", 0)
+    worktree = git_snap.get("worktree", {})
+    wt_details = _rich_worktree_details(worktree)
+    wt_str = ", ".join(wt_details) if wt_details else "[dim green]Clean[/]"
+    git_desc = (
+        f"[bold magenta]Branch:[/] [bold cyan]{git_snap.get('branch')}[/]\n"
+        f"[bold magenta]Sync:[/] [green]Ahead {ahead}[/] / [red]Behind {behind}[/]\n"
+        f"[bold magenta]Stash Count:[/] {git_snap.get('stash_count', 0)}\n"
+        f"[bold magenta]Worktree:[/] {wt_str}"
+    )
+    return Panel(
+        git_desc,
+        title=f"{SYM_GIT} Git Repository",
+        border_style="rgb(160,80,220)",
+        box=box_style,
+    )
+
+
+def _rich_handoff_panel(handoff: dict[str, Any], box_style: Any) -> Any:
+    ho_str = "[bold red]Handoff Not Available[/]"
+    ho_style = "red"
+    if handoff.get("available"):
+        rot_alert = ""
+        ho_style = "rgb(160,80,220)"
+        if handoff.get("rotation_suggested"):
+            rot_alert = f"\n[bold orange3]{SYM_WARN} Rotation Suggested! (Old/Large Handoff)[/]"
+            ho_style = "orange3"
+        priority_alert = ""
+        if handoff.get("latest_next_priority_status") == "stale":
+            priority_alert = (
+                f"\n[bold orange3]{SYM_WARN} Stale next priority: {handoff.get('stale_next_priority_reason')}[/]"
+            )
+            ho_style = "orange3"
+        if handoff.get("latest_next_priority_status") == "out_of_order":
+            issue = handoff.get("latest_addendum_order_issue") or {}
+            effective_task = handoff.get("effective_latest_task_id") or "newer task"
+            effective_next = handoff.get("effective_latest_next_priorities") or ""
+            priority_alert = (
+                f"\n[bold orange3]{SYM_WARN} Out-of-order addendum: "
+                f"{issue.get('reason', 'newer addendum appears below first block')}[/]"
+                f"\n[bold orange3]Effective latest ({effective_task}): {effective_next}[/]"
+            )
+            ho_style = "orange3"
+        ho_str = (
+            f"[bold magenta]Lines:[/] {handoff.get('line_count')}\n"
+            f"[bold magenta]Addenda count:[/] {handoff.get('current_addendum_count')} (Last 7d)\n"
+            f"[bold magenta]Oldest Addendum:[/] {handoff.get('oldest_addendum')} "
+            f"({handoff.get('oldest_age_days')}d old)"
+            f"{rot_alert}"
+            f"{priority_alert}"
+        )
+    return Panel(ho_str, title=f"{SYM_HANDOFF} HANDOFF Status", border_style=ho_style, box=box_style)
+
+
+def _rich_tasks_panel(tasks: dict[str, Any], box_style: Any) -> Any:
+    t_str = "[bold red]TASKS Not Available[/]"
+    if tasks.get("available"):
+        t_str = (
+            f"[bold yellow]{SYM_TODO} TODO Tasks:[/] [bold yellow]{tasks.get('todo')}[/]\n\n"
+            f"[bold green]{SYM_FLASH} In Progress:[/] [bold green]{tasks.get('in_progress')}[/]"
+        )
+    return Panel(
+        t_str,
+        title=f"{SYM_TASKS} TASKS Kanban Summary",
+        border_style="rgb(160,80,220)",
+        box=box_style,
+    )
+
+
+def _rich_metrics_grid(snap: dict[str, Any], box_style: Any) -> Any:
     metrics_grid = Table.grid(expand=True)
     metrics_grid.add_column(ratio=1)
     metrics_grid.add_column(ratio=1)
     metrics_grid.add_column(ratio=1)
+    metrics_grid.add_row(
+        _rich_git_panel(snap.get("git", {}), box_style),
+        _rich_handoff_panel(snap.get("handoff", {}), box_style),
+        _rich_tasks_panel(snap.get("tasks", {}), box_style),
+    )
+    return metrics_grid
 
-    # Column 1: Git Status Info
-    git_snap = snap.get("git", {})
-    if git_snap.get("available"):
-        ahead = git_snap.get("ahead", 0)
-        behind = git_snap.get("behind", 0)
-        worktree = git_snap.get("worktree", {})
-        stash = git_snap.get("stash_count", 0)
 
-        wt_details = []
-        if worktree.get("staged", 0) > 0:
-            wt_details.append(f"[bold green]Staged: {worktree['staged']}[/]")
-        if worktree.get("modified", 0) > 0:
-            wt_details.append(f"[bold yellow]Modified: {worktree['modified']}[/]")
-        if worktree.get("untracked", 0) > 0:
-            wt_details.append(f"[bold cyan]Untracked: {worktree['untracked']}[/]")
-        if worktree.get("unmerged", 0) > 0:
-            wt_details.append(f"[bold red]Unmerged: {worktree['unmerged']}[/]")
-
-        wt_str = ", ".join(wt_details) if wt_details else "[dim green]Clean[/]"
-
-        git_desc = (
-            f"[bold magenta]Branch:[/] [bold cyan]{git_snap.get('branch')}[/]\n"
-            f"[bold magenta]Sync:[/] [green]Ahead {ahead}[/] / [red]Behind {behind}[/]\n"
-            f"[bold magenta]Stash Count:[/] {stash}\n"
-            f"[bold magenta]Worktree:[/] {wt_str}"
-        )
-        git_panel = Panel(git_desc, title=f"{SYM_GIT} Git Repository", border_style="rgb(160,80,220)", box=box_style)
-    else:
-        git_panel = Panel(
-            "[bold red]Git Unavailable[/]", title=f"{SYM_GIT} Git Repository", border_style="red", box=box_style
-        )
-
-    # Column 2: HANDOFF & TASKS
-    ho_snap = snap.get("handoff", {})
-    ho_str = "[bold red]Handoff Not Available[/]"
-    ho_style = "red"
-    if ho_snap.get("available"):
-        rot_alert = ""
-        ho_style = "rgb(160,80,220)"
-        if ho_snap.get("rotation_suggested"):
-            rot_alert = f"\n[bold orange3]{SYM_WARN} Rotation Suggested! (Old/Large Handoff)[/]"
-            ho_style = "orange3"
-        priority_alert = ""
-        if ho_snap.get("latest_next_priority_status") == "stale":
-            priority_alert = (
-                f"\n[bold orange3]{SYM_WARN} Stale next priority: {ho_snap.get('stale_next_priority_reason')}[/]"
-            )
-            ho_style = "orange3"
-        ho_str = (
-            f"[bold magenta]Lines:[/] {ho_snap.get('line_count')}\n"
-            f"[bold magenta]Addenda count:[/] {ho_snap.get('current_addendum_count')} (Last 7d)\n"
-            f"[bold magenta]Oldest Addendum:[/] {ho_snap.get('oldest_addendum')} ({ho_snap.get('oldest_age_days')}d old)"
-            f"{rot_alert}"
-            f"{priority_alert}"
-        )
-    handoff_panel = Panel(ho_str, title=f"{SYM_HANDOFF} HANDOFF Status", border_style=ho_style, box=box_style)
-
-    # Column 3: TASKS Kanban Summary
-    t_snap = snap.get("tasks", {})
-    t_str = "[bold red]TASKS Not Available[/]"
-    if t_snap.get("available"):
-        t_str = (
-            f"[bold yellow]{SYM_TODO} TODO Tasks:[/] [bold yellow]{t_snap.get('todo')}[/]\n\n"
-            f"[bold green]{SYM_FLASH} In Progress:[/] [bold green]{t_snap.get('in_progress')}[/]"
-        )
-    tasks_panel = Panel(t_str, title=f"{SYM_TASKS} TASKS Kanban Summary", border_style="rgb(160,80,220)", box=box_style)
-
-    metrics_grid.add_row(git_panel, handoff_panel, tasks_panel)
-    console.print(metrics_grid)
-    console.print()
-
-    # 3. Center Section: Left (Commits & PRs) vs Right (Active Goal & Info)
-    center_table = Table.grid(expand=True)
-    center_table.add_column(ratio=6)
-    center_table.add_column(ratio=4)
-
-    # Left: Commits & PRs Tables
-    left_flow = Table.grid(expand=True)
-    left_flow.add_column(ratio=1)
-
-    # Recent Commits Table
+def _rich_commit_table(git_snap: dict[str, Any], box_style: Any) -> Any:
     commit_table = Table(
-        title=f"{SYM_COMMIT} Recent 5 Repository Commits", expand=True, box=box_style, border_style="rgb(80,80,180)"
+        title=f"{SYM_COMMIT} Recent 5 Repository Commits",
+        expand=True,
+        box=box_style,
+        border_style="rgb(80,80,180)",
     )
     commit_table.add_column("SHA", style="bold cyan", width=8)
     commit_table.add_column("Author", style="yellow", width=15)
     commit_table.add_column("Subject", style="green", ratio=1)
 
     if git_snap.get("available") and git_snap.get("recent_commits"):
-        for c in git_snap.get("recent_commits", []):
-            commit_table.add_row(c["sha"], c["author"], c["subject"])
+        for commit in git_snap.get("recent_commits", []):
+            commit_table.add_row(commit["sha"], commit["author"], commit["subject"])
     else:
         commit_table.add_row("-", "-", "No recent commits found")
+    return commit_table
 
-    left_flow.add_row(commit_table)
-    left_flow.add_row("")
 
-    # PRs Table
-    pr_snap = snap.get("pull_requests", {})
-    pr_table = Table(title=f"{SYM_PR} Open Pull Requests", expand=True, box=box_style, border_style="rgb(80,80,180)")
+def _rich_pr_table(pr_snap: dict[str, Any], box_style: Any) -> Any:
+    pr_table = Table(
+        title=f"{SYM_PR} Open Pull Requests",
+        expand=True,
+        box=box_style,
+        border_style="rgb(80,80,180)",
+    )
     pr_table.add_column("No", style="bold yellow", width=6)
     pr_table.add_column("Title", style="white", ratio=1)
     pr_table.add_column("Merge State", style="bold green", width=15)
 
     if pr_snap.get("available") and pr_snap.get("open"):
-        for p in pr_snap.get("open", []):
-            state = p.get("mergeStateStatus", "?")
+        for pull_request in pr_snap.get("open", []):
+            state = pull_request.get("mergeStateStatus", "?")
             state_color = "green" if state == "CLEAN" else "red" if state == "BLOCKED" else "yellow"
-            pr_table.add_row(f"#{p.get('number')}", p.get("title"), f"[{state_color}]{state}[/]")
+            pr_table.add_row(f"#{pull_request.get('number')}", pull_request.get("title"), f"[{state_color}]{state}[/]")
     else:
-        reason = pr_snap.get("reason", "No open PRs found")
-        pr_table.add_row("-", reason, "-")
+        pr_table.add_row("-", pr_snap.get("reason", "No open PRs found"), "-")
+    return pr_table
 
-    left_flow.add_row(pr_table)
 
-    # Right: Active Goal and Database/Graph Metrics
-    right_flow = Table.grid(expand=True)
-    right_flow.add_column(ratio=1)
+def _rich_left_flow(snap: dict[str, Any], box_style: Any) -> Any:
+    left_flow = Table.grid(expand=True)
+    left_flow.add_column(ratio=1)
+    left_flow.add_row(_rich_commit_table(snap.get("git", {}), box_style))
+    left_flow.add_row("")
+    left_flow.add_row(_rich_pr_table(snap.get("pull_requests", {}), box_style))
+    return left_flow
 
-    # Active Goal Panel
-    goal_snap = snap.get("goal", {})
-    if goal_snap.get("available") and goal_snap.get("active"):
+
+def _rich_goal_panel(goal: dict[str, Any], box_style: Any) -> Any:
+    if goal.get("available") and goal.get("active"):
         goal_content = (
-            f"[bold magenta]Active Goal:[/] {goal_snap.get('goal')}\n"
-            f"[bold magenta]Owner:[/] [bold yellow]{goal_snap.get('owner')}[/]\n"
-            f"[bold magenta]Started:[/] {goal_snap.get('started')}\n"
-            f"[bold magenta]Success Rule:[/] [green]{goal_snap.get('success')}[/]"
+            f"[bold magenta]Active Goal:[/] {goal.get('goal')}\n"
+            f"[bold magenta]Owner:[/] [bold yellow]{goal.get('owner')}[/]\n"
+            f"[bold magenta]Started:[/] {goal.get('started')}\n"
+            f"[bold magenta]Success Rule:[/] [green]{goal.get('success')}[/]"
         )
-        goal_panel = Panel(goal_content, title=f"{SYM_GOAL} ACTIVE GOAL", border_style="gold1", box=box_style)
-    else:
-        goal_panel = Panel(
-            "[dim white]No active system goals currently registered.[/]",
-            title=f"{SYM_GOAL} ACTIVE GOAL",
-            border_style="grey50",
-            box=box_style,
+        return Panel(goal_content, title=f"{SYM_GOAL} ACTIVE GOAL", border_style="gold1", box=box_style)
+    return Panel(
+        "[dim white]No active system goals currently registered.[/]",
+        title=f"{SYM_GOAL} ACTIVE GOAL",
+        border_style="grey50",
+        box=box_style,
+    )
+
+
+def _rich_workspace_db_text(db_snap: dict[str, Any]) -> str:
+    if not db_snap.get("available"):
+        return "[bold red]Database Unavailable[/]"
+    missing = db_snap.get("missing_recommended", [])
+    missing_str = f" [bold red](missing {len(missing)} indexes!)[/]" if missing else " [bold green](All indexes OK)[/]"
+    return f"Tables: {db_snap.get('table_count')}, Indexes: {db_snap.get('index_count')}{missing_str}"
+
+
+def _rich_graph_text(graph: dict[str, Any]) -> str:
+    if not graph.get("available"):
+        return "[bold red]Graph Status Unavailable[/]"
+    g_str = f"Nodes: {graph.get('nodes')}, Edges: {graph.get('edges')}, Files: {graph.get('files')}"
+    if graph.get("freshness") == "stale":
+        g_str += f"\n[bold yellow]Stale:[/] {graph.get('stale_reason', 'commit mismatch')}"
+    elif graph.get("freshness") == "current":
+        g_str += "\n[bold green]Freshness:[/] current HEAD"
+    elif graph.get("freshness") == "unknown":
+        g_str += f"\n[bold yellow]Freshness unknown:[/] {graph.get('stale_reason', 'missing build commit')}"
+    return g_str
+
+
+def _rich_ci_lines(ci_snap: dict[str, Any]) -> list[str]:
+    if not ci_snap.get("available"):
+        return [f"[dim red]CI stats unavailable ({ci_snap.get('reason', '?')})[/]"]
+    runs = ci_snap.get("recent_runs", [])
+    if not runs:
+        return ["[dim]No recent runs on this branch[/]"]
+
+    lines = []
+    for run in runs[:2]:
+        status = run.get("conclusion") or run.get("status") or "?"
+        color = (
+            "bold green"
+            if status in {"success", "completed"}
+            else "bold yellow"
+            if status == "in_progress"
+            else "bold red"
         )
+        lines.append(f"* {run.get('name', 'Workflow')}: [{color}]{status}[/]")
+    return lines
 
-    right_flow.add_row(goal_panel)
-    right_flow.add_row("")
 
-    # Diagnostics Info (DB & code-review-graph & CI)
-    db_snap = snap.get("workspace_db", {})
-    db_str = "[bold red]Database Unavailable[/]"
-    if db_snap.get("available"):
-        missing = db_snap.get("missing_recommended", [])
-        missing_str = (
-            f" [bold red](missing {len(missing)} indexes!)[/]" if missing else " [bold green](All indexes OK)[/]"
-        )
-        db_str = f"Tables: {db_snap.get('table_count')}, Indexes: {db_snap.get('index_count')}{missing_str}"
-
-    g_snap = snap.get("graph", {})
-    g_str = "[bold red]Graph Status Unavailable[/]"
-    if g_snap.get("available"):
-        g_str = f"Nodes: {g_snap.get('nodes')}, Edges: {g_snap.get('edges')}, Files: {g_snap.get('files')}"
-        if g_snap.get("freshness") == "stale":
-            g_str += f"\n[bold yellow]Stale:[/] {g_snap.get('stale_reason', 'commit mismatch')}"
-        elif g_snap.get("freshness") == "current":
-            g_str += "\n[bold green]Freshness:[/] current HEAD"
-        elif g_snap.get("freshness") == "unknown":
-            g_str += f"\n[bold yellow]Freshness unknown:[/] {g_snap.get('stale_reason', 'missing build commit')}"
-
-    ci_snap = snap.get("ci", {})
-    ci_lines = []
-    if ci_snap.get("available"):
-        runs = ci_snap.get("recent_runs", [])
-        if runs:
-            for r in runs[:2]:
-                status = r.get("conclusion") or r.get("status") or "?"
-                color = (
-                    "bold green"
-                    if status in {"success", "completed"}
-                    else "bold yellow"
-                    if status == "in_progress"
-                    else "bold red"
-                )
-                ci_lines.append(f"* {r.get('name', 'Workflow')}: [{color}]{status}[/]")
-        else:
-            ci_lines.append("[dim]No recent runs on this branch[/]")
-    else:
-        ci_lines.append(f"[dim red]CI stats unavailable ({ci_snap.get('reason', '?')})[/]")
-    ci_str = "\n".join(ci_lines)
-
+def _rich_diagnostics_panel(snap: dict[str, Any], box_style: Any) -> Any:
+    ci_str = "\n".join(_rich_ci_lines(snap.get("ci", {})))
     diag_str = (
-        f"[bold magenta]Workspace DB:[/] {db_str}\n\n"
-        f"[bold magenta]Review Graph:[/] {g_str}\n\n"
+        f"[bold magenta]Workspace DB:[/] {_rich_workspace_db_text(snap.get('workspace_db', {}))}\n\n"
+        f"[bold magenta]Review Graph:[/] {_rich_graph_text(snap.get('graph', {}))}\n\n"
         f"[bold magenta]Recent CI runs:[/]\n{ci_str}"
     )
-    diag_panel = Panel(
-        diag_str, title=f"{SYM_DIAG} System Diagnostics & Graph", border_style="rgb(100,100,100)", box=box_style
+    return Panel(
+        diag_str,
+        title=f"{SYM_DIAG} System Diagnostics & Graph",
+        border_style="rgb(100,100,100)",
+        box=box_style,
     )
-    right_flow.add_row(diag_panel)
 
-    center_table.add_row(left_flow, right_flow)
-    console.print(center_table)
+
+def _rich_right_flow(snap: dict[str, Any], box_style: Any) -> Any:
+    right_flow = Table.grid(expand=True)
+    right_flow.add_column(ratio=1)
+    right_flow.add_row(_rich_goal_panel(snap.get("goal", {}), box_style))
+    right_flow.add_row("")
+    right_flow.add_row(_rich_diagnostics_panel(snap, box_style))
+    return right_flow
+
+
+def _rich_center_table(snap: dict[str, Any], box_style: Any) -> Any:
+    center_table = Table.grid(expand=True)
+    center_table.add_column(ratio=6)
+    center_table.add_column(ratio=4)
+    center_table.add_row(_rich_left_flow(snap, box_style), _rich_right_flow(snap, box_style))
+    return center_table
+
+
+def render_rich_dashboard(snap: dict[str, Any]) -> None:
+    """Rich TUI Dashboard renderer with CP949 compatibility guards."""
+    console = Console(safe_box=True)
+    box_style = ASCII if IS_WINDOWS else ROUNDED
+
+    console.print(_rich_dashboard_title_panel())
+    console.print(_rich_metrics_grid(snap, box_style))
+    console.print()
+    console.print(_rich_center_table(snap, box_style))
     console.print()
 
 

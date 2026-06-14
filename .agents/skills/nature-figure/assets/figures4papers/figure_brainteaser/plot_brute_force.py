@@ -1,9 +1,9 @@
 import os
+
 import numpy as np
-from matplotlib import pyplot as plt
 from matplotlib import gridspec as gridspec
 from matplotlib import patheffects as path_effects
-
+from matplotlib import pyplot as plt
 
 data_brute_force_math = {
     "methods": [

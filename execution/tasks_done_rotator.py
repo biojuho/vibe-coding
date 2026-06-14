@@ -32,15 +32,29 @@ REPO_ROOT_DEFAULT = Path(__file__).resolve().parents[1]
 DONE_HEADING_RE = re.compile(r"^##\s+DONE\b.*$")
 DONE_HEADING_COUNT_RE = re.compile(r"^(##\s+DONE\s*\(Latest\s+)(\d+)(\s*\).*)$")
 SECTION_RE = re.compile(r"^##\s+")
-# A DONE entry is one Kanban table row keyed by a task id, e.g. `| T-1546 | ... |`.
+# A DONE entry can be a shared-board table row or a project-local checklist row.
 # Suffixes like `T-1579b` are valid collision-avoidance ids in this workspace.
-ENTRY_RE = re.compile(r"^\|\s*T-\d+[A-Za-z]*\s*\|")
+TABLE_ENTRY_RE = re.compile(r"^\|\s*(T-\d+[A-Za-z]*)\s*\|")
+CHECKLIST_ENTRY_RE = re.compile(r"^-\s+\[[xX]\]\s+(T-\d+[A-Za-z]*)\b")
 
 
 @dataclass(frozen=True)
 class DoneEntry:
     index: int  # absolute line index of the row
     task_id: str
+
+
+@dataclass(frozen=True)
+class _PreparedWrite:
+    target: Path
+    temp: Path
+
+
+class _WriteFailure(Exception):
+    def __init__(self, path: Path, error: OSError) -> None:
+        self.path = path
+        self.error = error
+        super().__init__(f"{path}: {error}")
 
 
 def find_done_section(lines: list[str]) -> tuple[int, int] | None:
@@ -70,8 +84,10 @@ def parse_done_entries(lines: list[str], start: int, end: int) -> list[DoneEntry
     """Return DONE entry rows in document order (newest first, top of section)."""
     entries: list[DoneEntry] = []
     for i in range(start, end):
-        if ENTRY_RE.match(lines[i].rstrip()):
-            task_id = lines[i].split("|", 2)[1].strip()
+        line = lines[i].rstrip()
+        match = TABLE_ENTRY_RE.match(line) or CHECKLIST_ENTRY_RE.match(line)
+        if match:
+            task_id = match.group(1)
             entries.append(DoneEntry(index=i, task_id=task_id))
     return entries
 
@@ -82,6 +98,9 @@ def _normalize_heading(lines: list[str], keep_count: int) -> None:
         match = DONE_HEADING_COUNT_RE.match(line)
         if match:
             lines[i] = f"{match.group(1)}{keep_count}{match.group(3)}"
+            return
+        if line.rstrip() == "## DONE":
+            lines[i] = f"## DONE (Latest {keep_count})"
             return
 
 
@@ -98,6 +117,39 @@ def _collapse_blank_runs(lines: list[str]) -> list[str]:
             blank = 0
             out.append(line)
     return out
+
+
+def _prepare_text_write(path: Path, text: str) -> _PreparedWrite:
+    tmp = path.with_name(f"{path.name}.tmp")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if tmp.exists() or tmp.is_symlink():
+            if tmp.is_dir() and not tmp.is_symlink():
+                raise IsADirectoryError(f"temporary output path is a directory: {tmp}")
+            tmp.unlink()
+        tmp.write_text(text, encoding="utf-8", newline="\n")
+    except OSError as exc:
+        raise _WriteFailure(tmp, exc) from exc
+    return _PreparedWrite(target=path, temp=tmp)
+
+
+def _commit_prepared_writes(prepared: list[_PreparedWrite]) -> None:
+    replaced: list[_PreparedWrite] = []
+    try:
+        for item in prepared:
+            item.temp.replace(item.target)
+            replaced.append(item)
+    except OSError as exc:
+        path = item.target if "item" in locals() else prepared[0].target
+        raise _WriteFailure(path, exc) from exc
+    finally:
+        for item in prepared:
+            if item not in replaced:
+                try:
+                    if item.temp.exists() or item.temp.is_symlink():
+                        item.temp.unlink()
+                except OSError:
+                    pass
 
 
 def rotate(
@@ -153,13 +205,28 @@ def rotate(
     archive_file = archive_dir / f"TASKS_DONE_archive_{today.isoformat()}.md"
 
     if not dry_run:
-        archive_dir.mkdir(parents=True, exist_ok=True)
-        if archive_file.exists():
-            existing = archive_file.read_text(encoding="utf-8").rstrip()
-            archive_file.write_text(existing + "\n\n" + archive_block, encoding="utf-8")
-        else:
-            archive_file.write_text(archive_block, encoding="utf-8")
-        tasks.write_text(new_text, encoding="utf-8")
+        try:
+            if archive_file.exists():
+                existing = archive_file.read_text(encoding="utf-8").rstrip()
+                archive_text = existing + "\n\n" + archive_block
+            else:
+                archive_text = archive_block
+            prepared = [
+                _prepare_text_write(archive_file, archive_text),
+                _prepare_text_write(tasks, new_text),
+            ]
+            _commit_prepared_writes(prepared)
+        except _WriteFailure as exc:
+            return {
+                "status": "write_failed",
+                "kept": len(to_keep),
+                "archived": len(to_archive),
+                "keep_count": keep_count,
+                "archive_file": str(archive_file.relative_to(repo_root)).replace("\\", "/"),
+                "dry_run": dry_run,
+                "write_error": str(exc.error),
+                "write_error_path": str(exc.path),
+            }
 
     return {
         "status": "rotated",
@@ -211,6 +278,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(result, ensure_ascii=False))
     else:
         print(result)
+    if result.get("status") == "write_failed":
+        return 4
     return 0
 
 

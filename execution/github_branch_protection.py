@@ -23,7 +23,6 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlparse
 
-
 DEFAULT_REQUIRED_CHECKS = [
     "root-quality-gate",
     "test-summary",

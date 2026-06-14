@@ -11,7 +11,6 @@ import time
 from pathlib import Path
 from typing import Any
 
-
 SCRIPT_ROOT = Path(".agents") / "skills" / "auto-research" / "scripts"
 INPUT_ERROR_KEY = "_input_error"
 DEFAULT_LIVE_HELPER_TIMEOUT = 60
@@ -39,6 +38,12 @@ GITHUB_INVENTORY_CACHE = Path(".tmp") / "github-project-inventory.json"
 BROWSER_INVENTORY_CACHE = Path(".tmp") / "browser-qa-inventory.json"
 DEPENDENCY_INVENTORY_CACHE = Path(".tmp") / "dependency-freshness-inventory.json"
 DIRTY_HANDOFF_PLAN_CACHE = Path(".tmp") / "scoped-dirty-worktree-handoff-plan-current.json"
+
+
+class _WriteFailure(Exception):
+    def __init__(self, path: Path, error: OSError) -> None:
+        super().__init__(str(error))
+        self.path = path
 
 
 def _input_error(label: str, reason: str, **extra: Any) -> dict[str, Any]:
@@ -834,8 +839,18 @@ def _collect_inputs(args: argparse.Namespace) -> dict[str, dict[str, Any]]:
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+    tmp = path.with_name(f"{path.name}.refresh-tmp")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8", newline="\n")
+        tmp.replace(path)
+    except OSError as exc:
+        try:
+            if tmp.is_file() or tmp.is_symlink():
+                tmp.unlink()
+        except OSError:
+            pass
+        raise _WriteFailure(path, exc) from exc
 
 
 def _print_text(selection: dict[str, Any]) -> None:
@@ -883,7 +898,20 @@ def main(argv: list[str] | None = None) -> int:
     inputs = _collect_inputs(args)
     selection = select_next_experiment(**inputs)
     if args.output:
-        _write_json(args.output, selection)
+        try:
+            _write_json(args.output, selection)
+        except _WriteFailure as exc:
+            selection["status"] = "write_failed"
+            selection["write_error"] = str(exc)
+            selection["write_error_path"] = exc.path.as_posix()
+            if args.json:
+                json.dump(selection, sys.stdout, ensure_ascii=True, indent=2)
+                print()
+            else:
+                print(f"next experiment selector: write_failed path={exc.path.as_posix()} error={exc}")
+            return 4
+    selection["write_error"] = ""
+    selection["write_error_path"] = ""
     if args.json:
         json.dump(selection, sys.stdout, ensure_ascii=True, indent=2)
         print()

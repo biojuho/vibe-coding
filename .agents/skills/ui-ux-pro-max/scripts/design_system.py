@@ -11,8 +11,8 @@ Usage:
 
 import csv
 import json
-from core import search, DATA_DIR
 
+from core import DATA_DIR, search
 
 # ============ CONFIGURATION ============
 REASONING_FILE = "ui-reasoning.csv"

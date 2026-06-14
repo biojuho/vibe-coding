@@ -20,7 +20,6 @@ import subprocess
 from pathlib import Path
 from urllib.parse import quote, urlparse
 
-
 ACCEPT_HEADER = "Accept: application/vnd.github+json"
 
 

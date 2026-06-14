@@ -24,7 +24,6 @@ from urllib.request import Request, urlopen
 from xml.sax.saxutils import escape as xml_escape
 from xml.sax.saxutils import quoteattr
 
-
 CROSSREF_API = "https://api.crossref.org/works"
 USER_AGENT = "codex-nature-citation/1.0 (mailto:unknown@example.com)"
 EXPORT_FORMAT_CHOICES = ("enw", "ris", "zotero-rdf", "rdf")

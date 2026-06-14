@@ -1,7 +1,7 @@
 import os
+
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
-
 
 # results_increase = {
 #     r'Median property change': [0.1125, 0.44046, 0.46006, 0.45625, 0.46510],
