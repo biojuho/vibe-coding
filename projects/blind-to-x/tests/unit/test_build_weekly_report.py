@@ -68,6 +68,20 @@ def _review_experiment_payload():
             "average_operator_actions_per_item": 1.667,
             "max_operator_actions_per_item": 2,
             "average_operator_action_delta": 1.667,
+            "candidate_top_operator_actions": [
+                {
+                    "action": "repair_provider_access",
+                    "count": 3,
+                    "priority": 10,
+                    "reason": "Check provider API key",
+                },
+                {
+                    "action": "resolve_x_publish_status",
+                    "count": 1,
+                    "priority": 40,
+                    "reason": "Needs Edit",
+                },
+            ],
             "candidate_missing_metric_rate": 0.1,
             "candidate_missing_metric_counts": {
                 "provider": 0,
@@ -75,18 +89,74 @@ def _review_experiment_payload():
                 "latency_ms": 1,
                 "token_cost_estimate": 2,
             },
+            "candidate_missing_metric_owner_counts": {
+                "cost_tracking": 2,
+                "provider_telemetry": 1,
+            },
+            "candidate_top_missing_metric_owners": [
+                {
+                    "owner": "cost_tracking",
+                    "count": 2,
+                    "share": 0.667,
+                    "top_metric": "token_cost_estimate",
+                    "top_metric_count": 2,
+                    "operator_action": "Include token_cost_estimate from the generation cost tracker.",
+                },
+                {
+                    "owner": "provider_telemetry",
+                    "count": 1,
+                    "share": 0.333,
+                    "top_metric": "latency_ms",
+                    "top_metric_count": 1,
+                    "operator_action": "Include latency_ms from generation telemetry in review records.",
+                },
+            ],
+            "candidate_safety_risk_item_count": 2,
+            "candidate_safety_risk_flag_counts": {"privacy": 2, "legal": 1},
+            "candidate_provider_failure_category_counts": {"auth": 1, "rate_limit": 1},
+            "candidate_provider_failure_provider_counts": {"gemini": 1, "openai": 1},
+            "candidate_primary_provider_failure_category_counts": {"auth": 1},
+            "candidate_primary_provider_failure_provider_counts": {"openai": 1},
+            "candidate_primary_provider_failure_actions": [
+                {
+                    "provider": "openai",
+                    "model": "gpt-4.1-mini",
+                    "category": "auth",
+                    "operator_action": "Check provider API key",
+                    "retryable": False,
+                    "circuit_breaker_candidate": True,
+                    "count": 1,
+                }
+            ],
             "candidate_operator_error_bucket_counts": {"x_post_failed": 2},
             "candidate_operator_reason_bucket_counts": {"missing_draft": 1},
             "candidate_operator_triage_bucket_counts": {"blocked_publish": 1},
             "candidate_ready_for_rollout": False,
+            "candidate_rollout_blocker_actions": [
+                {
+                    "code": "missing_metric_rate_high",
+                    "source": "confidence",
+                    "operator_action": ("cost_tracking: Include token_cost_estimate from the generation cost tracker."),
+                    "owner": "cost_tracking",
+                    "owner_count": 2,
+                    "top_metric": "token_cost_estimate",
+                    "top_metric_count": 2,
+                    "owner_operator_action": "Include token_cost_estimate from the generation cost tracker.",
+                }
+            ],
             "candidate_rollout_reason": "blocked: fill missing objective metrics before rollout",
             "candidate_experiment_confidence": {
                 "issues": [
                     {
                         "code": "missing_metric_rate_high",
                         "operator_action": (
-                            "Fill the top missing metrics before using this experiment as adoption evidence."
+                            "cost_tracking: Include token_cost_estimate from the generation cost tracker."
                         ),
+                        "owner": "cost_tracking",
+                        "owner_count": 2,
+                        "top_metric": "token_cost_estimate",
+                        "top_metric_count": 2,
+                        "owner_operator_action": "Include token_cost_estimate from the generation cost tracker.",
                     }
                 ],
             },
@@ -155,6 +225,13 @@ def _source_preflight_trend_payload():
             "status_counts": {"timeout": 2, "blocked": 1, "browser_unavailable": 1},
             "source_counts": {"ppomppu": 2, "blind": 1, "fmkorea": 1},
             "failure_report_status_counts": {"valid": 3, "missing": 1},
+            "evidence_field_counts": {
+                "failure_report_path": 3,
+                "screenshot_path": 3,
+                "html_snapshot_path": 3,
+                "trace_path": 1,
+                "error": 1,
+            },
             "evidence_gate_status_counts": {
                 "strategy_review_ready": 2,
                 "fallback_only": 1,
@@ -181,6 +258,22 @@ def _source_preflight_trend_payload():
                     "type": "source_preflight_capture",
                     "count": 1,
                     "sources": {"ppomppu": 1},
+                },
+            ],
+            "operator_action_counts": {
+                "Inspect captured evidence, then retry.": 3,
+                "Use a ready fallback source for this run.": 1,
+            },
+            "top_operator_actions": [
+                {
+                    "operator_action": "Inspect captured evidence, then retry.",
+                    "count": 3,
+                    "sources": {"ppomppu": 2, "blind": 1},
+                },
+                {
+                    "operator_action": "Use a ready fallback source for this run.",
+                    "count": 1,
+                    "sources": {"fmkorea": 1},
                 },
             ],
             "top_source_action": {
@@ -213,6 +306,24 @@ def _source_preflight_trend_payload():
                     ),
                     "Rerun ppomppu preflight with --failure-dir after any timeout or selector change.",
                 ],
+            },
+            "top_source_evidence": {
+                "source": "ppomppu",
+                "status": "timeout",
+                "count": 2,
+                "input_path": ".tmp/source_browser_preflight-ppomppu.json",
+                "operator_action": (
+                    "Inspect ppomppu timeout evidence, then adjust timeout or source fallback only after evidence is valid."
+                ),
+                "evidence_gate_status": "strategy_review_ready",
+                "open_first_field": "failure_report_path",
+                "open_first": ".tmp/failures/source_preflight/ppomppu-timeout.json",
+                "evidence": {
+                    "failure_report_path": ".tmp/failures/source_preflight/ppomppu-timeout.json",
+                    "trace_path": ".tmp/traces/source_preflight/ppomppu-timeout.zip",
+                    "screenshot_path": "screenshots/source_preflight/ppomppu.png",
+                    "html_snapshot_path": ".tmp/failures/source_preflight/ppomppu.html",
+                },
             },
             "operator_recommendation": {
                 "action": "repair_evidence",
@@ -268,6 +379,16 @@ def _source_preflight_strategy_payload():
                 "strategy_review_ready": 1,
                 "fallback_only": 1,
             },
+            "operator_action_mismatch_count": 1,
+            "operator_action_mismatch_source_counts": {"ppomppu": 1},
+            "operator_action_counts": {"Inspect captured evidence, then retry.": 2},
+            "top_operator_actions": [
+                {
+                    "operator_action": "Inspect captured evidence, then retry.",
+                    "count": 2,
+                    "sources": {"ppomppu": 1, "blind": 1},
+                }
+            ],
             "missing_metric_counts": {"current": 2, "candidate": 2},
             "missing_metric_names": {
                 "current": ["latency_ms", "draft_quality_score"],
@@ -350,6 +471,48 @@ def _source_preflight_strategy_payload():
     }
 
 
+def _recompute_runtime_contract_payload():
+    return {
+        "status": "ok",
+        "ok": True,
+        "input_source": ".tmp/recompute_scores_fixture.json",
+        "validation_status": "ok",
+        "validation_ok": True,
+        "record_count": 2,
+        "candidate_ranking_weights_present": True,
+        "gate_errors": [],
+        "errors": [],
+        "warnings": [],
+        "safety": {
+            "notion_reads": False,
+            "notion_writes": False,
+            "x_posts": False,
+            "auto_publish_default": False,
+            "manual_publish_required": True,
+        },
+        "runtime_contract": {
+            "validation": {
+                "loads_runtime_dependencies": False,
+                "scoring_runs": False,
+                "notion_reads": False,
+                "notion_writes": False,
+                "x_posts": False,
+            },
+            "scoring_dry_run": {
+                "input_fixture": True,
+                "scoring_dependencies_may_initialize": True,
+                "dependency_scope": "content_intelligence_scoring_and_optional_ml_model_cache",
+                "notion_reads": False,
+                "notion_writes": False,
+                "runtime_contract_gate_command": (
+                    "scripts/recompute_scores.py --assert-runtime-contract --input <path> --json"
+                ),
+            },
+        },
+        "operator_action": "Runtime contract gate passed; scoring dry-run may proceed for manual review.",
+    }
+
+
 def test_render_report_includes_all_required_summary_sections():
     """기본 markdown 구조가 깨지지 않아야: 헤더 + 요약 + Topics/Hooks/Emotions/Performers."""
     with patch("scripts.build_weekly_report._render_best_of_n_section", return_value=""):
@@ -379,15 +542,34 @@ def test_render_report_embeds_review_experiment_batch_summary():
     assert "rollout_ready=false" in text
     assert "Score: current_avg=18; candidate_avg=24.50; delta=6.50" in text
     assert "Operator actions: total=5; avg/item=1.67; max/item=2; delta=1.67" in text
+    assert "Review top operator actions: 3x repair_provider_access priority=10 reason=Check provider API key" in text
     assert "Missing metrics: rate=10.0%; top=token_cost_estimate=2, latency_ms=1, model=0, provider=0" in text
+    assert (
+        "Missing metric owners: 2x cost_tracking top_metric=token_cost_estimate "
+        "action=Include token_cost_estimate from the generation cost tracker."
+    ) in text
+    assert "Safety risk flags: items=2; flags=privacy=2, legal=1" in text
+    assert (
+        "Provider failures: categories=auth=1, rate_limit=1; providers=gemini=1, openai=1; "
+        "primary_categories=auth=1; primary_providers=openai=1"
+    ) in text
+    assert (
+        "Provider failure repair: 1x provider=openai category=auth model=gpt-4.1-mini "
+        "retryable=false circuit_breaker=true action=Check provider API key"
+    ) in text
     assert "Operator buckets: errors=x_post_failed=2; reasons=missing_draft=1; triage=blocked_publish=1" in text
+    assert (
+        "Rollout blocker actions: missing_metric_rate_high source=confidence owner=cost_tracking "
+        "top_metric=token_cost_estimate action=cost_tracking: Include token_cost_estimate from the generation cost "
+        "tracker."
+    ) in text
     assert "Provider evidence: current=-; candidate=gemini=2, openai=1" in text
     assert "Model evidence: current=-; candidate=gemini-2.5-flash=2, gpt-5-mini=1" in text
     assert "Latency avg: current=-; candidate=500.0ms" in text
     assert "Cost avg: current=-; candidate=$0.0200" in text
     assert "Safety: read_only=true; notion_writes=false; x_posts=false; manual_publish_required=true" in text
     assert "Rollout gate: blocked: fill missing objective metrics before rollout" in text
-    assert "Next manual action: Fill the top missing metrics before using this experiment as adoption evidence." in text
+    assert "Next manual action: cost_tracking: Include token_cost_estimate from the generation cost tracker." in text
 
 
 def test_render_report_preserves_non_numeric_review_metric_counts():
@@ -434,15 +616,29 @@ def test_render_report_embeds_source_preflight_trend_summary():
     assert "Source buckets: ppomppu=2, blind=1, fmkorea=1" in text
     assert "Evidence: failure_report_statuses=valid=3, missing=1; errors=0; warnings=1" in text
     assert "top_issue_codes=missing_failure_report_path=1" in text
+    assert (
+        "Evidence fields: failure_report_path=3, html_snapshot_path=3, screenshot_path=3, error=1, trace_path=1" in text
+    )
     assert "Evidence gates: strategy_change_ready=2" in text
     assert "statuses=strategy_review_ready=2, fallback_only=1, fix_evidence_first=1" in text
     assert "Repair commands: total=3; types=evidence_doctor=2, source_preflight_capture=1" in text
     assert "2x evidence_doctor sources=ppomppu=2 command=py -3 scripts/source_preflight_evidence_doctor.py" in text
     assert "1x source_preflight_capture sources=ppomppu=1 command=py -3 main.py --config config.yaml" in text
+    assert (
+        "Source trend operator actions: "
+        "3x sources=ppomppu=2, blind=1 action=Inspect captured evidence, then retry." in text
+    )
+    assert "1x sources=fmkorea=1 action=Use a ready fallback source for this run." in text
     assert "Top source action: source=ppomppu; status=timeout; count=2" in text
     assert (
         "Inspect ppomppu timeout evidence, then adjust timeout or source fallback only after evidence is valid." in text
     )
+    assert (
+        "Top source evidence: source=ppomppu; status=timeout; count=2; "
+        "open_first=failure_report_path=.tmp/failures/source_preflight/ppomppu-timeout.json" in text
+    )
+    assert "trace_path=.tmp/traces/source_preflight/ppomppu-timeout.zip" in text
+    assert "screenshot_path=screenshots/source_preflight/ppomppu.png" in text
     assert "Operator recommendation: action=repair_evidence; priority=medium; source=ppomppu; status=timeout" in text
     assert "restore missing artifacts, then rerun trend reporting" in text
     assert "Top source checklist: Open ppomppu evidence fields first" in text
@@ -451,6 +647,21 @@ def test_render_report_embeds_source_preflight_trend_summary():
     assert "Safety: read_only=true; browser_launches=false; notion_writes=false; x_posts=false" in text
     assert "manual_publish_required=true" in text
     assert "Next manual action: Review warning codes; rerun individual evidence doctor for any unclear report." in text
+
+
+def test_render_report_embeds_source_preflight_operator_action_mismatches():
+    payload = _basic_payload()
+    trend = _source_preflight_trend_payload()
+    trend["summary"]["operator_action_mismatch_count"] = 2
+    trend["summary"]["operator_action_mismatch_source_counts"] = {"ppomppu": 1, "blind": 1}
+    payload["source_preflight_trend"] = trend
+
+    with patch("scripts.build_weekly_report._render_best_of_n_section", return_value=""):
+        text = _render_report(payload)
+
+    assert "Operator action mismatches: count=2; sources=blind=1, ppomppu=1" in text
+    assert text.index("Source trend operator actions:") < text.index("Operator action mismatches:")
+    assert text.index("Operator action mismatches:") < text.index("Safety: read_only=true")
 
 
 def test_render_report_embeds_source_preflight_strategy_simulation():
@@ -486,6 +697,11 @@ def test_render_report_embeds_source_preflight_strategy_simulation():
     ) in text
     assert "Safety risk flags: current=ungated_strategy_change; candidate=-" in text
     assert "Evidence gates: fallback_only=1, strategy_review_ready=1" in text
+    assert "Strategy operator action mismatches: count=1; sources=ppomppu=1" in text
+    assert (
+        "Source operator actions: 2x sources=blind=1, ppomppu=1 action=Inspect captured evidence, then retry." in text
+    )
+    assert text.index("Strategy operator action mismatches:") < text.index("Source operator actions:")
     assert (
         "Rollout gate: status=split_manual_review; ready_for_manual_strategy_review=true; "
         "auto_apply_allowed=false; blocked_by=fallback_only_sources_present"
@@ -500,6 +716,26 @@ def test_render_report_embeds_source_preflight_strategy_simulation():
     ) in text
     assert "Remaining repair commands:" not in text
     assert "Safety: read_only=true; browser_launches=false; notion_writes=false; x_posts=false" in text
+
+
+def test_render_report_embeds_recompute_runtime_contract_gate():
+    payload = _basic_payload()
+    payload["recompute_runtime_contract"] = _recompute_runtime_contract_payload()
+
+    with patch("scripts.build_weekly_report._render_best_of_n_section", return_value=""):
+        text = _render_report(payload)
+
+    assert "## Recompute Scores Runtime Contract (dry-run)" in text
+    assert "Source: .tmp/recompute_scores_fixture.json" in text
+    assert "Gate: status=ok; ok=true; validation_ok=true; gate_errors=0; records=2" in text
+    assert "candidate_ranking_weights=true" in text
+    assert (
+        "Runtime: validation_loads_runtime_dependencies=false; validation_scoring_runs=false; "
+        "scoring_dependencies_may_initialize=true"
+    ) in text
+    assert "Safety: notion_reads=false; notion_writes=false; x_posts=false; manual_publish_required=true" in text
+    assert "Recompute command: `scripts/recompute_scores.py --assert-runtime-contract --input <path> --json`" in text
+    assert "Next manual action: Runtime contract gate passed; scoring dry-run may proceed for manual review." in text
 
 
 def test_render_report_infers_source_preflight_metric_coverage_for_legacy_strategy_json():
@@ -588,6 +824,24 @@ def test_render_report_embeds_blocked_source_preflight_manual_ready_action():
             ),
         ],
     }
+    repair_commands = strategy["manual_ready_gate"]["repair_commands"]
+    strategy["summary"]["repair_command_queue"] = [
+        {
+            "command": command,
+            "type": "evidence_doctor",
+            "count": 1,
+            "sources": {"blind": 1},
+            "buckets": {"blind|blocked": 1},
+        }
+        for command in repair_commands
+    ]
+    strategy["summary"]["repair_command_queue_consistency"] = {
+        "status": "ok",
+        "repair_command_count": 2,
+        "queue_count_total": 2,
+        "queue_item_count": 2,
+        "top_item_count": 2,
+    }
     payload["source_preflight_strategy"] = strategy
 
     with patch("scripts.build_weekly_report._render_best_of_n_section", return_value=""):
@@ -615,6 +869,11 @@ def test_render_report_embeds_blocked_source_preflight_manual_ready_action():
     ) in text
     assert "Repair commands: count=2; primary_shown=true; remaining=1" in text
     assert (
+        "Repair queue: total=2; listed=2; count_total=2; consistency=ok; full_queue_available=true; "
+        "source=manual_ready_gate.repair_commands"
+    ) in text
+    assert "Primary repair target: type=evidence_doctor; count=1; buckets=blind|blocked=1; sources=blind=1" in text
+    assert (
         "Repair command: `py -3 scripts/source_preflight_evidence_doctor.py --input "
         "'source_browser_preflight.json' --base-dir '.tmp/source_preflight_strategy_blocked_smoke' "
         "--json --fail-on-warning`"
@@ -623,6 +882,54 @@ def test_render_report_embeds_blocked_source_preflight_manual_ready_action():
         "Remaining repair commands: see `manual_ready_gate.repair_commands` in the source strategy JSON "
         "after running the primary command."
     ) in text
+
+
+def test_render_report_marks_aggregated_repair_queue_available():
+    payload = _basic_payload()
+    strategy = _source_preflight_strategy_payload()
+    repair_command = (
+        "py -3 scripts/source_preflight_evidence_doctor.py --input 'source_browser_preflight.json' "
+        "--base-dir '.tmp/source_preflight_strategy_blocked_smoke' --json --fail-on-warning"
+    )
+    strategy["rollout_gate"] = {
+        "status": "blocked_repair_evidence",
+        "ready_for_manual_strategy_review": False,
+        "auto_apply_allowed": False,
+        "manual_review_required": True,
+        "blocked_by": ["repair_command_debt"],
+        "operator_action": "Run repair commands first.",
+    }
+    strategy["summary"]["repair_command_count"] = 2
+    strategy["summary"]["repair_command_queue"] = [
+        {
+            "command": repair_command,
+            "type": "evidence_doctor",
+            "count": 2,
+            "sources": {"blind": 2},
+            "buckets": {"blind|blocked": 2},
+        }
+    ]
+    strategy["manual_ready_gate"] = {
+        "required": True,
+        "passed": False,
+        "status": "blocked",
+        "exit_code": 2,
+        "reason": "Run repair commands first.",
+        "primary_repair_command": repair_command,
+        "repair_command_count": 2,
+        "repair_command_remaining_count": 1,
+        "repair_commands": [repair_command],
+    }
+    payload["source_preflight_strategy"] = strategy
+
+    with patch("scripts.build_weekly_report._render_best_of_n_section", return_value=""):
+        text = _render_report(payload)
+
+    assert (
+        "Repair queue: total=2; listed=1; count_total=2; consistency=ok; full_queue_available=true; "
+        "source=manual_ready_gate.repair_commands"
+    ) in text
+    assert "Primary repair target: type=evidence_doctor; count=2; buckets=blind|blocked=2; sources=blind=2" in text
 
 
 def test_render_report_keeps_unknown_source_preflight_blocker_visible():
@@ -675,11 +982,13 @@ def test_run_renders_payload_input_without_notion_fetch(tmp_path):
     experiment_path = tmp_path / "review_experiment.json"
     trend_path = tmp_path / "source_preflight_trend.json"
     strategy_path = tmp_path / "source_preflight_strategy.json"
+    recompute_path = tmp_path / "recompute_scores_runtime_contract.json"
     output_path = tmp_path / "weekly_report.md"
     payload_path.write_text(json.dumps(_basic_payload()), encoding="utf-8")
     experiment_path.write_text(json.dumps(_review_experiment_payload()), encoding="utf-8")
     trend_path.write_text(json.dumps(_source_preflight_trend_payload()), encoding="utf-8")
     strategy_path.write_text(json.dumps(_source_preflight_strategy_payload()), encoding="utf-8")
+    recompute_path.write_text(json.dumps(_recompute_runtime_contract_payload()), encoding="utf-8")
 
     with (
         patch("scripts.build_weekly_report.ConfigManager") as config_manager,
@@ -694,6 +1003,7 @@ def test_run_renders_payload_input_without_notion_fetch(tmp_path):
                 review_experiment_input=str(experiment_path),
                 source_preflight_trend_input=str(trend_path),
                 source_preflight_strategy_input=str(strategy_path),
+                recompute_contract_input=str(recompute_path),
                 payload_input=str(payload_path),
             )
         )
@@ -705,7 +1015,8 @@ def test_run_renders_payload_input_without_notion_fetch(tmp_path):
     assert "## Review Experiment A/B Summary (dry-run)" in text
     assert "## Source Preflight Trend (dry-run)" in text
     assert "## Source Preflight Strategy A/B (dry-run)" in text
-    assert "Next manual action: Fill the top missing metrics before using this experiment as adoption evidence." in text
+    assert "## Recompute Scores Runtime Contract (dry-run)" in text
+    assert "Next manual action: cost_tracking: Include token_cost_estimate from the generation cost tracker." in text
 
 
 def test_run_rejects_non_object_payload_input(tmp_path):
@@ -730,10 +1041,12 @@ def test_direct_script_renders_payload_input_without_project_pythonpath(tmp_path
     payload_path = tmp_path / "weekly_payload.json"
     trend_path = tmp_path / "source_preflight_trend.json"
     strategy_path = tmp_path / "source_preflight_strategy.json"
+    recompute_path = tmp_path / "recompute_scores_runtime_contract.json"
     output_path = tmp_path / "weekly_report.md"
     payload_path.write_text(json.dumps(_basic_payload()), encoding="utf-8")
     trend_path.write_text(json.dumps(_source_preflight_trend_payload()), encoding="utf-8")
     strategy_path.write_text(json.dumps(_source_preflight_strategy_payload()), encoding="utf-8")
+    recompute_path.write_text(json.dumps(_recompute_runtime_contract_payload()), encoding="utf-8")
 
     result = subprocess.run(
         [
@@ -745,6 +1058,8 @@ def test_direct_script_renders_payload_input_without_project_pythonpath(tmp_path
             str(trend_path),
             "--source-preflight-strategy-input",
             str(strategy_path),
+            "--recompute-contract-input",
+            str(recompute_path),
             "--output",
             str(output_path),
         ],
@@ -760,6 +1075,7 @@ def test_direct_script_renders_payload_input_without_project_pythonpath(tmp_path
     assert "Smoke item" not in text
     assert "## Source Preflight Trend (dry-run)" in text
     assert "## Source Preflight Strategy A/B (dry-run)" in text
+    assert "## Recompute Scores Runtime Contract (dry-run)" in text
     assert "metric_missing=current:2/10,candidate:2/10" in text
     assert "Title A | views=1000 likes=50 retweets=10" in result.stdout
 

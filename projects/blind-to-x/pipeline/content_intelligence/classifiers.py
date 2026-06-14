@@ -7,7 +7,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-from pipeline.content_intelligence.rules import get_topic_rules, get_emotion_rules, get_audience_rules, _load_rules
+from pipeline.content_intelligence.rules import _load_rules, get_audience_rules, get_emotion_rules, get_topic_rules
 from pipeline.content_intelligence.utils import _match_first
 
 

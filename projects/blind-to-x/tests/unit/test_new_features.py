@@ -55,10 +55,21 @@ class TestCrawl4AIExtractor:
             assert isinstance(result, bool)
 
     @pytest.mark.asyncio
-    async def test_extract_post_from_html_no_key(self):
+    async def test_extract_post_from_html_no_key(self, monkeypatch):
         """Without API key, returns None."""
         from scrapers.crawl4ai_extractor import Crawl4AIExtractor
 
+        class UnexpectedGoogleImport(BaseException):
+            pass
+
+        original_import = __import__
+
+        def fail_google_import(name, globals=None, locals=None, fromlist=(), level=0):
+            if name == "google" or name.startswith("google."):
+                raise UnexpectedGoogleImport(name)
+            return original_import(name, globals, locals, fromlist, level)
+
+        monkeypatch.setattr("builtins.__import__", fail_google_import)
         extractor = Crawl4AIExtractor({"gemini.api_key": ""})
         extractor._api_key = ""
         result = await extractor.extract_post_from_html("https://example.com", "<html>test</html>")
@@ -315,7 +326,7 @@ class TestDailyDigest:
         assert digest.date == "2026-03-20"
 
     def test_fallback_summary(self):
-        from pipeline.daily_digest import DigestGenerator, DailyDigest
+        from pipeline.daily_digest import DailyDigest, DigestGenerator
 
         gen = DigestGenerator({})
         digest = DailyDigest(
@@ -345,7 +356,7 @@ class TestDailyDigest:
         assert DigestGenerator._extract_number(props, "없는키") == 0.0
 
     def test_compute_topic_distribution(self):
-        from pipeline.daily_digest import DigestGenerator, DigestEntry
+        from pipeline.daily_digest import DigestEntry, DigestGenerator
 
         gen = DigestGenerator({})
         entries = [
@@ -392,8 +403,8 @@ class TestBaseScraper4AIFallback:
     @pytest.mark.asyncio
     async def test_fallback_no_extractor(self):
         """When Crawl4AI is not available, returns None."""
-        from scrapers.base import BaseScraper
         import scrapers.base as base_mod
+        from scrapers.base import BaseScraper
 
         # Force extractor unavailable
         original = base_mod._crawl4ai_extractor
@@ -411,9 +422,9 @@ class TestBaseScraper4AIFallback:
     @pytest.mark.asyncio
     async def test_fallback_with_mock_extractor(self):
         """When extractor returns data, it produces a valid dict."""
+        import scrapers.base as base_mod
         from scrapers.base import BaseScraper
         from scrapers.crawl4ai_extractor import ExtractedPost
-        import scrapers.base as base_mod
 
         mock_extractor = AsyncMock()
         mock_extractor.extract_post_from_html.return_value = ExtractedPost(

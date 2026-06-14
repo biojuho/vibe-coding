@@ -55,6 +55,19 @@ class FeedbackLoop:
             return 0.0
         return num / (den_x * den_y)
 
+    @staticmethod
+    def _optional_float(value: Any) -> float | None:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            value = value.strip()
+            if not value:
+                return None
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
     async def compute_adaptive_weights(self) -> dict[str, float]:
         """실제 트위터 성과(조회수) 기반으로 랭킹 가중치를 자동 산출.
 
@@ -69,23 +82,28 @@ class FeedbackLoop:
             allow_fallback_examples=False,
         )
         # 실제 성과 데이터가 있는 레코드만 사용
-        valid = [
-            r
-            for r in records
-            if r.get("views")
-            and float(r.get("views") or 0) > 0
-            and r.get("scrape_quality_score")
-            and r.get("publishability_score")
-            and r.get("performance_score")
-        ]
+        valid: list[tuple[float, float, float, float]] = []
+        for record in records:
+            views = self._optional_float(record.get("views"))
+            quality_score = self._optional_float(record.get("scrape_quality_score"))
+            publishability_score = self._optional_float(record.get("publishability_score"))
+            performance_score = self._optional_float(record.get("performance_score"))
+            if (
+                views is not None
+                and views > 0
+                and quality_score is not None
+                and publishability_score is not None
+                and performance_score is not None
+            ):
+                valid.append((views, quality_score, publishability_score, performance_score))
         if len(valid) < 5:
             logger.info("적응형 가중치 산출 불가: 유효 데이터 %d건 (최소 5건 필요)", len(valid))
             return {}
 
-        actual = [float(r.get("views") or 0) for r in valid]
-        quality = [float(r.get("scrape_quality_score") or 50) for r in valid]
-        pub = [float(r.get("publishability_score") or 50) for r in valid]
-        perf = [float(r.get("performance_score") or 50) for r in valid]
+        actual = [row[0] for row in valid]
+        quality = [row[1] for row in valid]
+        pub = [row[2] for row in valid]
+        perf = [row[3] for row in valid]
 
         corr_q = self._pearson_corr(quality, actual)
         corr_p = self._pearson_corr(pub, actual)

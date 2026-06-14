@@ -182,7 +182,7 @@ def _gdrive_extract(assets: NotebookLMAssets) -> NotebookLMAssets:
 
     try:
         # 최근 24시간 이내 새 파일 감지
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta, timezone
 
         since_iso = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
 

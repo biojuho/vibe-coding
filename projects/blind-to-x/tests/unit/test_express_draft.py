@@ -7,8 +7,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from pipeline.express_draft import ExpressDraftPipeline, ExpressDraftResult
 from pipeline.enrichment_engine import EnrichedContext
+from pipeline.express_draft import ExpressDraftPipeline, ExpressDraftResult
 
 
 class _MockConfig:

@@ -13,14 +13,18 @@ deterministic 무색무취 검출 가드입니다.
 
 from __future__ import annotations
 
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
 
+from pipeline.draft_prompts import DraftPromptsMixin
 from pipeline.draft_quality_gate import (
     DraftQualityGate,
     _extract_creator_take,
     _is_colorless_take,
 )
-from pipeline.draft_prompts import DraftPromptsMixin
 from pipeline.editorial_reviewer import (
     _BASE_REVIEW_AXES,
     _COMMENT_TRIGGER_AXES,
@@ -29,6 +33,54 @@ from pipeline.editorial_reviewer import (
     EditorialResult,
     EditorialReviewer,
 )
+
+
+def test_editorial_reviewer_no_provider_path_defers_langgraph_dependencies():
+    project_root = Path(__file__).resolve().parents[2]
+    code = """
+import os
+import sys
+
+import pipeline.editorial_reviewer as er
+
+for key in (
+    "EXA_API_KEY",
+    "PERPLEXITY_API_KEY",
+    "GEMINI_API_KEY",
+    "GOOGLE_AI_API_KEY",
+    "GOOGLE_API_KEY",
+    "DEEPSEEK_API_KEY",
+    "GROQ_API_KEY",
+    "ZHIPUAI_API_KEY",
+    "OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "XAI_API_KEY",
+    "GROK_API_KEY",
+    "NOTION_API_KEY",
+    "NOTION_DATABASE_ID",
+    "TELEGRAM_BOT_TOKEN",
+    "SUPABASE_KEY",
+):
+    os.environ.pop(key, None)
+
+reviewer = er.EditorialReviewer(config=None)
+print("langgraph" in sys.modules)
+print("langgraph.graph" in sys.modules)
+print("langchain_core" in sys.modules)
+print(type(reviewer._graph).__name__)
+print(er.LANGGRAPH_AVAILABLE is None)
+"""
+
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=project_root,
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+    assert result.stdout.splitlines() == ["False", "False", "False", "_FallbackEditorialGraph", "True"]
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

@@ -6,8 +6,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from pipeline.regulation_checker import x_weighted_character_count
 from config import as_bool as _as_bool
+from pipeline.regulation_checker import x_weighted_character_count
 
 PUBLISH = "PUBLISH"
 HOLD = "HOLD"

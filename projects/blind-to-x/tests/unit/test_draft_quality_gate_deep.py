@@ -26,7 +26,6 @@ from pipeline.draft_quality_gate import (
     _looks_like_error_text,
 )
 
-
 # ── _looks_like_error_text 테스트 ────────────────────────────────────────
 
 

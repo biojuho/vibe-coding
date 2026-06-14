@@ -7,6 +7,7 @@ import tempfile
 from urllib.parse import quote
 
 import aiohttp
+
 from config import as_bool
 
 logger = logging.getLogger(__name__)
@@ -579,8 +580,8 @@ class ImageGenerator:
             (False, "이유") if 실패
         """
         try:
-            from PIL import Image
             import numpy as np
+            from PIL import Image
         except ImportError:
             return True, ""  # PIL 없으면 무조건 통과
 

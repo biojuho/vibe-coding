@@ -1,5 +1,6 @@
 import json
 from datetime import datetime
+from pathlib import Path
 
 import pytest
 
@@ -10,22 +11,26 @@ from scripts.source_browser_probe import (
     ProbeClassification,
     ProbeResult,
     ProbeTarget,
+    _attach_trace_path_to_problem_results,
+    _build_evidence_repair_commands,
+    _build_recommended_command,
+    _build_trace_viewer_guidance,
+    _click_first_post,
+    _probe_target,
+    _resolve_click_through_href,
+    _safe_html_snapshot,
+    _select_click_through_candidate,
+    _select_jobplanet_api_candidate,
+    _with_failure_evidence,
+    _write_report,
     build_report,
-    build_parser as build_probe_parser,
     classify_probe,
     exit_code_for_report,
     parse_targets,
     run_source_preflight,
-    _attach_trace_path_to_problem_results,
-    _click_first_post,
-    _build_recommended_command,
-    _probe_target,
-    _resolve_click_through_href,
-    _safe_html_snapshot,
-    _with_failure_evidence,
-    _write_report,
-    _select_click_through_candidate,
-    _select_jobplanet_api_candidate,
+)
+from scripts.source_browser_probe import (
+    build_parser as build_probe_parser,
 )
 
 
@@ -213,6 +218,10 @@ def test_build_report_counts_problem_statuses_and_exit_code():
                 "action": (
                     "Use a ready fallback source for this run, then recheck this source after access controls change."
                 ),
+                "operator_action_required": True,
+                "operator_action": (
+                    "Use a ready fallback source for this run, then recheck this source after access controls change."
+                ),
             }
         ],
     }
@@ -225,6 +234,16 @@ def test_build_report_counts_problem_statuses_and_exit_code():
         "Use a ready fallback source for this run, then recheck this source after access controls change."
     )
     assert exit_code_for_report(report, fail_on_problem=False) == 0
+    assert exit_code_for_report(report, fail_on_problem=True) == 1
+
+
+def test_build_report_rejects_empty_probe_results():
+    report = build_report([])
+
+    assert report["summary"]["source_count"] == 0
+    assert report["summary"]["ready_count"] == 0
+    assert report["summary"]["problem_count"] == 0
+    assert report["summary"]["ok"] is False
     assert exit_code_for_report(report, fail_on_problem=True) == 1
 
 
@@ -307,6 +326,10 @@ def test_build_report_counts_click_error_as_problem():
             "action": (
                 "Inspect the screenshot and click-through error, then update the source detail selector or API verifier."
             ),
+            "operator_action_required": True,
+            "operator_action": (
+                "Inspect the screenshot and click-through error, then update the source detail selector or API verifier."
+            ),
         }
     ]
     assert exit_code_for_report(report, fail_on_problem=True) == 1
@@ -348,15 +371,28 @@ def test_with_failure_evidence_writes_structured_problem_report(tmp_path):
     assert payload["failure_report_path"] == str(failure_report_path)
     assert payload["operator_action_required"] is True
     assert payload["operator_action"] == enriched.operator_action
+    expected_evidence = {
+        "failure_report_path": str(failure_report_path),
+        "screenshot_path": "screenshots/source_preflight/ppomppu.png",
+        "html_snapshot_path": str(html_snapshot_path),
+        "error": "clicked page did not look like a readable post detail",
+    }
+    expected_repair_commands = _build_evidence_repair_commands("ppomppu", expected_evidence)
     assert payload["operator"] == {
         "action_required": True,
         "action": enriched.operator_action,
-        "evidence": {
-            "failure_report_path": str(failure_report_path),
-            "screenshot_path": "screenshots/source_preflight/ppomppu.png",
-            "html_snapshot_path": str(html_snapshot_path),
-            "error": "clicked page did not look like a readable post detail",
-        },
+        "evidence": expected_evidence,
+        "evidence_review_order": [
+            "failure_report_path",
+            "screenshot_path",
+            "html_snapshot_path",
+            "error",
+        ],
+        "evidence_review_hint": (
+            "Open evidence in this order before changing source strategy: "
+            "failure_report_path, screenshot_path, html_snapshot_path, error."
+        ),
+        "repair_commands": expected_repair_commands,
     }
 
     report = build_report([enriched])
@@ -367,12 +403,20 @@ def test_with_failure_evidence_writes_structured_problem_report(tmp_path):
             "source": "ppomppu",
             "status": "click_error",
             "action": enriched.operator_action,
-            "evidence": {
-                "failure_report_path": str(failure_report_path),
-                "screenshot_path": "screenshots/source_preflight/ppomppu.png",
-                "html_snapshot_path": str(html_snapshot_path),
-                "error": "clicked page did not look like a readable post detail",
-            },
+            "operator_action_required": True,
+            "operator_action": enriched.operator_action,
+            "evidence": expected_evidence,
+            "evidence_review_order": [
+                "failure_report_path",
+                "screenshot_path",
+                "html_snapshot_path",
+                "error",
+            ],
+            "evidence_review_hint": (
+                "Open evidence in this order before changing source strategy: "
+                "failure_report_path, screenshot_path, html_snapshot_path, error."
+            ),
+            "repair_commands": expected_repair_commands,
         }
     ]
 
@@ -398,7 +442,26 @@ def test_trace_path_is_added_to_problem_evidence_and_failure_report(tmp_path):
 
     assert payload["trace_path"] == result.trace_path
     assert payload["operator"]["evidence"]["trace_path"] == result.trace_path
+    assert payload["operator"]["evidence_review_order"] == ["failure_report_path", "trace_path"]
+    assert payload["operator"]["trace_viewer_command"].startswith("& playwright show-trace ")
+    assert result.trace_path in payload["operator"]["trace_viewer_command"]
+    assert payload["operator"]["trace_viewer_hint"] == (
+        "Open the Playwright trace locally and inspect Actions, Console, Network, and DOM snapshots before "
+        "changing selectors or timeouts."
+    )
+    assert "--source-preflight-trace-dir" in " ".join(payload["operator"]["repair_commands"])
     assert report["summary"]["problem_actions"][0]["evidence"]["trace_path"] == result.trace_path
+    assert report["summary"]["problem_actions"][0]["evidence_review_order"] == ["failure_report_path", "trace_path"]
+    assert report["summary"]["problem_actions"][0]["trace_viewer_command"].startswith("& playwright show-trace ")
+    assert result.trace_path in report["summary"]["problem_actions"][0]["trace_viewer_command"]
+    assert report["summary"]["problem_actions"][0]["trace_viewer_hint"] == payload["operator"]["trace_viewer_hint"]
+    assert "--source-preflight-trace-dir" in " ".join(report["summary"]["problem_actions"][0]["repair_commands"])
+
+
+def test_trace_viewer_command_quotes_powershell_metacharacter_path():
+    command = _build_trace_viewer_guidance({"trace_path": ".tmp/traces/source&preflight.zip"})["trace_viewer_command"]
+
+    assert command == "& playwright show-trace '.tmp/traces/source&preflight.zip'"
 
 
 def test_attach_trace_path_rewrites_only_problem_failure_reports(tmp_path):
@@ -434,6 +497,41 @@ def test_attach_trace_path_rewrites_only_problem_failure_reports(tmp_path):
     assert enriched[1].failure_report_path == str(failure_dir / "blind-blocked.json")
     payload = json.loads((failure_dir / "blind-blocked.json").read_text(encoding="utf-8"))
     assert payload["operator"]["evidence"]["trace_path"] == "trace.zip"
+
+
+def test_failure_report_paths_do_not_collide_for_unsafe_source_names(tmp_path):
+    failure_dir = tmp_path / "failures"
+    classification = ProbeClassification("blocked", "HTTP 403", ["http_403"])
+    first = ProbeResult(
+        source="!!!",
+        url="https://example.com/a",
+        final_url="https://example.com/a",
+        http_status=403,
+        title="Forbidden",
+        body_chars=20,
+        classification=classification,
+        console_errors=[],
+        page_errors=[],
+    )
+    second = ProbeResult(
+        source="@@@",
+        url="https://example.com/b",
+        final_url="https://example.com/b",
+        http_status=403,
+        title="Forbidden",
+        body_chars=20,
+        classification=classification,
+        console_errors=[],
+        page_errors=[],
+    )
+
+    first_enriched = _with_failure_evidence(first, failure_dir)
+    second_enriched = _with_failure_evidence(second, failure_dir)
+
+    assert first_enriched.failure_report_path != second_enriched.failure_report_path
+    assert len(list(failure_dir.glob("*.json"))) == 2
+    assert json.loads(Path(first_enriched.failure_report_path).read_text(encoding="utf-8"))["source"] == "!!!"
+    assert json.loads(Path(second_enriched.failure_report_path).read_text(encoding="utf-8"))["source"] == "@@@"
 
 
 @pytest.mark.asyncio
@@ -520,6 +618,14 @@ def test_build_report_gives_install_action_for_missing_playwright_package():
             "source": "ppomppu",
             "status": "browser_unavailable",
             "action": (
+                "Run this helper with the Blind-to-X virtualenv. If Playwright is missing in the active "
+                "interpreter, run `py -3 -m pip install playwright` first. Then install Chromium with "
+                "`py -3 -m playwright install chromium` (or "
+                "`.venv\\Scripts\\python.exe -m playwright install chromium` from the project venv), "
+                "and rerun the preflight."
+            ),
+            "operator_action_required": True,
+            "operator_action": (
                 "Run this helper with the Blind-to-X virtualenv. If Playwright is missing in the active "
                 "interpreter, run `py -3 -m pip install playwright` first. Then install Chromium with "
                 "`py -3 -m playwright install chromium` (or "

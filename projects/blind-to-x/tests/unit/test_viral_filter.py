@@ -6,9 +6,7 @@ import asyncio
 import json
 from unittest.mock import MagicMock, patch
 
-
-from pipeline.viral_filter import ViralFilter, ViralScore, _WEIGHTS
-
+from pipeline.viral_filter import _WEIGHTS, ViralFilter, ViralScore
 
 # ── ViralScore ───────────────────────────────────────────────────────
 
@@ -52,6 +50,13 @@ class TestViralScore:
 class TestViralFilter:
     def test_disabled_returns_default(self):
         vf = ViralFilter({"viral_filter.enabled": False})
+        result = asyncio.run(vf.score("title", "content"))
+        assert result.pass_filter is True
+        assert result.score == 50.0
+
+    def test_string_false_disables_filter(self):
+        vf = ViralFilter({"viral_filter.enabled": "false", "gemini.api_key": "test-key"})
+        assert vf._enabled is False
         result = asyncio.run(vf.score("title", "content"))
         assert result.pass_filter is True
         assert result.score == 50.0

@@ -1,13 +1,13 @@
 import os
 from datetime import date, datetime
+from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 import httpx
-from unittest.mock import AsyncMock, patch, MagicMock
+import pytest
 
-from pipeline.notion_upload import NotionUploader
-from pipeline.notion_retry_diagnostics import notion_retry_diagnostics
 from config import ERROR_NOTION_CONFIG_MISSING, ERROR_NOTION_SCHEMA_MISMATCH, ERROR_NOTION_UPLOAD_FAILED
+from pipeline.notion_retry_diagnostics import notion_retry_diagnostics
+from pipeline.notion_upload import NotionUploader
 
 
 @pytest.fixture
@@ -36,6 +36,36 @@ def test_init_env_vars_override(mock_config):
         uploader = NotionUploader(mock_config)
         assert uploader.api_key == "env_api_key"
         assert uploader.raw_database_id == "env_db_id"
+
+
+def test_init_defers_notion_client_creation(mock_config):
+    with patch.dict(os.environ, clear=True), patch("pipeline.notion_upload.AsyncClient") as mock_client_cls:
+        uploader = NotionUploader(mock_config)
+        mock_client_cls.assert_not_called()
+
+        client = uploader.client
+
+    assert client is mock_client_cls.return_value
+    mock_client_cls.assert_called_once_with(auth="test_api_key")
+
+
+def test_client_assignment_marks_initialized(mock_config):
+    with patch.dict(os.environ, clear=True), patch("pipeline.notion_upload.AsyncClient") as mock_client_cls:
+        uploader = NotionUploader(mock_config)
+        injected_client = object()
+        uploader.client = injected_client
+
+        assert uploader.client is injected_client
+        mock_client_cls.assert_not_called()
+
+
+def _mock_async_http_client(mock_client_cls, *, response, method="post"):
+    mock_http = AsyncMock()
+    getattr(mock_http, method).return_value = response
+    mock_context = AsyncMock()
+    mock_context.__aenter__.return_value = mock_http
+    mock_client_cls.return_value = mock_context
+    return mock_http
 
 
 def test_error_management(mock_config):
@@ -280,6 +310,7 @@ async def test_ensure_schema_missing_auth(mock_config):
 @pytest.mark.asyncio
 async def test_ensure_schema_success(mock_config):
     uploader = NotionUploader(mock_config)
+    uploader.client = object()
     uploader._retrieve_collection = AsyncMock(return_value={"properties": {"Prop1": {}}})
     uploader._auto_detect_props = MagicMock(return_value={"Prop1": "Detected"})
     uploader._resolve_props = MagicMock(return_value={"Prop1": "Resolved"})
@@ -303,8 +334,8 @@ async def test_page_parent_payload(mock_config):
 
 
 @pytest.mark.asyncio
-@patch("httpx.AsyncClient.post")
-async def test_query_collection_database(mock_post, mock_config):
+@patch("httpx.AsyncClient")
+async def test_query_collection_database(mock_client_cls, mock_config):
     with patch.dict(os.environ, clear=True):
         uploader = NotionUploader(mock_config)
         uploader._schema_ready = True
@@ -313,12 +344,12 @@ async def test_query_collection_database(mock_post, mock_config):
         mock_resp = MagicMock()
         mock_resp.json.return_value = {"results": []}
         mock_resp.raise_for_status = MagicMock()
-        mock_post.return_value = mock_resp
+        mock_http = _mock_async_http_client(mock_client_cls, response=mock_resp)
 
     res = await uploader.query_collection(page_size=10, start_cursor="cur")
     assert res == {"results": []}
-    mock_post.assert_called_once()
-    args, kwargs = mock_post.call_args
+    mock_client_cls.assert_called_once_with(timeout=30)
+    args, kwargs = mock_http.post.call_args
     assert "databases/test_db_id/query" in args[0]
     assert kwargs["json"] == {"page_size": 10, "start_cursor": "cur"}
 
@@ -432,6 +463,14 @@ async def test_update_page_properties_failure_exposes_retry_diagnostics(mock_sle
         "last_status": 429,
         "retryable": True,
     }
+    assert diagnostics["notion_failure_classification"] == {
+        "category": "rate_limited",
+        "status": 429,
+        "retryable": True,
+        "retry_recommended": True,
+        "wait_seconds": 4,
+        "primary_repair": "respect_retry_after_or_backoff",
+    }
     assert diagnostics["notion_operator_action"] == (
         "Retry the Notion property update after at least 4s, then reduce request rate if it repeats."
     )
@@ -472,7 +511,7 @@ def test_prepare_property_payload_multi_select(mock_config):
     assert payload == {"multi_select": [{"name": "팩트 경계"}, {"name": "클리셰"}]}
 
 
-def test_prepare_property_payload_date_values(mock_config):
+def test_prepare_property_payload_date_values(mock_config, recwarn):
     uploader = NotionUploader(mock_config)
     uploader.props = {"scheduled": "Scheduled At", "created": "Created At"}
     uploader._db_properties = {"Scheduled At": {"type": "date"}, "Created At": {"type": "date"}}
@@ -484,6 +523,12 @@ def test_prepare_property_payload_date_values(mock_config):
     prop_name, payload = uploader._prepare_property_payload("created", datetime(2026, 6, 6, 9, 30))
     assert prop_name == "Created At"
     assert payload == {"date": {"start": "2026-06-06T09:30:00"}}
+
+    prop_name, payload = uploader._prepare_property_payload("created", "now")
+    assert prop_name == "Created At"
+    assert isinstance(payload["date"]["start"], str)
+    assert payload["date"]["start"].count(":") == 2
+    assert not [warning for warning in recwarn if issubclass(warning.category, DeprecationWarning)]
 
 
 def test_prepare_property_payload_skips_empty_or_unknown_values(mock_config):
@@ -669,6 +714,94 @@ def test_build_review_brief_summarizes_best_of_n_selection_quality(mock_config):
     ]
     assert f"선택 품질: {expected_summary}" in bullets
     assert f"수정 플랜: {expected_edit_plan}" in bullets
+
+
+def test_build_review_brief_surfaces_provider_failure_triage(mock_config):
+    uploader = NotionUploader(mock_config)
+    provider_failure_summary = {
+        "total_failures": 2,
+        "providers_attempted": ["gemini", "openai"],
+        "categories": {"rate_limit": 1, "auth": 1},
+        "circuit_breaker_providers": ["openai"],
+        "retryable_count": 1,
+        "non_retryable_count": 1,
+        "primary_failure": {
+            "provider": "openai",
+            "model": "gpt-4o-mini",
+            "category": "auth",
+            "retryable": False,
+            "circuit_breaker_candidate": True,
+            "error_preview": "401 invalid api key",
+            "operator_action": "Check provider API key, env wiring, and enabled flags before rerunning.",
+        },
+        "primary_operator_action": "Check provider API key, env wiring, and enabled flags before rerunning.",
+    }
+    post_data = {
+        "url": "https://example.com/post",
+        "draft_provider_failure_summary": provider_failure_summary,
+    }
+    drafts = {
+        "twitter": "초안은 fallback으로 생성됐지만 한 provider는 실패했습니다.",
+        "creator_take": "운영자가 먼저 provider 상태를 확인해야 하는 후보입니다.",
+    }
+    analysis = {
+        "selection_summary": "provider failure까지 같이 검토해야 하는 초안",
+        "empathy_anchor": "연봉 비교 댓글",
+    }
+
+    review_brief = uploader._build_review_brief(post_data, drafts, analysis)
+
+    expected_primary = (
+        "primary_failure: provider=openai, model=gpt-4o-mini, category=auth, "
+        "retryable=false, circuit_breaker=true, error=401 invalid api key"
+    )
+    expected_action = "primary_operator_action: Check provider API key, env wiring, and enabled flags before rerunning."
+    expected_summary = (
+        "provider_failure_summary: total_failures=2; categories=auth=1, rate_limit=1; "
+        "providers=gemini, openai; circuit_breaker=openai; non_retryable_count=1; retryable_count=1"
+    )
+    assert review_brief["provider_failure_triage_lines"] == [
+        expected_primary,
+        expected_action,
+        expected_summary,
+    ]
+
+    memo = uploader._build_upload_memo(post_data, "https://example.com/post", review_brief, analysis, "")
+    assert "Provider failure triage" in memo
+    assert expected_primary in memo
+    assert expected_action in memo
+
+    blocks = uploader._build_summary_section_blocks(post_data, review_brief, analysis, "", drafts)
+    bullets = [
+        block["bulleted_list_item"]["rich_text"][0]["text"]["content"]
+        for block in blocks
+        if block.get("type") == "bulleted_list_item"
+    ]
+    assert "Provider failure triage" in bullets
+    assert expected_primary in bullets
+    assert expected_action in bullets
+    assert expected_summary in bullets
+
+
+def test_provider_failure_triage_falls_back_to_draft_summary(mock_config):
+    uploader = NotionUploader(mock_config)
+    drafts = {
+        "_provider_failure_summary": {
+            "primary_failure": {
+                "provider": "gemini",
+                "category": "rate_limit",
+                "retryable": True,
+            },
+            "primary_operator_action": "Wait for provider rate-limit reset before retrying.",
+        }
+    }
+
+    lines = uploader._build_provider_failure_triage_lines({}, drafts)
+
+    assert lines == [
+        "primary_failure: provider=gemini, category=rate_limit, retryable=true",
+        "primary_operator_action: Wait for provider rate-limit reset before retrying.",
+    ]
 
 
 def test_build_selection_quality_summary_marks_copy_ready_clean_winner(mock_config):
@@ -1331,6 +1464,7 @@ async def test_ensure_schema_exception_sets_error(mock_config):
     from config import ERROR_NOTION_SCHEMA_FETCH_FAILED
 
     uploader = NotionUploader(mock_config)
+    uploader.client = object()
     uploader._safe_notion_call = AsyncMock(side_effect=RuntimeError("connection refused"))
 
     res = await uploader.ensure_schema()
@@ -1340,8 +1474,8 @@ async def test_ensure_schema_exception_sets_error(mock_config):
 
 
 @pytest.mark.asyncio
-@patch("httpx.AsyncClient.post")
-async def test_query_collection_with_filter_and_sorts(mock_post, mock_config):
+@patch("httpx.AsyncClient")
+async def test_query_collection_with_filter_and_sorts(mock_client_cls, mock_config):
     """filter, sorts 파라미터가 body에 포함되는지 확인."""
     with patch.dict(os.environ, clear=True):
         uploader = NotionUploader(mock_config)
@@ -1351,20 +1485,21 @@ async def test_query_collection_with_filter_and_sorts(mock_post, mock_config):
         mock_resp = MagicMock()
         mock_resp.json.return_value = {"results": []}
         mock_resp.raise_for_status = MagicMock()
-        mock_post.return_value = mock_resp
+        mock_http = _mock_async_http_client(mock_client_cls, response=mock_resp)
 
     flt = {"property": "Status", "status": {"equals": "Draft"}}
     srt = [{"property": "Date", "direction": "descending"}]
     await uploader.query_collection(filter=flt, sorts=srt)
 
-    args, kwargs = mock_post.call_args
+    mock_client_cls.assert_called_once_with(timeout=30)
+    args, kwargs = mock_http.post.call_args
     assert kwargs["json"]["filter"] == flt
     assert kwargs["json"]["sorts"] == srt
 
 
 @pytest.mark.asyncio
-@patch("httpx.AsyncClient.post")
-async def test_query_collection_data_source_endpoint(mock_post, mock_config):
+@patch("httpx.AsyncClient")
+async def test_query_collection_data_source_endpoint(mock_client_cls, mock_config):
     """collection_kind=data_source 시 data_sources 엔드포인트 사용."""
     with patch.dict(os.environ, clear=True):
         uploader = NotionUploader(mock_config)
@@ -1374,11 +1509,12 @@ async def test_query_collection_data_source_endpoint(mock_post, mock_config):
         mock_resp = MagicMock()
         mock_resp.json.return_value = {"results": []}
         mock_resp.raise_for_status = MagicMock()
-        mock_post.return_value = mock_resp
+        mock_http = _mock_async_http_client(mock_client_cls, response=mock_resp)
 
     await uploader.query_collection()
 
-    args, kwargs = mock_post.call_args
+    mock_client_cls.assert_called_once_with(timeout=30)
+    args, kwargs = mock_http.post.call_args
     assert "data_sources" in args[0]
 
 
@@ -1407,6 +1543,7 @@ async def test_ensure_schema_already_ready_returns_true(mock_config):
 async def test_ensure_schema_validation_fails_sets_mismatch_error(mock_config):
     """schema prop 검증 실패 시 ERROR_NOTION_SCHEMA_MISMATCH 설정 후 False 반환."""
     uploader = NotionUploader(mock_config)
+    uploader.client = object()
     uploader._retrieve_collection = AsyncMock(return_value={"properties": {"PropA": {}}})
     uploader._auto_detect_props = MagicMock(return_value={"PropA": "Detected"})
     uploader._resolve_props = MagicMock(return_value={"PropA": "Resolved"})
@@ -1516,8 +1653,8 @@ async def test_update_page_properties_retries_on_502(mock_sleep, mock_ensure_sch
 
 @pytest.mark.asyncio
 @patch("pipeline.notion_upload.NotionUploader.ensure_schema", new_callable=AsyncMock)
-@patch("httpx.AsyncClient.patch")
-async def test_update_collection_properties_uses_database_endpoint(mock_patch, mock_ensure_schema, mock_config):
+@patch("httpx.AsyncClient")
+async def test_update_collection_properties_uses_database_endpoint(mock_client_cls, mock_ensure_schema, mock_config):
     with patch.dict(os.environ, {"NOTION_DATABASE_ID": "test_db_id"}, clear=True):
         uploader = NotionUploader(mock_config)
     mock_ensure_schema.return_value = True
@@ -1526,13 +1663,14 @@ async def test_update_collection_properties_uses_database_endpoint(mock_patch, m
     mock_resp = MagicMock()
     mock_resp.json.return_value = {"id": "test_db_id"}
     mock_resp.raise_for_status = MagicMock()
-    mock_patch.return_value = mock_resp
+    mock_http = _mock_async_http_client(mock_client_cls, response=mock_resp, method="patch")
 
     payload = {"검토 포인트": {"rich_text": {}}}
     result = await uploader.update_collection_properties(payload)
 
     assert result == {"id": "test_db_id"}
-    args, kwargs = mock_patch.call_args
+    mock_client_cls.assert_called_once_with(timeout=30)
+    args, kwargs = mock_http.patch.call_args
     assert "databases/test_db_id" in args[0]
     assert kwargs["json"] == {"properties": payload}
     assert mock_ensure_schema.await_count == 2

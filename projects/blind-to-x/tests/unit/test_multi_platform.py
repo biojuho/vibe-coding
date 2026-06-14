@@ -14,7 +14,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-
 # ── 1. draft_generator: Threads + Blog 프롬프트 & 파싱 ──────────────────
 
 
@@ -30,7 +29,7 @@ class TestDraftGeneratorMultiPlatform:
                 "threads_style": {"tone": "캐주얼톤", "max_length": 500, "hashtags_count": 3},
                 "naver_blog_style": {"tone": "정보톤", "min_length": 1500, "max_length": 3000, "seo_tags_count": 15},
                 "llm.strategy": "fallback",
-                "llm.providers": None,
+                "llm.providers": ["anthropic", "gemini", "xai", "openai"],
                 "llm.max_retries_per_provider": 2,
                 "llm.request_timeout_seconds": 45,
                 "anthropic.api_key": "",
@@ -227,8 +226,9 @@ class TestConfigMultiPlatform:
 
     @pytest.fixture
     def config_data(self):
-        import yaml
         from pathlib import Path
+
+        import yaml
 
         config_path = Path(__file__).resolve().parents[2] / "config.yaml"
         if not config_path.exists():

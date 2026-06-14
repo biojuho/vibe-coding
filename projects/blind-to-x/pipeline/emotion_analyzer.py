@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
@@ -72,9 +73,17 @@ class EmotionProfile:
     confidence: float = 0.0
 
 
+def _kote_disabled_by_env() -> bool:
+    return str(os.getenv("BLIND_TO_X_DISABLE_KOTE", "")).strip().lower() in {"1", "true", "yes", "on"}
+
+
 def _get_classifier():
     """KOTE 분류기 싱글톤. 로드 실패 시 None."""
     global _classifier, _load_attempted
+    if _kote_disabled_by_env():
+        _load_attempted = True
+        _classifier = None
+        return None
     if _load_attempted:
         return _classifier
     _load_attempted = True
@@ -100,8 +109,11 @@ def analyze_emotions(text: str, top_k: int = 5) -> list[dict[str, float]]:
     Returns:
         [{"label": "화남/분노", "score": 0.92}, ...]
     """
+    if not text or not text.strip():
+        return []
+
     clf = _get_classifier()
-    if clf is None or not text or not text.strip():
+    if clf is None:
         return []
 
     try:

@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import json
 import os
+
+# Ensure the project root is importable and 'main' resolves to blind-to-x/main.py
+import sys
 import time
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
@@ -10,30 +14,36 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-# Ensure the project root is importable and 'main' resolves to blind-to-x/main.py
-import sys
-
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from pipeline.bootstrap import init_scrapers as _init_scrapers
+from pipeline.bootstrap import resolve_input_sources as _resolve_input_sources
 from pipeline.cli import (
     _apply_recommended_source_fallback,
+    _is_process_alive,
     _log_ready_source_warnings,
     _log_source_preflight_problem_actions,
+    _mark_source_preflight_cli_overrides,
     _resolve_source_preflight_sources,
-    acquire_lock as _acquire_lock,
-    _is_process_alive,
     _source_preflight_requested,
     _source_preflight_should_continue,
+)
+from pipeline.cli import (
+    acquire_lock as _acquire_lock,
+)
+from pipeline.cli import (
     build_parser as _build_parser,
+)
+from pipeline.cli import (
     run_main as _run_main,
+)
+from pipeline.cli import (
     run_source_preflight_command as _run_source_preflight_command,
 )
 from pipeline.runner import handle_single_commands as _handle_single_commands
-from pipeline.bootstrap import init_scrapers as _init_scrapers, resolve_input_sources as _resolve_input_sources
 from pipeline.stdout_encoding import should_reconfigure_stdout_to_utf8
-
 
 # ---------------------------------------------------------------------------
 # main.py stdout encoding policy
@@ -125,6 +135,7 @@ class TestBuildParser:
                 "--source",
                 "ppomppu",
                 "--source-preflight-fail-on-problem",
+                "--source-preflight-print-options",
                 "--source-preflight-timeout-ms",
                 "5000",
                 "--source-preflight-output",
@@ -145,6 +156,7 @@ class TestBuildParser:
         assert args.source_preflight is True
         assert args.source == "ppomppu"
         assert args.source_preflight_fail_on_problem is True
+        assert args.source_preflight_print_options is True
         assert args.source_preflight_timeout_ms == 5000
         assert args.source_preflight_output == Path(".tmp/preflight.json")
         assert args.source_preflight_screenshot_dir == Path("screenshots/preflight")
@@ -160,6 +172,7 @@ class TestBuildParser:
 
         assert args.require_source_ready is True
         assert args.source_preflight is False
+        assert args.source_preflight_print_options is False
         assert args.source == "ppomppu"
         assert args.source_preflight_failure_dir == Path(".tmp/failures/source_preflight")
 
@@ -258,6 +271,16 @@ class TestSourcePreflight:
         assert _source_preflight_requested(SimpleNamespace(source_preflight=False, require_source_ready=False)) is False
         assert _source_preflight_requested(SimpleNamespace(source_preflight=True, require_source_ready=False)) is True
         assert _source_preflight_requested(SimpleNamespace(source_preflight=False, require_source_ready=True)) is True
+        assert (
+            _source_preflight_requested(
+                SimpleNamespace(
+                    source_preflight=False,
+                    require_source_ready=False,
+                    source_preflight_print_options=True,
+                )
+            )
+            is True
+        )
 
         assert _source_preflight_should_continue(SimpleNamespace(require_source_ready=False), 0) is False
         assert _source_preflight_should_continue(SimpleNamespace(require_source_ready=True), 0) is True
@@ -358,6 +381,7 @@ class TestSourcePreflight:
                         "source": "ppomppu",
                         "status": "timeout",
                         "action": "Retry once with a higher --timeout-ms.",
+                        "operator_action_required": True,
                         "evidence": {
                             "error": "Timeout 12000ms exceeded",
                             "exception_type": "TimeoutError",
@@ -365,6 +389,16 @@ class TestSourcePreflight:
                             "screenshot_path": "screenshots/source_preflight/ppomppu.png",
                             "failure_report_path": ".tmp/failures/source_preflight/ppomppu-timeout.json",
                         },
+                        "evidence_review_order": [
+                            "failure_report_path",
+                            "screenshot_path",
+                            "html_snapshot_path",
+                            "exception_type",
+                            "error",
+                        ],
+                        "repair_commands": [
+                            "py -3 scripts/source_preflight_evidence_doctor.py --input .tmp/source_browser_preflight.json"
+                        ],
                     }
                 ]
             }
@@ -379,11 +413,39 @@ class TestSourcePreflight:
         assert "Source preflight problem action" in message
         assert "source=ppomppu" in message
         assert "status=timeout" in message
+        assert "operator_action_required=true" in message
         assert "action=Retry once with a higher --timeout-ms." in message
+        assert message.index("operator_action_required=true") < message.index("action=Retry once")
         assert message.index("failure_report_path=") < message.index("screenshot_path=")
         assert message.index("screenshot_path=") < message.index("html_snapshot_path=")
         assert message.index("html_snapshot_path=") < message.index("exception_type=TimeoutError")
         assert message.index("exception_type=TimeoutError") < message.index("error=Timeout 12000ms exceeded")
+        assert (
+            "evidence_review_order=failure_report_path,screenshot_path,html_snapshot_path,exception_type,error"
+            in message
+        )
+        assert "repair_commands=py -3 scripts/source_preflight_evidence_doctor.py" in message
+
+    def test_source_preflight_problem_actions_parse_string_false_required_flag(self, caplog):
+        report = {
+            "summary": {
+                "problem_actions": [
+                    {
+                        "source": "blind",
+                        "status": "blocked",
+                        "action": "Inspect legacy action only.",
+                        "operator_action_required": "false",
+                    }
+                ]
+            }
+        }
+
+        with caplog.at_level("WARNING", logger="pipeline.cli"):
+            logged_count = _log_source_preflight_problem_actions(report)
+
+        assert logged_count == 1
+        assert "operator_action_required=false" in caplog.records[0].message
+        assert "operator_action_required=true" not in caplog.records[0].message
 
     def test_resolve_source_preflight_sources_filters_unsupported(self):
         config = MagicMock()
@@ -428,6 +490,10 @@ class TestSourcePreflight:
                             "status": "blocked",
                             "action": "Use a ready fallback source.",
                             "evidence": {"failure_report_path": ".tmp/failures/source_preflight/blind-blocked.json"},
+                            "repair_commands": [
+                                "py -3 scripts/source_preflight_evidence_doctor.py "
+                                "--input .tmp/source_browser_preflight.json"
+                            ],
                         }
                     ],
                     "ready_warnings": [
@@ -481,7 +547,167 @@ class TestSourcePreflight:
         assert "Source preflight ready warning" in caplog.text
         assert "Source preflight problem action" in caplog.text
         assert "failure_report_path=.tmp/failures/source_preflight/blind-blocked.json" in caplog.text
+        assert "repair_commands=py -3 scripts/source_preflight_evidence_doctor.py" in caplog.text
         assert "source=ppomppu" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_source_preflight_command_uses_config_defaults_when_cli_omits_them(self, monkeypatch, caplog):
+        calls = {}
+
+        async def fake_run_source_preflight(**kwargs):
+            calls.update(kwargs)
+            return {"summary": {"ok": False, "ready_sources": ["ppomppu"], "recommended_source": "ppomppu"}}
+
+        monkeypatch.setattr("pipeline.cli.run_source_preflight", fake_run_source_preflight)
+        config = MagicMock()
+        config.get.side_effect = lambda key, default=None: {
+            "input_sources": ["ppomppu"],
+            "content_strategy.primary_source": "ppomppu",
+            "source_preflight.timeout_ms": 3456,
+            "source_preflight.output_path": ".tmp/config-preflight.json",
+            "source_preflight.screenshot_dir": "screenshots/config-preflight",
+            "source_preflight.failure_dir": ".tmp/failures/config-preflight",
+            "source_preflight.trace_dir": ".tmp/traces/config-preflight",
+            "source_preflight.click_through_default": True,
+            "source_preflight.use_recommended_source_default": True,
+        }.get(key, default)
+        parser = _build_parser()
+        argv = ["--require-source-ready", "--source", "ppomppu"]
+        args = _mark_source_preflight_cli_overrides(parser.parse_args(argv), argv)
+
+        with caplog.at_level("INFO", logger="pipeline.cli"):
+            result = await _run_source_preflight_command(config, args)
+
+        assert result == 0
+        assert calls["timeout_ms"] == 3456
+        assert calls["output_path"] == Path(".tmp/config-preflight.json")
+        assert calls["screenshot_dir"] == Path("screenshots/config-preflight")
+        assert calls["failure_dir"] == Path(".tmp/failures/config-preflight")
+        assert calls["trace_dir"] == Path(".tmp/traces/config-preflight")
+        assert calls["click_through"] is True
+        assert args.source_preflight_use_recommended is True
+        assert "Source preflight effective options" in caplog.text
+        assert "sources=ppomppu" in caplog.text
+        assert "timeout_ms=3456" in caplog.text
+        assert "output_path=.tmp/config-preflight.json" in caplog.text
+        assert "config_defaults=" in caplog.text
+        assert "click_through" in caplog.text
+        assert "use_recommended_source" in caplog.text
+        assert "cli_overrides=-" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_source_preflight_command_cli_values_override_config_defaults(self, monkeypatch, caplog):
+        calls = {}
+
+        async def fake_run_source_preflight(**kwargs):
+            calls.update(kwargs)
+            return {"summary": {"ok": True}}
+
+        monkeypatch.setattr("pipeline.cli.run_source_preflight", fake_run_source_preflight)
+        config = MagicMock()
+        config.get.side_effect = lambda key, default=None: {
+            "input_sources": ["ppomppu"],
+            "content_strategy.primary_source": "ppomppu",
+            "source_preflight.timeout_ms": 3456,
+            "source_preflight.output_path": ".tmp/config-preflight.json",
+            "source_preflight.screenshot_dir": "screenshots/config-preflight",
+            "source_preflight.failure_dir": ".tmp/failures/config-preflight",
+            "source_preflight.trace_dir": ".tmp/traces/config-preflight",
+            "source_preflight.click_through_default": False,
+        }.get(key, default)
+        parser = _build_parser()
+        argv = [
+            "--source-preflight",
+            "--source",
+            "ppomppu",
+            "--source-preflight-timeout-ms",
+            "7890",
+            "--source-preflight-output",
+            ".tmp/cli-preflight.json",
+            "--source-preflight-screenshot-dir",
+            "screenshots/cli-preflight",
+            "--source-preflight-failure-dir",
+            ".tmp/failures/cli-preflight",
+            "--source-preflight-trace-dir",
+            ".tmp/traces/cli-preflight",
+            "--source-preflight-click-through",
+        ]
+        args = _mark_source_preflight_cli_overrides(parser.parse_args(argv), argv)
+
+        with caplog.at_level("INFO", logger="pipeline.cli"):
+            result = await _run_source_preflight_command(config, args)
+
+        assert result == 0
+        assert calls["timeout_ms"] == 7890
+        assert calls["output_path"] == Path(".tmp/cli-preflight.json")
+        assert calls["screenshot_dir"] == Path("screenshots/cli-preflight")
+        assert calls["failure_dir"] == Path(".tmp/failures/cli-preflight")
+        assert calls["trace_dir"] == Path(".tmp/traces/cli-preflight")
+        assert calls["click_through"] is True
+        assert "Source preflight effective options" in caplog.text
+        assert "timeout_ms=7890" in caplog.text
+        assert "output_path=.tmp/cli-preflight.json" in caplog.text
+        assert "cli_overrides=click_through,failure_dir,output_path,screenshot_dir,timeout_ms,trace_dir" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_source_preflight_print_options_outputs_json_without_browser(self, monkeypatch, capsys):
+        fake_run_source_preflight = AsyncMock()
+        monkeypatch.setattr("pipeline.cli.run_source_preflight", fake_run_source_preflight)
+        config = MagicMock()
+        config.get.side_effect = lambda key, default=None: {
+            "input_sources": ["ppomppu"],
+            "content_strategy.primary_source": "ppomppu",
+            "source_preflight.timeout_ms": 3456,
+            "source_preflight.screenshot_dir": "screenshots/config-preflight",
+            "source_preflight.failure_dir": ".tmp/failures/config-preflight",
+            "source_preflight.trace_dir": ".tmp/traces/config-preflight",
+            "source_preflight.use_recommended_source_default": True,
+        }.get(key, default)
+        parser = _build_parser()
+        argv = [
+            "--source-preflight-print-options",
+            "--source",
+            "ppomppu",
+            "--source-preflight-timeout-ms",
+            "7890",
+            "--source-preflight-output",
+            ".tmp/cli-preflight.json",
+            "--source-preflight-headed",
+            "--source-preflight-click-through",
+        ]
+        args = _mark_source_preflight_cli_overrides(parser.parse_args(argv), argv)
+
+        result = await _run_source_preflight_command(config, args)
+
+        assert result == 0
+        fake_run_source_preflight.assert_not_awaited()
+        summary = json.loads(capsys.readouterr().out)
+        assert summary["sources"] == ["ppomppu"]
+        assert summary["timeout_ms"] == 7890
+        assert summary["output_path"] == ".tmp/cli-preflight.json"
+        assert summary["screenshot_dir"] == "screenshots/config-preflight"
+        assert summary["failure_dir"] == ".tmp/failures/config-preflight"
+        assert summary["trace_dir"] == ".tmp/traces/config-preflight"
+        assert summary["viewport"] == "desktop"
+        assert summary["headed"] is True
+        assert summary["click_through"] is True
+        assert summary["use_recommended_source"] is True
+        assert summary["origins"]["timeout_ms"] == "cli"
+        assert summary["origins"]["output_path"] == "cli"
+        assert summary["origins"]["screenshot_dir"] == "config"
+        assert summary["cli_overrides"] == ["click_through", "output_path", "timeout_ms"]
+        assert summary["config_defaults"] == [
+            "failure_dir",
+            "screenshot_dir",
+            "trace_dir",
+            "use_recommended_source",
+        ]
+        assert summary["browser_probe_will_run"] is False
+        assert summary["notion_writes"] is False
+        assert summary["x_posts"] is False
+        assert summary["read_only"] is True
+        assert summary["auto_apply_allowed"] is False
+        assert summary["manual_strategy_review_required"] is True
 
     @pytest.mark.asyncio
     async def test_source_preflight_command_rejects_unsupported_source(self, monkeypatch):

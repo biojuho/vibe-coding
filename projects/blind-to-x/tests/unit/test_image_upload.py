@@ -7,7 +7,6 @@ from unittest.mock import patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -37,12 +36,14 @@ class TestOptimizeImage:
 
     def test_large_png_converted_to_jpeg(self, tmp_path):
         from PIL import Image
+
         from pipeline.image_upload import _optimize_image_for_upload
 
-        # Create a large-ish PNG image by using random bytes
-        size = 2000 * 2000 * 3
+        # Create a PNG that requires JPEG conversion without spending seconds
+        # encoding oversized random image data.
+        size = 800 * 800 * 3
         data = os.urandom(size)
-        img = Image.frombytes("RGB", (2000, 2000), data)
+        img = Image.frombytes("RGB", (800, 800), data)
 
         p = tmp_path / "big.png"
         img.save(str(p), format="PNG")
@@ -55,11 +56,12 @@ class TestOptimizeImage:
 
     def test_rgba_image_converted(self, tmp_path):
         from PIL import Image
+
         from pipeline.image_upload import _optimize_image_for_upload
 
         # RGBA image
-        data = os.urandom(1000 * 1000 * 4)
-        img = Image.frombytes("RGBA", (1000, 1000), data)
+        data = os.urandom(800 * 800 * 4)
+        img = Image.frombytes("RGBA", (800, 800), data)
         p = tmp_path / "rgba.png"
         img.save(str(p), format="PNG")
 
@@ -69,10 +71,11 @@ class TestOptimizeImage:
 
     def test_palette_mode_image(self, tmp_path):
         from PIL import Image
+
         from pipeline.image_upload import _optimize_image_for_upload
 
-        data = os.urandom(1000 * 1000 * 3)
-        img = Image.frombytes("RGB", (1000, 1000), data).convert("P")
+        data = os.urandom(800 * 800 * 3)
+        img = Image.frombytes("RGB", (800, 800), data).convert("P")
         p = tmp_path / "palette.png"
         img.save(str(p), format="PNG")
 
@@ -81,10 +84,11 @@ class TestOptimizeImage:
 
     def test_grayscale_image(self, tmp_path):
         from PIL import Image
+
         from pipeline.image_upload import _optimize_image_for_upload
 
-        data = os.urandom(1000 * 1000)
-        img = Image.frombytes("L", (1000, 1000), data)
+        data = os.urandom(800 * 800)
+        img = Image.frombytes("L", (800, 800), data)
         p = tmp_path / "gray.png"
         img.save(str(p), format="PNG")
         png_size = os.path.getsize(str(p))
@@ -95,32 +99,36 @@ class TestOptimizeImage:
 
     def test_resolution_shrink_when_quality_not_enough(self, tmp_path):
         from PIL import Image
+
         from pipeline.image_upload import _optimize_image_for_upload
 
-        # Create a very large random image that can't be compressed enough
-        data = os.urandom(4000 * 4000 * 3)
-        img = Image.frombytes("RGB", (4000, 4000), data)
+        # Quality reduction alone cannot meet this limit; the optimizer must
+        # enter its resolution-shrink path and produce a bounded JPEG.
+        data = os.urandom(800 * 800 * 3)
+        img = Image.frombytes("RGB", (800, 800), data)
         p = tmp_path / "huge.png"
         img.save(str(p), format="PNG")
 
         # Very aggressive limit — will need resolution shrink
-        result = _optimize_image_for_upload(str(p), max_bytes=5_000)
-        if result != str(p):
-            assert os.path.getsize(result) <= 5_000 or result == str(p)
+        result = _optimize_image_for_upload(str(p), max_bytes=50_000)
+        assert result != str(p)
+        assert result.endswith(".jpg")
+        assert os.path.getsize(result) <= 50_000
 
     def test_corrupted_file_returns_original(self, tmp_path):
         from pipeline.image_upload import _optimize_image_for_upload
 
         p = tmp_path / "broken.png"
-        p.write_bytes(b"not a real image" * 1000000)  # >9MB of junk
+        p.write_bytes(b"not a real image" * 1000)
         _optimize_image_for_upload(str(p), max_bytes=100)
 
     def test_save_exception_quality_loop(self, tmp_path, monkeypatch):
         from PIL import Image
+
         from pipeline.image_upload import _optimize_image_for_upload
 
-        data = os.urandom(1000 * 1000 * 3)
-        img = Image.frombytes("RGB", (1000, 1000), data)
+        data = os.urandom(600 * 600 * 3)
+        img = Image.frombytes("RGB", (600, 600), data)
         p = tmp_path / "error_qual.png"
         img.save(str(p), format="PNG")
 
@@ -134,10 +142,11 @@ class TestOptimizeImage:
 
     def test_save_exception_resize_loop(self, tmp_path, monkeypatch):
         from PIL import Image
+
         from pipeline.image_upload import _optimize_image_for_upload
 
-        data = os.urandom(2000 * 2000 * 3)
-        img = Image.frombytes("RGB", (2000, 2000), data)
+        data = os.urandom(800 * 800 * 3)
+        img = Image.frombytes("RGB", (800, 800), data)
         p = tmp_path / "error_res.png"
         img.save(str(p), format="PNG")
 

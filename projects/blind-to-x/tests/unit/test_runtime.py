@@ -4,17 +4,15 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-
 from pipeline.process_stages.runtime import (
-    SPAM_KEYWORDS,
+    DRAFT_STYLE_LABELS,
     INAPPROPRIATE_TITLE_KEYWORDS,
     REJECT_EMOTION_AXES,
-    DRAFT_STYLE_LABELS,
+    SPAM_KEYWORDS,
     extract_preferred_tweet_text,
-    post_to_twitter,
     get_viral_filter,
+    post_to_twitter,
 )
-
 
 # ── extract_preferred_tweet_text ─────────────────────────────────────
 

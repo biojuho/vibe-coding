@@ -1,6 +1,7 @@
 """P3 소스 확장 단위 테스트."""
 
 import os
+
 import pytest
 
 _BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -14,6 +15,7 @@ class TestSourceHintsConfig:
     def test_all_sources_in_hints(self):
         """config.yaml input_sources에 등록된 모든 소스가 source_hints에 존재."""
         import yaml
+
         from pipeline.rules_loader import load_rules
 
         with open(os.path.join(_BASE, "config.yaml"), encoding="utf-8") as f:

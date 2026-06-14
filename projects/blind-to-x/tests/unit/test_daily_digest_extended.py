@@ -17,10 +17,9 @@ from pipeline.daily_digest import (
     DailyDigest,
     DigestEntry,
     DigestGenerator,
-    send_digest_telegram,
     generate_and_send,
+    send_digest_telegram,
 )
-
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
@@ -83,6 +82,12 @@ class TestFallbackSummary:
 
 
 class TestGenerateSummary:
+    def _patch_gemini(self):
+        fake_client = MagicMock()
+        fake_genai = MagicMock()
+        fake_genai.Client.return_value = fake_client
+        return patch.dict("sys.modules", {"google": MagicMock(genai=fake_genai), "google.genai": fake_genai})
+
     @pytest.mark.asyncio
     async def test_no_gemini_key_uses_fallback(self):
         gen = DigestGenerator.__new__(DigestGenerator)
@@ -103,25 +108,25 @@ class TestGenerateSummary:
         gen._gemini_key = "fake-key"
 
         digest = _make_digest()
-        with patch("pipeline.daily_digest.asyncio.to_thread", side_effect=Exception("API error")):
+        with self._patch_gemini(), patch("pipeline.daily_digest.asyncio.to_thread", side_effect=Exception("API error")):
             summary = await gen._generate_summary(digest)
             assert "10 posts collected" in summary  # fallback
 
     @pytest.mark.asyncio
     async def test_gemini_timeout_uses_fallback(self):
         gen = DigestGenerator.__new__(DigestGenerator)
-        gen._config = _make_config(**{"digest.summary_timeout_seconds": 1})
+        gen._config = _make_config()
         gen._max_entries = 5
         gen._gemini_key = "fake-key"
-        gen._summary_timeout_sec = 1
+        gen._summary_timeout_sec = 0.01
 
         digest = _make_digest()
 
         async def slow_to_thread(*args, **kwargs):  # noqa: ANN002, ANN003
             del args, kwargs
-            await asyncio.sleep(10)
+            await asyncio.sleep(1)
 
-        with patch("pipeline.daily_digest.asyncio.to_thread", side_effect=slow_to_thread):
+        with self._patch_gemini(), patch("pipeline.daily_digest.asyncio.to_thread", side_effect=slow_to_thread):
             summary = await gen._generate_summary(digest)
             assert "10 posts collected" in summary
 

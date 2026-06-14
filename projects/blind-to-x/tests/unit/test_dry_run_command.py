@@ -1,5 +1,7 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
 from pipeline.commands.dry_run import run_dry_run_single
 
 

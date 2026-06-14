@@ -28,7 +28,6 @@ if str(ROOT) not in sys.path:
 
 from pipeline.process_stages.context import ProcessRunContext, build_process_result
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Shared helpers
 # ─────────────────────────────────────────────────────────────────────────────

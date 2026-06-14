@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from config import ERROR_DUPLICATE_CONTENT, ERROR_DUPLICATE_URL, ERROR_NOTION_SCHEMA_MISMATCH
+from config import as_bool as _as_bool
 from pipeline.dedup import find_similar_in_notion
 from pipeline.notion_retry_diagnostics import attach_notion_retry_diagnostics
 
 from .context import ProcessRunContext, mark_stage
 from .runtime import logger
-from config import as_bool as _as_bool
 
 
 async def run_dedup_stage(

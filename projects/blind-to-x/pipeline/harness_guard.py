@@ -112,7 +112,7 @@ def create_sandbox_context(profile_name: str = "blind-to-x"):
         return None
 
     try:
-        from harness_sandbox import SandboxManager, SandboxConfig
+        from harness_sandbox import SandboxConfig, SandboxManager
 
         manager = SandboxManager()
         predefined = manager.get_predefined_profiles()

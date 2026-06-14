@@ -1,5 +1,6 @@
-import pytest
 from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from config import ERROR_SCRAPE_PARSE_FAILED
 from scrapers.jobplanet import JobplanetScraper

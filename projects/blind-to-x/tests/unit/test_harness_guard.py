@@ -23,7 +23,6 @@ from pipeline.harness_guard import (
     run_preflight,
 )
 
-
 # ── is_harness_enabled ──────────────────────────────────────────────────────
 
 

@@ -1,5 +1,7 @@
-import pytest
 from unittest.mock import AsyncMock, patch
+
+import pytest
+
 from scrapers.base import BrowserUnavailableError
 from scrapers.blind import BlindScraper
 

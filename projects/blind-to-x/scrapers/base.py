@@ -12,9 +12,11 @@ from curl_cffi.requests import AsyncSession
 
 try:
     # patchright: Playwright 드롭인 대체 — 더 강한 스텔스 (Cloudflare/DataDome 우회)
-    from patchright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
+    from patchright.async_api import TimeoutError as PlaywrightTimeoutError
+    from patchright.async_api import async_playwright
 except ImportError:
-    from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
+    from playwright.async_api import TimeoutError as PlaywrightTimeoutError
+    from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
 
 from config import ProxyManager
@@ -663,7 +665,7 @@ class BaseScraper:
         """Delete screenshots older than retention_days (0 = disabled)."""
         if self.retention_days <= 0:
             return
-        from datetime import timezone, timedelta
+        from datetime import timedelta, timezone
 
         cutoff = (datetime.now(timezone.utc) - timedelta(days=self.retention_days)).timestamp()
         removed = 0

@@ -127,6 +127,12 @@ def _format_provider_failure_summary(drafts: dict) -> str:
 
     providers = summary.get("providers_attempted")
     provider_text = ", ".join(str(provider) for provider in providers[:5]) if isinstance(providers, list) else ""
+    circuit_breaker_providers = summary.get("circuit_breaker_providers")
+    circuit_breaker_text = (
+        ", ".join(str(provider) for provider in circuit_breaker_providers[:5])
+        if isinstance(circuit_breaker_providers, list)
+        else ""
+    )
     primary_action = str(summary.get("primary_operator_action") or "").strip()
 
     parts = []
@@ -134,6 +140,8 @@ def _format_provider_failure_summary(drafts: dict) -> str:
         parts.append(f"providers={provider_text}")
     if category_text:
         parts.append(f"categories={category_text}")
+    if circuit_breaker_text:
+        parts.append(f"circuit_breaker={circuit_breaker_text}")
     if primary_action:
         parts.append(f"action={primary_action}")
     return "provider_failure_summary: " + "; ".join(parts) if parts else ""

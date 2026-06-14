@@ -200,8 +200,8 @@ class TestClassificationRulesYAML:
 
         [QA 수정] _loaded_rules에 직접 커스텀 topic_rules 주입.
         """
-        import pipeline.content_intelligence.rules as rules
         import pipeline.content_intelligence as ci
+        import pipeline.content_intelligence.rules as rules
 
         fake_rules = {"topic_rules": [{"label": "커스텀주제", "keywords": ["커스텀키워드1"]}]}
         monkeypatch.setattr(rules, "_loaded_rules", fake_rules)
@@ -317,6 +317,11 @@ class TestDraftGeneratorCache:
 class TestImageGeneratorDALLEFlag:
     """fallback_to_dalle: false 시 DALL-E가 호출되지 않는지 검증."""
 
+    def _patch_gemini_client(self):
+        fake_genai = MagicMock()
+        fake_genai.Client.return_value = MagicMock()
+        return patch.dict("sys.modules", {"google": MagicMock(genai=fake_genai), "google.genai": fake_genai})
+
     def _make_generator(self, fallback_to_dalle: bool):
         from pipeline.image_generator import ImageGenerator
 
@@ -354,7 +359,8 @@ class TestImageGeneratorDALLEFlag:
                 "gemini": {"api_key": "fake-gemini-key"},
             }
         )
-        gen = ImageGenerator(image_cfg)
+        with self._patch_gemini_client():
+            gen = ImageGenerator(image_cfg)
         gen.provider = "gemini"
         gen._gemini_client = MagicMock()
         gen.fallback_to_pollinations = False
@@ -399,6 +405,7 @@ class TestTwitterBackoff:
     async def test_rate_limit_retries_then_succeeds(self):
         """첫 번째 429 후 두 번째 시도에서 성공하는지 확인."""
         import tweepy
+
         from pipeline import twitter_poster as tp
 
         poster = self._make_poster()
@@ -424,6 +431,7 @@ class TestTwitterBackoff:
     async def test_rate_limit_max_retries_exhausted(self):
         """모든 재시도 후에도 429면 None 반환."""
         import tweepy
+
         from pipeline import twitter_poster as tp
 
         poster = self._make_poster()

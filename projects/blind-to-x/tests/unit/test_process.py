@@ -1,10 +1,11 @@
 """Tests for pipeline.process."""
 
-import pytest
 from unittest.mock import AsyncMock, patch
 
-from pipeline.process import process_single_post, calculate_run_metrics
+import pytest
+
 from config import ERROR_DUPLICATE_URL, ERROR_NOTION_SCHEMA_MISMATCH, ERROR_SCRAPE_FAILED
+from pipeline.process import calculate_run_metrics, process_single_post
 
 
 @pytest.mark.asyncio

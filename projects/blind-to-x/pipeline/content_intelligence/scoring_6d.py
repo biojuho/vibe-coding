@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 from pipeline.content_intelligence.rules import get_season_boost, get_source_hint
 from pipeline.content_intelligence.utils import _round_score
 
-
 DEFAULT_6D_WEIGHTS = {
     "freshness": 0.15,
     "social": 0.25,

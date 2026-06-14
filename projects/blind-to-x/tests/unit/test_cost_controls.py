@@ -10,7 +10,6 @@ if str(ROOT) not in sys.path:
 
 from pipeline.cost_db import CostDatabase  # noqa: E402
 from pipeline.cost_tracker import CostTracker  # noqa: E402
-from pipeline.draft_generator import TweetDraftGenerator  # noqa: E402
 from pipeline.process import process_single_post  # noqa: E402
 
 
@@ -95,6 +94,61 @@ def test_cost_tracker_uses_persisted_daily_totals():
     assert tracker.can_use_gemini_image() is False
 
 
+def test_cost_persistence_status_reports_in_memory_only_when_cost_db_unavailable(monkeypatch):
+    monkeypatch.setattr("pipeline.cost_tracker._try_get_cost_db", lambda: None)
+
+    tracker = CostTracker(FakeConfig({"limits": {"daily_api_budget_usd": 10.0}}))
+
+    assert tracker.get_cost_persistence_status() == {
+        "status": "in_memory_only",
+        "fail_open": True,
+        "event_count": 0,
+        "retained_event_count": 0,
+        "total_event_count": 0,
+        "operation_count": 0,
+        "operations": [],
+        "last_operation": "",
+        "last_error_type": "",
+        "error_types": [],
+        "operator_action": (
+            "Check .tmp/btx_costs.db permissions/locks; pipeline is using in-memory counters until DB recovers."
+        ),
+    }
+    assert "Cost Persistence: in-memory only (CostDB unavailable)" in tracker.get_summary()
+
+
+def test_cost_persistence_status_reports_sqlite_enabled_when_cost_db_is_healthy(monkeypatch):
+    class HealthyCostDb:
+        def get_today_summary(self):
+            return {
+                "total_usd": 0.0,
+                "gemini_image_count": 0,
+                "providers": [],
+            }
+
+        def get_cost_per_post(self, days=30):  # noqa: ARG002
+            return {"avg_cost_per_post": 0.0, "total_posts": 0}
+
+    monkeypatch.setattr("pipeline.cost_tracker._try_get_cost_db", HealthyCostDb)
+
+    tracker = CostTracker(FakeConfig({"limits": {"daily_api_budget_usd": 10.0}}))
+
+    assert tracker.get_cost_persistence_status() == {
+        "status": "sqlite_enabled",
+        "fail_open": False,
+        "event_count": 0,
+        "retained_event_count": 0,
+        "total_event_count": 0,
+        "operation_count": 0,
+        "operations": [],
+        "last_operation": "",
+        "last_error_type": "",
+        "error_types": [],
+        "operator_action": "",
+    }
+    assert "Cost Persistence: SQLite enabled" in tracker.get_summary()
+
+
 def test_cost_tracker_text_and_image_writes_are_fail_open(monkeypatch):
     class BrokenCostDb:
         def record_text_cost(self, **_kwargs):
@@ -148,10 +202,56 @@ def test_cost_tracker_summary_reports_cost_db_fail_open_diagnostics(monkeypatch)
     assert tracker.is_budget_exceeded() is False
     assert tracker.can_use_gemini_image() is True
 
+    status = tracker.get_cost_persistence_status()
+    assert status == {
+        "status": "degraded",
+        "fail_open": True,
+        "event_count": 3,
+        "retained_event_count": 3,
+        "total_event_count": 3,
+        "operation_count": 3,
+        "operations": [
+            "cost_tracker.record_text_cost",
+            "cost_tracker.get_today_summary",
+            "cost_tracker.get_gemini_image_count_today",
+        ],
+        "last_operation": "cost_tracker.get_gemini_image_count_today",
+        "last_error_type": "RuntimeError",
+        "error_types": ["RuntimeError"],
+        "operator_action": (
+            "Check .tmp/btx_costs.db permissions/locks; pipeline is using in-memory counters until DB recovers."
+        ),
+    }
+
     summary = tracker.get_summary()
     assert "Cost Persistence: degraded" in summary
+    assert "events=4, total_events=4" in summary
     assert "cost_tracker.record_text_cost" in summary
+    assert "Cost Persistence Last Error: operation=cost_tracker.get_cost_per_post error_type=RuntimeError" in summary
     assert "operator_action=Check .tmp/btx_costs.db permissions/locks" in summary
+
+
+def test_cost_persistence_status_reports_total_events_after_retention_limit(monkeypatch):
+    class BrokenCostDb:
+        def record_text_cost(self, **_kwargs):
+            raise RuntimeError("database is locked")
+
+    monkeypatch.setattr("pipeline.cost_tracker._try_get_cost_db", lambda: None)
+    tracker = CostTracker(FakeConfig({"limits": {"daily_api_budget_usd": 10.0}}))
+    tracker._cost_db = BrokenCostDb()
+
+    for _index in range(7):
+        tracker.add_text_generation_cost("openai", input_tokens=10, output_tokens=5)
+
+    status = tracker.get_cost_persistence_status()
+    assert status["event_count"] == 5
+    assert status["retained_event_count"] == 5
+    assert status["total_event_count"] == 7
+    assert status["operation_count"] == 1
+    assert status["operations"] == ["cost_tracker.record_text_cost"] * 5
+
+    summary = tracker.get_summary()
+    assert "events=5, total_events=8" in summary
 
 
 def test_record_draft_upserts_publish_state():
@@ -198,58 +298,62 @@ def test_record_draft_upserts_publish_state():
 from unittest.mock import patch  # noqa: E402
 
 
-@patch("pipeline.editorial_reviewer.EditorialReviewer")
-def test_review_only_skips_ai_image_by_default_and_records_draft(mock_reviewer_class):
-    mock_reviewer = mock_reviewer_class.return_value
-
-    # AsyncMock is automatically used if the patched method is async in 3.8+, but let's be safe:
-    async def mock_eval(*args, **kwargs):
-        return {
-            "action": "approve",
-            "revised_drafts": {"twitter": "revised tweet", "_provider_used": "gemini"},
-            "reason": "OK",
-        }
-
-    mock_reviewer.evaluate_and_rewrite = mock_eval
-
+def test_review_only_skips_ai_image_by_default_and_records_draft():
     image_generator = StubImageGenerator()
 
-    result = asyncio.run(
-        process_single_post(
-            "https://example.com/a",
-            StubScraper(),
-            StubImageUploader(),
-            image_generator=image_generator,
-            draft_generator=StubDraftGenerator(),
-            notion_uploader=StubNotionUploaderOk(),
-            config=FakeConfig(
-                {
-                    "content_strategy": {"require_human_approval": True},
-                    "ranking": {
-                        "final_rank_min": 60,
-                        "weights": {
-                            "scrape_quality": 0.35,
-                            "publishability": 0.40,
-                            "performance": 0.25,
+    async def skip_quality_gate(
+        ctx, drafts, image_prompt, draft_generator, top_tweets, output_formats, config, review_only
+    ):  # noqa: ARG001
+        return drafts, image_prompt, 0, None, []
+
+    async def skip_post_generation(ctx, drafts, draft_generator, config, components_loaded):  # noqa: ARG001
+        return drafts
+
+    with (
+        patch.dict(sys.modules, {"pipeline.image_generator": None}),
+        patch("pipeline.process_stages.generate_review_stage._run_quality_gate_retries", skip_quality_gate),
+        patch("pipeline.process_stages.generate_review_stage._run_post_generation_components", skip_post_generation),
+        patch(
+            "pipeline.process_stages.generate_review_stage._run_publish_repair_loop",
+            lambda ctx, drafts, config: (drafts, None),
+        ),
+    ):
+        result = asyncio.run(
+            process_single_post(
+                "https://example.com/a",
+                StubScraper(),
+                StubImageUploader(),
+                image_generator=image_generator,
+                draft_generator=StubDraftGenerator(),
+                notion_uploader=StubNotionUploaderOk(),
+                config=FakeConfig(
+                    {
+                        "content_strategy": {"require_human_approval": True},
+                        "ranking": {
+                            "final_rank_min": 60,
+                            "weights": {
+                                "scrape_quality": 0.35,
+                                "publishability": 0.40,
+                                "performance": 0.25,
+                            },
                         },
-                    },
-                    "review": {
-                        "auto_move_to_review_threshold": 65,
-                        "reject_on_missing_title": True,
-                        "reject_on_missing_content": True,
-                        "require_twitter_quality_pass": False,
-                    },
-                    "image": {
-                        "generate_ai_for_review": False,
-                        "generate_ai_for_blind": False,
-                    },
-                }
-            ),
-            source_name="blind",
-            feed_mode="popular",
-            review_only=True,
+                        "review": {
+                            "auto_move_to_review_threshold": 65,
+                            "reject_on_missing_title": True,
+                            "reject_on_missing_content": True,
+                            "require_twitter_quality_pass": False,
+                        },
+                        "image": {
+                            "generate_ai_for_review": False,
+                            "generate_ai_for_blind": False,
+                        },
+                    }
+                ),
+                source_name="blind",
+                feed_mode="popular",
+                review_only=True,
+            )
         )
-    )
 
     assert result["success"] is True
     assert image_generator.called == 0
@@ -265,6 +369,7 @@ def test_review_only_skips_ai_image_by_default_and_records_draft(mock_reviewer_c
 
 
 def test_draft_cache_persists_across_generator_instances(tmp_path):
+    from pipeline.draft_generator import TweetDraftGenerator
 
     cache_db = tmp_path / "draft_cache.db"
     config = FakeConfig(

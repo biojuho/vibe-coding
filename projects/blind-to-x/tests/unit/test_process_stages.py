@@ -20,8 +20,8 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from pipeline.process_stages.context import ProcessRunContext, build_process_result
 from pipeline.daily_queue_floor import DailyQueueFloorState
+from pipeline.process_stages.context import ProcessRunContext, build_process_result
 from pipeline.process_stages.generate_review_stage import (
     _append_publish_decision_log,
     _config_float,
@@ -31,7 +31,6 @@ from pipeline.process_stages.generate_review_stage import (
     _twitter_draft_text,
     run_generate_review_stage,
 )
-
 
 # ────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -203,8 +202,38 @@ class TestFetchStage:
         # 비활성화 시 무결성 게이트를 건너뛰고 통과
         assert result is True
 
+    # ════════════════════════════════════════════════════════════════════════════
+    def test_string_false_disables_integrity_check(self):
+        from pipeline.process_stages.fetch_stage import run_fetch_stage
 
-# ════════════════════════════════════════════════════════════════════════════
+        class _CfgScraper(_MinScraper):
+            class _Cfg:
+                def get(self, key, default=None):
+                    if key == "scrape_quality.integrity_check_enabled":
+                        return "false"
+                    return default
+
+            config = _Cfg()
+
+        ctx = _ctx()
+        scraper = _CfgScraper()
+        scraper.scrape_post = AsyncMock(return_value={"title": "ok", "content": "ok content", "url": ctx.url})
+        failed_verdict = {
+            "ok": False,
+            "category": "non_article",
+            "failure_reason": "called_integrity_classifier",
+            "matched": "fixture",
+        }
+
+        with patch(
+            "pipeline.process_stages.fetch_stage.classify_scrape_integrity", return_value=failed_verdict
+        ) as check:
+            result = self._run(run_fetch_stage(ctx, scraper, "blind", "popular"))
+
+        assert result is True
+        check.assert_not_called()
+
+
 # dedup_stage
 # ════════════════════════════════════════════════════════════════════════════
 
@@ -323,6 +352,29 @@ class TestDedupStage:
         assert ctx.result["notion_url"] == "(skipped-similar)"
 
     # ── 유사 콘텐츠 없음 → 통과 (lines 62-63) ───────────────────────────
+    def test_string_false_disables_notion_similarity_check(self):
+        from pipeline.process_stages.dedup_stage import run_dedup_stage
+
+        ctx = _ctx()
+        uploader = MagicMock()
+        uploader.is_duplicate = AsyncMock(return_value=False)
+
+        class _FakeConfig:
+            def get(self, key, default=None):
+                return {
+                    "dedup.notion_check_enabled": "false",
+                    "dedup.title_similarity_threshold": 0.6,
+                    "dedup.lookback_days": 14,
+                }.get(key, default)
+
+        mock_find = AsyncMock(return_value=[{"similarity": 0.85, "title": "similar"}])
+        with patch("pipeline.process_stages.dedup_stage.find_similar_in_notion", mock_find):
+            result = self._run(run_dedup_stage(ctx, uploader, _FakeConfig(), {"feed_title": "similar"}))
+
+        assert result is True
+        mock_find.assert_not_awaited()
+        assert ctx.stage_status.get("dedup", {}).get("status") == "completed"
+
     def test_no_similar_content_returns_true(self):
         from pipeline.process_stages.dedup_stage import run_dedup_stage
 
@@ -387,6 +439,35 @@ class TestFilterProfileStage:
             return mapping.get(key, default)
 
     # ── should_queue=False → 필터 거부 (lines 209-216) ───────────────────
+    def test_string_false_llm_viral_boost_is_disabled(self):
+        from pipeline.process_stages import filter_profile_stage as mod
+
+        class _Cfg:
+            def get(self, key, default=None):
+                if key == "ranking.llm_viral_boost":
+                    return "false"
+                if key == "ranking.weights":
+                    return {}
+                return default
+
+        class _Profile:
+            def to_dict(inner_self):  # noqa: N805
+                return self._stub_profile()
+
+        calls = []
+        ctx = _ctx()
+        ctx.post_data = {"title": "title"}
+        ctx.quality = {"score": 90.0}
+
+        def fake_build_content_profile(*args, **kwargs):
+            calls.append(kwargs["llm_viral_boost"])
+            return _Profile()
+
+        with patch.object(mod, "build_content_profile", fake_build_content_profile):
+            mod._build_content_profile_dict(ctx, _Cfg(), [])
+
+        assert calls == [False]
+
     def test_below_review_threshold_returns_false(self):
         from pipeline.process_stages.filter_profile_stage import run_filter_profile_stage
 
@@ -715,6 +796,14 @@ class TestEditorialGate:
         # 비활성이어도 진단 정보는 계속 기록
         assert "editorial_fit" in ctx.post_data
 
+    def test_string_false_disables_editorial_gate(self):
+        from pipeline.process_stages.filter_profile_stage import _check_editorial_fit
+
+        ctx = self._ctx_with(self._WEAK)
+        cfg = self._Cfg(**{"feed_filter.editorial_gate_enabled": "false"})
+        assert _check_editorial_fit(ctx, cfg) is True
+        assert "editorial_fit" in ctx.post_data
+
     def test_score_below_threshold_uses_distinct_reason(self):
         """hard_reject가 아니어도 점수 미달이면 별도 사유로 거부."""
         from pipeline.process_stages import filter_profile_stage as mod
@@ -725,6 +814,16 @@ class TestEditorialGate:
             result = mod._check_editorial_fit(ctx, self._Cfg())
         assert result is False
         assert ctx.result["failure_reason"] == "editorial_score_below_threshold"
+
+    def test_string_false_hard_reject_passes_when_score_is_sufficient(self):
+        from pipeline.process_stages import filter_profile_stage as mod
+
+        ctx = self._ctx_with(self._STRONG)
+        fake_fit = {"score": 70.0, "hard_reject": "false", "hard_reject_reasons": []}
+        with patch.object(mod, "evaluate_candidate_editorial_fit", return_value=fake_fit):
+            result = mod._check_editorial_fit(ctx, self._Cfg())
+        assert result is True
+        assert ctx.result.get("failure_reason") is None
 
     def test_min_editorial_score_is_configurable(self):
         from pipeline.process_stages import filter_profile_stage as mod
@@ -935,8 +1034,18 @@ class TestGenerateReviewStage:
             "total_failures": 2,
             "providers_attempted": ["gemini", "openai"],
             "categories": {"auth": 1, "rate_limit": 1},
+            "circuit_breaker_providers": ["openai"],
             "retryable_count": 1,
             "non_retryable_count": 1,
+            "total_latency_ms": 120.0,
+            "max_latency_ms": 80.0,
+            "last_failure": {
+                "provider": "openai",
+                "category": "auth",
+                "retryable": False,
+                "error_preview": "Invalid API key",
+                "operator_action": "Check provider API key, env wiring, and enabled flags before rerunning.",
+            },
             "operator_action_required": True,
             "primary_operator_action": "Check provider API key, env wiring, and enabled flags before rerunning.",
         }
@@ -978,6 +1087,7 @@ class TestGenerateReviewStage:
         assert "All providers failed | provider_failure_summary:" in ctx.post_data["draft_generation_error"]
         assert "providers=gemini, openai" in ctx.post_data["draft_generation_error"]
         assert "categories=auth:1, rate_limit:1" in ctx.post_data["draft_generation_error"]
+        assert "circuit_breaker=openai" in ctx.post_data["draft_generation_error"]
         assert "action=Check provider API key" in ctx.post_data["draft_generation_error"]
 
     def test_quality_gate_fail_no_retry_logs_warning(self):

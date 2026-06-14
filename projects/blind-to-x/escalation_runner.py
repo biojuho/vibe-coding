@@ -68,10 +68,10 @@ async def _run_cycle(
     Returns:
         처리된 스파이크 이벤트 수.
     """
-    from pipeline.spike_detector import SpikeDetector
     from pipeline.draft_generator import TweetDraftGenerator
     from pipeline.escalation_queue import EscalationQueue, EventStatus
     from pipeline.express_draft import ExpressDraftPipeline
+    from pipeline.spike_detector import SpikeDetector
 
     # ── 1단계: 스파이크 감지 ─────────────────────────────────────────
     detector = SpikeDetector(config_mgr)
@@ -187,6 +187,7 @@ async def _send_surge_notification(
 async def _process_callback(query: dict, queue) -> None:
     """텔레그램 callback_query 처리."""
     from execution.telegram_notifier import answer_callback_query, edit_message_reply_markup
+
     from pipeline.escalation_queue import EventStatus
 
     cb_id = query.get("id")
@@ -235,6 +236,7 @@ async def _process_callback(query: dict, queue) -> None:
 
 async def _poll_and_wait(interval: int, config_mgr, dry_run: bool) -> bool:
     from execution.telegram_notifier import get_updates
+
     from pipeline.escalation_queue import EscalationQueue
 
     # TELEGRAM_API_BASE가 로드되는지 확인하여 설정 안된 환경이면 구버전처럼 sleep

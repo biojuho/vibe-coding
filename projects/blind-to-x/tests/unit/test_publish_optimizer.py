@@ -5,18 +5,16 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from pipeline.publish_optimizer import (
-    PublishOptimizer,
-    TIME_SLOTS,
     _DEFAULT_OPTIMAL_SLOTS,
+    TIME_SLOTS,
+    PublishOptimizer,
     _extract_time_slot,
 )
-
 
 # ── _extract_time_slot tests ─────────────────────────────────────────
 

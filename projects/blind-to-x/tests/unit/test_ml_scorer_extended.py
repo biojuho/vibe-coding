@@ -14,11 +14,10 @@ if str(ROOT) not in sys.path:
 
 from pipeline.ml_scorer import (
     MLScorer,
-    _ModelBundle,
     _build_feature_matrix,
     _load_training_data,
+    _ModelBundle,
 )
-
 
 # ── _build_feature_matrix ────────────────────────────────────────────
 

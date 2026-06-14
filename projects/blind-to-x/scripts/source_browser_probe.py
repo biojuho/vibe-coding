@@ -5,17 +5,16 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
+import json
+import re
+import sys
 from collections import Counter
 from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timezone
-import json
 from pathlib import Path
-import re
-import subprocess
-import sys
 from typing import Any
 from urllib.parse import urljoin, urlsplit, urlunsplit
-
 
 DEFAULT_SOURCES: dict[str, str] = {
     "blind": "https://www.teamblind.com/kr/topics/trending",
@@ -28,6 +27,7 @@ ALL_SOURCE_ALIASES = frozenset({"all", "auto", "multi"})
 
 _JOBPLANET_BASE_URL = "https://www.jobplanet.co.kr"
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
+SAFE_POWERSHELL_ARG_CHARS = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_./:\\=-")
 
 READY_STATUS = "ready"
 PROBLEM_STATUSES = {
@@ -249,7 +249,9 @@ def _build_summary(results: list[ProbeResult], *, viewport: str = "desktop") -> 
     ready_warnings = [warning for result in ready_results for warning in _build_ready_warnings(result)]
     recommended_source = _recommend_ready_source(ready_results)
     problem_actions = [
-        _build_problem_action(result) for result in results if result.classification.status != READY_STATUS
+        _build_problem_action(result, viewport=viewport)
+        for result in results
+        if result.classification.status != READY_STATUS
     ]
     problem_evidence_sources = [action["source"] for action in problem_actions if action.get("evidence")]
     return {
@@ -259,7 +261,7 @@ def _build_summary(results: list[ProbeResult], *, viewport: str = "desktop") -> 
         "problem_count": len(problem_sources),
         "problem_evidence_count": len(problem_evidence_sources),
         "ready_warning_count": len(ready_warnings),
-        "ok": len(ready_sources) == len(results),
+        "ok": bool(results) and len(ready_sources) == len(results),
         "statuses": dict(sorted(statuses.items())),
         "ready_sources": ready_sources,
         "ready_warnings": ready_warnings,
@@ -340,10 +342,23 @@ def _build_recommended_command(source: str | None, *, viewport: str = "desktop")
     ]
     if viewport != "desktop":
         command_parts.extend(["--source-preflight-viewport", viewport])
-    return "& " + subprocess.list2cmdline(command_parts)
+    return _format_powershell_command(command_parts)
 
 
-def _build_problem_action(result: ProbeResult) -> dict[str, Any]:
+def _quote_powershell_arg(value: object) -> str:
+    text = str(value)
+    if not text:
+        return "''"
+    if any(char not in SAFE_POWERSHELL_ARG_CHARS for char in text):
+        return "'" + text.replace("'", "''") + "'"
+    return text
+
+
+def _format_powershell_command(parts: list[object]) -> str:
+    return "& " + " ".join(_quote_powershell_arg(part) for part in parts)
+
+
+def _build_problem_action(result: ProbeResult, *, viewport: str = "desktop") -> dict[str, Any]:
     status = result.classification.status
     if status == "browser_unavailable":
         action = _build_browser_unavailable_action(result)
@@ -365,11 +380,106 @@ def _build_problem_action(result: ProbeResult) -> dict[str, Any]:
         "source": result.source,
         "status": status,
         "action": action,
+        "operator_action_required": True,
+        "operator_action": action,
     }
     evidence = _build_problem_evidence(result)
     if evidence:
         problem_action["evidence"] = evidence
+        problem_action.update(_build_evidence_review_guidance(result.source, evidence, viewport=viewport))
     return problem_action
+
+
+def _build_evidence_review_guidance(
+    source: str, evidence: dict[str, str], *, viewport: str = "desktop"
+) -> dict[str, Any]:
+    if not any(
+        evidence.get(key)
+        for key in (
+            "failure_report_path",
+            "screenshot_path",
+            "html_snapshot_path",
+            "trace_path",
+            "click_screenshot_path",
+        )
+    ):
+        return {}
+    review_order = [
+        key
+        for key in (
+            "failure_report_path",
+            "screenshot_path",
+            "html_snapshot_path",
+            "trace_path",
+            "click_screenshot_path",
+            "exception_type",
+            "error",
+            "click_error",
+        )
+        if evidence.get(key)
+    ]
+    if not review_order:
+        return {}
+    return {
+        "evidence_review_order": review_order,
+        "evidence_review_hint": f"Open evidence in this order before changing source strategy: {', '.join(review_order)}.",
+        **_build_trace_viewer_guidance(evidence),
+        "repair_commands": _build_evidence_repair_commands(source, evidence, viewport=viewport),
+    }
+
+
+def _build_trace_viewer_guidance(evidence: dict[str, str]) -> dict[str, str]:
+    trace_path = str(evidence.get("trace_path") or "").strip()
+    if not trace_path:
+        return {}
+    return {
+        "trace_viewer_command": _format_powershell_command(["playwright", "show-trace", trace_path]),
+        "trace_viewer_hint": (
+            "Open the Playwright trace locally and inspect Actions, Console, Network, and DOM snapshots before "
+            "changing selectors or timeouts."
+        ),
+    }
+
+
+def _build_evidence_repair_commands(source: str, evidence: dict[str, str], *, viewport: str = "desktop") -> list[str]:
+    commands = [
+        _format_powershell_command(
+            [
+                sys.executable,
+                _PROJECT_ROOT / "scripts" / "source_preflight_evidence_doctor.py",
+                "--input",
+                _PROJECT_ROOT / ".tmp" / "source_browser_preflight.json",
+                "--base-dir",
+                _PROJECT_ROOT,
+                "--fail-on-warning",
+            ]
+        )
+    ]
+    if source in DEFAULT_SOURCES:
+        command_parts = [
+            sys.executable,
+            str(_PROJECT_ROOT / "main.py"),
+            "--config",
+            str(_PROJECT_ROOT / "config.yaml"),
+            "--source",
+            source,
+            "--source-preflight",
+            "--source-preflight-click-through",
+            "--source-preflight-output",
+            str(_PROJECT_ROOT / ".tmp" / "source_browser_preflight.json"),
+            "--source-preflight-screenshot-dir",
+            str(_PROJECT_ROOT / "screenshots" / "source_preflight"),
+            "--source-preflight-failure-dir",
+            str(_PROJECT_ROOT / ".tmp" / "failures" / "source_preflight"),
+        ]
+        if evidence.get("trace_path"):
+            command_parts.extend(
+                ["--source-preflight-trace-dir", str(_PROJECT_ROOT / ".tmp" / "traces" / "source_preflight")]
+            )
+        if viewport != "desktop":
+            command_parts.extend(["--source-preflight-viewport", viewport])
+        commands.append(_format_powershell_command(command_parts))
+    return commands
 
 
 def _build_problem_evidence(result: ProbeResult) -> dict[str, str]:
@@ -630,7 +740,9 @@ def _with_failure_evidence(result: ProbeResult, failure_dir: Path | None) -> Pro
 
     failure_dir = Path(failure_dir)
     failure_dir.mkdir(parents=True, exist_ok=True)
-    failure_report_path = failure_dir / f"{_safe_slug(result.source)}-{_safe_slug(result.classification.status)}.json"
+    failure_report_path = (
+        failure_dir / f"{_source_artifact_slug(result.source)}-{_safe_slug(result.classification.status)}.json"
+    )
     enriched = replace(
         result,
         failure_report_path=str(failure_report_path),
@@ -645,6 +757,7 @@ def _with_failure_evidence(result: ProbeResult, failure_dir: Path | None) -> Pro
 
 
 def _failure_report_payload(result: ProbeResult) -> dict[str, Any]:
+    evidence = _build_problem_evidence(result)
     data = _result_to_dict(result)
     data["failure_report"] = {
         "schema_version": 1,
@@ -654,7 +767,8 @@ def _failure_report_payload(result: ProbeResult) -> dict[str, Any]:
     data["operator"] = {
         "action_required": bool(data.get("operator_action_required")),
         "action": data.get("operator_action"),
-        "evidence": _build_problem_evidence(result),
+        "evidence": evidence,
+        **_build_evidence_review_guidance(result.source, evidence),
     }
     return data
 
@@ -1004,7 +1118,7 @@ async def _safe_click_screenshot(page: Any, target: ProbeTarget, screenshot_dir:
     if not screenshot_dir:
         return None
     screenshot_dir.mkdir(parents=True, exist_ok=True)
-    screenshot_path = screenshot_dir / f"{_safe_slug(target.source)}-click.png"
+    screenshot_path = screenshot_dir / f"{_source_artifact_slug(target.source)}-click.png"
     try:
         await page.screenshot(path=str(screenshot_path), full_page=True)
     except Exception:
@@ -1016,7 +1130,7 @@ async def _safe_screenshot(page: Any, target: ProbeTarget, screenshot_dir: Path 
     if not screenshot_dir:
         return None
     screenshot_dir.mkdir(parents=True, exist_ok=True)
-    screenshot_path = screenshot_dir / f"{_safe_slug(target.source)}.png"
+    screenshot_path = screenshot_dir / f"{_source_artifact_slug(target.source)}.png"
     try:
         await page.screenshot(path=str(screenshot_path), full_page=True)
     except Exception:
@@ -1029,7 +1143,7 @@ async def _safe_html_snapshot(page: Any, target: ProbeTarget, failure_dir: Path 
         return None
     failure_dir = Path(failure_dir)
     failure_dir.mkdir(parents=True, exist_ok=True)
-    snapshot_path = failure_dir / f"{_safe_slug(target.source)}.html"
+    snapshot_path = failure_dir / f"{_source_artifact_slug(target.source)}.html"
     try:
         snapshot_path.write_text(await page.content(), encoding="utf-8")
     except Exception:
@@ -1090,6 +1204,14 @@ def _source_name_from_url(url: str) -> str:
 def _safe_slug(value: str) -> str:
     slug = re.sub(r"[^A-Za-z0-9_.-]+", "-", value).strip("-").lower()
     return slug or "source"
+
+
+def _source_artifact_slug(value: str) -> str:
+    slug = _safe_slug(value)
+    if slug != "source" or value.strip().lower() == "source":
+        return slug
+    digest = hashlib.sha1(value.encode("utf-8", errors="surrogatepass")).hexdigest()[:8]
+    return f"{slug}-{digest}"
 
 
 def _result_to_dict(result: ProbeResult) -> dict[str, Any]:

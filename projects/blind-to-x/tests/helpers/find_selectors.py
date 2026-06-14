@@ -1,6 +1,7 @@
-from curl_cffi.requests import AsyncSession
 import asyncio
+
 from bs4 import BeautifulSoup
+from curl_cffi.requests import AsyncSession
 
 
 async def main():

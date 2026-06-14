@@ -8,7 +8,6 @@ import pytest
 
 from pipeline.spike_detector import SpikeDetector, SpikeEvent, _EngagementSnapshot
 
-
 # ── _EngagementSnapshot 테스트 ────────────────────────────────────────────
 
 

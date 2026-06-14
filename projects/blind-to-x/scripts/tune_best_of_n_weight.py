@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import sqlite3
 import sys
 from datetime import date, timedelta
 from pathlib import Path
@@ -26,6 +27,11 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 _BTX_ROOT = Path(__file__).resolve().parent.parent
+_DEFAULT_DB_PATH = _BTX_ROOT / ".tmp" / "btx_costs.db"
+
+
+def _select_column(existing_cols: set[str], name: str) -> str:
+    return name if name in existing_cols else f"NULL AS {name}"
 
 
 def pearson(xs: list[float], ys: list[float]) -> float | None:
@@ -121,23 +127,25 @@ def load_recent_rows(*, days: int = 30) -> list[dict]:
 
     comment_trigger_avg 컬럼이 존재하면 그것도 selecte한다 (없으면 None 으로 채움).
     """
-    sys.path.insert(0, str(_BTX_ROOT))
-    from pipeline.cost_db import CostDatabase
-
-    db = CostDatabase()
+    if not _DEFAULT_DB_PATH.exists():
+        return []
     cutoff = (date.today() - timedelta(days=days)).isoformat()
     rows: list[dict] = []
     try:
-        with db._conn() as conn:
+        with sqlite3.connect(str(_DEFAULT_DB_PATH)) as conn:
+            conn.row_factory = sqlite3.Row
             column_info = conn.execute("PRAGMA table_info(draft_analytics)").fetchall()
             existing_cols = {r["name"] for r in column_info}
-            ct_select = (
-                "comment_trigger_avg" if "comment_trigger_avg" in existing_cols else "NULL AS comment_trigger_avg"
-            )
+            if not {"date", "published"}.issubset(existing_cols):
+                return []
             sql = (
-                "SELECT date, hook_score, virality_score, fit_score, "
-                "       final_rank_score, engagement_rate, yt_views, "
-                f"       impression_count, published, {ct_select} "
+                "SELECT "
+                f"date, {_select_column(existing_cols, 'hook_score')}, "
+                f"{_select_column(existing_cols, 'virality_score')}, {_select_column(existing_cols, 'fit_score')}, "
+                f"{_select_column(existing_cols, 'final_rank_score')}, "
+                f"{_select_column(existing_cols, 'engagement_rate')}, {_select_column(existing_cols, 'yt_views')}, "
+                f"{_select_column(existing_cols, 'impression_count')}, published, "
+                f"{_select_column(existing_cols, 'comment_trigger_avg')} "
                 "  FROM draft_analytics "
                 " WHERE date >= ? AND published = 1"
             )

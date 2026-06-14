@@ -5,12 +5,12 @@ from __future__ import annotations
 import logging
 
 from config import ERROR_SCRAPE_FAILED, ERROR_SCRAPE_PARSE_FAILED
+from config import as_bool as _as_bool
 from pipeline.models import ScrapedPost
 from pipeline.scrape_integrity import DEFAULT_MIN_ARTICLE_CHARS, classify_scrape_integrity
 
 from .context import ProcessRunContext, mark_stage
 from .runtime import log_scrape_quality
-from config import as_bool as _as_bool
 
 logger = logging.getLogger(__name__)
 

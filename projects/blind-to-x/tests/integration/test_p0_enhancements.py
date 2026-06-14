@@ -55,8 +55,9 @@ def test_classify_topic_cluster_new_topics():
 
 def test_classify_emotion_axis_new_emotions():
     """New emotions (자부심, 불안, 기대감) are classified correctly."""
-    from pipeline.content_intelligence import classify_emotion_axis
     from unittest.mock import patch
+
+    from pipeline.content_intelligence import classify_emotion_axis
 
     with patch("pipeline.emotion_analyzer.get_emotion_profile", side_effect=Exception("Mock ML disabled")):
         assert classify_emotion_axis("자부심 넘침", "뿌듯하고 자랑스러운 성과") == "자부심"

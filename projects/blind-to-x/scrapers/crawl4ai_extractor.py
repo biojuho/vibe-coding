@@ -242,13 +242,13 @@ class Crawl4AIExtractor:
 
     async def _llm_extract_from_html(self, url: str, html: str) -> ExtractedPost | None:
         """Direct LLM extraction from HTML without Crawl4AI browser."""
+        api_key = self._api_key
+        if not api_key:
+            logger.debug("No Gemini API key for HTML extraction")
+            return None
+
         try:
             from google import genai as genai_client
-
-            api_key = self._api_key
-            if not api_key:
-                logger.debug("No Gemini API key for HTML extraction")
-                return None
 
             # Use client instance instead of global genai.configure() to be thread-safe
             client = genai_client.Client(api_key=api_key)

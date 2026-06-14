@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 import logging
+from datetime import datetime
 
 from pipeline.draft_analytics import record_draft_event, refresh_ml_scorer_if_needed
 from pipeline.notion_retry_diagnostics import notion_retry_diagnostics

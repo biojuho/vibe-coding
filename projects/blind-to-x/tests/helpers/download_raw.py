@@ -1,5 +1,6 @@
-from curl_cffi.requests import AsyncSession
 import asyncio
+
+from curl_cffi.requests import AsyncSession
 
 
 async def main():

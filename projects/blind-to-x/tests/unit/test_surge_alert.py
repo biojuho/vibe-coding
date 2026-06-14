@@ -14,7 +14,6 @@ import pytest
 
 import pipeline.notification as notification_module
 
-
 # ── 공통 Fixtures ──────────────────────────────────────────────────────────
 
 

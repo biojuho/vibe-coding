@@ -7,9 +7,9 @@ recovery-aware signal set. It performs no Notion writes and no X publishing.
 from __future__ import annotations
 
 import argparse
-from collections import Counter
 import json
 import sys
+from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any

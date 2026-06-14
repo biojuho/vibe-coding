@@ -1,7 +1,8 @@
+import asyncio
 import os
+
 from dotenv import load_dotenv
 from notion_client import AsyncClient
-import asyncio
 
 load_dotenv()
 try:

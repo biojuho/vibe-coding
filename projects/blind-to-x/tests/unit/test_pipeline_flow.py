@@ -271,7 +271,7 @@ def test_process_single_post_trace_id_present_on_error():
 
 def test_process_single_post_budget_exceeded_skips_draft_generation():
     """예산 초과 시 draft 생성 건너뛰고 BUDGET_EXCEEDED 에러 반환."""
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import MagicMock, patch
 
     mock_cost_db = MagicMock()
     mock_cost_db.is_daily_budget_exceeded.return_value = True
@@ -296,7 +296,7 @@ def test_process_single_post_budget_exceeded_skips_draft_generation():
 
 def test_process_single_post_budget_ok_proceeds_to_draft():
     """예산 미초과 시 정상 진행."""
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import MagicMock, patch
 
     mock_cost_db = MagicMock()
     mock_cost_db.is_daily_budget_exceeded.return_value = False

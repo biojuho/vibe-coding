@@ -31,11 +31,23 @@ GEMINI_IMAGE_DAILY_LIMIT = 500
 # because they look unused locally but are intentional re-exports.
 from pipeline.cost_db_schema import (  # noqa: E402
     ALTER_TABLE_ADD_SQL as _ALTER_TABLE_ADD_SQL,  # noqa: F401 — back-compat re-export
+)
+from pipeline.cost_db_schema import (
     MIGRATION_COLUMNS as _MIGRATION_COLUMNS,  # noqa: F401 — back-compat re-export
+)
+from pipeline.cost_db_schema import (
     PRAGMA_TABLE_INFO_SQL as _PRAGMA_TABLE_INFO_SQL,  # noqa: F401 — back-compat re-export
+)
+from pipeline.cost_db_schema import (
     ensure_column as _schema_ensure_column,
+)
+from pipeline.cost_db_schema import (
     init_db as _schema_init_db,
+)
+from pipeline.cost_db_schema import (
     validate_allowed_name as _validate_allowed_name,
+)
+from pipeline.cost_db_schema import (
     validate_migration_column as _validate_migration_column,  # noqa: F401 — back-compat re-export
 )
 
@@ -447,7 +459,8 @@ class CostDatabase:
     def get_skipped_providers(self) -> set[str]:
         """현재 skip_until이 아직 유효한 provider 집합 반환."""
         try:
-            from datetime import datetime as _dt, timezone as _tz
+            from datetime import datetime as _dt
+            from datetime import timezone as _tz
 
             now_iso = _dt.now(_tz.utc).isoformat()
             with self._conn() as conn:

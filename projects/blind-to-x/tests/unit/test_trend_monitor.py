@@ -14,7 +14,6 @@ if str(ROOT) not in sys.path:
 
 from pipeline.trend_monitor import TrendMonitor  # noqa: E402
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────
 
 

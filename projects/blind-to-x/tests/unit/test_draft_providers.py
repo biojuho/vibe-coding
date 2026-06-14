@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import subprocess
 import sys
+from pathlib import Path
 from types import ModuleType, SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
-
+from pipeline.draft_generator import TweetDraftGenerator
 from pipeline.draft_prompts import DraftPrompt
 from pipeline.draft_providers import (
     DEFAULT_PROVIDER_ORDER,
@@ -27,6 +29,36 @@ def _make_provider_instance(config: dict | None = None, timeout: int = 45) -> Dr
     obj.openai_enabled = True
     obj.ollama_enabled = False
     return obj
+
+
+class FakeConfig:
+    def __init__(self, data: dict):
+        self.data = data
+
+    def get(self, key, default=None):
+        cur = self.data
+        for part in key.split("."):
+            if isinstance(cur, dict):
+                cur = cur.get(part)
+            else:
+                return default
+        return default if cur is None else cur
+
+
+def _generator_config() -> FakeConfig:
+    return FakeConfig(
+        {
+            "llm": {
+                "providers": ["anthropic", "gemini", "xai", "openai"],
+                "request_timeout_seconds": 5,
+            },
+            "anthropic": {"enabled": True, "api_key": "anthropic-key", "model": "claude-sonnet-4-6"},
+            "gemini": {"enabled": True, "api_key": "gemini-key", "model": "gemini-2.5-flash"},
+            "xai": {"enabled": True, "api_key": "xai-key", "model": "grok-4-1-fast-reasoning"},
+            "openai": {"chat_enabled": True, "api_key": "openai-key", "chat_model": "gpt-4.1-mini"},
+            "tweet_style": {"tone": "casual", "max_length": 280},
+        }
+    )
 
 
 # ── _resolve_provider_order ──────────────────────────────────────────────────
@@ -149,6 +181,86 @@ class TestEnabledProviders:
         result = obj._enabled_providers()
         assert result[0] == "xai"
         assert result[1] == "anthropic"
+
+
+class TestLazyProviderClients:
+    def test_module_import_does_not_load_anthropic_sdk(self):
+        project_root = Path(__file__).resolve().parents[2]
+        code = (
+            "import sys; "
+            "import pipeline.draft_providers as draft_providers; "
+            "print('anthropic' in sys.modules); "
+            "print(draft_providers.AsyncAnthropic is None)"
+        )
+
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            cwd=project_root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.stdout.splitlines() == ["False", "True"]
+
+    def test_generator_init_defers_sdk_client_construction(self, monkeypatch):
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        monkeypatch.delenv("XAI_API_KEY", raising=False)
+        monkeypatch.delenv("GROK_API_KEY", raising=False)
+        with (
+            patch("pipeline.draft_providers.AsyncAnthropic") as mock_anthropic_cls,
+            patch("pipeline.draft_providers.AsyncOpenAI") as mock_openai_cls,
+        ):
+            generator = TweetDraftGenerator(_generator_config())
+
+            mock_anthropic_cls.assert_not_called()
+            mock_openai_cls.assert_not_called()
+            assert generator._enabled_providers() == ["anthropic", "gemini", "xai", "openai"]
+
+    def test_generator_init_skips_ollama_probe_when_order_excludes_ollama(self, monkeypatch):
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        monkeypatch.delenv("XAI_API_KEY", raising=False)
+        monkeypatch.delenv("GROK_API_KEY", raising=False)
+        with patch.object(DraftProvidersMixin, "_check_ollama_enabled", return_value=True) as mock_ollama:
+            generator = TweetDraftGenerator(_generator_config())
+
+        mock_ollama.assert_not_called()
+        assert generator.ollama_enabled is False
+
+    def test_generator_init_checks_ollama_when_default_order_includes_it(self, monkeypatch):
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        monkeypatch.delenv("XAI_API_KEY", raising=False)
+        monkeypatch.delenv("GROK_API_KEY", raising=False)
+        config = _generator_config()
+        config.data["llm"].pop("providers")
+        with patch.object(DraftProvidersMixin, "_check_ollama_enabled", return_value=True) as mock_ollama:
+            generator = TweetDraftGenerator(config)
+
+        mock_ollama.assert_called_once_with()
+        assert generator.ollama_enabled is True
+
+    def test_sdk_client_constructs_on_first_access(self, monkeypatch):
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        monkeypatch.delenv("XAI_API_KEY", raising=False)
+        monkeypatch.delenv("GROK_API_KEY", raising=False)
+        with (
+            patch("pipeline.draft_providers.AsyncAnthropic") as mock_anthropic_cls,
+            patch("pipeline.draft_providers.AsyncOpenAI") as mock_openai_cls,
+        ):
+            generator = TweetDraftGenerator(_generator_config())
+
+            assert generator.anthropic_client is mock_anthropic_cls.return_value
+            assert generator.openai_client is mock_openai_cls.return_value
+            assert generator.xai_client is mock_openai_cls.return_value
+
+        mock_anthropic_cls.assert_called_once_with(api_key="anthropic-key")
+        assert mock_openai_cls.call_count == 2
+        mock_openai_cls.assert_any_call(api_key="openai-key")
+        mock_openai_cls.assert_any_call(api_key="xai-key", base_url="https://api.x.ai/v1")
 
 
 class TestAnthropicPromptCaching:

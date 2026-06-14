@@ -1,6 +1,10 @@
+import sys
+import types
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
-from pipeline.runner import handle_single_commands, execute_pipeline
+
+from pipeline.runner import _append_cross_source_insights, execute_pipeline, handle_single_commands
 
 
 @pytest.fixture
@@ -48,6 +52,34 @@ def _metrics(successful=None, failed=None):
         "live_upload_attempts": len(successful) + len(failed),
         "content_duplicate_skips": [],
     }
+
+
+@pytest.mark.asyncio
+async def test_string_false_disables_cross_source_insights(monkeypatch):
+    insight_module = types.ModuleType("pipeline.cross_source_insight")
+    process_mock = AsyncMock(return_value=[{"source": "cross_source_insight"}])
+    insight_module.process_cross_source_insights = process_mock
+    monkeypatch.setitem(sys.modules, "pipeline.cross_source_insight", insight_module)
+
+    config = MagicMock()
+    config.get.side_effect = lambda key, default=None: {"cross_source_insight.enabled": "false"}.get(key, default)
+    results = [{"source": "blind"}]
+
+    returned = await _append_cross_source_insights(
+        results,
+        dry_run=False,
+        config_mgr=config,
+        draft_generator=MagicMock(),
+        notion_uploader=MagicMock(),
+        image_uploader=MagicMock(),
+        image_generator=MagicMock(),
+        output_formats=["twitter"],
+        top_examples=[],
+        trend_monitor=MagicMock(),
+    )
+
+    process_mock.assert_not_awaited()
+    assert returned == results
 
 
 @pytest.mark.asyncio

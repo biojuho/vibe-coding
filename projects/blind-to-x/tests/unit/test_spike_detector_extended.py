@@ -14,7 +14,6 @@ if str(ROOT) not in sys.path:
 
 from pipeline.spike_detector import SpikeDetector, SpikeEvent, _EngagementSnapshot
 
-
 # ── SpikeEvent.event_key ─────────────────────────────────────────────
 
 

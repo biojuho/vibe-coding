@@ -1,17 +1,18 @@
 """Tests for pipeline.notebooklm_enricher."""
 
-import pytest
 import asyncio
 import os
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from pipeline.notebooklm_enricher import (
-    enrich_post_with_assets,
     NotebookLMAssets,
+    _gdrive_extract,
     _load_module,
     _run_enricher,
-    _gdrive_extract,
     _write_article,
+    enrich_post_with_assets,
 )
 
 

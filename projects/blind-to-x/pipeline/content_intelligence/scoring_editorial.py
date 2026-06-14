@@ -10,22 +10,21 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
+from pipeline.content_intelligence.classifiers import (
+    classify_audience_fit,
+    classify_emotion_axis,
+    classify_topic_cluster,
+)
 from pipeline.content_intelligence.rules import _get_topic_editorial_rule
 from pipeline.content_intelligence.utils import (
-    _contains_any,
-    _korean_ratio,
-    _extract_empathy_anchor,
-    _build_spinoff_angle,
-    _round_score,
     _build_selection_summary,
+    _build_spinoff_angle,
+    _contains_any,
     _engagement_signal,
+    _extract_empathy_anchor,
+    _korean_ratio,
+    _round_score,
 )
-from pipeline.content_intelligence.classifiers import (
-    classify_topic_cluster,
-    classify_emotion_axis,
-    classify_audience_fit,
-)
-
 
 _DEFAULT_WORKPLACE_KEYWORDS = (
     "직장",

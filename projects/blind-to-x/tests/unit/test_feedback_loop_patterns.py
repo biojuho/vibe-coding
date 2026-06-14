@@ -14,7 +14,6 @@ if str(ROOT) not in sys.path:
 
 from pipeline.feedback_loop import FeedbackLoop
 
-
 # ── Helpers ──────────────────────────────────────────────────────────
 
 
@@ -211,6 +210,49 @@ class TestComputeAdaptiveWeights:
         # Weights should sum to ~1.0
         total = sum(result.values())
         assert total == pytest.approx(1.0, abs=0.01)
+
+    @pytest.mark.asyncio
+    async def test_zero_scores_count_as_valid_data(self):
+        records = [
+            {
+                "views": 100,
+                "scrape_quality_score": 0,
+                "publishability_score": 10,
+                "performance_score": 20,
+            },
+            {
+                "views": 200,
+                "scrape_quality_score": 25,
+                "publishability_score": 20,
+                "performance_score": 40,
+            },
+            {
+                "views": 300,
+                "scrape_quality_score": 50,
+                "publishability_score": 30,
+                "performance_score": 60,
+            },
+            {
+                "views": 400,
+                "scrape_quality_score": 75,
+                "publishability_score": 40,
+                "performance_score": 80,
+            },
+            {
+                "views": 500,
+                "scrape_quality_score": 100,
+                "publishability_score": 50,
+                "performance_score": 100,
+            },
+        ]
+        mock_notion = MagicMock()
+        mock_notion.get_top_performing_posts = AsyncMock(return_value=records)
+
+        fl = FeedbackLoop(mock_notion, {"analytics.lookback_days": 30})
+        result = await fl.compute_adaptive_weights()
+
+        assert set(result) == {"scrape_quality", "publishability", "performance"}
+        assert sum(result.values()) == pytest.approx(1.0, abs=0.01)
 
     @pytest.mark.asyncio
     async def test_all_zero_correlations(self):

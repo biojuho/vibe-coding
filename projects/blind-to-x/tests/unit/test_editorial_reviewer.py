@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pipeline.editorial_reviewer import EditorialReviewer, _REWRITE_THRESHOLD
+from pipeline.editorial_reviewer import _REWRITE_THRESHOLD, EditorialReviewer
 
 
 def _make_reviewer(thresholds: dict | None = None, brand_voice: dict | None = None) -> EditorialReviewer:

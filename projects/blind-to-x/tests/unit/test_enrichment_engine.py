@@ -12,7 +12,6 @@ from pipeline.enrichment_engine import (
     EnrichedContext,
 )
 
-
 # ─── EnrichedContext 모델 테스트 ─────────────────────────────────────────────
 
 

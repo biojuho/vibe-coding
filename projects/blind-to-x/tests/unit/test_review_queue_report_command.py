@@ -1,19 +1,20 @@
-from datetime import UTC, datetime
 import json
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
 import pytest
 
 from pipeline.commands.review_queue_report import (
+    SEVERITY_CRITICAL,
+    SEVERITY_OK,
+    SEVERITY_WARNING,
     STATUS_BLOCKED,
     STATUS_MISSING,
     STATUS_NEEDS_EDIT,
     STATUS_PUBLISHED,
     STATUS_READY,
-    SEVERITY_CRITICAL,
-    SEVERITY_OK,
-    SEVERITY_WARNING,
     build_incident_response,
+    build_operator_next_commands,
     build_operator_recovery_steps,
     build_review_queue_delta,
     build_review_queue_exit_codes,
@@ -244,6 +245,83 @@ def test_format_review_queue_report_is_operator_readable():
         "1. [p10 critical] fix_blocked_publish | Blocked | Missing tweet draft text | "
         "Blocked item | https://notion.so/page-blocked"
     ) in text
+
+
+def test_format_review_queue_report_parses_string_false_artifact_flags():
+    report = {
+        "total_records": 0,
+        "severity": SEVERITY_OK,
+        "operator_action_count": 2,
+        "operator_action_displayed_count": 2,
+        "operator_action_hidden_count": 0,
+        "operator_action_truncated": "false",
+        "ready_attention_displayed_count": 1,
+        "ready_attention_total_count": 1,
+        "ready_attention_hidden_count": 0,
+        "ready_attention_truncated": "false",
+        "ready_attention_items": [
+            {
+                "title": "Ready item",
+                "target_hint": "page_id:ready",
+                "ready_attention_rank": 1,
+                "age_days": 0,
+            }
+        ],
+        "incident_response": {
+            "severity": SEVERITY_OK,
+            "operator_action_required": "false",
+            "next_step": "none",
+            "target_hint": "none",
+            "fail_on_warning_exit_code": 0,
+            "manual_publish_required": "false",
+        },
+        "safety": {
+            "read_only": "true",
+            "notion_writes": "false",
+            "x_posts": "false",
+            "manual_publish_required": "false",
+        },
+        "operator_next_commands": [
+            {
+                "name": "refresh_report",
+                "command": "python main.py --review-queue-report",
+                "read_only": "true",
+                "notion_writes": "false",
+                "x_posts": "false",
+                "publish_command": "false",
+                "manual_publish_required": "false",
+            }
+        ],
+        "delta": {
+            "has_previous": "false",
+            "counts": {"operator_action_count": 1},
+            "incident_response": {
+                "previous_escalation_required": "false",
+                "current_escalation_required": "false",
+            },
+        },
+    }
+
+    text = format_review_queue_report(report)
+
+    assert "incident_response: ok | action_required=false" in text
+    assert "guard=none" in text
+    assert "safety: read_only=true, notion_writes=false, x_posts=false, manual_publish_required=false" in text
+    assert (
+        "next_command 1 [refresh_report]: python main.py --review-queue-report | "
+        "read_only=true, notion_writes=false, x_posts=false, publish_command=false, manual_publish_required=false"
+    ) in text
+    assert "action_display: displayed=2, total=2, hidden=0, truncated=false" in text
+    assert "ready_attention: displayed=1, total=1, hidden=0, limit=3, truncated=false" in text
+    assert "delta: no_previous_artifact" in text
+    assert "delta: blocked=" not in text
+    assert "rerun_with=--review-queue-action-limit" not in text
+    assert "rerun_with=--review-queue-ready-attention-limit" not in text
+    summary = build_review_queue_summary(report)
+    assert summary["has_previous"] is False
+    assert summary["delta_comparable"] is None
+    assert summary["notion_writes"] is False
+    assert summary["x_posts"] is False
 
 
 def test_operator_actions_sort_by_recovery_priority_before_title():
@@ -1234,6 +1312,18 @@ def test_write_review_queue_report_artifact_is_ascii_safe_for_windows_shells(tmp
     assert "\\ud55c\\uae00" in raw
     payload = json.loads(raw)
     assert payload["ready_attention_items"][0]["title"] == "한글 제목"
+
+
+def test_operator_next_commands_quote_powershell_metacharacter_artifact_path():
+    report = build_review_queue_report(
+        [{"page_id": "page-1", "title": "Ready", "x_publish_status": "Ready to Post"}],
+        now=datetime(2026, 6, 9, tzinfo=UTC),
+    )
+    report["artifact_path"] = ".tmp/review&queue-loop7.json"
+
+    commands = build_operator_next_commands(report)
+
+    assert commands[0]["command"].endswith("--review-queue-report-output '.tmp/review&queue-loop7.json'")
 
 
 @pytest.mark.asyncio

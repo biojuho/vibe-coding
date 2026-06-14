@@ -310,7 +310,7 @@ class PerformancePromptAdapter:
 
         # ── 소스 A: x_analytics SQLite DB ─────────────────────────────
         try:
-            from pipeline.x_analytics import get_tracked_tweets, get_latest_snapshot
+            from pipeline.x_analytics import get_latest_snapshot, get_tracked_tweets
 
             tweets = get_tracked_tweets(limit=200)
             for tw in tweets:

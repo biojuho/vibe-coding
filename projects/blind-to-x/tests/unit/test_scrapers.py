@@ -368,6 +368,11 @@ class TestUrlSchemeValidation:
 
 
 class TestImageGeneratorFallback:
+    def _patch_gemini_client(self):
+        fake_genai = MagicMock()
+        fake_genai.Client.return_value = MagicMock()
+        return patch.dict("sys.modules", {"google": MagicMock(genai=fake_genai), "google.genai": fake_genai})
+
     def _make_generator(self, config_overrides=None):
         cfg = {
             "image.provider": "gemini",
@@ -387,7 +392,7 @@ class TestImageGeneratorFallback:
 
         mock_cache = MagicMock()
         mock_cache.return_value.get.return_value = None  # cache miss
-        with patch("pipeline.image_cache.ImageCache", mock_cache):
+        with self._patch_gemini_client(), patch("pipeline.image_cache.ImageCache", mock_cache):
             from pipeline.image_generator import ImageGenerator
 
             return ImageGenerator(_Cfg())

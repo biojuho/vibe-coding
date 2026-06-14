@@ -9,6 +9,7 @@ import time
 from typing import Any
 
 import pipeline.draft_prompts as _draft_prompts_mod
+from config import as_bool as _as_bool
 from pipeline.draft_cache import DraftCache
 from pipeline.draft_contract import iter_publishable_drafts
 from pipeline.draft_prompts import DraftPromptsMixin
@@ -21,7 +22,6 @@ from pipeline.draft_providers import (
 )
 from pipeline.draft_validation import DraftValidationMixin
 from pipeline.regulation_checker import RegulationChecker
-from config import as_bool as _as_bool
 
 logger = logging.getLogger(__name__)
 

@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 import random
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -129,9 +129,9 @@ class ImageABTester:
             ImageVariant 리스트 (첫 번째 = default, 나머지 = 변형).
         """
         from pipeline.image_generator import (
-            _TOPIC_IMAGE_STYLES,
             _DEFAULT_IMAGE_STYLE,
             _EMOTION_MOOD_OVERRIDE,
+            _TOPIC_IMAGE_STYLES,
         )
 
         base_style_info = _TOPIC_IMAGE_STYLES.get(topic_cluster, _DEFAULT_IMAGE_STYLE)

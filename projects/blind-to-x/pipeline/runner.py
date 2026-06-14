@@ -1,12 +1,13 @@
 """Core pipeline execution logic."""
 
 import asyncio
-from contextlib import AsyncExitStack
-from datetime import datetime
 import logging
 import sys
+from contextlib import AsyncExitStack
+from datetime import datetime
 
-from pipeline import calculate_run_metrics, process_single_post, PipelineServices
+from config import as_bool as _as_bool
+from pipeline import PipelineServices, calculate_run_metrics, process_single_post
 from pipeline.commands import (
     run_digest,
     run_dry_run_single,
@@ -16,7 +17,6 @@ from pipeline.commands import (
 )
 from pipeline.daily_queue_floor import resolve_daily_queue_floor
 from pipeline.feed_collector import collect_feed_items
-from config import as_bool as _as_bool
 
 logger = logging.getLogger(__name__)
 

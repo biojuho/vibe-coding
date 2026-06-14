@@ -6,7 +6,6 @@ import time
 from pathlib import Path
 from unittest.mock import MagicMock
 
-
 from pipeline.escalation_queue import EscalationQueue, EventStatus, QueuedEvent
 
 

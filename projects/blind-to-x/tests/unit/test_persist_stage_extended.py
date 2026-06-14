@@ -12,14 +12,14 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from pipeline.process_stages.context import ProcessRunContext, build_process_result
-from pipeline.publish_decision import HOLD, PublishDecision
 from pipeline.notion_retry_diagnostics import notion_retry_operator_action
+from pipeline.process_stages.context import ProcessRunContext, build_process_result
 from pipeline.process_stages.persist_stage import (
     _append_publish_decision_log,
     _drop_after_repair_exhausted,
     run_persist_stage,
 )
+from pipeline.publish_decision import HOLD, PublishDecision
 
 PUBLISH_RESEARCH_CONTEXT = {
     "source_frame": "상사와 직원의 감정 싸움",
@@ -84,7 +84,7 @@ class TestRunPersistStage:
             }
         )
 
-        assert action == "Check the Notion token, database ID, and DB/data-source sharing before rerun."
+        assert action == "Share the target database/data source with the Notion integration before rerun."
 
     @pytest.mark.asyncio
     async def test_no_notion_uploader(self):

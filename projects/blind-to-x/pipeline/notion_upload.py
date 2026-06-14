@@ -12,9 +12,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 import logging
 import os
+from datetime import datetime
 from typing import Any
 
 from notion_client import AsyncClient
@@ -24,11 +24,10 @@ from config import (
     ERROR_NOTION_SCHEMA_FETCH_FAILED,
     ERROR_NOTION_SCHEMA_MISMATCH,
 )
-
-from pipeline.notion._schema import NotionSchemaMixin
 from pipeline.notion._cache import NotionCacheMixin
-from pipeline.notion._upload import NotionUploadMixin
 from pipeline.notion._query import NotionQueryMixin
+from pipeline.notion._schema import NotionSchemaMixin
+from pipeline.notion._upload import NotionUploadMixin
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +70,8 @@ class NotionUploader(
         self.last_error_code = None
         self.last_error_message = None
         self.last_notion_retry_report: dict[str, Any] | None = None
-        self.client = AsyncClient(auth=self.api_key) if self.api_key else None
+        self._client = None
+        self._client_initialized = False
 
         # P1-B: 중복 감지 bulk 캐시 — 실행 1회 bulk 조회 후 메모리 내 O(1) 체크
         self._url_cache: set[str] = set()
@@ -79,6 +79,18 @@ class NotionUploader(
         self._url_cache_loaded_at: datetime | None = None
         self._url_cache_ttl_seconds: int = int(config.get("dedup.cache_ttl_minutes", 30)) * 60
         self._url_cache_lookback_days: int = int(config.get("dedup.lookback_days", 14))
+
+    @property
+    def client(self):
+        if not self._client_initialized and self.api_key:
+            self._client = AsyncClient(auth=self.api_key)
+            self._client_initialized = True
+        return self._client
+
+    @client.setter
+    def client(self, value):
+        self._client = value
+        self._client_initialized = True
 
     # ── 에러 관리 ──
 

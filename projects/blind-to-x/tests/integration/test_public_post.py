@@ -1,7 +1,8 @@
 import asyncio
-from blind_scraper import BlindScraper
 
 import yaml
+
+from blind_scraper import BlindScraper
 
 
 async def main():

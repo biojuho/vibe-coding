@@ -18,6 +18,7 @@ from config import (
     ERROR_FILTERED_SPAM,
     QUALITY_SCORE_THRESHOLD,
 )
+from config import as_bool as _as_bool
 from pipeline.content_intelligence import build_content_profile, evaluate_candidate_editorial_fit
 from pipeline.daily_queue_floor import DailyQueueFloorState, is_daily_queue_floor_active
 from pipeline.review_queue import build_review_decision
@@ -32,7 +33,6 @@ from .runtime import (
     logger,
     sentiment_tracker,
 )
-from config import as_bool as _as_bool
 
 
 def _has_visual_content(post_data: dict) -> bool:

@@ -8,7 +8,11 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from pipeline.draft_generator import TweetDraftGenerator, classify_provider_failure  # noqa: E402
+from pipeline.draft_generator import (  # noqa: E402
+    TweetDraftGenerator,
+    classify_provider_failure,
+    summarize_provider_failures,
+)
 
 
 class FakeConfig:
@@ -228,15 +232,106 @@ def test_generator_returns_structured_provider_failure_summary(monkeypatch):
             "operator_action": "Check provider API key, env wiring, and enabled flags before rerunning.",
         },
     ]
-    assert drafts["_provider_failure_summary"] == {
+    summary = drafts["_provider_failure_summary"]
+    assert summary["total_latency_ms"] >= 0.0
+    assert summary["max_latency_ms"] >= 0.0
+    comparable_summary = {**summary, "total_latency_ms": 0.0, "max_latency_ms": 0.0}
+    assert comparable_summary == {
         "total_failures": 2,
         "providers_attempted": ["gemini", "openai"],
         "categories": {"auth": 1, "rate_limit": 1},
+        "circuit_breaker_providers": ["openai"],
         "retryable_count": 1,
         "non_retryable_count": 1,
+        "total_latency_ms": 0.0,
+        "max_latency_ms": 0.0,
+        "last_failure": {
+            "provider": "openai",
+            "model": "gpt-4.1-mini",
+            "category": "auth",
+            "retryable": False,
+            "circuit_breaker_candidate": True,
+            "error_preview": "Invalid API key",
+            "operator_action": "Check provider API key, env wiring, and enabled flags before rerunning.",
+        },
+        "primary_failure": {
+            "provider": "openai",
+            "model": "gpt-4.1-mini",
+            "category": "auth",
+            "retryable": False,
+            "circuit_breaker_candidate": True,
+            "error_preview": "Invalid API key",
+            "operator_action": "Check provider API key, env wiring, and enabled flags before rerunning.",
+        },
         "operator_action_required": True,
-        "primary_operator_action": "Wait for provider rate-limit reset or reduce request volume before retrying.",
+        "primary_operator_action": "Check provider API key, env wiring, and enabled flags before rerunning.",
     }
+
+
+def test_provider_failure_summary_prioritizes_repair_before_retry_wait():
+    summary = summarize_provider_failures(
+        [
+            classify_provider_failure(
+                "gemini",
+                "gemini-2.5-flash",
+                RuntimeError("429 RESOURCE_EXHAUSTED: rate limit exceeded"),
+                attempt=1,
+                max_attempts=1,
+                latency_ms=20,
+            ),
+            classify_provider_failure(
+                "openai",
+                "gpt-4.1-mini",
+                RuntimeError("401 invalid api key"),
+                attempt=1,
+                max_attempts=1,
+                latency_ms=10,
+            ),
+            classify_provider_failure(
+                "anthropic",
+                "claude-sonnet-4-6",
+                RuntimeError("529 overloaded_error: API is temporarily overloaded"),
+                attempt=1,
+                max_attempts=1,
+                latency_ms=30,
+            ),
+        ]
+    )
+
+    assert summary["providers_attempted"] == ["gemini", "openai", "anthropic"]
+    assert summary["categories"] == {"auth": 1, "overloaded": 1, "rate_limit": 1}
+    assert summary["retryable_count"] == 2
+    assert summary["non_retryable_count"] == 1
+    assert summary["circuit_breaker_providers"] == ["openai"]
+    assert summary["primary_failure"]["provider"] == "openai"
+    assert summary["primary_failure"]["category"] == "auth"
+    assert summary["primary_failure"]["retryable"] is False
+    assert (
+        summary["primary_operator_action"] == "Check provider API key, env wiring, and enabled flags before rerunning."
+    )
+
+
+def test_provider_failure_summary_parses_string_false_flags():
+    summary = summarize_provider_failures(
+        [
+            {
+                "provider": "gemini",
+                "model": "gemini-test",
+                "category": "provider_error",
+                "retryable": "false",
+                "circuit_breaker_candidate": "false",
+                "latency_ms": 0,
+                "error_preview": "manual fixture",
+                "operator_action": "inspect",
+            }
+        ]
+    )
+
+    assert summary["retryable_count"] == 0
+    assert summary["non_retryable_count"] == 1
+    assert summary["circuit_breaker_providers"] == []
+    assert summary["primary_failure"]["retryable"] is False
+    assert summary["primary_failure"]["circuit_breaker_candidate"] is False
 
 
 def test_generator_rejects_missing_tags_and_uses_next_provider(monkeypatch):

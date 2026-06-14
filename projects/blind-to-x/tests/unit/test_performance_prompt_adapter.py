@@ -33,7 +33,6 @@ from pipeline.performance_prompt_adapter import (
     get_performance_prompt_adapter,
 )
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────
 
 

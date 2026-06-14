@@ -1,24 +1,25 @@
 """Tests for pipeline.x_analytics."""
 
-import pytest
-from unittest.mock import MagicMock, patch
 from datetime import datetime, timedelta
+from unittest.mock import MagicMock, patch
 
-from pipeline.x_analytics import (
-    init_db,
-    add_tweet,
-    get_tracked_tweets,
-    save_snapshot,
-    get_latest_snapshot,
-    get_snapshot_history,
-    get_monthly_api_usage,
-    _log_api_usage,
-    get_remaining_api_reads,
-    prioritize_tweets,
-    collect_tweet_stats,
-    get_performance_summary,
-)
+import pytest
+
 import pipeline.x_analytics as xa
+from pipeline.x_analytics import (
+    _log_api_usage,
+    add_tweet,
+    collect_tweet_stats,
+    get_latest_snapshot,
+    get_monthly_api_usage,
+    get_performance_summary,
+    get_remaining_api_reads,
+    get_snapshot_history,
+    get_tracked_tweets,
+    init_db,
+    prioritize_tweets,
+    save_snapshot,
+)
 
 
 @pytest.fixture(autouse=True)

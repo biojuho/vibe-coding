@@ -18,7 +18,6 @@ from pipeline.cross_source_insight import (  # noqa: E402
     process_cross_source_insights,
 )
 
-
 # ── Test data ─────────────────────────────────────────────────────────
 
 

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 
+from config import as_bool as _as_bool
 from pipeline.content_intelligence import evaluate_candidate_editorial_fit
 from pipeline.daily_queue_floor import (
     DailyQueueFloorState,
@@ -15,7 +16,6 @@ from pipeline.daily_queue_floor import (
     relaxed_pre_editorial_threshold,
 )
 from pipeline.dedup import check_cross_source_duplicates
-from config import as_bool as _as_bool
 
 logger = logging.getLogger(__name__)
 

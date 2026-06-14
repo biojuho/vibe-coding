@@ -1,6 +1,7 @@
-import pytest
-from unittest.mock import AsyncMock, MagicMock
 from argparse import Namespace
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from pipeline.daily_queue_floor import DailyQueueFloorState
 from pipeline.feed_collector import collect_feed_items
@@ -189,3 +190,102 @@ async def test_collect_feed_items_relaxes_daily_floor_thresholds():
     scraper.get_feed_candidates.assert_awaited_once_with(mode="trending", limit=15)
     assert len(items) == 3
     assert stats["editorial_skips"] == 0
+
+
+@pytest.mark.asyncio
+async def test_string_false_keeps_daily_floor_per_source_limits():
+    config = MagicMock()
+    config_dict = {
+        "scrape_limit": 2,
+        "feed_filter.fetch_multiplier": 3,
+        "feed_filter.min_engagement_score": 0.0,
+        "feed_filter.min_pre_editorial_score": 0.0,
+        "feed_filter.title_blacklist": [],
+        "schedule.enabled": True,
+        "dedup.cross_source_enabled": False,
+        "scrape_limits_per_source": {"blind": 1},
+        "review.minimum_daily_queue_pre_editorial_score": 0.0,
+        "review.minimum_daily_queue_relax_per_source_limits": "false",
+    }
+    config.get.side_effect = lambda key, default=None: config_dict.get(key, default)
+
+    scraper = AsyncMock()
+    scraper.get_feed_candidates.return_value = [
+        MockCandidate("candidate 1", "https://teamblind.com/1", score=15.0),
+        MockCandidate("candidate 2", "https://teamblind.com/2", score=15.0),
+        MockCandidate("candidate 3", "https://teamblind.com/3", score=15.0),
+    ]
+
+    args = Namespace(urls=None, popular=False, trending=True, limit=2)
+    floor_state = DailyQueueFloorState(target=5, current=0, remaining=5, active=True)
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(
+            "pipeline.feed_collector.evaluate_candidate_editorial_fit",
+            lambda **kwargs: {
+                "score": 100.0,
+                "reason_labels": ["daily floor"],
+                "dimensions": {},
+                "topic_cluster": "general",
+                "empathy_anchor": "",
+                "spinoff_angle": "",
+            },
+        )
+        items, stats = await collect_feed_items(config, args, {"blind": scraper}, daily_queue_floor=floor_state)
+
+    scraper.get_feed_candidates.assert_awaited_once_with(mode="trending", limit=15)
+    assert [item["url"] for item in items] == ["https://teamblind.com/1"]
+    assert stats["editorial_skips"] == 0
+
+
+@pytest.mark.asyncio
+async def test_string_false_disables_cross_source_dedup():
+    config = MagicMock()
+    config_dict = {
+        "scrape_limit": 5,
+        "feed_filter.fetch_multiplier": 1,
+        "feed_filter.min_engagement_score": 0.0,
+        "feed_filter.min_pre_editorial_score": 0.0,
+        "feed_filter.title_blacklist": [],
+        "schedule.enabled": True,
+        "dedup.cross_source_enabled": "false",
+        "dedup.title_similarity_threshold": 0.6,
+        "scrape_limits_per_source": {},
+    }
+    config.get.side_effect = lambda key, default=None: config_dict.get(key, default)
+
+    blind_scraper = AsyncMock()
+    blind_scraper.get_feed_candidates.return_value = [
+        MockCandidate("same salary story", "https://teamblind.com/a", score=10.0),
+    ]
+    dc_scraper = AsyncMock()
+    dc_scraper.get_feed_candidates.return_value = [
+        MockCandidate("same salary story", "https://dcinside.com/a", score=9.0),
+    ]
+
+    dedup_mock = MagicMock(side_effect=lambda items, threshold: items[:1])
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(
+            "pipeline.feed_collector.evaluate_candidate_editorial_fit",
+            lambda **kwargs: {
+                "score": 100.0,
+                "reason_labels": [],
+                "dimensions": {},
+                "topic_cluster": "general",
+                "empathy_anchor": "",
+                "spinoff_angle": "",
+            },
+        )
+        mp.setattr("pipeline.feed_collector.check_cross_source_duplicates", dedup_mock)
+        items, stats = await collect_feed_items(
+            config,
+            Namespace(urls=None, popular=False, trending=True, limit=5),
+            {"blind": blind_scraper, "dcinside": dc_scraper},
+        )
+
+    dedup_mock.assert_not_called()
+    assert [item["url"] for item in items] == [
+        "https://teamblind.com/a",
+        "https://dcinside.com/a",
+    ]
+    assert stats["cross_source_dedup_count"] == 0

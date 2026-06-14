@@ -6,7 +6,7 @@ Mixin: NotionUploadMixin — upload(), update_page_properties() 및 헬퍼.
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Any
 
 from config import (
@@ -98,7 +98,7 @@ class NotionUploadMixin:
     @staticmethod
     def _build_date_property_payload(value: Any) -> dict[str, Any]:
         if value == "now":
-            iso_value = datetime.utcnow().isoformat()
+            iso_value = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
         elif isinstance(value, datetime):
             iso_value = value.isoformat()
         elif isinstance(value, date):
@@ -507,6 +507,86 @@ class NotionUploadMixin:
             "3. 살릴 가치가 낮으면 '반려 사유'만 체크하고 반려로 끝냅니다.",
         ]
 
+    @staticmethod
+    def _as_dict(value: Any) -> dict[str, Any]:
+        return value if isinstance(value, dict) else {}
+
+    def _provider_failure_summary(self, post_data: dict[str, Any], drafts: Any) -> dict[str, Any]:
+        post_summary = self._as_dict(post_data.get("draft_provider_failure_summary"))
+        if post_summary:
+            return post_summary
+        if isinstance(drafts, dict):
+            return self._as_dict(drafts.get("_provider_failure_summary"))
+        return {}
+
+    @staticmethod
+    def _format_count_summary(values: Any) -> str:
+        if not isinstance(values, dict):
+            return ""
+        pairs = [(str(key).strip(), value) for key, value in values.items() if str(key).strip()]
+        return ", ".join(f"{key}={value}" for key, value in sorted(pairs))
+
+    @staticmethod
+    def _format_bool_flag(value: Any) -> str:
+        return "true" if bool(value) else "false"
+
+    def _build_provider_failure_triage_lines(self, post_data: dict[str, Any], drafts: Any) -> list[str]:
+        summary = self._provider_failure_summary(post_data, drafts)
+        if not summary:
+            return []
+
+        lines: list[str] = []
+        primary_failure = self._as_dict(summary.get("primary_failure"))
+        if primary_failure:
+            primary_parts: list[str] = []
+            for label in ("provider", "model", "category"):
+                value = str(primary_failure.get(label) or "").strip()
+                if value:
+                    primary_parts.append(f"{label}={value}")
+            if "retryable" in primary_failure:
+                primary_parts.append(f"retryable={self._format_bool_flag(primary_failure.get('retryable'))}")
+            if "circuit_breaker_candidate" in primary_failure:
+                primary_parts.append(
+                    f"circuit_breaker={self._format_bool_flag(primary_failure.get('circuit_breaker_candidate'))}"
+                )
+            error_preview = str(primary_failure.get("error_preview") or "").strip()
+            if error_preview:
+                primary_parts.append(f"error={self._truncate_for_brief(error_preview, limit=80)}")
+            if primary_parts:
+                lines.append("primary_failure: " + ", ".join(primary_parts))
+
+        primary_action = str(
+            summary.get("primary_operator_action") or primary_failure.get("operator_action") or ""
+        ).strip()
+        if primary_action:
+            lines.append(f"primary_operator_action: {self._truncate_for_brief(primary_action, limit=180)}")
+
+        summary_parts: list[str] = []
+        total_failures = summary.get("total_failures")
+        if total_failures not in (None, ""):
+            summary_parts.append(f"total_failures={total_failures}")
+        category_counts = self._format_count_summary(summary.get("categories"))
+        if category_counts:
+            summary_parts.append(f"categories={category_counts}")
+        providers = summary.get("providers_attempted")
+        if isinstance(providers, list):
+            provider_names = [str(provider).strip() for provider in providers if str(provider).strip()]
+            if provider_names:
+                summary_parts.append(f"providers={', '.join(provider_names)}")
+        circuit_breaker_providers = summary.get("circuit_breaker_providers")
+        if isinstance(circuit_breaker_providers, list):
+            breaker_names = [str(provider).strip() for provider in circuit_breaker_providers if str(provider).strip()]
+            if breaker_names:
+                summary_parts.append(f"circuit_breaker={', '.join(breaker_names)}")
+        for key in ("non_retryable_count", "retryable_count"):
+            value = summary.get(key)
+            if value not in (None, ""):
+                summary_parts.append(f"{key}={value}")
+        if summary_parts:
+            lines.append("provider_failure_summary: " + "; ".join(summary_parts))
+
+        return lines
+
     def _build_review_brief(
         self, post_data: dict[str, Any], drafts: Any, analysis: dict[str, Any] | None
     ) -> dict[str, Any]:
@@ -531,6 +611,7 @@ class NotionUploadMixin:
             "feedback_request": self._build_feedback_request(risk_flags, has_publishable_draft),
             "action_steps": self._build_action_steps(has_publishable_draft),
             "publish_platforms": publish_platforms,
+            "provider_failure_triage_lines": self._build_provider_failure_triage_lines(post_data, drafts),
         }
 
     def _build_summary_metric_lines(self, post_data: dict[str, Any], analysis: dict[str, Any] | None) -> list[str]:
@@ -646,6 +727,10 @@ class NotionUploadMixin:
             summary_lines.append(f"선택 품질: {review_brief['selection_quality_summary']}")
         if review_brief.get("edit_plan"):
             summary_lines.append(f"수정 플랜: {review_brief['edit_plan']}")
+        provider_failure_triage_lines = review_brief.get("provider_failure_triage_lines") or []
+        if provider_failure_triage_lines:
+            summary_lines.append("Provider failure triage")
+            summary_lines.extend(provider_failure_triage_lines)
         summary_lines.extend(self._build_x_upload_check_lines(drafts))
         if draft_generation_error:
             summary_lines.append(f"초안 생성 오류: {self._truncate_for_brief(draft_generation_error, limit=140)}")
@@ -861,6 +946,10 @@ class NotionUploadMixin:
             memo_parts.append(f"선택 품질: {review_brief['selection_quality_summary']}")
         if review_brief.get("edit_plan"):
             memo_parts.append(f"수정 플랜: {review_brief['edit_plan']}")
+        provider_failure_triage_lines = review_brief.get("provider_failure_triage_lines") or []
+        if provider_failure_triage_lines:
+            memo_parts.append("Provider failure triage")
+            memo_parts.extend(provider_failure_triage_lines)
         if analysis and analysis.get("final_rank_score") not in (None, ""):
             memo_parts.append(f"최종 랭크: {self._format_metric_value(analysis['final_rank_score'])}")
         editorial_avg_score = post_data.get("editorial_avg_score")

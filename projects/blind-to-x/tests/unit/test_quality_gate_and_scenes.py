@@ -5,9 +5,9 @@
   2. _SEMANTIC_SCENES — 시멘틱 씬 매핑 통합 프롬프트 생성
 """
 
-import unittest
-import sys
 import os
+import sys
+import unittest
 
 # 프로젝트 루트를 sys.path에 추가
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))

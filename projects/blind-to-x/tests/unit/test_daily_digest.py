@@ -4,13 +4,12 @@ from __future__ import annotations
 
 from pipeline.daily_digest import (
     DailyDigest,
-    DigestGenerator,
     DigestEntry,
+    DigestGenerator,
     _escape_telegram_md,
     format_digest_newsletter,
     format_digest_telegram,
 )
-
 
 # ── _escape_telegram_md ──────────────────────────────────────────────────────
 

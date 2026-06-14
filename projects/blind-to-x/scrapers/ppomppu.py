@@ -58,6 +58,7 @@ class PpomppuScraper(BaseScraper):
     async def _fetch_html_via_session(self, url):
         """뽐뿌는 EUC-KR 인코딩이므로 response.content를 수동 디코딩합니다."""
         import re as _re
+
         from curl_cffi.requests import AsyncSession
 
         last_error = None

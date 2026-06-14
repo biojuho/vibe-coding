@@ -8,9 +8,9 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from scripts.sync_notion_review_schema import (
+    REVIEW_SCHEMA,
     _merge_multi_select_options,
     _merge_select_options,
-    REVIEW_SCHEMA,
     build_schema_patch,
 )  # noqa: E402
 

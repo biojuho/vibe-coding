@@ -6,9 +6,9 @@ Mixin: NotionCacheMixin — bulk 캐시 로드 + O(1) 중복 체크.
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime, timezone
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
-import re
 
 from config import ERROR_NOTION_DUPLICATE_CHECK_FAILED
 

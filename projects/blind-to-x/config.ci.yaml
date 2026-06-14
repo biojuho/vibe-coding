@@ -224,6 +224,21 @@ scrape_quality:
   min_article_chars: 220
   failure_snapshot_dir: ".tmp/failures"
 
+source_preflight:
+  timeout_ms: 12000
+  output_path: ".tmp/source_browser_preflight.json"
+  screenshot_dir: "screenshots/source_preflight"
+  failure_dir: ".tmp/failures/source_preflight"
+  trace_dir: ".tmp/traces/source_preflight"
+  click_through_default: false
+  use_recommended_source_default: false
+  safety:
+    read_only: true
+    notion_writes: false
+    x_posts: false
+    auto_apply_allowed: false
+    manual_strategy_review_required: true
+
 dedup:
   cache_ttl_minutes: 30
   lookback_days: 14

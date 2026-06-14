@@ -5,16 +5,14 @@ from __future__ import annotations
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
-
 from pipeline.performance_collector import (
-    _parse_tweet_id,
-    _parse_threads_media_id,
-    _fetch_platform_metrics,
     _extract_page_info,
+    _fetch_platform_metrics,
+    _parse_threads_media_id,
+    _parse_tweet_id,
     _query_published_pages,
     run_performance_collection,
 )
-
 
 # ── URL 파싱 ─────────────────────────────────────────────────────────
 

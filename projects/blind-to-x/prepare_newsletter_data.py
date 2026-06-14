@@ -1,6 +1,8 @@
 import asyncio
-import yaml
 import traceback
+
+import yaml
+
 from pipeline.notion_upload import NotionUploader
 
 

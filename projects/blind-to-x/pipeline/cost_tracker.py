@@ -11,9 +11,9 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 import time
 from pathlib import Path
-import sys
 
 logger = logging.getLogger(__name__)
 
@@ -146,6 +146,7 @@ class CostTracker:
         self.dalle_calls = 0
         self.gemini_image_count = 0
         self._cost_db_degradation_events: list[dict[str, str]] = []
+        self._cost_db_degradation_total = 0
 
         # CostDB 영속화 (실패 시 None → 인메모리만 유지)
         self._cost_db = _try_get_cost_db()
@@ -157,6 +158,7 @@ class CostTracker:
         self._gemini_crit_sent = False
 
     def _record_cost_db_degradation(self, operation: str, exc: Exception) -> None:
+        self._cost_db_degradation_total += 1
         self._cost_db_degradation_events.append(
             {
                 "operation": operation,
@@ -168,6 +170,54 @@ class CostTracker:
         )
         del self._cost_db_degradation_events[:-_COST_DB_DIAGNOSTIC_LIMIT]
         _swallow_cost_db_persist_error(operation, exc)
+
+    def get_cost_persistence_status(self) -> dict[str, object]:
+        """Return machine-readable CostDB health without exposing DB paths or SQL."""
+        if self._cost_db_degradation_events:
+            operations = [event["operation"] for event in self._cost_db_degradation_events]
+            last_event = self._cost_db_degradation_events[-1]
+            return {
+                "status": "degraded",
+                "fail_open": True,
+                "event_count": len(self._cost_db_degradation_events),
+                "retained_event_count": len(self._cost_db_degradation_events),
+                "total_event_count": self._cost_db_degradation_total,
+                "operation_count": len(set(operations)),
+                "operations": operations,
+                "last_operation": last_event["operation"],
+                "last_error_type": last_event["error_type"],
+                "error_types": sorted({event["error_type"] for event in self._cost_db_degradation_events}),
+                "operator_action": _COST_DB_OPERATOR_ACTION,
+            }
+
+        if not self._cost_db:
+            return {
+                "status": "in_memory_only",
+                "fail_open": True,
+                "event_count": 0,
+                "retained_event_count": 0,
+                "total_event_count": 0,
+                "operation_count": 0,
+                "operations": [],
+                "last_operation": "",
+                "last_error_type": "",
+                "error_types": [],
+                "operator_action": _COST_DB_OPERATOR_ACTION,
+            }
+
+        return {
+            "status": "sqlite_enabled",
+            "fail_open": False,
+            "event_count": 0,
+            "retained_event_count": 0,
+            "total_event_count": 0,
+            "operation_count": 0,
+            "operations": [],
+            "last_operation": "",
+            "last_error_type": "",
+            "error_types": [],
+            "operator_action": "",
+        }
 
     def _load_persisted_totals(self) -> None:
         last_error = None
@@ -372,14 +422,20 @@ class CostTracker:
                 self._record_cost_db_degradation("cost_tracker.get_cost_per_post", exc)
 
         cost_persistence_line = "\n- Cost Persistence: SQLite enabled"
-        if self._cost_db_degradation_events:
-            operations = ", ".join(event["operation"] for event in self._cost_db_degradation_events)
+        cost_persistence_status = self.get_cost_persistence_status()
+        if cost_persistence_status["status"] == "degraded":
+            operations = ", ".join(str(operation) for operation in cost_persistence_status["operations"])
             cost_persistence_line = (
                 "\n- Cost Persistence: degraded "
-                f"(fail-open, events={len(self._cost_db_degradation_events)}, operations={operations})"
+                f"(fail-open, events={cost_persistence_status['event_count']}, "
+                f"total_events={cost_persistence_status.get('total_event_count', cost_persistence_status['event_count'])}, "
+                f"operations={operations})"
+                f"\n- Cost Persistence Last Error: "
+                f"operation={cost_persistence_status['last_operation']} "
+                f"error_type={cost_persistence_status['last_error_type']}"
                 f"\n- Cost Persistence Action: operator_action={_COST_DB_OPERATOR_ACTION}"
             )
-        elif not self._cost_db:
+        elif cost_persistence_status["status"] == "in_memory_only":
             cost_persistence_line = "\n- Cost Persistence: in-memory only (CostDB unavailable)"
 
         return (

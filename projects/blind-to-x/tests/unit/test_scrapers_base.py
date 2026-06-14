@@ -173,14 +173,42 @@ async def test_suggest_selectors_from_html():
 
 
 @pytest.mark.asyncio
-async def test_clean_text_extraction(mock_config):
-    try:
-        html = "<html><body><article><p>Hello</p></article></body></html>"
-        text = BaseScraper._extract_clean_text(html)
-        assert text == "Hello"
-    except Exception:
-        # allow pass if trafilatura is not installed
-        pass
+async def test_clean_text_extraction(monkeypatch):
+    captured = {}
+    fake_trafilatura = types.ModuleType("trafilatura")
+
+    def fake_extract(html, **kwargs):
+        captured["html"] = html
+        captured["kwargs"] = kwargs
+        return "  Hello  "
+
+    fake_trafilatura.extract = fake_extract
+    monkeypatch.setitem(sys.modules, "trafilatura", fake_trafilatura)
+
+    html = "<html><body><article><p>Hello</p></article></body></html>"
+    text = BaseScraper._extract_clean_text(html)
+
+    assert text == "Hello"
+    assert captured["html"] == html
+    assert captured["kwargs"] == {
+        "include_comments": False,
+        "include_tables": False,
+        "no_fallback": False,
+        "favor_precision": True,
+    }
+
+
+@pytest.mark.asyncio
+async def test_clean_text_extraction_fail_open(monkeypatch):
+    fake_trafilatura = types.ModuleType("trafilatura")
+
+    def fake_extract(*_args, **_kwargs):
+        raise RuntimeError("extract failed")
+
+    fake_trafilatura.extract = fake_extract
+    monkeypatch.setitem(sys.modules, "trafilatura", fake_trafilatura)
+
+    assert BaseScraper._extract_clean_text("<html></html>") == ""
 
 
 @pytest.mark.asyncio

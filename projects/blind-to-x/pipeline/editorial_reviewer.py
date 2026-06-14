@@ -20,9 +20,9 @@ from typing import Any
 import aiohttp
 from typing_extensions import TypedDict
 
+from config import as_bool
 from pipeline.draft_contract import is_publishable_draft_key, split_draft_bundle
 from pipeline.rules_loader import get_rule_section, load_rules
-from config import as_bool
 
 LANGGRAPH_AVAILABLE: bool | None = None
 END = "__end__"

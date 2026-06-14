@@ -1,10 +1,11 @@
 """Tests for pipeline.quality_gate."""
 
-import pytest
 from unittest.mock import MagicMock, patch
 
-from pipeline.quality_gate import QualityGate, _load_rules_once
+import pytest
+
 import pipeline.quality_gate as qg
+from pipeline.quality_gate import QualityGate, _load_rules_once
 
 
 @pytest.fixture(autouse=True)

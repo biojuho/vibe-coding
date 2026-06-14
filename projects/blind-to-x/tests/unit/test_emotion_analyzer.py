@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch, MagicMock
-
+from unittest.mock import MagicMock, patch
 
 from pipeline.emotion_analyzer import (
+    _EMOTION_GROUPS,
+    _KOTE_TO_AXIS,
     EmotionProfile,
+    _get_classifier,
     analyze_emotions,
     get_emotion_profile,
-    _KOTE_TO_AXIS,
-    _EMOTION_GROUPS,
 )
-
 
 # ── EmotionProfile dataclass ─────────────────────────────────────
 
@@ -49,6 +48,25 @@ class TestAnalyzeEmotions:
 
     def test_whitespace_only(self):
         assert analyze_emotions("   ") == []
+
+    def test_empty_text_does_not_load_classifier(self):
+        with patch("pipeline.emotion_analyzer._get_classifier", side_effect=AssertionError("classifier loaded")):
+            assert analyze_emotions("") == []
+
+    def test_disable_kote_env_skips_transformers_load(self, monkeypatch):
+        import pipeline.emotion_analyzer as ea
+
+        fake_transformers = MagicMock()
+        fake_transformers.pipeline = MagicMock(return_value=object())
+        monkeypatch.setenv("BLIND_TO_X_DISABLE_KOTE", "1")
+        monkeypatch.setattr(ea, "_classifier", None)
+        monkeypatch.setattr(ea, "_load_attempted", False)
+
+        with patch.dict("sys.modules", {"transformers": fake_transformers}):
+            assert _get_classifier() is None
+
+        assert ea._load_attempted is True
+        fake_transformers.pipeline.assert_not_called()
 
     def test_none_classifier_returns_empty(self):
         # _get_classifier returns None when model isn't available

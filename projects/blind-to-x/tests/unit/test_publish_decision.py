@@ -1,6 +1,5 @@
 from pipeline.publish_decision import DROP, HOLD, PUBLISH, decide_publish
 
-
 RESEARCH = {
     "source_frame": "상사와 직원의 감정 싸움",
     "real_issue": "권한을 가진 사람이 책임 있게 말하고 행동해야 한다는 문제",
@@ -22,6 +21,16 @@ GOOD_DRAFT = (
 
 def test_decide_publish_allows_publish_only_when_all_gates_pass():
     decision = decide_publish({"twitter": 95}, {"twitter": {"passed": True}}, RESEARCH, GOOD_DRAFT)
+
+    assert decision.action == PUBLISH
+    assert decision.x_publish_status == "Ready to Post"
+
+
+def test_value_reduction_failed_string_false_does_not_drop_publishable_draft():
+    research = dict(RESEARCH)
+    research["value_reduction_failed"] = "false"
+
+    decision = decide_publish({"twitter": 95}, {"twitter": {"passed": True}}, research, GOOD_DRAFT)
 
     assert decision.action == PUBLISH
     assert decision.x_publish_status == "Ready to Post"

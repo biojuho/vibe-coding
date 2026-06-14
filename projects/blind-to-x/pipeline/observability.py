@@ -29,9 +29,9 @@ If OpenTelemetry is not installed, all instrumentation is no-op (zero overhead).
 
 from __future__ import annotations
 
+import inspect
 import logging
 import os
-import inspect
 import time
 from contextlib import contextmanager
 from typing import Any
@@ -110,8 +110,8 @@ def _init_otel_tracer():
     """Initialize OpenTelemetry tracer with OTLP exporter."""
     try:
         from opentelemetry import trace
-        from opentelemetry.sdk.trace import TracerProvider
         from opentelemetry.sdk.resources import Resource
+        from opentelemetry.sdk.trace import TracerProvider
 
         resource = Resource.create({"service.name": _OTEL_SERVICE})
         provider = TracerProvider(resource=resource)

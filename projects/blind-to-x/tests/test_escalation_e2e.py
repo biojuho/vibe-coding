@@ -10,10 +10,10 @@ sys.path.insert(0, os.path.join(root_dir, "projects", "blind-to-x"))
 # Add workspace for execution module
 sys.path.insert(0, os.path.join(root_dir, "workspace"))
 
-from pipeline.notification import NotificationManager
 from config import ConfigManager
-from pipeline.spike_detector import SpikeEvent
 from pipeline.escalation_queue import EscalationQueue
+from pipeline.notification import NotificationManager
+from pipeline.spike_detector import SpikeEvent
 
 
 async def main():

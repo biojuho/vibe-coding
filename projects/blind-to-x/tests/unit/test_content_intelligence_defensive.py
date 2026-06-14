@@ -17,14 +17,13 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from pipeline.content_intelligence import (
-    _yaml_rules_to_tuples,
     _extract_empathy_anchor,
-    evaluate_candidate_editorial_fit,
-    classify_topic_cluster,
-    classify_emotion_axis,
+    _yaml_rules_to_tuples,
     classify_audience_fit,
+    classify_emotion_axis,
+    classify_topic_cluster,
+    evaluate_candidate_editorial_fit,
 )
-
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 1. _yaml_rules_to_tuples: non-dict YAML 엔트리 방어

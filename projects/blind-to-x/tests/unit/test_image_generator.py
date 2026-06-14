@@ -7,7 +7,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -163,8 +162,8 @@ class TestValidateImage:
         return ImageGenerator._validate_image(path)
 
     def test_valid_image(self, tmp_path):
-        from PIL import Image
         import numpy as np
+        from PIL import Image
 
         img = Image.fromarray(np.random.randint(0, 255, (512, 512, 3), dtype="uint8"))
         p = tmp_path / "ok.png"
@@ -274,8 +273,8 @@ class TestGenerateImage:
 
     @pytest.mark.asyncio
     async def test_pollinations_success(self, tmp_path, monkeypatch):
-        from PIL import Image
         import numpy as np
+        from PIL import Image
 
         # Create a valid image file to return
         img_path = str(tmp_path / "poll.png")

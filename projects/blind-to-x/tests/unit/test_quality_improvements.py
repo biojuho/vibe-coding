@@ -9,9 +9,9 @@
   6. ImageGenerator — 커뮤니티별 씬 매핑
 """
 
-import unittest
-import sys
 import os
+import sys
+import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
@@ -91,7 +91,8 @@ class TestQualityGateSubstanceChecks(unittest.TestCase):
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 
-from unittest.mock import patch, AsyncMock  # noqa: E402
+from unittest.mock import AsyncMock, patch  # noqa: E402
+
 from pipeline.editorial_reviewer import EditorialReviewer  # noqa: E402
 
 
@@ -110,6 +111,7 @@ class TestEditorialReviewerStructure(unittest.TestCase):
     def test_reviewer_no_api_key_graceful(self):
         """API 키 없을 때 graceful하게 원본 반환."""
         import asyncio
+
         from pipeline.editorial_reviewer import EditorialReviewer
 
         # Provider 없이 생성
@@ -126,6 +128,7 @@ class TestEditorialReviewerStructure(unittest.TestCase):
     def test_reviewer_skips_internal_keys(self):
         """'_'로 시작하는 내부 키는 리뷰 대상에서 제외."""
         import asyncio
+
         from pipeline.editorial_reviewer import EditorialReviewer
 
         reviewer = EditorialReviewer(config=None)
@@ -145,6 +148,7 @@ class TestEditorialReviewerStructure(unittest.TestCase):
     def test_reviewer_langgraph_loop(self, mock_call_llm):
         """LangGraph Evaluator-Optimizer 루프가 동작하는지 테스트."""
         import asyncio
+
         from pipeline.editorial_reviewer import EditorialReviewer
 
         reviewer = EditorialReviewer(config=None)
@@ -395,8 +399,16 @@ class TestBrandVoiceYAML(unittest.TestCase):
 class _FakeConfig:
     """테스트용 Config 스텁."""
 
+    def __init__(self, overrides=None):
+        self._values = {
+            "llm.providers": ["gemini"],
+            "ollama.enabled": False,
+        }
+        if overrides:
+            self._values.update(overrides)
+
     def get(self, key, default=None):
-        return default
+        return self._values.get(key, default)
 
 
 class TestExtractContentEssence(unittest.TestCase):

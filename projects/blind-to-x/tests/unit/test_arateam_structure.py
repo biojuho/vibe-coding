@@ -7,13 +7,15 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-import requests  # noqa: E402
-import pytest  # noqa: E402
 from unittest.mock import MagicMock, mock_open, patch  # noqa: E402
+
+import pytest  # noqa: E402
+import requests  # noqa: E402
+
+from pipeline.image_upload import ImageUploader  # noqa: E402
 
 # 우리가 만든 기능(모듈)들을 이곳으로 불러와서 테스트를 준비합니다.
 from pipeline.utils import async_run_with_retry  # noqa: E402
-from pipeline.image_upload import ImageUploader  # noqa: E402
 
 
 class FakeConfig:

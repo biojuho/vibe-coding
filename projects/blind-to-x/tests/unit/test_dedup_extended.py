@@ -8,17 +8,16 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from pipeline.dedup import (
-    _EmbeddingCache,
-    _cosine_similarity,
-    normalize_korean_text,
-    extract_korean_tokens,
-    title_similarity,
-    semantic_similarity,
-    find_similar_in_notion,
-    check_cross_source_duplicates,
     _build_minhash,
+    _cosine_similarity,
+    _EmbeddingCache,
+    check_cross_source_duplicates,
+    extract_korean_tokens,
+    find_similar_in_notion,
+    normalize_korean_text,
+    semantic_similarity,
+    title_similarity,
 )
-
 
 # ── _cosine_similarity ────────────────────────────────────────────
 

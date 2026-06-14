@@ -13,6 +13,7 @@ from typing import Any
 
 import aiohttp
 from openai import AsyncOpenAI
+
 from config import as_bool
 
 logger = logging.getLogger(__name__)

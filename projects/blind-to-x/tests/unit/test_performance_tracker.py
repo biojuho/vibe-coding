@@ -7,10 +7,10 @@ import unittest
 
 # ── 테스트 대상 ────────────────────────────────────────────────────
 from pipeline.performance_tracker import (
+    ENGAGEMENT_WEIGHTS,
+    PLATFORM_METRICS,
     PerformanceRecord,
     PerformanceTracker,
-    PLATFORM_METRICS,
-    ENGAGEMENT_WEIGHTS,
 )
 
 

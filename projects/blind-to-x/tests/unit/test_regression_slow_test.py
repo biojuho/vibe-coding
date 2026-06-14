@@ -105,6 +105,7 @@ class TestRegressionSlowTest:
         이 테스트는 코드 리뷰 없이 sleep이 재삽입되는 것을 방지합니다.
         """
         import inspect
+
         from pipeline import enrichment_engine
 
         source = inspect.getsource(enrichment_engine)

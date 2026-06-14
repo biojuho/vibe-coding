@@ -16,8 +16,8 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from pipeline.draft_generator import TweetDraftGenerator  # noqa: E402
 from pipeline.draft_cache import DraftCache  # noqa: E402
+from pipeline.draft_generator import TweetDraftGenerator  # noqa: E402
 
 
 class FakeConfig:
@@ -41,7 +41,13 @@ def _build_generator(extra: dict | None = None) -> TweetDraftGenerator:
             "max_retries_per_provider": 1,
             "request_timeout_seconds": 5,
         },
-        "anthropic": {"enabled": True, "api_key": "k", "model": "claude-sonnet-4-6"},
+        # These tests validate Best-of-N scoring/selection and monkeypatch
+        # generation paths when needed; avoid constructing real provider clients.
+        "anthropic": {"enabled": False, "api_key": "k", "model": "claude-sonnet-4-6"},
+        "openai": {"enabled": False},
+        "gemini": {"enabled": False},
+        "xai": {"enabled": False},
+        "ollama": {"enabled": False},
         "tweet_style": {"tone": "casual", "max_length": 280},
     }
     if extra:

@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import unittest
-from unittest.mock import patch, MagicMock
 from typing import Any
+from unittest.mock import MagicMock, patch
 
 from pipeline.draft_quality_gate import (
     DraftQualityGate,

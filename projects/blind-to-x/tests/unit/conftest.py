@@ -1,11 +1,14 @@
 """Shared pytest fixtures for blind-to-x unit tests."""
 
 import logging
-import pytest
 
 # Kiwi C 확장이 non-ASCII Windows 경로에서 segfault하므로 테스트 시 로드 방지.
 # kiwipiepy 자체 import도 안전하지 않으므로 sys.modules에 dummy를 주입.
 import os as _os
+
+import pytest
+
+_os.environ.setdefault("BLIND_TO_X_DISABLE_KOTE", "1")
 
 if any(ord(c) > 127 for c in _os.path.expanduser("~")):
     import sys as _sys
@@ -95,8 +98,8 @@ def _block_external_api_keys(monkeypatch):
 @pytest.fixture(autouse=True)
 def _fast_sleeps(monkeypatch):
     """테스트 속도를 높이기 위해 기나긴 time.sleep과 asyncio.sleep을 0에 가깝게 패치합니다."""
-    import time
     import asyncio
+    import time
 
     _original_time_sleep = time.sleep
     _original_asyncio_sleep = asyncio.sleep

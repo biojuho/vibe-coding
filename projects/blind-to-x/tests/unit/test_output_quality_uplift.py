@@ -24,7 +24,6 @@ from pipeline.draft_quality_gate import (
 )
 from pipeline.quality_gate import QualityGate
 
-
 # ── 공통 헬퍼 ─────────────────────────────────────────────────────────
 
 

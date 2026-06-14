@@ -1,6 +1,7 @@
 import asyncio
-from playwright.async_api import async_playwright
+
 from curl_cffi.requests import AsyncSession
+from playwright.async_api import async_playwright
 
 
 async def main():

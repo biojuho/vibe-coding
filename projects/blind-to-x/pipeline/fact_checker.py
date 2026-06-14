@@ -15,7 +15,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-
 # ── 한국어 숫자 단위 변환 맵 ──────────────────────────────────────────
 _KR_UNIT_MAP: dict[str, int] = {
     "만": 10_000,

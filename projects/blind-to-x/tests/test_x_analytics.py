@@ -24,6 +24,7 @@ def _isolated_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 from pipeline.x_analytics import (  # noqa: E402
+    MONTHLY_READ_LIMIT,
     add_tweet,
     get_latest_snapshot,
     get_monthly_api_usage,
@@ -33,7 +34,6 @@ from pipeline.x_analytics import (  # noqa: E402
     init_db,
     prioritize_tweets,
     save_snapshot,
-    MONTHLY_READ_LIMIT,
 )
 
 

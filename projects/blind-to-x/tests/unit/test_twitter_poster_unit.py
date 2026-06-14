@@ -15,7 +15,6 @@ if str(ROOT) not in sys.path:
 
 from pipeline.twitter_poster import TwitterPoster, _env_flag
 
-
 # ── _env_flag tests ──────────────────────────────────────────────────
 
 

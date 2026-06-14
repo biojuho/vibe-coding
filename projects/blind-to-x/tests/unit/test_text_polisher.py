@@ -1,17 +1,18 @@
 """Tests for pipeline.text_polisher."""
 
-import pytest
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+import pipeline.text_polisher as tp
 from pipeline.text_polisher import (
     TextPolisher,
-    polish_text,
     _compute_readability,
     _fix_spacing,
     _fix_typos,
     _split_sentences,
+    polish_text,
 )
-import pipeline.text_polisher as tp
 
 
 @pytest.fixture(autouse=True)

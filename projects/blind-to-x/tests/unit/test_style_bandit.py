@@ -5,13 +5,11 @@ from __future__ import annotations
 import sqlite3
 from unittest.mock import MagicMock
 
-
 from pipeline.style_bandit import (
+    _DEFAULT_STYLES,
     StyleBandit,
     _beta_sample,
-    _DEFAULT_STYLES,
 )
-
 
 # ── _beta_sample ─────────────────────────────────────────────────────
 

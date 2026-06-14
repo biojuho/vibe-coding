@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import argparse
-from collections import Counter
 import json
-from pathlib import Path
 import sys
+from collections import Counter
+from pathlib import Path
 from typing import Any
 
 BTX_ROOT = Path(__file__).resolve().parents[1]
@@ -28,6 +28,17 @@ def _resolve_path(value: str | Path, base_dir: Path) -> Path:
     return base_dir / path
 
 
+def _resolve_explicit_input_path(value: str | Path, base_dir: Path) -> Path:
+    path = Path(value)
+    if path.is_absolute():
+        return path
+    try:
+        path.resolve(strict=False).relative_to(base_dir)
+    except ValueError:
+        return base_dir / path
+    return path
+
+
 def _unique_paths(paths: list[Path]) -> list[Path]:
     seen: set[str] = set()
     unique: list[Path] = []
@@ -41,9 +52,11 @@ def _unique_paths(paths: list[Path]) -> list[Path]:
 
 
 def _input_paths(args: argparse.Namespace, base_dir: Path) -> list[Path]:
-    paths = [_resolve_path(path, base_dir) for path in (args.input or [])]
+    explicit_input_requested = bool(args.input or args.input_dir)
+    paths = [_resolve_explicit_input_path(path, base_dir) for path in (args.input or [])]
+    max_files = max(0, int(args.max_files or 0))
     for input_dir in args.input_dir or []:
-        resolved_dir = _resolve_path(input_dir, base_dir)
+        resolved_dir = _resolve_explicit_input_path(input_dir, base_dir)
         if not resolved_dir.exists() or not resolved_dir.is_dir():
             paths.append(resolved_dir)
             continue
@@ -52,8 +65,8 @@ def _input_paths(args: argparse.Namespace, base_dir: Path) -> list[Path]:
             key=lambda path: (path.stat().st_mtime if path.exists() else 0.0, str(path)),
             reverse=True,
         )
-        paths.extend(matches[: args.max_files])
-    if not paths:
+        paths.extend(matches[:max_files])
+    if not paths and not explicit_input_requested:
         paths.append(_resolve_path(DEFAULT_INPUT_PATH, base_dir))
     return _unique_paths(paths)
 
@@ -73,6 +86,29 @@ def _repair_command_type(command: str) -> str:
     return "other"
 
 
+REPAIR_COMMAND_TYPE_PRIORITY = {
+    "evidence_doctor": 0,
+    "source_preflight_capture": 1,
+    "source_preflight_capture_with_trace": 2,
+    "other": 3,
+}
+EVIDENCE_OPEN_PRIORITY = (
+    "failure_report_path",
+    "trace_path",
+    "screenshot_path",
+    "html_snapshot_path",
+    "click_screenshot_path",
+    "error",
+    "click_error",
+)
+
+
+def _repair_command_sort_key(command: str, count: int) -> tuple[int, int, str]:
+    command_type = _repair_command_type(command)
+    priority = REPAIR_COMMAND_TYPE_PRIORITY.get(command_type, REPAIR_COMMAND_TYPE_PRIORITY["other"])
+    return (-count, priority, command)
+
+
 def _bucket_report(payload: dict[str, Any]) -> dict[str, Any]:
     items = payload.get("items") if isinstance(payload.get("items"), list) else []
     status_counts: Counter[str] = Counter()
@@ -83,6 +119,11 @@ def _bucket_report(payload: dict[str, Any]) -> dict[str, Any]:
     repair_command_counts: Counter[str] = Counter()
     repair_command_type_counts: Counter[str] = Counter()
     repair_command_source_counts: Counter[tuple[str, str]] = Counter()
+    repair_command_bucket_counts: Counter[tuple[str, str, str]] = Counter()
+    operator_action_counts: Counter[str] = Counter()
+    operator_action_source_counts: Counter[tuple[str, str]] = Counter()
+    operator_action_mismatch_source_counts: Counter[str] = Counter()
+    evidence_field_counts: Counter[str] = Counter()
     operator_action_required_count = 0
     strategy_change_ready_count = 0
     for item in items:
@@ -91,15 +132,29 @@ def _bucket_report(payload: dict[str, Any]) -> dict[str, Any]:
         status = str(item.get("status") or "unknown")
         source = str(item.get("source") or "unknown")
         failure_report_status = str(item.get("failure_report_status") or "unknown")
+        operator_action = str(item.get("operator_action") or "").strip()
         status_counts[status] += 1
         source_counts[source] += 1
         source_status_counts[(source, status)] += 1
         failure_report_status_counts[failure_report_status] += 1
-        if status != "ready":
+        if "operator_action_required" in item:
+            action_required = bool(item.get("operator_action_required"))
+        else:
+            action_required = status != "ready"
+        if action_required:
             operator_action_required_count += 1
+        if operator_action:
+            operator_action_counts[operator_action] += 1
+            operator_action_source_counts[(operator_action, source)] += 1
         evidence_gate = item.get("evidence_gate") if isinstance(item.get("evidence_gate"), dict) else {}
         evidence_gate_status = str(evidence_gate.get("status") or "unknown")
         evidence_gate_status_counts[evidence_gate_status] += 1
+        evidence_fields = evidence_gate.get("evidence_fields")
+        if isinstance(evidence_fields, list):
+            for field in evidence_fields:
+                field_text = str(field or "").strip()
+                if field_text:
+                    evidence_field_counts[field_text] += 1
         if evidence_gate.get("strategy_change_ready") is True:
             strategy_change_ready_count += 1
         repair_commands = item.get("repair_commands") if isinstance(item.get("repair_commands"), list) else []
@@ -110,6 +165,14 @@ def _bucket_report(payload: dict[str, Any]) -> dict[str, Any]:
             repair_command_counts[command_text] += 1
             repair_command_type_counts[_repair_command_type(command_text)] += 1
             repair_command_source_counts[(command_text, source)] += 1
+            repair_command_bucket_counts[(command_text, source, status)] += 1
+
+    issues = payload.get("issues") if isinstance(payload.get("issues"), list) else []
+    for issue in issues:
+        if not isinstance(issue, dict) or issue.get("code") != "operator_action_mismatch":
+            continue
+        source = str(issue.get("source") or "unknown")
+        operator_action_mismatch_source_counts[source] += 1
 
     summary = payload.get("summary") if isinstance(payload.get("summary"), dict) else {}
     return {
@@ -135,6 +198,17 @@ def _bucket_report(payload: dict[str, Any]) -> dict[str, Any]:
         "repair_command_source_counts": {
             f"{source}|{command}": count for (command, source), count in repair_command_source_counts.items()
         },
+        "repair_command_bucket_counts": {
+            f"{source}|{status}|{command}": count
+            for (command, source, status), count in repair_command_bucket_counts.items()
+        },
+        "evidence_field_counts": _counter_dict(evidence_field_counts),
+        "operator_action_counts": _counter_dict(operator_action_counts),
+        "operator_action_source_counts": {
+            f"{source}|{action}": count for (action, source), count in operator_action_source_counts.items()
+        },
+        "operator_action_mismatch_count": sum(operator_action_mismatch_source_counts.values()),
+        "operator_action_mismatch_source_counts": _counter_dict(operator_action_mismatch_source_counts),
         "next_step": payload.get("next_step"),
     }
 
@@ -264,22 +338,125 @@ def _top_source_remediation(report_summaries: list[dict[str, Any]]) -> dict[str,
     }
 
 
+def _evidence_item_value(value: Any) -> str:
+    return str(value or "").strip()
+
+
+def _item_evidence(item: dict[str, Any]) -> dict[str, str]:
+    raw_evidence = item.get("evidence") if isinstance(item.get("evidence"), dict) else {}
+    evidence = {
+        str(key): _evidence_item_value(value)
+        for key, value in raw_evidence.items()
+        if str(key).strip() and _evidence_item_value(value)
+    }
+    failure_report_path = _evidence_item_value(item.get("failure_report_path"))
+    if failure_report_path and "failure_report_path" not in evidence:
+        evidence["failure_report_path"] = failure_report_path
+    return evidence
+
+
+def _first_evidence_reference(evidence: dict[str, str]) -> tuple[str, str]:
+    for key in EVIDENCE_OPEN_PRIORITY:
+        value = _evidence_item_value(evidence.get(key))
+        if value:
+            return key, value
+    return "", ""
+
+
+def _top_source_evidence(reports: list[dict[str, Any]], top_source_action: dict[str, Any]) -> dict[str, Any]:
+    source = _evidence_item_value(top_source_action.get("source"))
+    status = _evidence_item_value(top_source_action.get("status"))
+    if not source or not status:
+        return {}
+
+    for report in reports:
+        items = report.get("items") if isinstance(report.get("items"), list) else []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            if _evidence_item_value(item.get("source")) != source:
+                continue
+            if _evidence_item_value(item.get("status")) != status:
+                continue
+            evidence = _item_evidence(item)
+            open_first_field, open_first = _first_evidence_reference(evidence)
+            if not open_first:
+                continue
+            evidence_gate = item.get("evidence_gate") if isinstance(item.get("evidence_gate"), dict) else {}
+            result = {
+                "source": source,
+                "status": status,
+                "count": int(top_source_action.get("count") or 0),
+                "input_path": _evidence_item_value(report.get("input_path")),
+                "operator_action": _evidence_item_value(
+                    item.get("operator_action") or top_source_action.get("operator_action")
+                ),
+                "evidence_gate_status": _evidence_item_value(evidence_gate.get("status")),
+                "open_first_field": open_first_field,
+                "open_first": open_first,
+                "evidence": {
+                    key: evidence[key]
+                    for key in EVIDENCE_OPEN_PRIORITY
+                    if key in evidence and _evidence_item_value(evidence[key])
+                },
+            }
+            trace_viewer_command = _evidence_item_value(item.get("trace_viewer_command"))
+            if trace_viewer_command:
+                result["trace_viewer_command"] = trace_viewer_command
+            return result
+    return {}
+
+
 def _top_repair_commands(
     repair_command_counts: Counter[str],
     repair_command_source_counts: Counter[tuple[str, str]],
+    repair_command_bucket_counts: Counter[tuple[str, str, str]],
     *,
-    limit: int = 4,
+    limit: int | None = 4,
 ) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
-    for command, count in sorted(repair_command_counts.items(), key=lambda item: (-item[1], item[0]))[:limit]:
+    sorted_commands = sorted(
+        repair_command_counts.items(),
+        key=lambda item: _repair_command_sort_key(item[0], item[1]),
+    )
+    if limit is not None:
+        sorted_commands = sorted_commands[:limit]
+    for command, count in sorted_commands:
         source_counter: Counter[str] = Counter()
+        bucket_counter: Counter[str] = Counter()
         for (candidate_command, source), source_count in repair_command_source_counts.items():
             if candidate_command == command:
                 source_counter[source] += source_count
+        for (candidate_command, source, status), bucket_count in repair_command_bucket_counts.items():
+            if candidate_command == command:
+                bucket_counter[f"{source}|{status}"] += bucket_count
         items.append(
             {
                 "command": command,
                 "type": _repair_command_type(command),
+                "count": count,
+                "sources": _counter_dict(source_counter, limit=4),
+                "buckets": _counter_dict(bucket_counter, limit=4),
+            }
+        )
+    return items
+
+
+def _top_operator_actions(
+    operator_action_counts: Counter[str],
+    operator_action_source_counts: Counter[tuple[str, str]],
+    *,
+    limit: int = 4,
+) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    for action, count in sorted(operator_action_counts.items(), key=lambda item: (-item[1], item[0]))[:limit]:
+        source_counter: Counter[str] = Counter()
+        for (candidate_action, source), source_count in operator_action_source_counts.items():
+            if candidate_action == action:
+                source_counter[source] += source_count
+        items.append(
+            {
+                "operator_action": action,
                 "count": count,
                 "sources": _counter_dict(source_counter, limit=4),
             }
@@ -413,6 +590,11 @@ def build_trend_payload(
     repair_command_counts: Counter[str] = Counter()
     repair_command_type_counts: Counter[str] = Counter()
     repair_command_source_counts: Counter[tuple[str, str]] = Counter()
+    repair_command_bucket_counts: Counter[tuple[str, str, str]] = Counter()
+    operator_action_counts: Counter[str] = Counter()
+    operator_action_source_counts: Counter[tuple[str, str]] = Counter()
+    operator_action_mismatch_source_counts: Counter[str] = Counter()
+    evidence_field_counts: Counter[str] = Counter()
     error_count = 0
     warning_count = 0
     problem_action_count = 0
@@ -434,6 +616,22 @@ def build_trend_payload(
                 source, _, command = str(key).partition("|")
                 if command:
                     repair_command_source_counts[(command, source or "unknown")] += int(count or 0)
+        repair_bucket_counts = summary.get("repair_command_bucket_counts")
+        if isinstance(repair_bucket_counts, dict):
+            for key, count in repair_bucket_counts.items():
+                source, _, status_command = str(key).partition("|")
+                status, _, command = status_command.partition("|")
+                if command:
+                    repair_command_bucket_counts[(command, source or "unknown", status or "unknown")] += int(count or 0)
+        evidence_field_counts.update(summary.get("evidence_field_counts") or {})
+        operator_action_counts.update(summary.get("operator_action_counts") or {})
+        operator_action_mismatch_source_counts.update(summary.get("operator_action_mismatch_source_counts") or {})
+        operator_source_counts = summary.get("operator_action_source_counts")
+        if isinstance(operator_source_counts, dict):
+            for key, count in operator_source_counts.items():
+                source, _, action = str(key).partition("|")
+                if action:
+                    operator_action_source_counts[(action, source or "unknown")] += int(count or 0)
         error_count += int(summary["error_count"])
         warning_count += int(summary["warning_count"])
         problem_action_count += int(summary["problem_action_count"])
@@ -444,6 +642,7 @@ def build_trend_payload(
     status = "FAIL" if error_count else "WARN" if warning_count else "PASS"
     top_source_action = _top_source_action(report_summaries)
     top_source_remediation = _top_source_remediation(report_summaries)
+    top_source_evidence = _top_source_evidence(reports, top_source_action)
     return {
         "ok": error_count == 0,
         "status": status,
@@ -468,12 +667,28 @@ def build_trend_payload(
             "source_counts": _counter_dict(source_counts),
             "failure_report_status_counts": _counter_dict(failure_report_status_counts),
             "evidence_gate_status_counts": _counter_dict(evidence_gate_status_counts),
+            "evidence_field_counts": _counter_dict(evidence_field_counts),
             "top_issue_codes": _top_issue_codes(reports),
             "repair_command_count": sum(repair_command_counts.values()),
             "repair_command_type_counts": _counter_dict(repair_command_type_counts),
-            "top_repair_commands": _top_repair_commands(repair_command_counts, repair_command_source_counts),
+            "repair_command_queue": _top_repair_commands(
+                repair_command_counts,
+                repair_command_source_counts,
+                repair_command_bucket_counts,
+                limit=None,
+            ),
+            "top_repair_commands": _top_repair_commands(
+                repair_command_counts,
+                repair_command_source_counts,
+                repair_command_bucket_counts,
+            ),
+            "operator_action_counts": _counter_dict(operator_action_counts),
+            "top_operator_actions": _top_operator_actions(operator_action_counts, operator_action_source_counts),
+            "operator_action_mismatch_count": sum(operator_action_mismatch_source_counts.values()),
+            "operator_action_mismatch_source_counts": _counter_dict(operator_action_mismatch_source_counts),
             "top_source_action": top_source_action,
             "top_source_remediation": top_source_remediation,
+            "top_source_evidence": top_source_evidence,
             "operator_recommendation": _operator_recommendation(
                 problem_action_count=problem_action_count,
                 error_count=error_count,
@@ -512,6 +727,9 @@ def _print_text_report(payload: dict[str, Any]) -> None:
     top_source_remediation = (
         summary.get("top_source_remediation") if isinstance(summary.get("top_source_remediation"), dict) else {}
     )
+    top_source_evidence = (
+        summary.get("top_source_evidence") if isinstance(summary.get("top_source_evidence"), dict) else {}
+    )
     operator_recommendation = (
         summary.get("operator_recommendation") if isinstance(summary.get("operator_recommendation"), dict) else {}
     )
@@ -528,12 +746,20 @@ def _print_text_report(payload: dict[str, Any]) -> None:
     print(f"  sources: {_format_counts(summary['source_counts'])}")
     print(f"  failure_report_statuses: {_format_counts(summary['failure_report_status_counts'])}")
     print(f"  evidence_gates: {_format_counts(summary['evidence_gate_status_counts'])}")
+    print(f"  evidence_fields: {_format_counts(summary['evidence_field_counts'])}")
     print(f"  top_issue_codes: {_format_counts(summary['top_issue_codes'])}")
     print(
         "  repair_commands: "
         f"count={summary.get('repair_command_count', 0)}; "
         f"types={_format_counts(summary.get('repair_command_type_counts') or {})}"
     )
+    mismatch_count = int(summary.get("operator_action_mismatch_count") or 0)
+    if mismatch_count:
+        print(
+            "  operator_action_mismatches: "
+            f"count={mismatch_count}; "
+            f"sources={_format_counts(summary.get('operator_action_mismatch_source_counts') or {})}"
+        )
     top_repair_commands = (
         summary.get("top_repair_commands") if isinstance(summary.get("top_repair_commands"), list) else []
     )
@@ -547,6 +773,18 @@ def _print_text_report(payload: dict[str, Any]) -> None:
             f"sources={_format_counts(item.get('sources') or {})}; "
             f"command={item.get('command', '-')}"
         )
+    top_operator_actions = (
+        summary.get("top_operator_actions") if isinstance(summary.get("top_operator_actions"), list) else []
+    )
+    for item in top_operator_actions[:3]:
+        if not isinstance(item, dict):
+            continue
+        print(
+            "  top_operator_action: "
+            f"count={item.get('count', 0)}; "
+            f"sources={_format_counts(item.get('sources') or {})}; "
+            f"action={item.get('operator_action', '-')}"
+        )
     if top_source_action:
         print(
             "  top_source_action: "
@@ -554,6 +792,13 @@ def _print_text_report(payload: dict[str, Any]) -> None:
             f"status={top_source_action.get('status')}; "
             f"count={top_source_action.get('count')}; "
             f"action={top_source_action.get('operator_action')}"
+        )
+    if top_source_evidence:
+        print(
+            "  top_source_evidence: "
+            f"source={top_source_evidence.get('source')}; "
+            f"status={top_source_evidence.get('status')}; "
+            f"open_first={top_source_evidence.get('open_first_field')}={top_source_evidence.get('open_first')}"
         )
     if operator_recommendation:
         print(

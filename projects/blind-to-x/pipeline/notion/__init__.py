@@ -7,10 +7,10 @@
 - _query.py  : 조회·검색·레코드 추출
 """
 
-from pipeline.notion._schema import NotionSchemaMixin
 from pipeline.notion._cache import NotionCacheMixin
-from pipeline.notion._upload import NotionUploadMixin
 from pipeline.notion._query import NotionQueryMixin
+from pipeline.notion._schema import NotionSchemaMixin
+from pipeline.notion._upload import NotionUploadMixin
 
 __all__ = [
     "NotionSchemaMixin",

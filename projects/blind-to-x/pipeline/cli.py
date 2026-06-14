@@ -4,11 +4,12 @@ import argparse
 import json
 import logging
 import os
-from pathlib import Path
 import sys
 import time
+from pathlib import Path
 
 from config import ConfigManager
+from config import as_bool as _as_bool
 from pipeline import NotificationManager, NotionUploader, TwitterPoster
 from pipeline.bootstrap import check_budget, init_components, init_scrapers, resolve_input_sources
 from pipeline.runner import execute_pipeline, handle_single_commands
@@ -18,7 +19,6 @@ from scripts.source_browser_probe import (
     exit_code_for_report,
     run_source_preflight,
 )
-from config import as_bool as _as_bool
 
 logger = logging.getLogger(__name__)
 
@@ -718,7 +718,7 @@ async def run_main():
 
     # ── Harness preflight security check ─────────────────────────────────
     try:
-        from pipeline.harness_guard import run_preflight, is_harness_enabled
+        from pipeline.harness_guard import is_harness_enabled, run_preflight
 
         if is_harness_enabled():
             preflight_result = run_preflight()

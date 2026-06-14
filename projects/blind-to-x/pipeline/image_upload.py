@@ -13,9 +13,9 @@ import logging
 import os
 import tempfile
 
-import requests
 import cloudinary
 import cloudinary.uploader
+import requests
 
 from .utils import async_run_with_retry
 
