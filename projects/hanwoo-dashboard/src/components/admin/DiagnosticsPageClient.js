@@ -278,7 +278,7 @@ export default function DiagnosticsPageClient() {
 
 	if (loading) {
 		return (
-			<div className="clay-shell">
+			<main className="clay-shell" id="main-content">
 				<div
 					className="clay-page-card p-8 text-center"
 					role="status"
@@ -294,12 +294,12 @@ export default function DiagnosticsPageClient() {
 						데이터베이스 연결과 런타임 상태를 점검하는 중입니다.
 					</p>
 				</div>
-			</div>
+			</main>
 		);
 	}
 
 	return (
-		<div className="clay-shell">
+		<main className="clay-shell" id="main-content">
 			<div className="clay-page-card p-6 md:p-8">
 				<div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
 					<div className="max-w-2xl">
@@ -456,7 +456,7 @@ export default function DiagnosticsPageClient() {
 					)}
 				</section>
 			</div>
-		</div>
+		</main>
 	);
 }
 

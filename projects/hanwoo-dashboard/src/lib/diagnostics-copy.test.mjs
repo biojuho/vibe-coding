@@ -231,3 +231,12 @@ test("admin diagnostics status card options are normalized before rendering", ()
 		/function StatusCard\(\{ title, value, sub, icon, status \}\)/,
 	);
 });
+
+test("admin diagnostics page uses <main id=main-content> in all branches for skip-link compliance", () => {
+	const source = readSource("components/admin/DiagnosticsPageClient.js");
+	// Both the loading branch and the main render branch must use <main id="main-content">
+	// so the layout skip-link (<a href="#main-content">) always has a valid target
+	const mainTags = [...source.matchAll(/<main\s[^>]*id="main-content"/g)];
+	assert.ok(mainTags.length >= 2, `Expected ≥2 <main id="main-content"> (one per render branch), found ${mainTags.length}`);
+	assert.doesNotMatch(source, /<div className="clay-shell"/);
+});
