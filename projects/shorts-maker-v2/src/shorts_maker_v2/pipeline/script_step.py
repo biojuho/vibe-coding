@@ -482,6 +482,8 @@ class ScriptStep(ScriptPromptsMixin, ScriptReviewMixin):
                         "[ScriptReview] 채널 '%s' 기준 재생성 완료",
                         self.channel_key or "default",
                     )
+            except TopicUnsuitableError:
+                raise
             except Exception as exc:
                 logger.warning("[ScriptReview] scoring failed (skipped): %s", exc)
 

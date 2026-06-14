@@ -621,6 +621,43 @@ def test_run_skips_review_errors_and_returns_best_result() -> None:
     assert len(scenes) == 2
 
 
+def test_topic_unsuitable_propagates_from_review_stage() -> None:
+    """SMV2-SS001: verifiability_score < 4 시 TopicUnsuitableError가 오케스트레이터까지 전파돼야 함.
+
+    리뷰 단계의 except Exception이 TopicUnsuitableError를 삼키면
+    오케스트레이터가 topic_unsuitable을 감지하지 못하고 불량 스크립트를 출하한다.
+    """
+    payload = {
+        "title": "Low verifiability topic",
+        "scenes": [
+            {
+                "narration_ko": "This hook sentence is intentionally long enough to exceed the minimum length check.",
+                "visual_prompt_en": "opening frame",
+                "structure_role": "hook",
+            },
+            {
+                "narration_ko": "This body scene adds context to the unverifiable claim made in the introduction.",
+                "visual_prompt_en": "body frame",
+                "structure_role": "body",
+            },
+        ],
+    }
+    step = ScriptStep(
+        config=make_config(duration_range=(8, 16), script_review_enabled=True),
+        llm_router=MagicMock(generate_json=MagicMock(return_value=payload)),
+    )
+
+    with (
+        patch.object(
+            step,
+            "_review_script",
+            return_value={"verifiability_score": 2, "feedback": "no sources found"},
+        ),
+        pytest.raises(TopicUnsuitableError, match="verifiability_score=2"),
+    ):
+        step.run("unverifiable topic")
+
+
 @pytest.mark.parametrize(
     "forbidden_opener",
     ["오늘은", "오늘의", "이번에는", "이번엔", "여러분", "우리는", "우리가", "안녕하세요"],
