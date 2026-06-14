@@ -225,7 +225,7 @@ class GoogleClient:
         """
         if len(vec_a) != len(vec_b):
             raise ValueError(f"Vector dimension mismatch: {len(vec_a)} vs {len(vec_b)}")
-        dot = sum(a * b for a, b in zip(vec_a, vec_b, strict=False))
+        dot = sum(a * b for a, b in zip(vec_a, vec_b, strict=True))
         norm_a = math.sqrt(sum(a * a for a in vec_a))
         norm_b = math.sqrt(sum(b * b for b in vec_b))
         if norm_a == 0 or norm_b == 0:

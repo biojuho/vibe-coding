@@ -701,6 +701,8 @@ class ImageGenerator:
                     quality="standard",
                     n=1,
                 )
+                if not response.data:
+                    raise ValueError("DALL-E returned empty data array.")
                 image_url = response.data[0].url
                 logger.info("Successfully generated thumbnail image")
                 if self.cost_tracker:

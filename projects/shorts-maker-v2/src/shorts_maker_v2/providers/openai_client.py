@@ -123,6 +123,8 @@ class OpenAIClient:
             n=1,
         )
 
+        if not response.data:
+            raise ValueError("OpenAI image generation returned empty data array.")
         item = response.data[0]
         if getattr(item, "url", None):
             resp = requests.get(item.url, timeout=self.request_timeout_sec)

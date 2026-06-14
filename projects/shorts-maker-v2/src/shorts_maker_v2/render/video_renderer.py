@@ -319,7 +319,14 @@ class FFmpegRenderer(VideoRendererBackend):
             )
             info = json.loads(result.stdout)
             return float(info.get("format", {}).get("duration", 0))
-        except Exception:
+        except (
+            subprocess.TimeoutExpired,
+            subprocess.CalledProcessError,
+            json.JSONDecodeError,
+            KeyError,
+            ValueError,
+            OSError,
+        ):
             return 0.0
 
     def _run_ffmpeg(self, args: list[str], timeout: int = 300) -> None:
