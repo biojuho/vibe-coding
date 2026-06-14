@@ -144,12 +144,17 @@ def _compute_readability(text: str) -> dict:
             pass
 
     # 가독성 점수 산출 (0-100)
-    # 최적: 평균 문장 길이 20-40자, 한자어 비율 30% 이하
+    # 최적: 평균 문장 길이 15-40자, 한자어 비율 30% 이하
+    # 계단식 감점 — readability.py 정렬 (선형 패널티는 naver_blog처럼 긴 문장 플랫폼에서 0점 유도)
     len_score = 100.0
     if avg_len < 10:
-        len_score -= (10 - avg_len) * 3  # 너무 짧은 문장 감점
-    elif avg_len > 50:
-        len_score -= (avg_len - 50) * 2  # 너무 긴 문장 감점
+        len_score -= 15  # 너무 짧음
+    elif avg_len > 80:
+        len_score -= 30
+    elif avg_len > 60:
+        len_score -= 20
+    elif avg_len > 40:
+        len_score -= 10
 
     sino_score = 100.0
     if sino_ratio > 0.5:
@@ -160,7 +165,7 @@ def _compute_readability(text: str) -> dict:
     if num_sentences < 2:
         sent_score -= 20
     elif num_sentences > 15:
-        sent_score -= (num_sentences - 15) * 3
+        sent_score -= min((num_sentences - 15) * 3, 30)
 
     readability = max(0.0, min(100.0, (len_score * 0.4 + sino_score * 0.3 + sent_score * 0.3)))
 

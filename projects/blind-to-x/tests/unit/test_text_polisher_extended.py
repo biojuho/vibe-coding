@@ -79,12 +79,31 @@ class TestComputeReadability:
             assert result["readability"] >= 0
 
     def test_long_sentences(self):
-        """Very long sentences (>50 chars avg) lose points."""
+        """Very long sentences (>50 chars avg) lose points but stay reasonable."""
         with patch("pipeline.text_polisher._get_kiwi", return_value=None):
             long_text = "가" * 60 + ". " + "나" * 60 + "."
             result = _compute_readability(long_text)
             assert result["avg_sentence_length"] > 50
             assert result["readability"] < 100
+
+    def test_naver_blog_long_sentences_stay_above_floor(self):
+        """T-AB018: naver_blog avg sentence length ~100 chars must NOT score near 0.
+
+        Old linear penalty: len_score = 100 - (100-50)*2 = 0 → readability ~0.
+        New stepped penalty (max -30): len_score = 70 → readability ≥ 40.
+        """
+        with patch("pipeline.text_polisher._get_kiwi", return_value=None):
+            blog_text = ". ".join(["가" * 100] * 5) + "."
+            result = _compute_readability(blog_text)
+            assert result["avg_sentence_length"] >= 90
+            assert result["readability"] >= 40, f"naver_blog text scored {result['readability']:.1f} — should be >= 40"
+
+    def test_very_long_sentences_still_penalized(self):
+        """avg_len > 80 should receive max penalty tier (-30)."""
+        with patch("pipeline.text_polisher._get_kiwi", return_value=None):
+            very_long = ". ".join(["가" * 120] * 3) + "."
+            result = _compute_readability(very_long)
+            assert result["readability"] < 90  # penalized but not zero
 
     def test_optimal_length(self):
         """Sentences of 20-40 chars should score well."""
