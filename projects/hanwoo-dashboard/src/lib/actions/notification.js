@@ -23,11 +23,7 @@ function isFreshNotificationSummary(summary, now = Date.now()) {
 }
 
 function isNotificationActionCattleRow(value) {
-	return (
-		value !== null &&
-		typeof value === "object" &&
-		!Array.isArray(value)
-	);
+	return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function normalizeNotificationActionCattleRows(rows) {
@@ -44,8 +40,8 @@ export async function getNotifications() {
 		if (isFreshNotificationSummary(cached)) {
 			return cached.payload;
 		}
-	} catch {
-		// Fall through to live computation
+	} catch (err) {
+		console.warn("notification: cache read failed, computing live", err);
 	}
 
 	try {
@@ -63,8 +59,8 @@ export async function getNotifications() {
 				farmId: "default",
 				payload: notifications,
 			});
-		} catch {
-			// Non-fatal: cache write failure
+		} catch (err) {
+			console.warn("notification: cache write failed (non-fatal)", err);
 		}
 
 		return notifications;

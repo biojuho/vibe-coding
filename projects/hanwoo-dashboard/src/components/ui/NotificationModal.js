@@ -30,8 +30,7 @@ export default function NotificationModal(options = {}) {
 	const [smsTestStatus, setSmsTestStatus] = useState("");
 	const [smsTestStatusVariant, setSmsTestStatusVariant] = useState("success");
 	const visibleNotifications = normalizeModalNotifications(notifications);
-	const handleClose =
-		typeof onClose === "function" ? onClose : () => undefined;
+	const handleClose = typeof onClose === "function" ? onClose : () => undefined;
 	const closeButtonLabel = isTestingSMS
 		? "문자 알림 테스트 전송 중에는 알림 센터를 닫을 수 없습니다"
 		: "알림 센터 닫기";
@@ -92,13 +91,22 @@ export default function NotificationModal(options = {}) {
 		setSmsTestStatusVariant("success");
 		setIsTestingSMS(true);
 
+		if (typeof onTestSMS !== "function") {
+			if (isMountedRef.current) {
+				setSmsTestStatusVariant("error");
+				setSmsTestStatus("문자 알림 테스트 기능이 연결되지 않았습니다.");
+				setIsTestingSMS(false);
+			}
+			return;
+		}
 		try {
-			await Promise.resolve(onTestSMS?.());
+			await Promise.resolve(onTestSMS());
 			if (isMountedRef.current) {
 				setSmsTestStatusVariant("success");
 				setSmsTestStatus("문자 알림 테스트 전송을 완료했습니다.");
 			}
-		} catch {
+		} catch (err) {
+			console.error("NotificationModal: SMS test send failed", err);
 			if (isMountedRef.current) {
 				setSmsTestStatusVariant("error");
 				setSmsTestStatus(
@@ -215,7 +223,11 @@ export default function NotificationModal(options = {}) {
 							새로운 알림이 없습니다.
 						</div>
 					) : (
-						<div role="list" aria-label="알림 목록" style={{ display: "grid", gap: "12px" }}>
+						<div
+							role="list"
+							aria-label="알림 목록"
+							style={{ display: "grid", gap: "12px" }}
+						>
 							{visibleNotifications.map((notification, index) => (
 								<div
 									key={index}
@@ -336,7 +348,9 @@ export default function NotificationModal(options = {}) {
 								cursor: isTestingSMS ? "wait" : "pointer",
 							}}
 						>
-							{isTestingSMS ? "문자 알림 테스트 전송 중..." : "문자 알림 테스트 전송"}
+							{isTestingSMS
+								? "문자 알림 테스트 전송 중..."
+								: "문자 알림 테스트 전송"}
 						</button>
 					</div>
 					<div

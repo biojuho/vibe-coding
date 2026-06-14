@@ -39,11 +39,11 @@ export function buildNotifications(cattle = [], inventory = []) {
 				type: "estrus",
 				level: daysLeft <= 1 ? "critical" : "warning",
 				title: daysLeft === 0 ? "오늘 발정 예정" : "발정 임박",
-				message: `${cow.name} (${cow.tagNumber}) 발정 예정일이 ${daysLeft}일 남았습니다.`,
+				message: `${cow.name ?? "이름 없음"} (${cow.tagNumber ?? "번호 없음"}) 발정 예정일이 ${daysLeft}일 남았습니다.`,
 				daysLeft,
 				cattleId: cow.id,
-				cattleName: cow.name,
-				tagNumber: cow.tagNumber,
+				cattleName: cow.name ?? null,
+				tagNumber: cow.tagNumber ?? null,
 				buildingId: cow.buildingId,
 				penNumber: cow.penNumber,
 				...timing,
@@ -63,11 +63,11 @@ export function buildNotifications(cattle = [], inventory = []) {
 				type: "calving",
 				level: daysLeft <= 3 ? "critical" : "warning",
 				title: daysLeft === 0 ? "오늘 분만 예정" : "분만 임박",
-				message: `${cow.name} (${cow.tagNumber}) 분만 예정일이 ${daysLeft}일 남았습니다.`,
+				message: `${cow.name ?? "이름 없음"} (${cow.tagNumber ?? "번호 없음"}) 분만 예정일이 ${daysLeft}일 남았습니다.`,
 				daysLeft,
 				cattleId: cow.id,
-				cattleName: cow.name,
-				tagNumber: cow.tagNumber,
+				cattleName: cow.name ?? null,
+				tagNumber: cow.tagNumber ?? null,
 				buildingId: cow.buildingId,
 				penNumber: cow.penNumber,
 				...timing,
@@ -78,7 +78,8 @@ export function buildNotifications(cattle = [], inventory = []) {
 	// Inventory low-stock alerts
 	if (Array.isArray(inventory)) {
 		inventory.filter(isLowStock).forEach((item) => {
-			const name = typeof item.name === "string" ? item.name.trim() : "재고 항목";
+			const name =
+				typeof item.name === "string" ? item.name.trim() : "재고 항목";
 			const qty = Number(item.quantity);
 			const thr = Number(item.threshold);
 			const isCritical = qty === 0;
