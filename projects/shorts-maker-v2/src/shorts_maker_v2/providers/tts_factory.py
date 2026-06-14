@@ -48,6 +48,8 @@ class TTSFactory:
         openai_client: Any = None,
     ) -> Path:
         """Route to the configured TTS provider and preserve the Edge fallback cascade."""
+        if not text or not text.strip():
+            raise ValueError(f"TTS text must not be empty (provider={tts_provider!r}, role={role!r})")
         request = TTSFactory._build_request(config, text, output_path, words_json_path, voice, role, channel_key)
         if tts_provider in _provider_specs():
             return TTSFactory._try_provider_with_edge_fallback(tts_provider, request)

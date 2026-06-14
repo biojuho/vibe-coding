@@ -164,3 +164,31 @@ def test_openai_provider_without_client_raises(tmp_path):
             role="narrator",
             channel_key="channel-c",
         )
+
+
+def test_empty_text_raises_before_provider_call(tmp_path):
+    with pytest.raises(ValueError, match="TTS text must not be empty"):
+        TTSFactory.generate_tts_with_fallback(
+            _config(),
+            "openai",
+            "",
+            tmp_path / "out.wav",
+            tmp_path / "out_words.json",
+            voice="alloy",
+            role="hook",
+            channel_key="ch",
+        )
+
+
+def test_whitespace_only_text_raises(tmp_path):
+    with pytest.raises(ValueError, match="TTS text must not be empty"):
+        TTSFactory.generate_tts_with_fallback(
+            _config(),
+            "edge-tts",
+            "   \n  ",
+            tmp_path / "out.wav",
+            tmp_path / "out_words.json",
+            voice="ko-KR-SunHiNeural",
+            role="body",
+            channel_key="ch",
+        )
