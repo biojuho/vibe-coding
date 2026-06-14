@@ -109,8 +109,13 @@ export function buildInsightPrompt(summary) {
 		`- 이번 달 출하: ${normalized.monthlySalesCount}두 (판매액 ${normalized.monthlySalesManwon}만원)`,
 		`- 즉시 출하 후보 개체: ${normalized.shipmentCandidates}두`,
 		`- 추가 비육 시 마진 감소 예상: ${normalized.decliningMarginCount}두`,
-		`- 발정 알림: ${normalized.notificationCounts.estrus}건 / 분만 알림: ${normalized.notificationCounts.calving}건`,
+		`- 발정 알림: ${normalized.notificationCounts.estrus}건 / 분만 알림: ${normalized.notificationCounts.calving}건 / 건강 이상 알림: ${normalized.notificationCounts.alert}건`,
 	];
+	if (normalized.topShipment?.tag) {
+		lines.push(
+			`- 최우선 출하 후보: 개체 ${normalized.topShipment.tag} (현재 예상 수익 ${normalized.topShipment.marginManwon}만원)`,
+		);
+	}
 	if (normalized.thi !== null) {
 		const tempText =
 			normalized.temp !== null ? `기온 ${normalized.temp}℃` : "기온 확인 불가";

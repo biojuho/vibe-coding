@@ -83,6 +83,19 @@ export default function CalvingTab(options = {}) {
 				),
 		[safeCattle],
 	);
+	const calvingAlertCount = useMemo(
+		() => pregnantCows.filter((cow) => isCalvingAlert(cow.pregnancyDate)).length,
+		[pregnantCows],
+	);
+	const thisYearCalvingCount = useMemo(() => {
+		const thisYear = new Date().getFullYear();
+		return safeCattle.filter((row) => {
+			if (row.status !== "송아지") return false;
+			if (!row.birthDate) return false;
+			const date = new Date(row.birthDate);
+			return !Number.isNaN(date.getTime()) && date.getFullYear() === thisYear;
+		}).length;
+	}, [safeCattle]);
 
 	const [selectedCowId, setSelectedCowId] = useState(null);
 	const [isSaving, setIsSaving] = useState(false);
@@ -179,12 +192,43 @@ export default function CalvingTab(options = {}) {
 
 	return (
 		<div>
-			<div className="section-header" style={{ marginBottom: "16px" }}>
+			<div className="section-header" style={{ marginBottom: "12px" }}>
 				<span className="section-header-icon" aria-hidden="true">
 					🐮
 				</span>
 				<h2 className="section-header-title">분만 예정 관리</h2>
 			</div>
+
+			{(pregnantCows.length > 0 || thisYearCalvingCount > 0) && (
+				<div
+					style={{
+						display: "flex",
+						flexWrap: "wrap",
+						gap: "8px",
+						marginBottom: "16px",
+					}}
+				>
+					{pregnantCows.length > 0 && (
+						<div className="clay-stat-chip">임신우 {pregnantCows.length}두</div>
+					)}
+					{calvingAlertCount > 0 && (
+						<div
+							className="clay-stat-chip"
+							style={{
+								color: "var(--color-warning)",
+								borderColor: "color-mix(in srgb, var(--color-warning) 50%, transparent)",
+							}}
+						>
+							분만 임박 {calvingAlertCount}두
+						</div>
+					)}
+					{thisYearCalvingCount > 0 && (
+						<div className="clay-stat-chip">
+							올해 출생 {thisYearCalvingCount}두
+						</div>
+					)}
+				</div>
+			)}
 
 			<div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
 				{pregnantCows.length === 0 ? (

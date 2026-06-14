@@ -150,7 +150,7 @@ test("buildInsightPrompt embeds the snapshot and requests strict JSON", () => {
 		monthlySalesCount: 1,
 		monthlySalesTotal: 8_000_000,
 		profitabilityItems: [{ recommendShipment: true, currentProfit: 200_000 }],
-		notifications: [{ type: "estrus" }],
+		notifications: [{ type: "estrus" }, { type: "alert" }],
 		weather: { thi: 80, temp: 32, humidity: 70 },
 	});
 	assert.match(prompt, /총 사육두수: 12두/);
@@ -161,11 +161,33 @@ test("buildInsightPrompt embeds the snapshot and requests strict JSON", () => {
 	assert.match(prompt, /즉시 출하 후보 개체: 1두/);
 	assert.doesNotMatch(prompt, /즉시 출하 권장 개체/);
 	assert.match(prompt, /발정 알림: 1건/);
+	assert.match(prompt, /건강 이상 알림: 1건/);
 	assert.match(prompt, /THI 80/);
 	assert.match(prompt, /JSON 배열로 정확히 3개의 인사이트/);
 	assert.match(prompt, /농장 정보 기반/);
 	assert.doesNotMatch(prompt, /데이터 기반/);
 	assert.match(prompt, /순수 JSON만 반환/);
+});
+
+test("buildInsightPrompt includes topShipment detail when tag is available", () => {
+	const promptWithTag = buildInsightPrompt({
+		totalHeadcount: 5,
+		profitabilityItems: [
+			{ tagNumber: "002-56789", recommendShipment: true, currentProfit: 1_500_000 },
+		],
+		notifications: [],
+	});
+	assert.match(promptWithTag, /최우선 출하 후보: 개체 6789/);
+	assert.match(promptWithTag, /현재 예상 수익 150만원/);
+
+	const promptNoTag = buildInsightPrompt({
+		totalHeadcount: 5,
+		profitabilityItems: [
+			{ recommendShipment: true, currentProfit: 500_000 },
+		],
+		notifications: [],
+	});
+	assert.doesNotMatch(promptNoTag, /최우선 출하 후보/);
 });
 
 test("buildInsightPrompt uses explicit weather fallback copy for partial weather values", () => {
