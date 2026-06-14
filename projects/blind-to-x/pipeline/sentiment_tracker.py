@@ -86,9 +86,7 @@ EMOTION_LEXICON: dict[str, list[str]] = {
         "피곤",
         "퇴사",
         "현생",
-        "권고사직",
-        "희망퇴직",
-    ],  # T-AB033: 2026 권고사직/희망퇴직 급증으로 추가
+    ],
     "불안": [
         "불안",
         "걱정",
@@ -100,9 +98,7 @@ EMOTION_LEXICON: dict[str, list[str]] = {
         "압박",
         "답답",
         "공황",
-        "구조조정",
-        "정리해고",
-    ],  # T-AB033: 구조조정·정리해고 공포 키워드 추가
+    ],
     "희망": ["희망", "기대", "설렘", "좋겠", "드디어", "성장", "합격", "축하"],
     "분석": ["분석", "정리", "비교", "종합", "트렌드", "팁", "방법", "가이드"],
     "연대": ["응원", "힘내", "파이팅", "함께", "우리", "같이", "동료", "선배"],
@@ -131,6 +127,20 @@ EMOTION_LEXICON: dict[str, list[str]] = {
         "자동화",
         "AI 시대",
         "AI 도구",
+    ],
+    # T-AB045: 고용불안 독립 축 — 권고사직/정리해고는 현타/불안에도 있지만
+    # 단일 축 집계 없이는 고용불안 트렌드 스파이크가 분산돼 감지되지 않음
+    "고용불안": [
+        "구조조정",
+        "정리해고",
+        "권고사직",
+        "희망퇴직",
+        "감원",
+        "인력 감축",
+        "명예퇴직",
+        "고용불안",
+        "실직",
+        "무급휴직",
     ],
 }
 
@@ -191,10 +201,15 @@ class SentimentTracker:
         text = f"{title} {content}".lower()
         matched: dict[str, int] = {}
 
+        seen: set[str] = set()
         for emotion, keywords in EMOTION_LEXICON.items():
             for kw in keywords:
-                if kw in text:
-                    matched[kw] = matched.get(kw, 0) + text.count(kw)
+                kw_lower = kw.lower()
+                if kw in seen or kw_lower in seen:
+                    continue
+                if kw_lower in text:
+                    seen.add(kw)
+                    matched[kw] = text.count(kw_lower)
 
         now = datetime.now(_KST).strftime("%Y-%m-%d %H:%M:%S")
 
@@ -223,6 +238,12 @@ class SentimentTracker:
         return matched
 
     def _keyword_to_emotion(self, keyword: str) -> str:
+        # Newer independent axes intentionally reuse older broad-axis keywords.
+        # Prefer the specific trend axis so spikes do not collapse into "불안".
+        for emotion in ("고용불안", "AI_전환"):
+            if keyword in EMOTION_LEXICON.get(emotion, []):
+                return emotion
+
         for emotion, keywords in EMOTION_LEXICON.items():
             if keyword in keywords:
                 return emotion

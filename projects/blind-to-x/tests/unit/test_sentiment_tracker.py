@@ -209,3 +209,68 @@ class TestEmotionLexiconExpansion:
             emotion_axis="분노",
         )
         assert "킹받" in matched
+
+
+# ── T-AB045: AI_전환 / 고용불안 독립 축 ──────────────────────────────────────
+
+
+class TestNewEmotionAxes:
+    """T-AB045: AI_전환·고용불안이 각각 독립 축으로 EMOTION_LEXICON에 존재."""
+
+    def test_AI_전환_axis_in_lexicon(self):
+        assert "AI_전환" in EMOTION_LEXICON
+
+    def test_고용불안_axis_in_lexicon(self):
+        assert "고용불안" in EMOTION_LEXICON
+
+    @pytest.mark.parametrize(
+        "keyword,expected",
+        [
+            # AI_전환 unique keywords
+            ("vibe코딩", "AI_전환"),
+            ("AI 코딩", "AI_전환"),
+            ("커서 AI", "AI_전환"),
+            ("주니어 대체", "AI_전환"),
+            ("AI 대체", "AI_전환"),
+            # 고용불안 unique keywords (T-AB045: moved out of 불안/현타)
+            ("구조조정", "고용불안"),
+            ("정리해고", "고용불안"),
+            ("권고사직", "고용불안"),
+            ("희망퇴직", "고용불안"),
+            ("감원", "고용불안"),
+            ("실직", "고용불안"),
+        ],
+    )
+    def test_new_axis_keywords_resolve(self, tracker, keyword, expected):
+        assert tracker._keyword_to_emotion(keyword) == expected
+
+    def test_고용불안_detected_in_record(self, tracker):
+        """구조조정·정리해고 키워드가 고용불안 축으로 집계."""
+        matched = tracker.record(
+            url="https://blind.co.kr/post/999",
+            title="구조조정 명단 발표",
+            content="구조조정 대상 발표났다. 정리해고 통보받은 팀원 있음.",
+            emotion_axis="고용불안",
+        )
+        assert "구조조정" in matched
+        assert "정리해고" in matched
+
+    def test_AI_전환_detected_in_record(self, tracker):
+        """AI 코딩·vibe코딩 키워드가 AI_전환 축으로 집계."""
+        matched = tracker.record(
+            url="https://blind.co.kr/post/1000",
+            title="vibe코딩 시대 주니어 대체",
+            content="vibe코딩으로 주니어 대체 현실화되고 있음. AI 코딩 도구 때문에.",
+            emotion_axis="AI_전환",
+        )
+        assert "vibe코딩" in matched
+        assert "주니어 대체" in matched
+        assert "AI 코딩" in matched
+
+    def test_고용불안_axis_keywords_count(self):
+        """고용불안 축은 최소 5개 키워드 보유."""
+        assert len(EMOTION_LEXICON["고용불안"]) >= 5
+
+    def test_AI_전환_axis_keywords_count(self):
+        """AI_전환 축은 최소 5개 키워드 보유."""
+        assert len(EMOTION_LEXICON["AI_전환"]) >= 5
