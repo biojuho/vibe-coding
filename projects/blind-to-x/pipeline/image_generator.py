@@ -618,13 +618,16 @@ class ImageGenerator:
         for model_name in _GEMINI_IMAGE_MODELS:
             logger.info("Generating image via Gemini [%s]... Prompt: %s...", model_name, prompt[:50])
             try:
-                response = await asyncio.to_thread(
-                    self._gemini_client.models.generate_content,
-                    model=model_name,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        response_modalities=["IMAGE", "TEXT"],
+                response = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        self._gemini_client.models.generate_content,
+                        model=model_name,
+                        contents=prompt,
+                        config=types.GenerateContentConfig(
+                            response_modalities=["IMAGE", "TEXT"],
+                        ),
                     ),
+                    timeout=90,
                 )
 
                 for part in response.candidates[0].content.parts:

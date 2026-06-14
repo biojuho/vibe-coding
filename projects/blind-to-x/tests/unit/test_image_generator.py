@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -367,6 +368,29 @@ class TestGenerateGemini:
         gen = ImageGenerator(FakeConfig({"image.provider": "pollinations"}))
         gen._gemini_client = None
         result = await gen._generate_gemini("test prompt")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_gemini_api_timeout_falls_through_to_next_model(self, monkeypatch):
+        """BTX-IMG001: asyncio.TimeoutError on Gemini API call → warning log + try next model."""
+        from pipeline.image_generator import ImageGenerator
+
+        gen = ImageGenerator(FakeConfig({"image.provider": "gemini"}))
+        gen._gemini_client = MagicMock()
+
+        async def _slow_thread(*_a, **_kw):
+            raise asyncio.TimeoutError()
+
+        monkeypatch.setattr("pipeline.image_generator.asyncio.to_thread", _slow_thread)
+        fake_types = MagicMock()
+        monkeypatch.setattr("pipeline.image_generator.types", fake_types, raising=False)
+
+        # All models time out → returns None (falls through all models)
+        with patch.dict(
+            "sys.modules",
+            {"google.genai": MagicMock(types=fake_types), "google.genai.types": fake_types},
+        ):
+            result = await gen._generate_gemini("a test prompt")
         assert result is None
 
     @pytest.mark.asyncio
