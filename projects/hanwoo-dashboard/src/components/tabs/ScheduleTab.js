@@ -577,6 +577,7 @@ export default function ScheduleTab(options = {}) {
 									onClick={() => openFormForDate(dateStr)}
 									aria-label={`${dateStr} 일정 등록 열기`}
 									title={`${dateStr} 일정 등록 열기`}
+									aria-current={isToday ? "date" : undefined}
 									className="min-w-11 rounded-[16px] border p-2"
 									style={{
 										minHeight: "78px",

@@ -2222,6 +2222,13 @@ test("FieldModeView exposes id=main-content so skip link works in field mode too
 	assert.match(source, /id="main-content"/);
 });
 
+test("ScheduleTab calendar today cell has aria-current=date for screen readers", () => {
+	const source = readSource("components/tabs/ScheduleTab.js");
+
+	// Screen readers must announce which cell is today; aria-current=date is the correct token
+	assert.match(source, /aria-current=\{isToday \? "date" : undefined\}/);
+});
+
 test("CalvingTab stat chips container is aria-live so counts update for screen readers", () => {
 	const source = readSource("components/tabs/CalvingTab.js");
 
