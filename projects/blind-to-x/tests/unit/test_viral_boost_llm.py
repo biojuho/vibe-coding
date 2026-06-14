@@ -114,6 +114,35 @@ def test_estimate_viral_boost_returns_clamped_score_when_provider_unavailable(mo
     assert 0.0 <= result <= 15.0
 
 
+def test_estimate_viral_boost_returns_zero_when_generate_json_returns_none(monkeypatch):
+    """New None guard: if generate_json() returns None, function must return 0.0
+    instead of raising AttributeError on None.get('score', 0)."""
+    import importlib.abc
+    import importlib.machinery
+
+    class NullLLMClient:
+        def __init__(self, **kwargs): ...
+
+        def generate_json(self, **kwargs):
+            return None  # simulate provider returning None
+
+    class FakeLoader(importlib.abc.Loader):
+        def create_module(self, spec):
+            return None
+
+        def exec_module(self, module):
+            module.LLMClient = NullLLMClient
+
+    monkeypatch.setattr(
+        importlib.util,
+        "spec_from_file_location",
+        lambda name, location: importlib.machinery.ModuleSpec(name, FakeLoader()),
+    )
+
+    result = boosting.estimate_viral_boost_llm("제목", "본문", "기타", "공감")
+    assert result == 0.0
+
+
 def test_estimate_viral_boost_safe_when_args_are_long():
     """Long title/content (> 200/500 chars) must not raise — the function truncates them
     via internal slicing. This sanity-checks that the truncation path stays intact even
