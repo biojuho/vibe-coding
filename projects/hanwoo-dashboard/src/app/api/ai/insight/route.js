@@ -147,7 +147,14 @@ export async function POST(request) {
 
 	const subscriptionStatus = await getSubscriptionStatus(
 		session.user?.id,
-	).catch(() => ({ status: "INACTIVE" }));
+	).catch((err) => {
+		console.error(
+			"ai-insight: subscription status check failed for user",
+			session.user?.id,
+			err,
+		);
+		return { status: "INACTIVE" };
+	});
 	if (subscriptionStatus.status === "INACTIVE") {
 		emitInsightMetric({
 			event: "subscription_required",

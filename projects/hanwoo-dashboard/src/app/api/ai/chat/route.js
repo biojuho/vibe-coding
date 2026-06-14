@@ -190,7 +190,14 @@ export async function POST(request) {
 
 	const subscriptionStatus = await getSubscriptionStatus(
 		session.user?.id,
-	).catch(() => ({ status: "INACTIVE" }));
+	).catch((err) => {
+		console.error(
+			"ai-chat: subscription status check failed for user",
+			session.user?.id,
+			err,
+		);
+		return { status: "INACTIVE" };
+	});
 	if (subscriptionStatus.status === "INACTIVE") {
 		return Response.json(
 			{
