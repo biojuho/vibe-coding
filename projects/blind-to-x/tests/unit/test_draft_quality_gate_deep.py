@@ -385,3 +385,63 @@ class TestQualityResultScoring:
         s2 = r2.summary()
         assert "❌" in s2
         assert "1 issues" in s2
+
+
+# ── _add_vague_expression_check (T-AB011/T-AB020) ────────────────────────────
+
+
+class TestVagueExpressionCheck:
+    """DraftQualityGate._add_vague_expression_check: 모호 표현 감지."""
+
+    def _gate(self, strict: bool = False) -> DraftQualityGate:
+        with patch("pipeline.draft_quality_gate._load_cliche_watchlist", return_value=[]):
+            return DraftQualityGate(strict_mode=strict)
+
+    def _base_twitter(self) -> str:
+        """최소 글자 수(30자)를 넘는 기본 트위터 텍스트."""
+        return "연봉 실수령 280만원을 듣고 회의실이 조용해진 날."
+
+    def test_no_vague_expressions_passes_clean(self):
+        gate = self._gate()
+        result = gate.validate("twitter", self._base_twitter())
+        vague_items = [i for i in result.items if "구체성" in i.rule]
+        assert not any(not i.passed for i in vague_items)
+
+    def test_single_vague_expression_info_only(self):
+        """1개 모호 표현 → 통과(참고만)."""
+        gate = self._gate()
+        text = self._base_twitter() + " 최근에 이런 일이 많아졌다."
+        result = gate.validate("twitter", text)
+        vague_fails = [i for i in result.items if "구체성 부족" in i.rule and not i.passed]
+        assert not vague_fails  # 1개는 경고 미만 — fail 없음
+
+    def test_three_vague_expressions_triggers_warning(self):
+        """3개 이상 모호 표현 → 구체성 부족 warning."""
+        gate = self._gate()
+        text = self._base_twitter() + " 흥미로운 점은 높은 연봉보다 최근에 여러 가지 문제가 생긴다는 것이다."
+        result = gate.validate("twitter", text)
+        vague_items = [i for i in result.items if "구체성 부족" in i.rule]
+        assert vague_items, "3+ vague patterns should produce 구체성 부족 item"
+        assert any(not i.passed for i in vague_items)
+
+    @pytest.mark.parametrize(
+        "phrase",
+        [
+            "흥미로운 점은",
+            "주목할 만한",
+            "시사하는 바가",
+            "눈여겨볼 점은",
+            "진정한 의미의",
+            "새로운 시대의",
+            "변화의 바람이",
+            "핵심은 바로",
+        ],
+    )
+    def test_editorial_yaml_cliche_patterns_detected(self, phrase: str):
+        """editorial.yaml cliche_watchlist에서 동기화된 패턴이 감지되어야 한다 (T-AB011)."""
+        gate = self._gate()
+        # 1개씩이면 fail 안 하지만 result.items에 info 항목이 생겨야 함
+        text = self._base_twitter() + f" {phrase} 그렇습니다."
+        result = gate.validate("twitter", text)
+        vague_matched = [i for i in result.items if "구체성" in i.rule]
+        assert vague_matched, f"Phrase {phrase!r} should produce a specificity item"
