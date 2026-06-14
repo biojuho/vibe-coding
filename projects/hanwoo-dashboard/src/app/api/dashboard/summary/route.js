@@ -49,21 +49,34 @@ export async function GET(request) {
 			? null
 			: await getDashboardSummarySnapshot("default");
 		let source = "snapshot";
+		let freshPayload = null;
 
 		if (!snapshot || toMetaDate(snapshot.staleAt) <= new Date()) {
-			const payload = await buildDashboardSummaryPayload({ client: prisma });
+			freshPayload = await buildDashboardSummaryPayload({ client: prisma });
 			snapshot = await saveDashboardSummarySnapshot({
 				farmId: "default",
-				payload,
+				payload: freshPayload,
 				staleAt: new Date(Date.now() + DASHBOARD_CACHE_TTLS.summary * 1000),
 			});
 			source = snapshot ? "rebuilt" : "live";
 		}
 
+		// HW-DSR001: saveDashboardSummarySnapshot이 null 반환 시 freshPayload로 fallback
+		const data = snapshot?.payload ?? freshPayload;
+		const meta = snapshot
+			? buildMeta(snapshot, source)
+			: {
+					source,
+					generatedAt: new Date().toISOString(),
+					staleAt: new Date().toISOString(),
+					isStale: true,
+					ageSeconds: 0,
+				};
+
 		return NextResponse.json({
 			success: true,
-			data: snapshot.payload,
-			meta: buildMeta(snapshot, source),
+			data,
+			meta,
 		});
 	} catch (error) {
 		if (isAuthenticationError(error)) {
