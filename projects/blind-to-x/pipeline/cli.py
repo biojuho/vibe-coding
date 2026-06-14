@@ -289,7 +289,8 @@ def _config_value(config_mgr, key: str):
         return None
     try:
         return config_mgr.get(key, None)
-    except Exception:
+    except Exception as exc:
+        logger.debug("_config_value: config.get(%r) failed: %s", key, exc)
         return None
 
 

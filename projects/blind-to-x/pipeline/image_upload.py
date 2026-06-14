@@ -280,7 +280,8 @@ class ImageUploader:
             else:
                 logger.error(f"Imgur API가 정상적으로 처리를 끝마치지 못했습니다: {data}")
                 return None
-        except Exception:
+        except Exception as exc:
+            logger.warning("Imgur 업로드 최종 실패: %s", exc)
             # 최종 실패 시 아무 것도 반환하지 않습니다(None)
             return None
 
@@ -313,5 +314,6 @@ class ImageUploader:
             )
             logger.info(f"✨ 업로드 완료 (보안 링크 획득): {link}")
             return link
-        except Exception:
+        except Exception as exc:
+            logger.warning("Cloudinary 업로드 최종 실패: %s", exc)
             return None

@@ -41,7 +41,8 @@ try:
     from pipeline.performance_tracker import PerformanceTracker
 
     _perf_tracker: PerformanceTracker | None = PerformanceTracker()
-except Exception:
+except Exception as exc:
+    logger.warning("PerformanceTracker unavailable (non-critical): %s", exc)
     _perf_tracker = None
 
 # Backward-compatible globals kept for external consumers / test monkeypatches.

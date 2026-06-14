@@ -545,7 +545,8 @@ class ImageGenerator:
         """
         try:
             raw = self.config.get("image.fallback_images", {})
-        except Exception:
+        except Exception as exc:
+            logger.debug("ImageGenerator: fallback_images config read failed: %s", exc)
             return {}
         if not isinstance(raw, dict):
             return {}

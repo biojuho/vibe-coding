@@ -96,7 +96,8 @@ def _fix_spacing(text: str) -> str:
         return text
     try:
         return kiwi.space(text)
-    except Exception:
+    except Exception as exc:
+        logger.debug("text_polisher: kiwi.space() failed, returning original: %s", exc)
         return text
 
 
@@ -112,7 +113,8 @@ def _fix_typos(text: str) -> str:
         # Kiwi의 join()이 교정된 텍스트를 반환
         result = kiwi.join(kiwi.tokenize(text, typos="basic"))
         return result if result else text
-    except Exception:
+    except Exception as exc:
+        logger.debug("text_polisher: kiwi typo correction failed, returning original: %s", exc)
         return text
 
 

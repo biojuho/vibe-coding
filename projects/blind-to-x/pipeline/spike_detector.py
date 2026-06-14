@@ -52,7 +52,8 @@ class SpikeEvent:
             parsed = urlparse(self.url)
             clean = urlunparse((parsed.scheme, parsed.netloc, parsed.path.rstrip("/"), "", "", ""))
             return clean
-        except Exception:
+        except Exception as exc:
+            logger.debug("SpikeEvent.event_key: URL canonicalization failed, using fallback: %s", exc)
             return self.url.split("?")[0].rstrip("/")
 
 
