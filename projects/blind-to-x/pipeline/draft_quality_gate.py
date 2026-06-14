@@ -311,7 +311,10 @@ def _find_influencer_vocab(text: str) -> list[str]:
 
 # ── P1-B: 마무리 여운 (마지막 문장이 CTA/질문으로 끝나지 않아야 함) ──
 # YAML-overridable via rules/editorial.yaml `quality_gate_patterns.closing_cta_regex`.
-_CLOSING_CTA_PATTERNS = re.compile(_QG_PATTERNS.get("closing_cta_regex") or _CLOSING_CTA_REGEX_DEFAULT)
+try:
+    _CLOSING_CTA_PATTERNS = re.compile(_QG_PATTERNS.get("closing_cta_regex") or _CLOSING_CTA_REGEX_DEFAULT)
+except re.error:
+    _CLOSING_CTA_PATTERNS = re.compile(_CLOSING_CTA_REGEX_DEFAULT)
 
 
 def _ends_with_cta_or_question(text: str) -> str | None:

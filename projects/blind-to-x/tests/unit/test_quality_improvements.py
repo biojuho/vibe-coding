@@ -854,7 +854,7 @@ class TestCandidatePublishabilityScore(unittest.TestCase):
 
 
 class TestScoring6DEdgeCases(unittest.TestCase):
-    """T-AB051: scoring_6d ZeroDivision 방어."""
+    """T-AB051/T-AB053: scoring_6d ZeroDivision + bad-float 방어."""
 
     def test_pearson_empty_lists_returns_zero(self):
         """_pearson([],[]) → 0.0 (was ZeroDivisionError)."""
@@ -872,6 +872,53 @@ class TestScoring6DEdgeCases(unittest.TestCase):
         self.assertEqual(set(result.keys()), set(DIMENSION_KEYS))
         # weights must still sum to ~1.0
         self.assertAlmostEqual(sum(result.values()), 1.0, places=3)
+
+    def test_calculate_6d_score_non_numeric_likes_no_crash(self):
+        """T-AB053: likes='N/A' → ValueError 아닌 0.0으로 안전 처리."""
+        from pipeline.content_intelligence.scoring_6d import calculate_6d_score
+
+        post_data = {
+            "title": "연봉 협상하는 법",
+            "content": "어제 팀장이",
+            "likes": "N/A",
+            "comments": None,
+        }
+        score, dims = calculate_6d_score(post_data, "연봉", "공감형", "공감", "전직장인")
+        self.assertIsInstance(score, float)
+        self.assertGreaterEqual(score, 0.0)
+
+    def test_engagement_values_bad_row_skipped(self):
+        """T-AB053: DB row에 비숫자 or 짧은 행이 있어도 크래시 없음."""
+        from pipeline.content_intelligence.scoring_6d import _engagement_values
+
+        rows = [
+            (1.0, 2.0, 3.0, 100.0, 50.0),  # valid
+            (1.0, 2.0, 3.0, "bad", 50.0),  # bad type
+            (1.0, 2.0),  # too short
+        ]
+        result = _engagement_values(rows)
+        self.assertEqual(len(result), 3)  # all rows produce a value (bad → 0.0)
+        self.assertGreater(result[0], 0.0)
+        self.assertEqual(result[1], 0.0)
+        self.assertEqual(result[2], 0.0)
+
+
+class TestDraftQualityGateRegexSafety(unittest.TestCase):
+    """T-AB054: YAML malformed regex가 모듈 임포트 크래시 안 냄."""
+
+    def test_module_imports_successfully(self):
+        """draft_quality_gate import 가 성공해야 함 (악성 YAML이 없으면 항상 통과)."""
+        import pipeline.draft_quality_gate as dqg
+
+        self.assertTrue(hasattr(dqg, "_CLOSING_CTA_PATTERNS"))
+
+    def test_closing_cta_patterns_is_compiled(self):
+        """_CLOSING_CTA_PATTERNS가 re.Pattern 인스턴스여야 함."""
+        import re
+
+        from pipeline.draft_quality_gate import _CLOSING_CTA_PATTERNS
+
+        self.assertIsInstance(_CLOSING_CTA_PATTERNS, re.Pattern)
 
 
 if __name__ == "__main__":

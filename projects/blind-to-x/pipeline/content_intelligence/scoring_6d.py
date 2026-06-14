@@ -175,8 +175,14 @@ def calculate_6d_score(
     """
     title = str(post_data.get("title", "") or "")
     content = str(post_data.get("content", "") or "")
-    likes = float(post_data.get("likes", 0) or 0)
-    comments = float(post_data.get("comments", 0) or 0)
+    try:
+        likes = float(post_data.get("likes", 0) or 0)
+    except (ValueError, TypeError):
+        likes = 0.0
+    try:
+        comments = float(post_data.get("comments", 0) or 0)
+    except (ValueError, TypeError):
+        comments = 0.0
     dims = {
         "freshness_score": _round_score(_freshness_score(post_data)),
         "social_signal_score": _round_score(_social_signal_score(likes, comments)),
@@ -212,15 +218,25 @@ def _fetch_calibration_rows(db: Any, cutoff: str) -> list[Any]:
 
 
 def _engagement_values(rows: list[Any]) -> list[float]:
-    return [float(row[3] or 0) + math.log1p(float(row[4] or 0)) * 0.1 for row in rows]
+    result = []
+    for row in rows:
+        try:
+            result.append(float(row[3] or 0) + math.log1p(float(row[4] or 0)) * 0.1)
+        except (ValueError, TypeError, IndexError):
+            result.append(0.0)
+    return result
 
 
 def _dimension_proxies(rows: list[Any]) -> dict[str, list[float]]:
-    return {
-        "hook": [float(row[0] or 5) for row in rows],
-        "viral": [float(row[1] or 5) for row in rows],
-        "audience": [float(row[2] or 5) for row in rows],
-    }
+    hooks, virals, audiences = [], [], []
+    for row in rows:
+        try:
+            hooks.append(float(row[0] or 5))
+            virals.append(float(row[1] or 5))
+            audiences.append(float(row[2] or 5))
+        except (ValueError, TypeError, IndexError):
+            pass
+    return {"hook": hooks, "viral": virals, "audience": audiences}
 
 
 def _pearson(x: list[float], y: list[float]) -> float:
