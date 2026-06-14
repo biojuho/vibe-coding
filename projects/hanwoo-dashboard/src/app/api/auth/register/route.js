@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/rate-limit.mjs";
 
 const MIN_USERNAME_LENGTH = 3;
 const MAX_USERNAME_LENGTH = 30;
@@ -27,6 +28,21 @@ function validateRegistrationPayload(body) {
 }
 
 export async function POST(request) {
+	const ip =
+		request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+		request.headers.get("x-real-ip") ??
+		"unknown";
+	const rateLimitResult = checkRateLimit(`register:${ip}`, { maxRequests: 5, windowMs: 3600000 });
+	if (!rateLimitResult.allowed) {
+		return NextResponse.json(
+			{ error: "너무 많은 요청이 발생했습니다. 잠시 후 다시 시도해 주세요." },
+			{
+				status: 429,
+				headers: { "Retry-After": String(rateLimitResult.retryAfterSeconds ?? 3600) },
+			},
+		);
+	}
+
 	let body;
 	try {
 		body = await request.json();
