@@ -1,5 +1,7 @@
+import { auth } from "@/auth";
 import DashboardClient from "@/components/DashboardClient";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import LandingPage from "@/components/LandingPage";
 import {
 	getBuildings,
 	getExpenseRecords,
@@ -12,7 +14,6 @@ import {
 	getRealTimeMarketPrice,
 	getScheduleEvents,
 } from "@/lib/actions";
-import { requireAuthenticatedSession } from "@/lib/auth-guard";
 import {
 	getCachedCattleList,
 	getCachedDashboardSummary,
@@ -151,7 +152,17 @@ export async function loadDashboardInitialData() {
 }
 
 export default async function Page() {
-	await requireAuthenticatedSession({ redirectToLogin: true });
+	let session = null;
+	try {
+		session = await auth();
+	} catch {
+		// DB unreachable — show landing page
+	}
+
+	if (!session?.user?.id) {
+		return <LandingPage />;
+	}
+
 	const initialData = await loadDashboardInitialData();
 
 	return (
