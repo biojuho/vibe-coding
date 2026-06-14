@@ -197,14 +197,14 @@ async def process_single_post(
         logger.error("Error processing %s: %s", url, exc)
         result["error"] = str(exc)
         result["error_code"] = "INTERNAL_EXCEPTION"
-        result["failure_stage"] = result.get("failure_stage") or "upload"
+        result["failure_stage"] = result.get("failure_stage") or _current_running_stage(ctx)
         result["failure_reason"] = "internal_exception"
         for stage_name, stage_info in reversed(list(ctx.stage_status.items())):
             if stage_info.get("status") == "running":
                 mark_stage(ctx, stage_name, "failed", "internal_exception")
                 break
         if _stage_runtime.auto_log_error is not None:
-            _stage_runtime.auto_log_error(exc, module="blind-to-x/process", context=url[:80])
+            _stage_runtime.auto_log_error(exc, module="blind-to-x/process", context=(url or "")[:80])
 
     return result
 
