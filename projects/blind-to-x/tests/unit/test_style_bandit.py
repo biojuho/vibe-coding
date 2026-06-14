@@ -161,10 +161,22 @@ class TestStyleBanditErrorHandling:
 
 
 class TestDefaultStyles:
-    def test_분析형_in_default_styles(self):
-        """T-AB039: 분析형 must be explorable for AI_전환/고용불안 topics."""
-        assert "분析형" in _DEFAULT_STYLES
+    def test_분석형_in_default_styles(self):
+        """T-AB039: 분석형 must be explorable for AI_전환/고용불안 topics."""
+        assert "분석형" in _DEFAULT_STYLES
 
     def test_default_styles_covers_all_major_types(self):
-        expected = {"공감형", "논쟁형", "정보전달형", "한줄팩폭형", "분析형"}
+        expected = {"공감형", "논쟁형", "정보전달형", "한줄팩폭형", "분석형"}
         assert expected.issubset(set(_DEFAULT_STYLES))
+
+    def test_분析형_uses_korean_encoding(self):
+        """T-AB047: '분析형' in _DEFAULT_STYLES must use Korean 析 (U+C11D), not CJK 析 (U+6790).
+
+        Without this guard, select_style() in the cold-start path could return a
+        label that does NOT match HOOK_TYPE_SCORES / recommend_draft_type(), silently
+        scoring the 분析형 arm as 60.0 (default) instead of 88.0.
+        """
+        # Find the 분析형 style by position; CJK 析=U+6790, Korean 析=U+C11D
+        style = next(s for s in _DEFAULT_STYLES if s.startswith("분") and s.endswith("형") and len(s) == 3)
+        codepoint = ord(style[1])  # middle character must be Korean 析
+        assert codepoint == 0xC11D, f"분析형 should use Korean 析 U+C11D, got U+{codepoint:04X} (CJK 析 = U+6790)"

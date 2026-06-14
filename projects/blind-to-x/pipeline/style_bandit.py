@@ -31,8 +31,9 @@ logger = logging.getLogger(__name__)
 _PRIOR_ALPHA = 1.0
 _PRIOR_BETA = 1.0
 
-# T-AB039: 분析형 추가 — AI_전환/고용불안 emotion axis 신규 선호 초안 타입
-_DEFAULT_STYLES = ["공감형", "논쟁형", "정보전달형", "한줄팩폭형", "분析형"]
+# T-AB039: 분석형 추가 — AI_전환/고용불안 emotion axis 신규 선호 초안 타입
+# T-AB047: CJK 석(0x6790) → 한국어 석(0xc11d) 통일 — HOOK_TYPE_SCORES·classifiers.py 동일 문자 사용
+_DEFAULT_STYLES = ["공감형", "논쟁형", "정보전달형", "한줄팩폭형", "분석형"]
 
 
 def _beta_sample(alpha: float, beta: float) -> float:

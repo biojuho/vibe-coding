@@ -106,6 +106,20 @@ test("home page and admin diagnostics layout have metadata", () => {
 	assert.match(homeSource, /대시보드 · Joolife 한우/);
 	assert.match(adminLayoutSource, /export const metadata = \{/);
 	assert.match(adminLayoutSource, /시스템 진단 · Joolife 한우/);
+	// Admin routes must be excluded from search engine indexing
+	assert.match(adminLayoutSource, /robots:.*noindex/);
+});
+
+test("Providers wires SessionProvider and FeedbackProvider around children", () => {
+	const source = readProjectFile("src/components/Providers.js");
+
+	assert.match(source, /"use client";/);
+	assert.match(source, /import \{ SessionProvider \} from ["']next-auth\/react["']/);
+	assert.match(source, /import \{ FeedbackProvider \}/);
+	assert.match(source, /<SessionProvider>/);
+	assert.match(source, /<FeedbackProvider>/);
+	assert.match(source, /\{children\}/);
+	assert.match(source, /export default function Providers/);
 });
 
 test("AIChatWidget non-premium close button has aria-label for screen readers", () => {
