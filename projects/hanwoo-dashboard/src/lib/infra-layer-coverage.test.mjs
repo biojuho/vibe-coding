@@ -302,6 +302,21 @@ test("payments/prepare returns 500 for unexpected server errors not 400", () => 
 	assert.match(paymentPrepare, /결제를 준비하지 못했습니다[\s\S]{0,80}status: 500/);
 });
 
+test("payments/prepare rejects customerKey not matching session user (IDOR guard) with 403", () => {
+	// Prevents user A from initiating a payment order attributed to user B's customerKey
+	assert.match(paymentPrepare, /buildCustomerKey\(session\.user\.id\)/);
+	assert.match(paymentPrepare, /customerKey !== body\?\.customerKey/);
+	assert.match(paymentPrepare, /결제 고객 정보가 현재 로그인 사용자와 일치하지 않습니다/);
+	assert.match(paymentPrepare, /status: 403/);
+});
+
+test("payments/prepare rejects amount not matching PREMIUM_SUBSCRIPTION price (price tampering)", () => {
+	// The server recalculates amount from the product constant — client cannot alter it
+	assert.match(paymentPrepare, /amount !== PREMIUM_SUBSCRIPTION\.amount/);
+	assert.match(paymentPrepare, /결제 금액이 구독 상품 금액과 일치하지 않습니다/);
+	assert.match(paymentPrepare, /status: 400/);
+});
+
 test("payments/confirm applies per-user rate limiting with 429 response", () => {
 	assert.match(paymentConfirm, /checkRateLimit/);
 	assert.match(paymentConfirm, /payment-confirm:/);
