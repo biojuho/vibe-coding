@@ -230,7 +230,7 @@ test("settings tab normalizes malformed building payloads before rendering", () 
 	assert.match(source, /: ['"]축사 이름 미등록['"]/);
 	assert.match(
 		source,
-		/penCount:\s*Number\.isFinite\(Number\(building\.penCount\)\)\s*\?\s*building\.penCount\s*:\s*0/,
+		/penCount:\s*Number\.isFinite\(Number\(building\.penCount\)\)\s*\?\s*Number\(building\.penCount\)\s*:\s*0/,
 	);
 	assert.match(
 		source,
@@ -768,4 +768,19 @@ test("SettingsTab dead-letter items list uses role=list/listitem for screen read
 	assert.match(source, /role="list"/);
 	assert.match(source, /aria-label="동기화 실패 항목 목록"/);
 	assert.match(source, /role="listitem"/);
+});
+
+test("settings tab normalizes penCount to number type (HW-ST01)", () => {
+	// The guard validates Number.isFinite(Number(building.penCount)) but must
+	// store Number(building.penCount) — not the raw value which may be a string.
+	const source = readSource("components/tabs/SettingsTab.js");
+	assert.match(
+		source,
+		/Number\.isFinite\(Number\(building\.penCount\)\)\s*\n\s*\? Number\(building\.penCount\)/,
+	);
+	// Ensure the original bug (storing raw building.penCount) is gone
+	assert.doesNotMatch(
+		source,
+		/Number\.isFinite\(Number\(building\.penCount\)\)\s*\n\s*\? building\.penCount/,
+	);
 });

@@ -98,7 +98,7 @@ function normalizeSettingsBuildings(buildings) {
 							? building.name
 							: "축사 이름 미등록",
 					penCount: Number.isFinite(Number(building.penCount))
-						? building.penCount
+						? Number(building.penCount)
 						: 0,
 				}))
 		: [];
