@@ -355,6 +355,7 @@ export default function CalvingTab(options = {}) {
 													id="calving-date"
 													type="date"
 													{...register("calvingDate")}
+													aria-required="true"
 													aria-invalid={Boolean(errors.calvingDate)}
 													aria-describedby={
 														errors.calvingDate
@@ -388,6 +389,7 @@ export default function CalvingTab(options = {}) {
 												<select
 													id="calf-gender"
 													{...register("calfGender")}
+													aria-required="true"
 													aria-invalid={Boolean(errors.calfGender)}
 													aria-describedby={
 														errors.calfGender ? "calf-gender-error" : undefined
@@ -424,6 +426,7 @@ export default function CalvingTab(options = {}) {
 													type="text"
 													placeholder="예: 002-1234-5678"
 													{...register("calfTagNumber")}
+													aria-required="true"
 													aria-invalid={Boolean(errors.calfTagNumber)}
 													aria-describedby={
 														errors.calfTagNumber

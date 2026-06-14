@@ -234,3 +234,17 @@ test("CalvingTab pregnant cow list uses role=list/listitem for screen reader nav
 	assert.match(source, /aria-label="임신우 목록"/);
 	assert.match(source, /role="listitem"/);
 });
+
+test("CalvingTab inline form marks all 3 required fields with aria-required", () => {
+	const source = readSource("components/tabs/CalvingTab.js");
+	// WCAG 4.1.2: required fields must expose required state programmatically
+	const requiredCount = (source.match(/aria-required="true"/g) || []).length;
+	assert.ok(requiredCount >= 3, `Expected ≥3 aria-required on calving form, found ${requiredCount}`);
+	// Spot-check each required field
+	for (const fieldId of ["calving-date", "calf-gender", "calf-tag-number"]) {
+		const idIdx = source.indexOf(`id="${fieldId}"`);
+		const reqIdx = source.indexOf('aria-required="true"', idIdx);
+		const invIdx = source.indexOf("aria-invalid=", idIdx);
+		assert.ok(reqIdx !== -1 && reqIdx < invIdx, `aria-required missing or misplaced for ${fieldId}`);
+	}
+});

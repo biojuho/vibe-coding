@@ -356,6 +356,7 @@ export default function ScheduleTab(options = {}) {
 							<input
 								id="schedule-title"
 								placeholder="예: 1번 구제역 백신"
+								aria-required="true"
 								aria-invalid={Boolean(errors.title)}
 								aria-describedby={
 									errors.title ? "schedule-title-error" : undefined
@@ -389,6 +390,7 @@ export default function ScheduleTab(options = {}) {
 								<input
 									id="schedule-date"
 									type="date"
+									aria-required="true"
 									aria-invalid={Boolean(errors.date)}
 									aria-describedby={
 										errors.date ? "schedule-date-error" : undefined

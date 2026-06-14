@@ -374,3 +374,17 @@ test("ScheduleTab calendar weekday headers use abbr elements with full Korean da
 	assert.match(scheduleSource, /토요일/); // 토요일
 	assert.match(scheduleSource, /aria-label=\{full\}/);
 });
+
+test("ScheduleTab inline form marks required fields with aria-required", () => {
+	const source = readSource("components/tabs/ScheduleTab.js");
+	// WCAG 4.1.2: required fields must expose required state programmatically
+	// title and date are required; type has a default so not strictly required
+	const requiredCount = (source.match(/aria-required="true"/g) || []).length;
+	assert.ok(requiredCount >= 2, `Expected ≥2 aria-required on schedule form, found ${requiredCount}`);
+	for (const fieldId of ["schedule-title", "schedule-date"]) {
+		const idIdx = source.indexOf(`id="${fieldId}"`);
+		const reqIdx = source.indexOf('aria-required="true"', idIdx);
+		const invIdx = source.indexOf("aria-invalid=", idIdx);
+		assert.ok(reqIdx !== -1 && reqIdx < invIdx, `aria-required missing or misplaced for ${fieldId}`);
+	}
+});
