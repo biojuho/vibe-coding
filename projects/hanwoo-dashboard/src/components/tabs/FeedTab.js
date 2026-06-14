@@ -224,10 +224,10 @@ export default function FeedTab(options = {}) {
 
 	const chartData = useMemo(() => {
 		const grouped = {};
-		const sorted = [...safeFeedHistory].sort(
-			(first, second) =>
-				getFeedDateTime(first.date) - getFeedDateTime(second.date),
-		);
+		const sorted = [...safeFeedHistory].sort((first, second) => {
+			const diff = getFeedDateTime(first.date) - getFeedDateTime(second.date);
+			return Number.isNaN(diff) ? 0 : diff;
+		});
 
 		sorted.forEach((record) => {
 			const key = formatFeedDateLabel(record.date, {

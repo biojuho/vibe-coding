@@ -198,7 +198,11 @@ export default function AnalysisTab(options = {}) {
 	const recentGradedSales = useMemo(() => {
 		return [...safeSaleRecords]
 			.filter((s) => s.grade && MARKET_GRADE_MAP[s.grade])
-			.sort((a, b) => new Date(b.saleDate) - new Date(a.saleDate))
+			.sort((a, b) => {
+				const diff =
+					new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime();
+				return Number.isNaN(diff) ? 0 : diff;
+			})
 			.slice(0, 3)
 			.map((sale) => {
 				const cattle = cattleMap.get(sale.cattleId);
