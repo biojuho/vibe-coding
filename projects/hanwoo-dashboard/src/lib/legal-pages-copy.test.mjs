@@ -175,3 +175,12 @@ test("legal pages expose stable support channels without personal contact detail
 	assert.match(returnLinkSource, /if \(!callbackUrl \|\| !locationHref\)/);
 	assert.doesNotMatch(returnLinkSource, /locationHref \|\| ["']http:\/\/localhost["']/);
 });
+
+test("LegalDocumentLayout exposes id=main-content landmark for skip link target", () => {
+	const layoutSource = readSource("components/layout/LegalDocumentLayout.js");
+
+	// The outer wrapper must be <main> so the "본문으로 건너뛰기" skip link lands on content
+	assert.match(layoutSource, /<main id="main-content"/);
+	// Should not have a bare clay-shell div at the top level (that was the pre-fix state)
+	assert.doesNotMatch(layoutSource, /<div className="clay-shell">/);
+});

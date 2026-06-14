@@ -626,7 +626,7 @@ export default function ScheduleTab(options = {}) {
 			<div className="mb-3 text-sm font-bold text-[color:var(--color-text)]">
 				다가오는 일정
 			</div>
-			<div className="grid gap-3">
+			<div role="list" aria-label="다가오는 일정 목록" className="grid gap-3">
 				{upcomingEvents.length > 0 ? (
 					upcomingEvents.map((event) => {
 						const eventDate = toValidDate(event.date);
@@ -647,6 +647,7 @@ export default function ScheduleTab(options = {}) {
 						return (
 							<div
 								key={event.id}
+								role="listitem"
 								className="clay-page-section flex items-center gap-3 p-4"
 							>
 								<input

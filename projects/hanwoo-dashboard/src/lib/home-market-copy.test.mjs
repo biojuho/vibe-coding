@@ -2186,3 +2186,21 @@ test("DashboardClient restores focus to trigger after add-cattle and detail moda
 	assert.match(source, /focusElementSafely\(addCattleReturnFocusRef\.current\)/);
 	assert.match(source, /focusElementSafely\(detailModalReturnFocusRef\.current\)/);
 });
+
+test("weather forecast grid has aria-label and listitem roles for screen readers", () => {
+	const source = readSource("components/widgets/widgets.js");
+
+	// Forecast grid has semantic role and accessible label
+	assert.match(source, /role="list"[\s\S]{0,100}aria-label="3일 날씨 예보"/);
+	// Each day card is a listitem
+	assert.match(source, /role="listitem"/);
+});
+
+test("ScheduleTab upcoming events list uses role=list and role=listitem semantics", () => {
+	const source = readSource("components/tabs/ScheduleTab.js");
+
+	// Container has list role and Korean label
+	assert.match(source, /role="list"[\s\S]{0,100}aria-label="다가오는 일정 목록"/);
+	// Each event card is a listitem
+	assert.match(source, /role="listitem"/);
+});

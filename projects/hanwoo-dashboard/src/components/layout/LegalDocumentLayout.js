@@ -14,7 +14,7 @@ export default function LegalDocumentLayout(options = {}) {
 		normalizeLegalDocumentLayoutOptions(options);
 
 	return (
-		<div className="clay-shell">
+		<main id="main-content" className="clay-shell">
 			<div className="clay-page-card p-6 md:p-8">
 				<div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
 					<div className="max-w-2xl">
@@ -39,6 +39,6 @@ export default function LegalDocumentLayout(options = {}) {
 					</Suspense>
 				</nav>
 			</div>
-		</div>
+		</main>
 	);
 }

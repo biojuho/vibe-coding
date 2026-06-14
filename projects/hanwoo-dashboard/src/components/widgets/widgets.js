@@ -384,6 +384,8 @@ export function WeatherWidget(options = {}) {
 						<span aria-hidden="true">📅</span> 3일 예보
 					</div>
 					<div
+						role="list"
+						aria-label="3일 날씨 예보"
 						style={{
 							display: "grid",
 							gridTemplateColumns: `repeat(${safeForecast.length},1fr)`,
@@ -403,6 +405,7 @@ export function WeatherWidget(options = {}) {
 							return (
 								<div
 									key={day.date}
+									role="listitem"
 									style={{
 										textAlign: "center",
 										padding: "10px 6px",
