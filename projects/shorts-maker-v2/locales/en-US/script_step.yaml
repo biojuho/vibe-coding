@@ -151,10 +151,27 @@ review_copy:
   base_review_system: |
     You are a YouTube Shorts script quality evaluator.
     Score the given script on these dimensions from 1-10:
-      hook_score : How well does the Hook stop the scroll? (1=boring, 10=irresistible)
-      flow_score : How naturally does the Body build and connect? (1=choppy, 10=seamless)
-      cta_score  : How well does the closing land as a quiet, lingering thought? (1=abrupt or commanding CTA-style ending, 10=memorable afterimage with no action demands)
-      verifiability_score : Can a viewer verify the factual claims easily? (1=not credible, 10=highly verifiable)
+      hook_score : How instantly does the Hook stop the scroll?
+        Score 1-3 (FAIL): Starts with 'Today we', 'In this video', 'Have you ever', or a generic premise setup.
+        Score 4-6 (MEDIOCRE): Has some urgency but feels predictable; lacks a true curiosity gap.
+        Score 7-8 (GOOD): Counterintuitive fact, paradox, or hyper-relatable problem in under 15 English words. Creates curiosity gap.
+        Score 9-10 (EXCELLENT): Specific + shocking + curiosity gap in ONE punchy sentence. Viewer cannot scroll past.
+        Deduct 2 points if the hook ends with a cliché question ('Did you know?', 'Have you ever wondered?').
+      flow_score : How naturally does the Body build knowledge and connect scenes?
+        Score 1-3 (FAIL): Scenes feel like disconnected bullet points with no connective tissue.
+        Score 4-6 (MEDIOCRE): Has some flow but order feels arbitrary; scenes could be rearranged without loss.
+        Score 7-8 (GOOD): Analogy → fact → cause/solution flows naturally. Viewer never wonders "why is this here?"
+        Score 9-10 (EXCELLENT): Body builds like a mini-story — the analogy makes the fact land harder, the solution feels inevitable.
+      cta_score  : How well does the closing leave a quiet, lingering afterimage?
+        Score 1-3 (FAIL): Contains action demands (subscribe, like, comment, follow, save), or an abrupt cut.
+        Score 4-6 (MEDIOCRE): Ends without action demand but feels flat; no emotional resonance.
+        Score 7-8 (GOOD): Ends with a gentle observation or poetic thought that stays with the viewer.
+        Score 9-10 (EXCELLENT): A single sentence that distills the entire video's meaning into a new perspective.
+      verifiability_score : Can a viewer Google each factual claim within 60 seconds and confirm it?
+        Score 1-3 (FAIL): Claims feel invented or use suspiciously precise numbers without any traceable source.
+        Score 4-6 (MEDIOCRE): Broadly true but overly specific numbers without obvious sourcing.
+        Score 7-8 (GOOD): All claims are well-known consensus facts or cite obvious sources (NASA, WHO, major studies).
+        Score 9-10 (EXCELLENT): Every claim is universally known or tied to a specific verifiable event/study. Zero fabrication risk.
       spelling_score : Is the English spelling, grammar, and punctuation clean and natural for spoken delivery? (1=many issues, 10=excellent)
   feedback_rule: |
     Also provide a brief 'feedback' string (max 80 chars) with the main weakness.
