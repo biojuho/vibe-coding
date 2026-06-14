@@ -826,3 +826,20 @@ test("cattle form and detail reset paths avoid lint suppressions", () => {
 	assert.doesNotMatch(detailSource, /eslint-disable/);
 	assert.doesNotMatch(formSource, /onSubmit=\{handleSubmit\(submitForm\)\}/);
 });
+
+test("CattleForm and CattleDetailModal trap Tab focus within the dialog (WCAG 2.1)", () => {
+	const formSource = readSource("components/forms/CattleForm.js");
+	const detailSource = readSource("components/forms/CattleDetailModal.js");
+
+	for (const [name, source] of [["CattleForm", formSource], ["CattleDetailModal", detailSource]]) {
+		// Tab key handler is present
+		assert.match(source, /event\.key === ["']Tab["']/, `${name}: Tab key handler missing`);
+		// Focusable selector covers buttons, inputs, selects, textareas, links, tabindex
+		assert.match(source, /querySelectorAll[\s\S]{0,200}button:not\(\[disabled\]\)/, `${name}: focusable selector missing`);
+		// Wraps last → first on forward Tab
+		assert.match(source, /document\.activeElement === last/, `${name}: last-element wrap missing`);
+		// Wraps first → last on Shift+Tab
+		assert.match(source, /document\.activeElement === first/, `${name}: first-element wrap missing`);
+		assert.match(source, /event\.shiftKey/, `${name}: Shift+Tab support missing`);
+	}
+});

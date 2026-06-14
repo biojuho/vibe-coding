@@ -145,6 +145,29 @@ export default function CattleForm({
 				return;
 			}
 			onCancel();
+			return;
+		}
+
+		if (event.key === "Tab" && dialogRef.current) {
+			const focusable = Array.from(
+				dialogRef.current.querySelectorAll(
+					'button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])',
+				),
+			);
+			if (focusable.length === 0) return;
+			const first = focusable[0];
+			const last = focusable[focusable.length - 1];
+			if (event.shiftKey) {
+				if (document.activeElement === first) {
+					event.preventDefault();
+					last.focus();
+				}
+			} else {
+				if (document.activeElement === last) {
+					event.preventDefault();
+					first.focus();
+				}
+			}
 		}
 	};
 
