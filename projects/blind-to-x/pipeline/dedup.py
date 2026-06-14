@@ -82,7 +82,8 @@ class _EmbeddingCache:
             import json
 
             return json.loads(row[0])
-        except Exception:
+        except Exception as exc:
+            logger.debug("EmbeddingCache.get() failed (non-critical): %s", exc)
             return None
 
     def set(self, text: str, embedding: list[float]) -> None:
@@ -95,8 +96,8 @@ class _EmbeddingCache:
                     "INSERT OR REPLACE INTO embeddings (text_hash, embedding) VALUES (?, ?)",
                     (h, json.dumps(embedding)),
                 )
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("EmbeddingCache.set() failed (non-critical): %s", exc)
 
 
 _embed_cache = _EmbeddingCache()

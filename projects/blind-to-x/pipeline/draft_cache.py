@@ -35,8 +35,8 @@ class DraftCache:
             from pipeline.db_backend import get_cache_backend
 
             self._redis_backend = get_cache_backend(prefix="draft")
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("DraftCache: Redis backend unavailable, falling back to SQLite: %s", exc)
 
         if self._redis_backend is None:
             self.db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -156,27 +156,27 @@ class DraftCache:
         if self._redis_backend is not None:
             try:
                 self._redis_backend.delete(cache_key)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("DraftCache.delete() Redis failed (non-critical): %s", exc)
             return
         try:
             with self._conn() as conn:
                 conn.execute("DELETE FROM draft_cache WHERE cache_key = ?", (cache_key,))
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("DraftCache.delete() SQLite failed (non-critical): %s", exc)
 
     def clear(self) -> None:
         if self._redis_backend is not None:
             try:
                 self._redis_backend.clear()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("DraftCache.clear() Redis failed (non-critical): %s", exc)
             return
         try:
             with self._conn() as conn:
                 conn.execute("DELETE FROM draft_cache")
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("DraftCache.clear() SQLite failed (non-critical): %s", exc)
 
     def get_recent_drafts(self, limit: int = 5) -> list[dict]:
         """최근에 생성된 N개의 초안들을 생성 시각 역순으로 조회합니다."""

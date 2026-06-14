@@ -501,7 +501,8 @@ class CostDatabase:
                     (provider,),
                 ).fetchone()
             fail_count = int(row["fail_count"] if row else 0)
-        except Exception:
+        except Exception as exc:
+            logger.debug("get_provider_backoff_hours: DB query failed, defaulting to 0: %s", exc)
             fail_count = 0
 
         # 지수적 백오프: 1h, 4h, 12h, 24h, 72h (최대 72h)
