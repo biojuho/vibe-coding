@@ -2142,3 +2142,25 @@ test("dashboard client uses main landmark for primary content area", () => {
 	// No top-level div replacing the main landmark (the content-shell was converted)
 	assert.doesNotMatch(source, /<div className="dashboard-content-shell max-\[600px\]/);
 });
+
+test("register page uses main landmark as page shell and submit has aria-busy", () => {
+	const source = readSource("app/register/page.js");
+
+	// Outer container is a <main> landmark, not a bare <div>
+	assert.match(source, /<main\s+style=\{/);
+	assert.match(source, /<\/main>/);
+	assert.doesNotMatch(source, /return \(\s+<div\s+style=\{\{[\s\S]*?minHeight: ["']100dvh["']/);
+
+	// Submit button announces loading state to assistive technology
+	assert.match(source, /aria-busy=\{loading\}/);
+
+	// Eye/EyeOff toggles are present
+	assert.match(source, /showPassword/);
+	assert.match(source, /showConfirm/);
+	assert.match(source, /aria-pressed=\{showPassword\}/);
+	assert.match(source, /aria-pressed=\{showConfirm\}/);
+
+	// Real-time mismatch feedback
+	assert.match(source, /const passwordMismatch = /);
+	assert.match(source, /aria-invalid=\{passwordMismatch\}/);
+});

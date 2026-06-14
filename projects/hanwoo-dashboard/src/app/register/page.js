@@ -72,7 +72,7 @@ export default function RegisterPage() {
 	};
 
 	return (
-		<div
+		<main
 			style={{
 				minHeight: "100dvh",
 				display: "flex",
@@ -321,6 +321,7 @@ export default function RegisterPage() {
 					<button
 						type="submit"
 						disabled={loading}
+						aria-busy={loading}
 						style={{
 							width: "100%",
 							padding: "13px",
@@ -371,6 +372,6 @@ export default function RegisterPage() {
 					</Link>
 				</p>
 			</div>
-		</div>
+		</main>
 	);
 }
