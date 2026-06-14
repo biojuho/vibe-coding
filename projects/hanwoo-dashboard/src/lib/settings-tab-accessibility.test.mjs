@@ -804,3 +804,22 @@ test("SettingsTab normalizes malformed options before destructuring", () => {
 	assert.match(source, /function normalizeSettingsWidgetRegistry\(widgets\)/);
 	assert.match(source, /Array\.isArray\(widgets\)/);
 });
+
+test("SettingsTab marks all required form fields with aria-required for screen reader discovery", () => {
+	const source = readSource("components/tabs/SettingsTab.js");
+	// WCAG 4.1.2: required fields must expose required state programmatically
+	const requiredCount = (source.match(/aria-required="true"/g) || []).length;
+	// farm(4) + building(2) + password(3) = 9 required fields
+	assert.ok(requiredCount >= 9, `Expected ≥9 aria-required on settings forms, found ${requiredCount}`);
+
+	const farmFields = ["farm-name", "farm-location", "farm-latitude", "farm-longitude"];
+	const buildingFields = ["building-name", "building-pen-count"];
+	const passwordFields = ["pw-current", "pw-new", "pw-confirm"];
+
+	for (const fieldId of [...farmFields, ...buildingFields, ...passwordFields]) {
+		const idIdx = source.indexOf(`id="${fieldId}"`);
+		assert.ok(idIdx !== -1, `Field id="${fieldId}" not found`);
+		const reqIdx = source.indexOf('aria-required="true"', idIdx);
+		assert.ok(reqIdx !== -1 && reqIdx < idIdx + 800, `aria-required missing for ${fieldId}`);
+	}
+});

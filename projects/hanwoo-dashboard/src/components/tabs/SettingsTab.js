@@ -685,6 +685,7 @@ export default function SettingsTab(options = {}) {
 							placeholder="예: 행복한 한우 농장"
 							hasError={!!farmErrors.name}
 							disabled={isSavingFarm}
+							aria-required="true"
 							aria-invalid={Boolean(farmErrors.name)}
 							aria-describedby={farmErrors.name ? "farm-name-error" : undefined}
 						/>
@@ -726,6 +727,7 @@ export default function SettingsTab(options = {}) {
 							placeholder="지역명을 직접 입력해 주세요."
 							hasError={!!farmErrors.location}
 							disabled={isSavingFarm}
+							aria-required="true"
 							aria-invalid={Boolean(farmErrors.location)}
 							aria-describedby={
 								farmErrors.location ? "farm-location-error" : undefined
@@ -755,6 +757,7 @@ export default function SettingsTab(options = {}) {
 								placeholder="35.446"
 								hasError={!!farmErrors.latitude}
 								disabled={isSavingFarm}
+								aria-required="true"
 								aria-invalid={Boolean(farmErrors.latitude)}
 								aria-describedby={
 									farmErrors.latitude ? "farm-latitude-error" : undefined
@@ -780,6 +783,7 @@ export default function SettingsTab(options = {}) {
 								placeholder="127.344"
 								hasError={!!farmErrors.longitude}
 								disabled={isSavingFarm}
+								aria-required="true"
 								aria-invalid={Boolean(farmErrors.longitude)}
 								aria-describedby={
 									farmErrors.longitude ? "farm-longitude-error" : undefined
@@ -915,6 +919,7 @@ export default function SettingsTab(options = {}) {
 								}}
 								placeholder="축사 이름을 입력해 주세요."
 								hasError={!!buildingErrors.name}
+								aria-required="true"
 								aria-invalid={Boolean(buildingErrors.name)}
 								aria-describedby={
 									buildingErrors.name ? "building-name-error" : undefined
@@ -940,6 +945,7 @@ export default function SettingsTab(options = {}) {
 								type="number"
 								{...registerBuilding("penCount")}
 								hasError={!!buildingErrors.penCount}
+								aria-required="true"
 								aria-invalid={Boolean(buildingErrors.penCount)}
 								aria-describedby={
 									buildingErrors.penCount
@@ -1138,6 +1144,7 @@ export default function SettingsTab(options = {}) {
 							value={pwCurrent}
 							onChange={(e) => { setPwCurrent(e.target.value); setPwError(""); setPwSuccess(false); }}
 							aria-label="현재 비밀번호"
+							aria-required="true"
 							autoComplete="current-password"
 							style={{ paddingRight: "44px" }}
 						/>
@@ -1160,6 +1167,7 @@ export default function SettingsTab(options = {}) {
 							value={pwNew}
 							onChange={(e) => { setPwNew(e.target.value); setPwError(""); setPwSuccess(false); }}
 							aria-label="새 비밀번호"
+							aria-required="true"
 							autoComplete="new-password"
 							style={{ paddingRight: "44px" }}
 						/>
@@ -1183,6 +1191,7 @@ export default function SettingsTab(options = {}) {
 							onChange={(e) => { setPwConfirm(e.target.value); setPwError(""); setPwSuccess(false); }}
 							aria-label="새 비밀번호 확인"
 							autoComplete="new-password"
+							aria-required="true"
 							aria-invalid={pwNewMismatch}
 							style={{ paddingRight: "44px", borderColor: pwNewMismatch ? "var(--color-danger)" : undefined }}
 						/>
