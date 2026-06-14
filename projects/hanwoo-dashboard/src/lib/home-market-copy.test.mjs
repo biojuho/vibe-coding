@@ -397,11 +397,11 @@ test("dashboard inventory mutation completions ignore stale unmounted state", ()
 	assert.match(source, /const dashboardMountedRef = useRef\(false\);/);
 	assert.match(
 		source,
-		/const handleAddItem = async \(data\) => \{\s+const res = await addInventoryItem\(data\);\s+if \(!res\.success\) \{\s+if \(dashboardMountedRef\.current\) \{\s+showError\("[^"]+", res\.message\);\s+\}\s+return false;\s+\}\s+if \(!dashboardMountedRef\.current\) \{\s+return true;\s+\}\s+setInventoryList\(\(prev\) => sortInventoryItems\(\[res\.data, \.\.\.prev\]\)\);/,
+		/const handleAddItem = async \(data\) => \{\s+(?:try \{\s+)?const res = await addInventoryItem\(data\);\s+if \(!res\.success\) \{\s+if \(dashboardMountedRef\.current\) \{\s+showError\("[^"]+", res\.message\);\s+\}\s+return false;\s+\}\s+if \(!dashboardMountedRef\.current\) \{\s+return true;\s+\}\s+setInventoryList\(\(prev\) => sortInventoryItems\(\[res\.data, \.\.\.prev\]\)\);/,
 	);
 	assert.match(
 		source,
-		/const handleUpdateQuantity = async \(id, qty\) => \{\s+const res = await updateInventoryQuantity\(id, qty\);\s+if \(!res\.success\) \{\s+if \(dashboardMountedRef\.current\) \{\s+showError\("[^"]+", res\.message\);\s+\}\s+return false;\s+\}\s+if \(!dashboardMountedRef\.current\) \{\s+return true;\s+\}\s+setInventoryList\(\(prev\) =>/,
+		/const handleUpdateQuantity = async \(id, qty\) => \{\s+(?:try \{\s+)?const res = await updateInventoryQuantity\(id, qty\);\s+if \(!res\.success\) \{\s+if \(dashboardMountedRef\.current\) \{\s+showError\("[^"]+", res\.message\);\s+\}\s+return false;\s+\}\s+if \(!dashboardMountedRef\.current\) \{\s+return true;\s+\}\s+setInventoryList\(\(prev\) =>/,
 	);
 	assert.doesNotMatch(
 		source,
@@ -495,7 +495,7 @@ test("dashboard farm settings mutation completions ignore stale unmounted state"
 	assert.match(source, /const dashboardMountedRef = useRef\(false\);/);
 	assert.match(
 		source,
-		/const handleUpdateFarmSettings = async \(data\) => \{\s+const res = await updateFarmSettings\(data\);\s+if \(!res\.success\) \{\s+if \(dashboardMountedRef\.current\) \{\s+showError\("[^"]+", res\.message\);\s+\}\s+return false;\s+\}\s+if \(!dashboardMountedRef\.current\) \{\s+return true;\s+\}\s+setFarmSettings\(res\.data\);/,
+		/const handleUpdateFarmSettings = async \(data\) => \{\s+(?:try \{\s+)?const res = await updateFarmSettings\(data\);\s+if \(!res\.success\) \{\s+if \(dashboardMountedRef\.current\) \{\s+showError\("[^"]+", res\.message\);\s+\}\s+return false;\s+\}\s+if \(!dashboardMountedRef\.current\) \{\s+return true;\s+\}\s+setFarmSettings\(res\.data\);/,
 	);
 	assert.doesNotMatch(
 		source,

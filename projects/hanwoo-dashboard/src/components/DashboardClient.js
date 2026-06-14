@@ -1166,20 +1166,28 @@ export default function DashboardClient(options = {}) {
 	};
 
 	const handleUpdateFarmSettings = async (data) => {
-		const res = await updateFarmSettings(data);
-		if (!res.success) {
+		try {
+			const res = await updateFarmSettings(data);
+			if (!res.success) {
+				if (dashboardMountedRef.current) {
+					showError("농장 정보를 저장하지 못했습니다.", res.message);
+				}
+				return false;
+			}
+
+			if (!dashboardMountedRef.current) {
+				return true;
+			}
+			setFarmSettings(res.data);
+			showSuccess("농장 정보가 저장되었습니다.");
+			return true;
+		} catch (error) {
+			console.error("Failed to update farm settings:", error);
 			if (dashboardMountedRef.current) {
-				showError("농장 정보를 저장하지 못했습니다.", res.message);
+				showError("농장 정보를 저장하지 못했습니다.", unexpectedActionErrorDescription);
 			}
 			return false;
 		}
-
-		if (!dashboardMountedRef.current) {
-			return true;
-		}
-		setFarmSettings(res.data);
-		showSuccess("농장 정보가 저장되었습니다.");
-		return true;
 	};
 
 	const handleAddCattle = async (newCattle, feedbackOptions = {}) => {
@@ -1332,39 +1340,55 @@ export default function DashboardClient(options = {}) {
 	};
 
 	const handleAddItem = async (data) => {
-		const res = await addInventoryItem(data);
-		if (!res.success) {
+		try {
+			const res = await addInventoryItem(data);
+			if (!res.success) {
+				if (dashboardMountedRef.current) {
+					showError("재고 항목을 추가하지 못했습니다.", res.message);
+				}
+				return false;
+			}
+
+			if (!dashboardMountedRef.current) {
+				return true;
+			}
+			setInventoryList((prev) => sortInventoryItems([res.data, ...prev]));
+			showSuccess("재고 항목이 추가되었습니다.");
+			return true;
+		} catch (error) {
+			console.error("Failed to add inventory item:", error);
 			if (dashboardMountedRef.current) {
-				showError("재고 항목을 추가하지 못했습니다.", res.message);
+				showError("재고 항목을 추가하지 못했습니다.", unexpectedActionErrorDescription);
 			}
 			return false;
 		}
-
-		if (!dashboardMountedRef.current) {
-			return true;
-		}
-		setInventoryList((prev) => sortInventoryItems([res.data, ...prev]));
-		showSuccess("재고 항목이 추가되었습니다.");
-		return true;
 	};
 
 	const handleUpdateQuantity = async (id, qty) => {
-		const res = await updateInventoryQuantity(id, qty);
-		if (!res.success) {
+		try {
+			const res = await updateInventoryQuantity(id, qty);
+			if (!res.success) {
+				if (dashboardMountedRef.current) {
+					showError("재고 수량을 수정하지 못했습니다.", res.message);
+				}
+				return false;
+			}
+
+			if (!dashboardMountedRef.current) {
+				return true;
+			}
+			setInventoryList((prev) =>
+				prev.map((item) => (item.id === res.data.id ? res.data : item)),
+			);
+			showSuccess("재고 수량을 업데이트했습니다.");
+			return true;
+		} catch (error) {
+			console.error("Failed to update inventory quantity:", error);
 			if (dashboardMountedRef.current) {
-				showError("재고 수량을 수정하지 못했습니다.", res.message);
+				showError("재고 수량을 수정하지 못했습니다.", unexpectedActionErrorDescription);
 			}
 			return false;
 		}
-
-		if (!dashboardMountedRef.current) {
-			return true;
-		}
-		setInventoryList((prev) =>
-			prev.map((item) => (item.id === res.data.id ? res.data : item)),
-		);
-		showSuccess("재고 수량을 업데이트했습니다.");
-		return true;
 	};
 
 	const handleCreateEvent = async (data) => {
@@ -1495,41 +1519,57 @@ export default function DashboardClient(options = {}) {
 	};
 
 	const handleCreateBuilding = async (data) => {
-		const res = await createBuilding(data);
-		if (!res.success) {
+		try {
+			const res = await createBuilding(data);
+			if (!res.success) {
+				if (dashboardMountedRef.current) {
+					showError("축사 정보를 추가하지 못했습니다.", res.message);
+				}
+				return false;
+			}
+
+			if (!dashboardMountedRef.current) {
+				return true;
+			}
+			setBuildings((prev) => sortByName([res.data, ...prev]));
+			showSuccess("축사를 추가했습니다.");
+			return true;
+		} catch (error) {
+			console.error("Failed to create building:", error);
 			if (dashboardMountedRef.current) {
-				showError("축사 정보를 추가하지 못했습니다.", res.message);
+				showError("축사 정보를 추가하지 못했습니다.", unexpectedActionErrorDescription);
 			}
 			return false;
 		}
-
-		if (!dashboardMountedRef.current) {
-			return true;
-		}
-		setBuildings((prev) => sortByName([res.data, ...prev]));
-		showSuccess("축사를 추가했습니다.");
-		return true;
 	};
 
 	const handleDeleteBuilding = async (id) => {
-		const res = await deleteBuilding(id);
-		if (!res.success) {
+		try {
+			const res = await deleteBuilding(id);
+			if (!res.success) {
+				if (dashboardMountedRef.current) {
+					showError("축사를 삭제하지 못했습니다.", res.message);
+				}
+				return false;
+			}
+
+			if (!dashboardMountedRef.current) {
+				return true;
+			}
+			setBuildings((prev) => prev.filter((building) => building.id !== id));
+			if (selectedBuildingId === id) {
+				setSelectedBuildingId(null);
+				setSelectedPenId(null);
+			}
+			showSuccess("축사를 삭제했습니다.");
+			return true;
+		} catch (error) {
+			console.error("Failed to delete building:", error);
 			if (dashboardMountedRef.current) {
-				showError("축사를 삭제하지 못했습니다.", res.message);
+				showError("축사를 삭제하지 못했습니다.", unexpectedActionErrorDescription);
 			}
 			return false;
 		}
-
-		if (!dashboardMountedRef.current) {
-			return true;
-		}
-		setBuildings((prev) => prev.filter((building) => building.id !== id));
-		if (selectedBuildingId === id) {
-			setSelectedBuildingId(null);
-			setSelectedPenId(null);
-		}
-		showSuccess("축사를 삭제했습니다.");
-		return true;
 	};
 
 	const handleRecordCalving = async ({
@@ -1590,33 +1630,41 @@ export default function DashboardClient(options = {}) {
 			return true;
 		}
 
-		const res = await recordCalving({
-			motherId,
-			calvingDate,
-			calfGender,
-			calfTagNumber,
-		});
+		try {
+			const res = await recordCalving({
+				motherId,
+				calvingDate,
+				calfGender,
+				calfTagNumber,
+			});
 
-		if (!res.success) {
+			if (!res.success) {
+				if (dashboardMountedRef.current) {
+					showError("분만 처리를 완료하지 못했습니다.", res.message);
+				}
+				return false;
+			}
+
+			const savedMother = res.data?.mother || updatedMother;
+			const savedCalf = res.data?.calf || calfDraft;
+
+			if (!dashboardMountedRef.current) {
+				return true;
+			}
+			upsertCalvingRecords(savedMother, savedCalf);
+			void refreshDashboardReadModels();
+			showSuccess(
+				"분만 처리가 완료되었습니다.",
+				`${mother.name}의 상태와 송아지 등록이 함께 반영되었습니다.`,
+			);
+			return true;
+		} catch (error) {
+			console.error("Failed to record calving:", error);
 			if (dashboardMountedRef.current) {
-				showError("분만 처리를 완료하지 못했습니다.", res.message);
+				showError("분만 처리를 완료하지 못했습니다.", unexpectedActionErrorDescription);
 			}
 			return false;
 		}
-
-		const savedMother = res.data?.mother || updatedMother;
-		const savedCalf = res.data?.calf || calfDraft;
-
-		if (!dashboardMountedRef.current) {
-			return true;
-		}
-		upsertCalvingRecords(savedMother, savedCalf);
-		void refreshDashboardReadModels();
-		showSuccess(
-			"분만 처리가 완료되었습니다.",
-			`${mother.name}의 상태와 송아지 등록이 함께 반영되었습니다.`,
-		);
-		return true;
 	};
 
 	const handleDragDrop = async (cattleId, toBuildingId, toPenNumber) => {
