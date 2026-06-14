@@ -67,12 +67,17 @@ export async function POST(request) {
 					trialEndDate: addDays(new Date(), TRIAL_DAYS),
 				},
 			});
-		} catch {
-			// Trial creation failure must not block registration
+		} catch (trialErr) {
+			console.error(
+				"register: trial subscription creation failed for user",
+				user.id,
+				trialErr,
+			);
 		}
 
 		return NextResponse.json({ ok: true }, { status: 201 });
-	} catch {
+	} catch (err) {
+		console.error("register: unexpected error during registration", err);
 		return NextResponse.json(
 			{
 				error:

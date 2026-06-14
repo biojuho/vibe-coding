@@ -81,7 +81,12 @@ export async function POST(request) {
 		});
 
 		return NextResponse.json({ ok: true });
-	} catch {
+	} catch (err) {
+		console.error(
+			"change-password: unexpected error for user",
+			session.user?.id,
+			err,
+		);
 		return NextResponse.json(
 			{
 				error:
