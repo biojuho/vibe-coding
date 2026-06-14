@@ -735,8 +735,8 @@ class DraftPromptsMixin:
             "emotion_axis": profile.get("emotion_axis", "공감"),
             "audience_fit": profile.get("audience_fit", "범용"),
             "recommended_draft_type": recommended_draft_type,
-            "publishability_score": profile.get("publishability_score", 0),
-            "performance_score": profile.get("performance_score", 0),
+            "publishability_score": profile.get("publishability_score", "N/A"),
+            "performance_score": profile.get("performance_score", "N/A"),
         }
 
     @staticmethod

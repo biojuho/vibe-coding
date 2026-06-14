@@ -1316,7 +1316,7 @@ class TestAnthropicUserPrompt:
             "audience_fit": "직장인",
             "recommended_draft_type": "공감형",
             "publishability_score": 83,
-            "performance_score": 0,
+            "performance_score": "N/A",
         }
 
     def test_content_profile_section_lines_include_values_in_prompt_order(self):
@@ -1380,7 +1380,7 @@ class TestAnthropicUserPrompt:
             "대상 독자: 직장인\n"
             "추천 초안 타입: 공감형\n"
             "발행 적합도 점수: 83\n"
-            "성과 예측 점수: 0"
+            "성과 예측 점수: N/A"
         )
 
     def test_user_prompt_block_tail_parts_preserve_order(self):
@@ -1501,7 +1501,7 @@ class TestAnthropicUserPrompt:
         assert "감정 축: 공감" in prompt
         assert "대상 독자: 범용" in prompt
         assert "추천 초안 타입: 공감형" in prompt
-        assert "성과 예측 점수: 0" in prompt
+        assert "성과 예측 점수: N/A" in prompt
         assert prompt.endswith("[톤 가이드]\ntone guide\n")
 
     def test_user_prompt_preserves_block_order(self):

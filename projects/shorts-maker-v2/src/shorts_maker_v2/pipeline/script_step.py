@@ -240,7 +240,7 @@ class ScriptStep(ScriptPromptsMixin, ScriptReviewMixin):
         topic: str,
         research_context: Any | None = None,
         structure_outline: Any | None = None,
-    ) -> tuple[str, list[ScenePlan], str]:
+    ) -> tuple[str, list[ScenePlan], str, list[dict[str, str]]]:
         """
         대본 생성.
 
