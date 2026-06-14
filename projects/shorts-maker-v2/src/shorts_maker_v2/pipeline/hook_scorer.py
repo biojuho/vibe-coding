@@ -31,7 +31,14 @@ _QUESTION_PATTERNS = re.compile(
 )
 
 # 숫자/통계 Hook
-_NUMBER_PATTERN = re.compile(r"\d+[%초분배만억천조개년월일]")
+# 시(시간) 추가 — "24시간만에" 패턴. 쉼표 구분 숫자(1,000만) + 영어 배율(100K/3B)도 포함.
+_NUMBER_PATTERN = re.compile(
+    r"(?:"
+    r"\d[\d,]*[%초분시배만억천조개년월일]"  # 한국어 단위 (콤마 허용)
+    r"|"
+    r"\d+(?:\.\d+)?[KMBT](?:\s|$)"  # 영어 배율 (100K / 3B / 2T)
+    r")"
+)
 
 # 감탄/충격 Hook
 _SHOCK_WORDS = frozenset(

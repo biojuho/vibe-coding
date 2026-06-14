@@ -98,3 +98,31 @@ class TestScoreHook:
         result = score_hook(hook)
         # 숫자+고유명사 조합 → specificity 충분, 전체 통과
         assert result.specificity_score >= 0.6
+
+    # ── T-AB021: _NUMBER_PATTERN 확장 ─────────────────────────────
+
+    def test_hour_unit_detected_as_number_pattern(self):
+        """T-AB021: '시'(시간) 단위가 숫자 패턴으로 감지되어야 함."""
+        result = score_hook("24시간 만에 모든 게 바뀐다")
+        assert result.specificity_score > 0.0, "24시간 should trigger number specificity"
+
+    def test_comma_separated_number_detected(self):
+        """T-AB021: 쉼표 포함 숫자(1,000만원)가 감지되어야 함."""
+        result = score_hook("1,000만원 받는 개발자의 루틴")
+        assert result.specificity_score > 0.0, "1,000만원 should trigger number specificity"
+
+    def test_english_multiplier_k_detected(self):
+        """T-AB021: 영어 배율 100K가 감지되어야 함."""
+        result = score_hook("100K users switched overnight")
+        assert result.specificity_score > 0.0, "100K should trigger number specificity"
+
+    def test_english_multiplier_b_detected(self):
+        """T-AB021: 영어 배율 3B parameters가 감지되어야 함."""
+        result = score_hook("3B parameters, one surprising result")
+        assert result.specificity_score > 0.0, "3B should trigger number specificity"
+
+    def test_existing_number_patterns_still_work(self):
+        """T-AB021 회귀: 기존 '3초', '90%' 같은 패턴이 여전히 감지되어야 함."""
+        for hook in ["단 3초만에", "사실은 90%가 충격 받은 이유", "4000만 명이"]:
+            result = score_hook(hook)
+            assert result.specificity_score > 0.0, f"Pattern should still match: {hook!r}"
