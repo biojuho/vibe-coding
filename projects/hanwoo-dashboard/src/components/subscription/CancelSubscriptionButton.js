@@ -18,6 +18,8 @@ export default function CancelSubscriptionButton() {
 			<button
 				type="button"
 				onClick={() => setConfirming(true)}
+				aria-label="구독 해지 확인 단계 열기"
+				title="구독 해지 확인 단계 열기"
 				style={{
 					marginTop: "16px",
 					background: "none",
@@ -57,6 +59,8 @@ export default function CancelSubscriptionButton() {
 					type="button"
 					onClick={handleCancel}
 					disabled={isPending}
+					aria-busy={isPending}
+					aria-label={isPending ? "구독 해지 처리 중" : "구독 해지 최종 확인"}
 					style={{
 						padding: "8px 16px",
 						background: "var(--color-danger)",

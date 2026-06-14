@@ -231,7 +231,8 @@ function SuccessContent() {
 	}, [searchParams, router, retryNonce]);
 
 	return (
-		<div
+		<main
+			id="main-content"
 			style={{
 				padding: "56px 24px",
 				textAlign: "center",
@@ -345,7 +346,7 @@ function SuccessContent() {
 					) : null}
 				</div>
 			)}
-		</div>
+		</main>
 	);
 }
 
