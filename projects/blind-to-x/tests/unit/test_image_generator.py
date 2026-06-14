@@ -338,6 +338,23 @@ class TestGenerateImage:
         assert result is None
 
     @pytest.mark.asyncio
+    async def test_dalle_empty_response_data_returns_none(self, monkeypatch):
+        """response.data == [] should not IndexError; guard must catch and retry→None."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        from pipeline.image_generator import ImageGenerator
+
+        gen = ImageGenerator(FakeConfig({"image.provider": "pollinations"}))
+        fake_client = MagicMock()
+        empty_resp = MagicMock()
+        empty_resp.data = []
+        fake_client.images.generate = AsyncMock(return_value=empty_resp)
+        gen.client = fake_client
+
+        result = await gen._generate_dalle("A detailed landscape with mountains and rivers suitable for short video")
+        assert result is None  # all 3 retries fail with ValueError → returns None
+
+    @pytest.mark.asyncio
     async def test_cache_hit(self, monkeypatch):
         from pipeline.image_generator import ImageGenerator
 
