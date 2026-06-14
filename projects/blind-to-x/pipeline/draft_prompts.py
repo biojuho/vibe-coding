@@ -478,7 +478,8 @@ class DraftPromptsMixin:
             db = get_cost_db()
             top_from_db = db.get_top_performing_drafts(topic_cluster=topic_cluster, limit=2)
             return [DraftPromptsMixin._cost_db_reference_example(row) for row in top_from_db]
-        except Exception:
+        except Exception as exc:
+            logger.debug("cost_db top-performing drafts lookup failed (non-critical): %s", exc)
             return []
 
     @staticmethod

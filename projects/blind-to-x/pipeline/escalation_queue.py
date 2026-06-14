@@ -142,7 +142,8 @@ class EscalationQueue:
 
             parsed = urlparse(url)
             return urlunparse((parsed.scheme, parsed.netloc, parsed.path.rstrip("/"), "", "", ""))
-        except Exception:
+        except Exception as exc:
+            logger.debug("EscalationQueue: URL canonicalization failed, using fallback: %s", exc)
             return url.split("?")[0].rstrip("/")
 
     # ── 큐 조작 API ──────────────────────────────────────────────────

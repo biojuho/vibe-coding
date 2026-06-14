@@ -185,7 +185,8 @@ class ImageCache:
                 total = conn.execute("SELECT COUNT(*) FROM image_cache").fetchone()[0]
                 alive = conn.execute("SELECT COUNT(*) FROM image_cache WHERE expires_at >= ?", (now,)).fetchone()[0]
             return {"total": total, "alive": alive, "expired": total - alive}
-        except Exception:
+        except Exception as exc:
+            logger.debug("ImageCache.stats() failed, returning zeros: %s", exc)
             return {"total": 0, "alive": 0, "expired": 0}
 
     def _delete(self, key: str) -> None:

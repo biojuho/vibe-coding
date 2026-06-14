@@ -193,8 +193,8 @@ class DraftCache:
                 for row in rows:
                     try:
                         results.append(json.loads(row[0]))
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug("DraftCache: skipping malformed JSON row: %s", exc)
                 return results
         except Exception as exc:
             logger.warning("DraftCache.get_recent_drafts() failed: %s", exc)

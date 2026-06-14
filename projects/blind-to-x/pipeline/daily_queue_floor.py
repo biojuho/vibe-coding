@@ -39,7 +39,8 @@ def relaxed_pre_editorial_threshold(config: Any, default_threshold: float) -> fl
                 DEFAULT_RELAXED_PRE_EDITORIAL_SCORE,
             )
         )
-    except Exception:
+    except Exception as exc:
+        logger.debug("daily_queue_floor: pre-editorial score config read failed, using default: %s", exc)
         relaxed = DEFAULT_RELAXED_PRE_EDITORIAL_SCORE
     return min(default_threshold, relaxed)
 
@@ -79,7 +80,8 @@ async def resolve_daily_queue_floor(
     if config is not None and hasattr(config, "get"):
         try:
             target = int(config.get("review.minimum_daily_queue", DEFAULT_DAILY_QUEUE_TARGET))
-        except Exception:
+        except Exception as exc:
+            logger.debug("daily_queue_floor: queue target config read failed, using default: %s", exc)
             target = DEFAULT_DAILY_QUEUE_TARGET
     else:
         target = DEFAULT_DAILY_QUEUE_TARGET
