@@ -168,3 +168,26 @@ class TestScoreHook:
         ]:
             result = score_hook(hook)
             assert result.passed is True, f"Benchmark hook should still pass: {hook!r}"
+
+    def test_deepseek_entity_boosts_specificity(self):
+        """T-AB030: '딥시크' 고유명사가 한국어 proper noun 패턴으로 specificity를 올림."""
+        result_without = score_hook("AI가 24시간 만에 세계를 바꿨다")
+        result_with = score_hook("딥시크가 24시간 만에 세계를 바꿨다")
+        assert result_with.specificity_score >= result_without.specificity_score
+
+    def test_deepseek_english_boosts_specificity(self):
+        """T-AB030: 'DeepSeek' 영어 회사명이 specificity를 올림."""
+        result = score_hook("DeepSeek changed AI in just 24 hours")
+        assert result.specificity_score >= 0.4
+
+    def test_artemis_and_starship_recognized(self):
+        """T-AB030: 우주 채널 고유명사 아르테미스/스타십이 인식됨."""
+        result = score_hook("스타십이 달에 24시간 만에 도착했다")
+        assert result.specificity_score > 0.0
+
+    def test_2026_ai_entities_all_recognized(self):
+        """T-AB030: 2026 주요 AI 기업들이 모두 specificity를 올림."""
+        entities = ["딥시크", "앤트로픽", "퍼플렉시티", "그록", "Grok", "DeepSeek", "Perplexity"]
+        for entity in entities:
+            result = score_hook(f"{entity}의 충격적인 발표")
+            assert result.specificity_score > 0.0, f"Entity '{entity}' should boost specificity"

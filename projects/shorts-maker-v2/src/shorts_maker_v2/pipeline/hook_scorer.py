@@ -76,36 +76,45 @@ _KO_TEMPORAL_IMPACT_PATTERN = re.compile(r"\d+\s*(?:시간|일|주|년)\s*만에
 _KO_SCALE_PATTERN = re.compile(r"(?:전\s*세계|역사상|사상\s*최초|전례\s*없|국내\s*최초|전\s*국민)")
 
 
+# re.ASCII: \b 단어 경계를 ASCII [a-zA-Z0-9_] 기준으로 평가 — 한국어 문자(유니코드 단어 문자)가
+# 영어 단어 바로 뒤에 오면 \b 매칭이 실패하는 Python 3 유니코드 이슈 방지 (T-AB030)
 _ENGLISH_CONTRAST_PATTERN = re.compile(
     r"\b(tiny|small|little|short|cheap|simple)\b[^.!?]{0,28},[^.!?]{0,28}"
     r"\b(big|huge|massive|major|savings?|wins?|impact|results?)\b",
-    re.IGNORECASE,
+    re.IGNORECASE | re.ASCII,
 )
 
 _ENGLISH_TECH_SPECIFICITY_PATTERN = re.compile(
     r"\b(chip|chips|processor|processors|ai|model|models|battery|phone|phones|gpu|cpu)\b",
-    re.IGNORECASE,
+    re.IGNORECASE | re.ASCII,
 )
 
 # 영어 정량적 성과 단어 — "savings, results, revenue" 등 outcome specificity 보강
 _ENGLISH_OUTCOME_PATTERN = re.compile(
     r"\b(savings?|results?|revenue|efficiency|performance|output|growth|impact|wins?)\b",
-    re.IGNORECASE,
+    re.IGNORECASE | re.ASCII,
 )
 
 # 한국어 고유명사: 기업/기관/모델 — 구체성 점수 추가
+# T-AB030: 2026 AI 랜드스케이프 반영 (딥시크, 앤트로픽, 퍼플렉시티, 그록)
+# 우주 채널: 제임스웹, 스타십, 아르테미스, 누리호 추가
 _KO_PROPER_NOUN_PATTERN = re.compile(
     r"(삼성|애플|구글|메타|마이크로소프트|네이버|카카오|현대|기아|LG|SK"
     r"|GPT|ChatGPT|챗GPT|클로드|제미나이|라마|알파고|딥마인드|OpenAI|오픈AI"
+    r"|딥시크|앤트로픽|퍼플렉시티|그록|xAI|미스트랄|코히어"
     r"|하버드|서울대|연세대|KAIST|스탠퍼드"
-    r"|WHO|NASA|CERN|IMF|UN|EU)",
+    r"|WHO|NASA|CERN|IMF|UN|EU"
+    r"|제임스웹|스타십|아르테미스|누리호)",
 )
 
 # 영어 회사명 specificity — _ENGLISH_TECH_SPECIFICITY_PATTERN을 보완
+# T-AB030: DeepSeek / Perplexity / Grok 추가 (2026 주요 AI 플레이어)
+# re.ASCII: Korean chars after English company name would break \b without this
 _ENGLISH_COMPANY_PATTERN = re.compile(
     r"\b(OpenAI|Google|Apple|Samsung|Microsoft|Meta|Nvidia|Tesla|Amazon|"
-    r"DeepMind|Anthropic|Mistral|Cohere|Gemini|Claude|ChatGPT|GPT|LLaMA)\b",
-    re.IGNORECASE,
+    r"DeepMind|Anthropic|Mistral|Cohere|Gemini|Claude|ChatGPT|GPT|LLaMA|"
+    r"DeepSeek|Perplexity|Grok|xAI|Starship|Artemis)\b",
+    re.IGNORECASE | re.ASCII,
 )
 
 
