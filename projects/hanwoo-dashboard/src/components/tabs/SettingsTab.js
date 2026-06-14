@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LogOut, MapPin, Settings } from "lucide-react";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useAppFeedback } from "@/components/feedback/FeedbackProvider";
@@ -155,6 +155,8 @@ export default function SettingsTab(options = {}) {
 	const [pwError, setPwError] = useState("");
 	const [pwSuccess, setPwSuccess] = useState(false);
 	const [isSavingPw, setIsSavingPw] = useState(false);
+	const { data: currentSession } = useSession();
+	const currentUsername = currentSession?.user?.name || "";
 	const isMountedRef = useRef(false);
 	const buildingFormRef = useRef(null);
 	const buildingNameInputRef = useRef(null);
@@ -1184,6 +1186,12 @@ export default function SettingsTab(options = {}) {
 				}}
 			>
 				<div>
+					{currentUsername ? (
+						<div style={{ fontSize: "11px", color: "var(--color-text-secondary)", marginBottom: "2px" }}>
+							로그인 계정:{" "}
+							<strong style={{ color: "var(--color-text)" }}>{currentUsername}</strong>
+						</div>
+					) : null}
 					<div style={{ fontWeight: 700, fontSize: "14px", color: "var(--color-text)" }}>
 						로그아웃
 					</div>
