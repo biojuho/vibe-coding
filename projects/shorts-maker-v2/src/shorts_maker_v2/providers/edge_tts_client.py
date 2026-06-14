@@ -332,8 +332,8 @@ def _shift_saved_word_timings(
             json.dumps(saved_words, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Word timing shift failed (non-critical): %s", exc)
 
 
 def _write_plain_tts_text(words_json_path: Path, text: str) -> None:

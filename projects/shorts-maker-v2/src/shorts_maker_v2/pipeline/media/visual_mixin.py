@@ -93,8 +93,8 @@ class MediaVisualMixin:
                     temperature=0.3,
                 )
                 return str(result.get("prompt", prompt)).strip() or prompt
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("LLM router prompt refinement failed, falling back to OpenAI: %s", exc)
 
         # 2차 폴백: OpenAI 직접
         sanitized = self.openai_client.generate_json(

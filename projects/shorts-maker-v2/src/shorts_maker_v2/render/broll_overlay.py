@@ -116,8 +116,8 @@ def create_broll_pip(
 
             mask_arr = np.ones((pip_clip.h, pip_clip.w), dtype=float) * 0.85
             pip_clip = pip_clip.with_mask(ImageClip(mask_arr, is_mask=True))
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("PiP opacity set failed, using full opacity (non-critical): %s", exc)
 
     margin_x = 40
     margin_y = 60
