@@ -158,6 +158,31 @@ class TestGate2Validation:
         assert verdict == GateVerdict.FAIL_RETRY
         assert any("forbidden" in i.lower() or "CTA" in i for i in issues)
 
+    @pytest.mark.parametrize(
+        "closing_intent",
+        [
+            # qc_step sync: ko-KR additions
+            "팔로우 해주시면 감사합니다",
+            "공유 부탁드립니다",
+            "댓글로 알려주세요",
+            "잊지마세요",
+            "잊지 마시고 눌러주세요",
+            # en-US additions
+            "smash that like button",
+            "don't forget to subscribe",
+            "share this with your friends",
+        ],
+    )
+    def test_synced_cta_variants_caught_in_structure_gate(self, _config, _plan, closing_intent: str):
+        """T-AB017: _CLOSING_FORBIDDEN_WORDS now synced with qc_step._FORBIDDEN_CTA."""
+        step = StructureStep(config=_config, llm_router=MagicMock())
+        data = _make_valid_llm_response(7)
+        data["scenes"][-1]["intent"] = closing_intent
+        outline = step._parse_outline(data)
+        verdict, issues = step._gate2_validate(outline, _plan)
+        assert verdict == GateVerdict.FAIL_RETRY, f"Expected FAIL_RETRY for closing intent: {closing_intent!r}"
+        assert any("forbidden" in i.lower() or "CTA" in i for i in issues)
+
     def test_too_few_scenes_fails(self, _config, _plan):
         step = StructureStep(config=_config, llm_router=MagicMock())
         data = _make_valid_llm_response(3)  # only 3 scenes

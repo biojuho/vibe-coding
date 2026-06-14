@@ -26,21 +26,35 @@ from shorts_maker_v2.providers.llm_router import LLMRouter
 
 logger = logging.getLogger(__name__)
 
-# CTA 금지어 (closing 씬에서 사용 금지)
+# CTA 금지어 (closing 씬에서 사용 금지) — qc_step._FORBIDDEN_CTA와 동기화
 _CLOSING_FORBIDDEN_WORDS: tuple[str, ...] = (
     "구독",
     "좋아요",
     "알림",
+    "팔로우",
+    "공유",
+    "댓글",
+    "지금 클릭",
+    "지금 누르세요",
+    "눌러주세요",
+    "꼭 보세요",
+    "벨",
+    "잊지 마",
+    "잊지마",
     "설정",
+    "링크",
+    "클릭",
+    # en-US
     "subscribe",
     "like",
     "comment",
     "follow",
+    "share",
     "bell",
     "notification",
     "channel",
-    "링크",
-    "클릭",
+    "smash that",
+    "don't forget to",
 )
 
 
