@@ -127,6 +127,41 @@ def test_repetition(mock_get_rule):
 
 
 @patch("pipeline.quality_gate.get_rule_section")
+def test_bland_creator_take_failure(mock_get_rule):
+    """숫자 없음 + 상투어 2개 이상 → failure."""
+    mock_get_rule.return_value = {}
+    gate = QualityGate()
+    bland_text = (
+        "정말 중요한 이야기입니다. 꼭 기억해 두세요. 이 내용은 매우 흥미롭고 알아보겠습니다. 충분히 긴 텍스트입니다."
+    )
+    res = gate.check(bland_text, platform="twitter")
+    assert not res.passed
+    assert any("bland_creator_take" in f for f in res.failures)
+
+
+@patch("pipeline.quality_gate.get_rule_section")
+def test_bland_creator_take_warning_3_buzzwords(mock_get_rule):
+    """숫자 있음 + 상투어 3개 이상 → warning (failure 아님)."""
+    mock_get_rule.return_value = {}
+    gate = QualityGate()
+    # 숫자 있음 → failure 조건 미충족, but 3+ buzzwords → warning
+    buzzword_text = "2024년 기준으로 정말 중요한 변화가 있었습니다. 꼭 기억해 두세요. 이 내용은 매우 흥미롭습니다. 유용한 정보를 드립니다. 한 번 알아보겠습니다."
+    res = gate.check(buzzword_text, platform="twitter")
+    # has digit "2024" → not a failure, but 3+ buzzwords should be a warning
+    assert any("bland_creator_take_warning" in w for w in res.warnings)
+
+
+@patch("pipeline.quality_gate.get_rule_section")
+def test_bland_creator_take_passes_with_numbers_and_few_buzzwords(mock_get_rule):
+    """숫자 있음 + 상투어 1개 이하 → 통과."""
+    mock_get_rule.return_value = {}
+    gate = QualityGate()
+    specific_text = "연봉 3% 인상, IT 업계에서 가장 높은 수치입니다. 올해 총 150만 명이 해당됩니다."
+    res = gate.check(specific_text, platform="twitter")
+    assert not any("bland_creator_take" in f for f in res.failures)
+
+
+@patch("pipeline.quality_gate.get_rule_section")
 def test_readability_metrics_always_present(mock_get_rule):
     """T-AB029: readability_score and sentence_diversity always appear in metrics."""
     mock_get_rule.return_value = {}
