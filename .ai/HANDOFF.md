@@ -8,8 +8,8 @@
 |---|---|
 | Date | 2026-06-15 |
 | Tool | Claude Code (Sonnet 4.6) |
-| Work | **품질 루프 계속 — 3 commits**: (1) SMV2-RS001: `render_step._build_base_clip`/`_attach_audio`에서 `duration=None`일 때 `None < float` TypeError 방어 (`if clip.duration and ...` 패턴, bgm_clip과 통일) + 회귀 테스트 2건; (2) BTX-TP001: `twitter_poster.py` media_upload(60s)/create_tweet(30s) `asyncio.to_thread` → `asyncio.wait_for` 타임아웃 추가 + TimeoutError 테스트 2건; (3) HW-DSR001: `dashboard/summary/route.js`에서 `saveDashboardSummarySnapshot` null 반환 시 `snapshot.payload` TypeError → `freshPayload`를 if 블록 밖으로 호이스팅하여 live fallback 제공 + 소스-grep 테스트 1건. **진행 중**: 品질 스윕 루프 継속 (아직 확인 안 된 파일 다수). |
-| Next Priorities | (a) 품질 루프 계속: hanwoo-dashboard JS subscription/payment 라우트, blind-to-x draft_cache.py, shorts-maker-v2 tts_step.py; (b) `git push origin main` (user action); (c) T-251 Supabase 비밀번호 리셋 (user action) |
+| Work | **자율 품질 루프 — 12 commits (context resumed)**: (1) SMV2-CV001/CV002: CTA 금지어 대소문자 무관 검출 + run() 4-tuple 반환 + degraded_steps 표면화 (index race로 `8a81a801`에 흡수); (2) BTX-JP001: `_fetch_post_detail` `page.goto()` 예외 → `_JobplanetScrapeFailure(network_error)` + tests 4건; (3) asyncio.get_event_loop() → asyncio.run() 현대화; (4) hanwoo `<a>` → `<Link>` subscription/error.js; (5) DiagnosticsPageClient 불필요한 requestId 증가 제거; (6) qc_step bare `except` → `ImportError`; (7) hanwoo infra-layer-coverage 84→87건 (health route, building/feed/schedule 검증); (8) SMV2-RS001 후속: `_attach_audio` 구현 커밋 누락 복구 (CI AttributeError 차단). |
+| Next Priorities | (a) 품질 루프 계속: hanwoo inventory/farm-settings 검증 커버리지, blind-to-x draft_cache.py/dedup.py 나머지 bare-except, shorts-maker-v2 tts_step.py; (b) `git push origin main` (user action — 1175+ commits ahead); (c) T-251 Supabase 비밀번호 리셋 (user action) |
 
 | Field | Value |
 |---|---|

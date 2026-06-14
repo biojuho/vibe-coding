@@ -7105,3 +7105,32 @@
 - Verification passed current refresh-current-evidence focused pytest (`104 passed` with `-o addopts=`), Ruff check, Ruff format check (`2 files already formatted`), `py_compile`, path-limited `git diff --check`, live `refresh_current_evidence.py --root . --timeout 360 --json` with all steps `ok`, checklist evidence showing `Release authorization guardrails: ... shown 3/3`, and A/B decision `adopt_candidate` (`score_delta=0.22727272727272727`, output `.tmp/ab-decision-t2655-release-guardrail-full-preview.json`).
 - Selector remains `dirty_worktree_handoff_current`; completion audit remains incomplete (`6/15` complete, `9` blocked).
 - No product source edit, real stage, commit, push, revert, live Prisma/T-251 retry, cleanup apply, or `update_goal` was performed.
+
+## 2026-06-15 | Claude Code (Sonnet 4.6) | 자율 품질 루프 (context resume)
+
+### 작업 요약
+컨텍스트 재개 후 CV001/CV002 커밋 완료 및 다수 품질 개선 commit:
+
+1. **ruff format 적용 후 커밋** (CV001/CV002 staged 파일 — `8a81a801` index race로 이미 커밋됨 확인)
+2. **BTX-JP001**: `jobplanet.py` `_fetch_post_detail` 네트워크 예외 포착 → `_JobplanetScrapeFailure(network_error)` + tests 4건 (network_error + resolve_post_title)
+3. **asyncio.run()**: `test_editorial_reviewer.py` deprecated `get_event_loop().run_until_complete` 현대화
+4. **hanwoo Link**: `subscription/error.js` `<a>` → `<Link>` (Next.js 클라이언트 라우팅)
+5. **DiagnosticsPageClient**: `!isDatabaseAvailable` 조기 반환에서 불필요한 `requestId` 증가 제거
+6. **qc_step**: bare `except Exception` → `ImportError` (범위 축소)
+7. **hanwoo infra-layer-coverage** 71→87건:
+   - health route (build skip, DB 성공, production 에러 은닉) + `buildHealthResponse` + `normalizeHealthWarning`
+   - building/feed validation (validateBuildingInput, validateFeedRecordInput)
+   - schedule validation (validateScheduleEventInput, toggleEventCompletion type guards)
+8. **SMV2-RS001 누락 복구**: `render_step.py` `_attach_audio` 래퍼가 working tree에만 있어 CI AttributeError 발생 → 커밋
+
+### 변경 파일
+- `projects/blind-to-x/scrapers/jobplanet.py`
+- `projects/blind-to-x/tests/unit/test_scrapers_jobplanet.py`
+- `projects/blind-to-x/tests/unit/test_editorial_reviewer.py`
+- `projects/hanwoo-dashboard/src/app/subscription/error.js`
+- `projects/hanwoo-dashboard/src/components/admin/DiagnosticsPageClient.js`
+- `projects/hanwoo-dashboard/src/lib/infra-layer-coverage.test.mjs`
+- `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/qc_step.py`
+- `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/render_step.py`
+- `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/orchestrator.py` (ruff format)
+- `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/script_step.py` (ruff format)
