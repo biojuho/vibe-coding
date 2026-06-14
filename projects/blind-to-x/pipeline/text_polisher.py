@@ -83,8 +83,8 @@ def _split_sentences(text: str) -> list[str]:
     if kiwi:
         try:
             return [s.text.strip() for s in kiwi.split_into_sents(text) if s.text.strip()]
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kiwi split_into_sents failed, using regex fallback: %s", exc)
     # 폴백: 정규식 기반
     return [s.strip() for s in re.split(r"(?<=[.!?。])\s+", text) if s.strip()]
 
@@ -140,8 +140,8 @@ def _compute_readability(text: str) -> dict:
                 # 한자어 추정: 2음절 이상 NNG (한국어 고유어는 1음절이 많음)
                 sino_count = sum(1 for t in nouns if len(t.form) >= 2 and t.tag == "NNG")
                 sino_ratio = sino_count / len(nouns)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kiwi tokenization for sino-ratio failed (non-critical): %s", exc)
 
     # 가독성 점수 산출 (0-100)
     # 최적: 평균 문장 길이 15-40자, 한자어 비율 30% 이하

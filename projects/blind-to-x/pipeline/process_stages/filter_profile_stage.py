@@ -157,8 +157,8 @@ def _attach_emotion_profile(ctx: ProcessRunContext) -> None:
                 "arousal": emotion_profile.arousal,
                 "dominant_group": emotion_profile.dominant_group,
             }
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Emotion profile enrichment failed (non-critical): %s", exc)
 
 
 def _record_sentiment(ctx: ProcessRunContext, profile: dict) -> None:

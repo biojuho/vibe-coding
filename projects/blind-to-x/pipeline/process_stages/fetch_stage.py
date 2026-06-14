@@ -29,8 +29,8 @@ def _check_scrape_integrity(ctx: ProcessRunContext, scraper) -> bool:
         try:
             enabled = _as_bool(config.get("scrape_quality.integrity_check_enabled", True), default=True)
             min_chars = int(config.get("scrape_quality.min_article_chars", DEFAULT_MIN_ARTICLE_CHARS))
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("fetch_stage config parse failed, using defaults: %s", exc)
     if not enabled:
         return True
 
@@ -118,8 +118,8 @@ async def run_fetch_stage(
                 quality_score=ctx.quality["score"],
                 issues=ctx.quality.get("reasons", []),
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("log_scrape_quality failed (non-critical): %s", exc)
 
     mark_stage(ctx, "fetch", "completed")
     return True

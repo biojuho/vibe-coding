@@ -243,8 +243,8 @@ class SpikeDetector:
                 # 여기서 aiohttp 또는 httpx로 비동기 피드 파싱
                 # 본 POC에서는 생략.
                 pass
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("RSS feed escalation check failed (non-critical): %s", exc)
 
         # 3. Dry-run이나 E2E 테스트를 위해, 개발/테스트 환경이거나
         # candidates가 완전 비어있다면 가상의 스파이크 주입 (velocity 테스트용)

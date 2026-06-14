@@ -164,8 +164,8 @@ def detect_gpu_info() -> dict[str, str]:
         if result.returncode == 0:
             gpu_name = result.stdout.decode(errors="replace").strip().split("\n")[0]
             info["gpu_name"] = gpu_name
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("nvidia-smi query failed (non-critical): %s", exc)
 
     # 인코더 정보
     codec, _ = detect_hw_encoder("auto")

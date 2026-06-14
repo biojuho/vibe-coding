@@ -361,8 +361,8 @@ class ImageGenerator:
                     mood = tuned[topic_cluster]["mood"]
                 if "style" in tuned[topic_cluster]:
                     style = tuned[topic_cluster]["style"]
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("ABFeedbackLoop.load_tuned_styles() failed, using defaults: %s", exc)
 
         # 프롬프트 조합 — 한글 제목/초안 텍스트는 프롬프트에 포함하지 않음
         # (한글 텍스트가 이미지에 오타로 렌더링되는 문제 방지)
@@ -525,8 +525,8 @@ class ImageGenerator:
                 from pipeline.image_cache import ImageCache
 
                 ImageCache().set(topic_cluster, emotion_axis, result, provider=provider_used)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("ImageCache.set() failed (non-critical): %s", exc)
 
         # ── [V2.0 Phase 2] 최종 실패 시 보수적 폴백 (Default Image) ───
         if not result:

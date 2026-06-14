@@ -192,5 +192,5 @@ class ImageCache:
         try:
             with self._conn() as conn:
                 conn.execute("DELETE FROM image_cache WHERE cache_key = ?", (key,))
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("ImageCache._delete() failed (non-critical): %s", exc)

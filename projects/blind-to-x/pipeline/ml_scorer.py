@@ -237,8 +237,8 @@ class MLScorer:
                 try:
                     _LEGACY_PKL_PATH.unlink()
                     logger.info("MLScorer: 구 pickle 모델 삭제 (보안, joblib로 재학습)")
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("MLScorer: legacy pickle 삭제 실패 (non-critical): %s", exc)
 
             if _MODEL_PATH.exists():
                 try:
