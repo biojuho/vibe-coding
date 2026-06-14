@@ -172,8 +172,8 @@ class PpomppuScraper(BaseScraper):
         finally:
             try:
                 await page.unroute(feed_url)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("unroute cleanup failed (non-critical): %s", exc)
 
     async def _try_direct_feed_urls(self, page, feed_url, link_selectors, board_id, label, limit, any_board):
         logger.info(f"Trying direct navigation for {label}...")

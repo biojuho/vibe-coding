@@ -262,3 +262,20 @@ async def test_scrape_post_invalid_url_reports_reason(mock_new_page, scraper):
     assert result["failure_stage"] == "post_fetch"
     assert result["failure_reason"] == "invalid_url_format"
     assert "Could not extract post ID" in result["error_message"]
+
+
+@pytest.mark.asyncio
+@patch("scrapers.jobplanet.JobplanetScraper._new_page", new_callable=AsyncMock)
+async def test_fetch_post_detail_rejects_500_status(mock_new_page, scraper):
+    """JP-001: HTTP 500 responses now raise _JobplanetScrapeFailure (was only 403/404)."""
+    from scrapers.jobplanet import _JobplanetScrapeFailure
+
+    page_mock = AsyncMock()
+    mock_new_page.return_value = page_mock
+
+    response_mock = AsyncMock()
+    response_mock.status = 500
+    page_mock.goto.return_value = response_mock
+
+    with pytest.raises(_JobplanetScrapeFailure, match="http_500"):
+        await scraper._fetch_post_detail(page_mock, post_id=9999)

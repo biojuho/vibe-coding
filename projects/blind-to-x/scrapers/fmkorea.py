@@ -93,8 +93,8 @@ class FMKoreaScraper(BaseScraper):
                                     collected.append(normalized)
                             if len(collected) >= limit:
                                 break
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug("Fallback link collection failed (non-critical): %s", exc)
                 return collected[:limit]
 
             try:

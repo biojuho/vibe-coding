@@ -168,8 +168,8 @@ class JobplanetScraper(BaseScraper):
         api_url = f"{self.BASE_URL}/api/v5/community/posts/{post_id}"
         logger.info(f"Fetching post detail from API: {api_url}")
         response = await page.goto(api_url, timeout=30000)
-        if not response or response.status in [403, 404]:
-            status = response.status if response else "unknown"
+        status = response.status if response else "unknown"
+        if not response or response.status != 200:
             raise _JobplanetScrapeFailure(
                 f"API fetch failed with status {status}",
                 reason=f"http_{status}",
