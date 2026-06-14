@@ -78,6 +78,7 @@ export default function EarTagScannerModal(options = {}) {
 	const handleSelect = typeof onSelect === "function" ? onSelect : () => {};
 	const canvasRef = useRef(null);
 	const animationRef = useRef(null);
+	const dialogRef = useRef(null);
 	const [scanStatus, setScanStatus] = useState("scanning"); // 'scanning', 'success', 'no_match'
 	const [matchedCow, setMatchedCow] = useState(null);
 	const [scannedTag, setScannedTag] = useState("");
@@ -339,13 +340,44 @@ export default function EarTagScannerModal(options = {}) {
 		setScannedTag("");
 	};
 
+	const handleDialogKeyDown = (event) => {
+		if (event.key === "Escape") {
+			handleClose();
+			return;
+		}
+		if (event.key === "Tab" && dialogRef.current) {
+			const focusable = Array.from(
+				dialogRef.current.querySelectorAll(
+					'button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])',
+				),
+			);
+			if (focusable.length === 0) return;
+			const first = focusable[0];
+			const last = focusable[focusable.length - 1];
+			if (event.shiftKey) {
+				if (document.activeElement === first) {
+					event.preventDefault();
+					last.focus();
+				}
+			} else {
+				if (document.activeElement === last) {
+					event.preventDefault();
+					first.focus();
+				}
+			}
+		}
+	};
+
 	return (
 		<div
+			ref={dialogRef}
 			className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn"
 			role="dialog"
 			aria-modal="true"
 			aria-labelledby="scanner-modal-title"
 			aria-describedby="scanner-modal-description"
+			onKeyDown={handleDialogKeyDown}
+			tabIndex={-1}
 		>
 			<div
 				className="w-full max-w-[480px] clay-surface rounded-[32px] overflow-hidden border border-emerald-500/30 flex flex-col shadow-[0_24px_50px_rgba(0,0,0,0.5)] animate-scaleIn"

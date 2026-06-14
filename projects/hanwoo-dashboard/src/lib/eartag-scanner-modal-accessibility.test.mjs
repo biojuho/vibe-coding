@@ -227,3 +227,23 @@ test("ear tag scanner guards animation frame scheduling and cleanup", () => {
 		/queueMicrotask\(\(\) => \{\s+if \(cancelled\) \{/,
 	);
 });
+
+test("EarTagScannerModal handles Escape key and traps Tab focus within dialog", () => {
+	const source = readSource("components/widgets/EarTagScannerModal.js");
+
+	// Escape key closes the scanner
+	assert.match(source, /event\.key === ["']Escape["']/);
+	assert.match(source, /handleDialogKeyDown/);
+	assert.match(source, /onKeyDown=\{handleDialogKeyDown\}/);
+
+	// Tab focus trap
+	assert.match(source, /event\.key === ["']Tab["']/);
+	assert.match(source, /querySelectorAll[\s\S]{0,200}button:not\(\[disabled\]\)/);
+	assert.match(source, /document\.activeElement === first/);
+	assert.match(source, /document\.activeElement === last/);
+	assert.match(source, /event\.shiftKey/);
+
+	// ref attached to dialog root
+	assert.match(source, /const dialogRef = useRef\(null\)/);
+	assert.match(source, /ref=\{dialogRef\}/);
+});
