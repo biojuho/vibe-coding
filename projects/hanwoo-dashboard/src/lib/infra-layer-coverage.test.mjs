@@ -402,6 +402,15 @@ test("ExpenseRecord model has buildingId+date index for per-barn expense aggrega
 	assert.match(schema, /@@index\(\[buildingId, date\]\)/);
 });
 
+// ── Dashboard list-queries: validation error class ────────────────────────────
+
+const listQueriesSrc = readSource("lib/dashboard/list-queries.js");
+
+test("list-queries exports DashboardQueryValidationError for typed error handling in routes", () => {
+	assert.match(listQueriesSrc, /export class DashboardQueryValidationError extends Error/);
+	assert.match(listQueriesSrc, /this\.name = ["']DashboardQueryValidationError["']/);
+});
+
 // ── Dashboard API: Cache-Control private, no-store ────────────────────────────
 
 const cattleRoute = readSource("app/api/dashboard/cattle/route.js");
@@ -418,6 +427,20 @@ test("dashboard/sales route sets Cache-Control private, no-store on user data", 
 
 test("dashboard/summary route sets Cache-Control private, no-store on user data", () => {
 	assert.match(summaryRoute, /Cache-Control.*private.*no-store|private.*no-store.*Cache-Control/);
+});
+
+test("dashboard/cattle route returns 400 on DashboardQueryValidationError for bad query params", () => {
+	// Prevents crash when client sends ?limit=abc or ?penNumber=xyz — must 400 not 500
+	assert.match(cattleRoute, /DashboardQueryValidationError/);
+	assert.match(cattleRoute, /error instanceof DashboardQueryValidationError/);
+	assert.match(cattleRoute, /status: 400/);
+});
+
+test("dashboard/sales route returns 400 on DashboardQueryValidationError for bad query params", () => {
+	const salesRouteSrc = readSource("app/api/dashboard/sales/route.js");
+	assert.match(salesRouteSrc, /DashboardQueryValidationError/);
+	assert.match(salesRouteSrc, /error instanceof DashboardQueryValidationError/);
+	assert.match(salesRouteSrc, /status: 400/);
 });
 
 // ── Auth routes: password length guard ───────────────────────────────────────
