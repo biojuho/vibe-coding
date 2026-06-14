@@ -81,3 +81,20 @@ class TestScoreHook:
         """반환 타입이 HookScore인지 확인."""
         result = score_hook("테스트 Hook")
         assert isinstance(result, HookScore)
+
+    def test_korean_company_name_boosts_specificity(self):
+        """한국어 기업명(삼성, GPT 등)이 specificity_score를 높임."""
+        result = score_hook("GPT-4o가 출시 24시간 만에 바꿨다")
+        assert result.specificity_score >= 0.5
+
+    def test_english_company_name_boosts_specificity(self):
+        """영어 회사명(OpenAI, Google 등)이 specificity_score를 높임."""
+        result = score_hook("OpenAI just changed everything")
+        assert result.specificity_score >= 0.4
+
+    def test_ko_ai_tech_hook_example_passes(self):
+        """ko-KR script_step.yaml ai_tech 채널 훅 예시가 통과해야 함."""
+        hook = "GPT-4o가 출시 24시간 만에 전 세계 개발자 4000만 명의 워크플로를 바꿨다."
+        result = score_hook(hook)
+        # 숫자+고유명사 조합 → specificity 충분, 전체 통과
+        assert result.specificity_score >= 0.6

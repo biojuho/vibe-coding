@@ -74,6 +74,21 @@ _ENGLISH_TECH_SPECIFICITY_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# 한국어 고유명사: 기업/기관/모델 — 구체성 점수 추가
+_KO_PROPER_NOUN_PATTERN = re.compile(
+    r"(삼성|애플|구글|메타|마이크로소프트|네이버|카카오|현대|기아|LG|SK"
+    r"|GPT|ChatGPT|챗GPT|클로드|제미나이|라마|알파고|딥마인드|OpenAI|오픈AI"
+    r"|하버드|서울대|연세대|KAIST|스탠퍼드"
+    r"|WHO|NASA|CERN|IMF|UN|EU)",
+)
+
+# 영어 회사명 specificity — _ENGLISH_TECH_SPECIFICITY_PATTERN을 보완
+_ENGLISH_COMPANY_PATTERN = re.compile(
+    r"\b(OpenAI|Google|Apple|Samsung|Microsoft|Meta|Nvidia|Tesla|Amazon|"
+    r"DeepMind|Anthropic|Mistral|Cohere|Gemini|Claude|ChatGPT|GPT|LLaMA)\b",
+    re.IGNORECASE,
+)
+
 
 @dataclass
 class HookScore:
@@ -169,6 +184,11 @@ def score_hook(narration: str, *, threshold: float = _PASS_THRESHOLD) -> HookSco
     if re.search(r"['\"]|NASA|MIT|WHO|한국|미국|일본|중국", text):
         specificity += 0.4
     if _ENGLISH_TECH_SPECIFICITY_PATTERN.search(text):
+        specificity += 0.4
+    # 한국어/영어 기업·모델명 고유명사
+    if _KO_PROPER_NOUN_PATTERN.search(text):
+        specificity += 0.5
+    if _ENGLISH_COMPANY_PATTERN.search(text):
         specificity += 0.4
     result.specificity_score = min(specificity, 1.0)
 
