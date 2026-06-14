@@ -620,3 +620,43 @@ def test_extract_thumbnail_success_writes_png(tmp_path: Path) -> None:
     assert result == output_path
     assert output_path.exists()
     clip.close.assert_called_once()
+
+
+# ─── SMV2-RS001: duration=None 방어 ──────────────────────────────────────────
+
+
+def test_build_base_clip_video_none_duration_does_not_raise() -> None:
+    """SMV2-RS001: MoviePy가 메타데이터 없는 영상에서 duration=None 반환 시 TypeError 없이 통과."""
+    step = _make_render_step()
+    null_clip = _DummyClip("null_dur", duration=None)  # type: ignore[arg-type]
+    null_clip.duration = None  # bypass DummyClip default
+
+    # _fit_vertical and _load_video_clip are patched to isolate _build_base_clip logic
+    with (
+        patch.object(step, "_load_video_clip", return_value=null_clip),
+        patch.object(step, "_fit_vertical", return_value=null_clip),
+    ):
+        asset = MagicMock()
+        asset.visual_type = "video"
+        asset.visual_path = "dummy.mp4"
+        # Must not raise TypeError from `None < duration_sec`
+        result = step._build_base_clip(asset, duration_sec=5.0, target_width=1080, target_height=1920)
+
+    assert result is null_clip
+
+
+def test_attach_audio_none_duration_does_not_raise() -> None:
+    """SMV2-RS001: 오디오 파일이 duration=None 이면 TypeError 없이 원본 길이 그대로 유지."""
+    step = _make_render_step()
+    base_clip = _DummyClip("base", duration=5.0)
+    null_audio = _DummyAudioClip("null_audio")
+    null_audio.duration = None  # type: ignore[assignment]
+
+    with patch.object(step, "_load_audio_clip", return_value=null_audio):
+        asset = MagicMock()
+        asset.audio_path = "dummy.mp3"
+        # Must not raise TypeError from `None > duration_sec`
+        result = step._attach_audio(base_clip, asset, duration_sec=5.0, audio_clips_to_close=None)
+
+    # with_audio must have been called (audio attached without subclipping)
+    assert result.audio is null_audio

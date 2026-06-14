@@ -340,9 +340,9 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
     def _build_base_clip(self, asset: SceneAsset, duration_sec: float, target_width: int, target_height: int):
         if asset.visual_type == "video":
             base = self._load_video_clip(asset.visual_path, audio=False)
-            if base.duration < duration_sec:
+            if base.duration and base.duration < duration_sec:
                 base = base.with_effects([vfx.Loop(duration=duration_sec)])
-            elif base.duration > duration_sec:
+            elif base.duration and base.duration > duration_sec:
                 base = base.subclipped(0, duration_sec)
         else:
             base = self._load_image_clip(asset.visual_path, duration=duration_sec)
@@ -414,7 +414,7 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
         audio = self._load_audio_clip(asset.audio_path)
         if audio_clips_to_close is not None:
             audio_clips_to_close.append(audio)
-        if audio.duration != duration_sec and audio.duration > duration_sec:
+        if audio.duration and audio.duration > duration_sec:
             audio = audio.subclipped(0, duration_sec)
         return base.with_audio(audio)
 
