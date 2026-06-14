@@ -2708,6 +2708,38 @@ body {
 }
 
 /* ============================================
+   Reduced Motion (WCAG 2.3.3 / prefers-reduced-motion)
+   Disable or reduce all non-essential animations for users who
+   request it via OS accessibility settings.
+   ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .animate-fadeIn,
+  .animate-fadeInUp,
+  .animate-fadeInDown,
+  .animate-scaleIn,
+  .animate-slideInUp,
+  .animate-pulse,
+  .animate-blink,
+  .animate-shake,
+  .animate-bounce,
+  .animate-heartbeat,
+  .animate-float,
+  .animate-spin {
+    animation: none !important;
+  }
+}
+
+/* ============================================
    Print Styles
    ============================================ */
 

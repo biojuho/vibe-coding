@@ -131,6 +131,15 @@ test("AIChatWidget non-premium close button has aria-label for screen readers", 
 	assert.match(source, /title="AI 농장 비서 닫기"/);
 });
 
+test("globals.css respects prefers-reduced-motion for accessibility", () => {
+	const cssSource = readProjectFile("src/app/globals.css");
+
+	assert.match(cssSource, /@media \(prefers-reduced-motion: reduce\)/);
+	assert.match(cssSource, /animation-duration: 0\.01ms !important/);
+	assert.match(cssSource, /transition-duration: 0\.01ms !important/);
+	assert.match(cssSource, /scroll-behavior: auto !important/);
+});
+
 test("committed service worker fallback stays build-agnostic", () => {
 	const serviceWorkerSource = readProjectFile("public/sw.js");
 
