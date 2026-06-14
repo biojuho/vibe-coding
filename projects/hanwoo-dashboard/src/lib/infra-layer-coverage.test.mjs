@@ -747,6 +747,25 @@ test("createCattle detects duplicate tagNumber via Prisma P2002 and returns frie
 	assert.match(cattleAction, /이미 등록된 이력번호입니다/);
 });
 
+test("recordCalving uses atomic Prisma transaction (mother update + calf create + history + outbox)", () => {
+	// Without the transaction, a calf could be created while the mother's status fails to update
+	// or the history entry is lost — leaving inconsistent state that the UI can't resolve.
+	assert.match(cattleAction, /export async function recordCalving/);
+	// The calving transaction creates the calf inside the same tx as mother update
+	assert.match(cattleAction, /tx\.cattle\.create[\s\S]{0,200}송아지/);
+	assert.match(cattleAction, /tx\.cattleHistory\.createMany/);
+});
+
+test("deleteCattle (archive) uses atomic Prisma transaction to prevent orphaned history on outbox failure", () => {
+	// Without the transaction, the cattle.update (isArchived=true) could succeed while the
+	// outbox write fails, leaving an archived cattle with no dashboard cache invalidation event.
+	assert.match(cattleAction, /isArchived: true/);
+	assert.match(cattleAction, /archivedAt: new Date\(\)/);
+	// The archive must be atomic with history + outbox
+	assert.match(cattleAction, /await prisma\.\$transaction/);
+	assert.match(cattleAction, /tx\.cattle\.update[\s\S]{0,100}isArchived: true/);
+});
+
 // ── actions/sales.js: atomic transaction ──────────────────────────────────────
 
 const salesAction = readSource("lib/actions/sales.js");
