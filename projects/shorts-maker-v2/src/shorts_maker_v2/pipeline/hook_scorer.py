@@ -69,6 +69,12 @@ _CURIOSITY_PATTERNS = re.compile(
     re.IGNORECASE,
 )
 
+# 시간적 충격 패턴 — "24시간 만에", "3일 만에" 등 빠른 변화를 암시
+_KO_TEMPORAL_IMPACT_PATTERN = re.compile(r"\d+\s*(?:시간|일|주|년)\s*만에")
+
+# 글로벌·역사적 규모 패턴 — 스케일을 암시해 punch를 높임
+_KO_SCALE_PATTERN = re.compile(r"(?:전\s*세계|역사상|사상\s*최초|전례\s*없|국내\s*최초|전\s*국민)")
+
 
 _ENGLISH_CONTRAST_PATTERN = re.compile(
     r"\b(tiny|small|little|short|cheap|simple)\b[^.!?]{0,28},[^.!?]{0,28}"
@@ -78,6 +84,12 @@ _ENGLISH_CONTRAST_PATTERN = re.compile(
 
 _ENGLISH_TECH_SPECIFICITY_PATTERN = re.compile(
     r"\b(chip|chips|processor|processors|ai|model|models|battery|phone|phones|gpu|cpu)\b",
+    re.IGNORECASE,
+)
+
+# 영어 정량적 성과 단어 — "savings, results, revenue" 등 outcome specificity 보강
+_ENGLISH_OUTCOME_PATTERN = re.compile(
+    r"\b(savings?|results?|revenue|efficiency|performance|output|growth|impact|wins?)\b",
     re.IGNORECASE,
 )
 
@@ -122,11 +134,13 @@ class HookScore:
 
 
 # ── 가중치 ───────────────────────────────────────────────────────
+# T-AB024: 데이터 밀도(specificity)가 시청 유지율 예측에 더 중요함을 반영.
+# 짧은 Hook(brevity)보다 구체적 수치·고유명사가 스크롤 정지 효과가 강함.
 _WEIGHTS = {
-    "brevity": 0.30,
+    "brevity": 0.20,
     "punch": 0.30,
     "curiosity": 0.25,
-    "specificity": 0.15,
+    "specificity": 0.25,
 }
 
 _PASS_THRESHOLD = 0.6
@@ -148,6 +162,7 @@ def score_hook(narration: str, *, threshold: float = _PASS_THRESHOLD) -> HookSco
     feedback: list[str] = []
 
     # 1. Brevity (짧을수록 좋음)
+    # 40-55자 구간은 한국어 정보 밀집형 Hook을 위한 완충 tier (T-AB024)
     if length <= 10:
         result.brevity_score = 1.0
     elif length <= 15:
@@ -156,8 +171,11 @@ def score_hook(narration: str, *, threshold: float = _PASS_THRESHOLD) -> HookSco
         result.brevity_score = 0.7
     elif length <= 40:
         result.brevity_score = 0.4
+    elif length <= 55:
+        result.brevity_score = 0.3
+        feedback.append(f"Hook이 깁니다 ({length}자). 25자 이하 권장.")
     else:
-        result.brevity_score = 0.2
+        result.brevity_score = 0.1
         feedback.append(f"Hook이 너무 깁니다 ({length}자). 15자 이하 권장.")
 
     # 2. Punch (강렬함)
@@ -168,6 +186,11 @@ def score_hook(narration: str, *, threshold: float = _PASS_THRESHOLD) -> HookSco
         punch += 0.7
     shock_hits = sum(1 for w in _SHOCK_WORDS if w in text)
     punch += min(shock_hits * 0.3, 0.6)
+    # 시간적 충격(24시간 만에) + 글로벌 스케일(전 세계)은 punch를 높임
+    if _KO_TEMPORAL_IMPACT_PATTERN.search(text):
+        punch += 0.4
+    if _KO_SCALE_PATTERN.search(text):
+        punch += 0.3
     result.punch_score = min(punch, 1.0)
     if result.punch_score < 0.3:
         feedback.append("강렬한 표현이 부족합니다. 질문이나 충격적 단어 추가 권장.")
@@ -181,6 +204,9 @@ def score_hook(narration: str, *, threshold: float = _PASS_THRESHOLD) -> HookSco
     # 정보 갭: "~인 이유", "~하는 방법" 패턴
     if re.search(r"(이유|방법|비결|원인|진실)", text):
         curiosity += 0.5
+    # 시간적 충격은 "무슨 일이?" 호기심을 유발
+    if _KO_TEMPORAL_IMPACT_PATTERN.search(text):
+        curiosity += 0.4
     result.curiosity_score = min(curiosity, 1.0)
 
     # 4. Specificity (구체성)
@@ -197,6 +223,8 @@ def score_hook(narration: str, *, threshold: float = _PASS_THRESHOLD) -> HookSco
         specificity += 0.5
     if _ENGLISH_COMPANY_PATTERN.search(text):
         specificity += 0.4
+    if _ENGLISH_OUTCOME_PATTERN.search(text):
+        specificity += 0.3
     result.specificity_score = min(specificity, 1.0)
 
     # 최종 점수 (가중 평균)

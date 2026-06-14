@@ -126,3 +126,45 @@ class TestScoreHook:
         for hook in ["단 3초만에", "사실은 90%가 충격 받은 이유", "4000만 명이"]:
             result = score_hook(hook)
             assert result.specificity_score > 0.0, f"Pattern should still match: {hook!r}"
+
+    # ── T-AB024: Hook Scorer 가중치 재조정 + 시간적·규모 패턴 ─────────
+
+    def test_flagship_ko_hook_now_passes(self):
+        """T-AB024: 사실적 정보 밀집형 한국어 Hook이 통과해야 함."""
+        hook = "GPT-4o가 출시 24시간 만에 전 세계 개발자 4000만 명의 워크플로를 바꿨다."
+        result = score_hook(hook)
+        assert result.passed is True, f"Flagship hook should pass, got strength={result.hook_strength:.3f}"
+        assert result.hook_strength >= 0.6
+
+    def test_temporal_impact_boosts_punch(self):
+        """T-AB024: '24시간 만에' 패턴이 punch_score를 높여야 함."""
+        with_temporal = score_hook("GPT-4o가 출시 24시간 만에 바꿨다")
+        without_temporal = score_hook("GPT-4o가 출시하고 나서 바꿨다")
+        assert with_temporal.punch_score > without_temporal.punch_score
+
+    def test_global_scale_boosts_punch(self):
+        """T-AB024: '전 세계' 패턴이 punch_score를 높여야 함."""
+        with_scale = score_hook("전 세계 4000만 명이 바꿨다")
+        without_scale = score_hook("많은 사람들이 바꿨다")
+        assert with_scale.punch_score > without_scale.punch_score
+
+    def test_english_outcome_words_boost_specificity(self):
+        """T-AB024: 'savings, results, revenue' 같은 성과 단어가 specificity를 높여야 함."""
+        result = score_hook("Tiny chips, big savings")
+        assert result.specificity_score >= 0.7, "English outcome word should boost specificity"
+        assert result.passed is True
+
+    def test_info_dense_hook_45_chars_not_max_penalized(self):
+        """T-AB024: 40-55자 범위 Hook은 0.3 brevity (0.2 아닌) 를 받아야 함."""
+        hook = "전 세계 개발자 4000만 명의 워크플로를 단 하루 만에 바꿨다"  # ~30자
+        result = score_hook(hook)
+        assert result.brevity_score >= 0.3, "Moderate-length hook should not get minimum brevity"
+
+    def test_regression_benchmark_hook_still_passes(self):
+        """T-AB024 회귀: 기존 통과 Hook들이 여전히 통과해야 함."""
+        for hook in [
+            "사실은 90%가 충격 받은 이유",
+            "Tiny chips, big savings",
+        ]:
+            result = score_hook(hook)
+            assert result.passed is True, f"Benchmark hook should still pass: {hook!r}"
