@@ -616,7 +616,19 @@ class TestSceneQCIntegrity:
 
     @pytest.mark.parametrize(
         "forbidden_phrase",
-        ["팔로우 부탁해요", "이 영상을 공유해", "댓글로 알려주세요", "subscribe to our channel"],
+        [
+            "팔로우 부탁해요",
+            "이 영상을 공유해",
+            "댓글로 알려주세요",
+            "subscribe to our channel",
+            # locale YAML 동기화 추가분 (T-AB013)
+            "좋아요 벨도 눌러주세요",
+            "잊지 마세요",
+            "잊지마세요",
+            "hit the bell button",
+            "smash that like button",
+            "don't forget to subscribe",
+        ],
     )
     def test_closing_korean_cta_variants_are_caught(self, tmp_path: Path, forbidden_phrase: str) -> None:
         audio = _write_bytes(tmp_path / "a.wav", 20_000)
