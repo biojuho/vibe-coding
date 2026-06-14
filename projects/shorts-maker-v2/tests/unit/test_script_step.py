@@ -602,3 +602,44 @@ def test_hook_rules_ko_contains_all_forbidden_openers(forbidden_opener: str) -> 
     default_copy = ScriptPromptsMixin._PROMPT_COPY
     ko_rules = default_copy.get("hook_rules_ko", "")
     assert forbidden_opener in ko_rules, f"'{forbidden_opener}' not found in hook_rules_ko"
+
+
+# ── T-AB027: _PERSONA_KEYWORDS 품질 불변조건 ────────────────────────────
+
+
+class TestPersonaKeywordsQuality:
+    """_PERSONA_KEYWORDS 키워드 품질 불변조건 (T-AB027)."""
+
+    def test_each_channel_has_ten_keywords(self) -> None:
+        kw = ScriptPromptsMixin._PERSONA_KEYWORDS
+        for channel, keywords in kw.items():
+            assert len(keywords) == 10, f"{channel} has {len(keywords)} keywords, expected 10"
+
+    def test_no_cross_channel_contamination_ai_tech_health(self) -> None:
+        """ai_tech과 health가 같은 키워드를 공유하면 페르소나 스코어가 오염된다."""
+        ai_kw = set(ScriptPromptsMixin._PERSONA_KEYWORDS["ai_tech"])
+        health_kw = set(ScriptPromptsMixin._PERSONA_KEYWORDS["health"])
+        overlap = ai_kw & health_kw
+        assert not overlap, f"ai_tech and health share keywords: {overlap}"
+
+    def test_llm_present_in_ai_tech(self) -> None:
+        """2026 핵심 AI 용어 LLM이 ai_tech 키워드에 포함돼야 한다."""
+        assert "LLM" in ScriptPromptsMixin._PERSONA_KEYWORDS["ai_tech"]
+
+    def test_generic_symbol_percent_not_a_keyword(self) -> None:
+        """'%'는 모든 채널의 키워드에 포함돼선 안 된다 (텍스트 매칭 불가)."""
+        for channel, keywords in ScriptPromptsMixin._PERSONA_KEYWORDS.items():
+            assert "%" not in keywords, f"'{channel}' still contains generic '%' keyword"
+
+    def test_second_person_dangshin_not_in_psychology(self) -> None:
+        """'당신' is too generic (any 2nd-person text). Must not be a psychology signal."""
+        assert "당신" not in ScriptPromptsMixin._PERSONA_KEYWORDS["psychology"]
+
+    def test_brain_keyword_in_psychology(self) -> None:
+        """'뇌' (brain) is a strong psychology domain signal."""
+        assert "뇌" in ScriptPromptsMixin._PERSONA_KEYWORDS["psychology"]
+
+    def test_disease_or_prevention_in_health(self) -> None:
+        """Health channel should include disease/prevention terms, not generic '효과'."""
+        health_kw = set(ScriptPromptsMixin._PERSONA_KEYWORDS["health"])
+        assert health_kw & {"질병", "예방", "의학"}, "health needs at least one of: 질병, 예방, 의학"
