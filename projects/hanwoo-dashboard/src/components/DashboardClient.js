@@ -2444,6 +2444,9 @@ export default function DashboardClient(options = {}) {
 					)}
 					{!isOnline && (
 						<div
+							role="alert"
+							aria-live="assertive"
+							aria-atomic="true"
 							className="mb-3 flex items-center gap-2.5 rounded-[20px] px-4 py-3 text-sm font-bold text-white shadow-[var(--shadow-md)]"
 							style={{
 								background:
@@ -2451,7 +2454,7 @@ export default function DashboardClient(options = {}) {
 								border: "1px solid rgba(255,255,255,0.2)",
 							}}
 						>
-							<WifiOff className="h-5 w-5 flex-shrink-0" />
+							<WifiOff className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
 							오프라인 모드 — 작업은 저장되어 연결 복구 시 자동 동기화됩니다
 							{queueSize() > 0 && (
 								<Badge

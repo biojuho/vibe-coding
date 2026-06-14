@@ -2204,3 +2204,13 @@ test("ScheduleTab upcoming events list uses role=list and role=listitem semantic
 	// Each event card is a listitem
 	assert.match(source, /role="listitem"/);
 });
+
+test("offline status banner announces to screen readers with role=alert", () => {
+	const source = readSource("components/DashboardClient.js");
+
+	// Banner must be a live region so screen readers announce when connection drops
+	assert.match(source, /role="alert"[\s\S]{0,100}aria-live="assertive"/);
+	assert.match(source, /aria-atomic="true"/);
+	// WifiOff icon is decorative — must be hidden from screen reader
+	assert.match(source, /WifiOff[\s\S]{0,50}aria-hidden="true"/);
+});
