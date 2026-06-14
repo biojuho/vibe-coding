@@ -702,3 +702,48 @@ test("updateFarmSettings validates input before upsert and returns error on inva
 	assert.match(farmSettingsAction, /success: false/);
 });
 
+// ── actions/cattle.js: atomic transaction ─────────────────────────────────────
+
+const cattleAction = readSource("lib/actions/cattle.js");
+
+test("createCattle uses atomic Prisma transaction (row + history + outbox) to prevent phantom cattle on outbox failure", () => {
+	// Without the transaction, an outbox write failure after cattle.create
+	// returns a false failure; a retry then hits the tagNumber unique constraint
+	// for a row the user believes was never saved — creating a confusing duplicate error.
+	assert.match(cattleAction, /prisma\.\$transaction/);
+	assert.match(cattleAction, /tx\.cattle\.create/);
+	assert.match(cattleAction, /recordCattleHistory/);
+	assert.match(cattleAction, /createOutboxEvent/);
+});
+
+test("createCattle validates cattle input before DB write", () => {
+	assert.match(cattleAction, /validateCattleMutationInput/);
+	assert.match(cattleAction, /validation\.success/);
+	assert.match(cattleAction, /success: false/);
+});
+
+test("createCattle detects duplicate tagNumber via Prisma P2002 and returns friendly message", () => {
+	// tagNumber has a unique constraint — a clean 409-like response beats a 500
+	assert.match(cattleAction, /isCattleTagDuplicateError/);
+	assert.match(cattleAction, /P2002/);
+	assert.match(cattleAction, /이미 등록된 이력번호입니다/);
+});
+
+// ── actions/sales.js: atomic transaction ──────────────────────────────────────
+
+const salesAction = readSource("lib/actions/sales.js");
+
+test("createSalesRecord uses atomic Prisma transaction to prevent duplicate sale on outbox failure", () => {
+	// SalesRecord has no unique constraint — without the transaction an outbox failure
+	// after salesRecord.create returns a false failure and the retry creates a duplicate sale.
+	assert.match(salesAction, /prisma\.\$transaction/);
+	assert.match(salesAction, /tx\.salesRecord\.create/);
+	assert.match(salesAction, /createOutboxEvent/);
+});
+
+test("createSalesRecord validates sales input before DB write", () => {
+	assert.match(salesAction, /validateSalesRecordInput/);
+	assert.match(salesAction, /validation\.success/);
+	assert.match(salesAction, /success: false/);
+});
+
