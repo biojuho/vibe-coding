@@ -158,3 +158,13 @@ class TestStyleBanditErrorHandling:
         bandit._table_ready = True
 
         assert bandit.get_arm_stats() == []
+
+
+class TestDefaultStyles:
+    def test_분析형_in_default_styles(self):
+        """T-AB039: 분析형 must be explorable for AI_전환/고용불안 topics."""
+        assert "분析형" in _DEFAULT_STYLES
+
+    def test_default_styles_covers_all_major_types(self):
+        expected = {"공감형", "논쟁형", "정보전달형", "한줄팩폭형", "분析형"}
+        assert expected.issubset(set(_DEFAULT_STYLES))
