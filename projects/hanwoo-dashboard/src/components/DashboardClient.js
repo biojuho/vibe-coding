@@ -1141,6 +1141,23 @@ export default function DashboardClient(options = {}) {
 		[preloadForTab],
 	);
 
+	useEffect(() => {
+		const TAB_TITLES = {
+			home: "홈",
+			feed: "사료 관리",
+			calving: "임신·분만",
+			sales: "출하 관리",
+			inventory: "창고 관리",
+			analysis: "수익 분석",
+			schedule: "일정 관리",
+			settings: "농장 설정",
+		};
+		const tabTitle = TAB_TITLES[activeTab] || activeTab;
+		if (typeof document !== "undefined") {
+			document.title = `${tabTitle} — Joolife 한우`;
+		}
+	}, [activeTab]);
+
 	const handleQuickAction = useCallback(
 		(action) => {
 			if (action.id === "add-cattle") {

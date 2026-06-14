@@ -2285,3 +2285,12 @@ test("AlertBanners title spans have heading role so screen readers can navigate 
 	assert.match(source, /role="heading"/);
 	assert.match(source, /aria-level=\{2\}/);
 });
+
+test("DashboardClient updates document.title on tab change for WCAG 2.4.2 Page Titled", () => {
+	const source = readSource("components/DashboardClient.js");
+	// WCAG 2.4.2: page title must describe topic; in a SPA the title should update with navigation
+	assert.match(source, /TAB_TITLES/);
+	assert.match(source, /document\.title/);
+	assert.match(source, /tabTitle.*Joolife.*한우/);
+	assert.match(source, /useEffect\(\(\) => \{/);
+});
