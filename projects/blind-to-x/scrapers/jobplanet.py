@@ -167,12 +167,19 @@ class JobplanetScraper(BaseScraper):
     async def _fetch_post_detail(self, page, post_id):
         api_url = f"{self.BASE_URL}/api/v5/community/posts/{post_id}"
         logger.info(f"Fetching post detail from API: {api_url}")
-        response = await page.goto(api_url, timeout=30000)
+        try:
+            response = await page.goto(api_url, timeout=30000)
+        except Exception as exc:
+            raise _JobplanetScrapeFailure(
+                f"Network error fetching post {post_id}: {exc}",
+                reason="network_error",
+            ) from exc
         status = response.status if response else "unknown"
         if not response or response.status != 200:
+            reason = f"http_{status}"
             raise _JobplanetScrapeFailure(
-                f"API fetch failed with status {status}",
-                reason=f"http_{status}",
+                f"API fetch failed with status {status} ({reason})",
+                reason=reason,
             )
         json_data = await response.json()
         return json_data.get("data", {})

@@ -143,7 +143,7 @@ class TestReviewerNodeFloatScores:
         return reviewer
 
     def _run(self, coro):
-        return asyncio.get_event_loop().run_until_complete(coro)
+        return asyncio.run(coro)
 
     def test_float_string_scores_do_not_raise(self):
         """'7.5' score strings must not raise ValueError from int()."""

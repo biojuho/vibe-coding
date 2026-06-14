@@ -1,6 +1,7 @@
 "use client";
 
 import { RotateCcw, TriangleAlert } from "lucide-react";
+import Link from "next/link";
 import { useEffect } from "react";
 
 function normalizeErrorOptions(options) {
@@ -56,14 +57,14 @@ export default function SubscriptionError(options = {}) {
 						<RotateCcw size={18} aria-hidden="true" />
 						{retryLabel}
 					</button>
-					<a
+					<Link
 						href="/"
 						aria-label="대시보드로 돌아가기"
 						title="대시보드로 돌아가기"
 						className="status-link"
 					>
 						대시보드로 돌아가기
-					</a>
+					</Link>
 				</div>
 			</section>
 		</main>
