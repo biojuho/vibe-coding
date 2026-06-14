@@ -56,6 +56,18 @@ def _patch_tts_factory(monkeypatch, audio_path: Path):
     )
 
 
+def test_generate_audio_raises_on_empty_narration(tmp_path):
+    config = _make_config(use_whisperx=False)
+    mixin = _StubMixin(config=config)
+    audio = tmp_path / "narration.wav"
+
+    with pytest.raises(ValueError, match="narration_ko must not be empty"):
+        mixin._generate_audio("", audio, role="hook")
+
+    with pytest.raises(ValueError, match="narration_ko must not be empty"):
+        mixin._generate_audio("   ", audio, role="body")
+
+
 def test_whisperx_disabled_keeps_existing_behavior_and_skips_module(monkeypatch, tmp_path):
     audio = tmp_path / "narration.wav"
     _patch_tts_factory(monkeypatch, audio)

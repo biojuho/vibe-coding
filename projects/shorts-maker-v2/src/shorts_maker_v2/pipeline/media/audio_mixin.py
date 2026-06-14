@@ -26,6 +26,8 @@ class MediaAudioMixin:
 
     def _generate_audio(self, narration_ko: str, output_path: Path, *, role: str = "body") -> Path:
         """TTS 프로바이더 라우팅 → 오디오 생성 + Whisper sync."""
+        if not narration_ko or not narration_ko.strip():
+            raise ValueError(f"narration_ko must not be empty (scene role={role!r})")
 
         # 역할별 음성 매핑 (tts_voice_roles 설정 시)
         voice_roles = self.config.providers.tts_voice_roles
