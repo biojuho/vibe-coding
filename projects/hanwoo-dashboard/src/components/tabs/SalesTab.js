@@ -657,7 +657,7 @@ export default function SalesTab(options = {}) {
 			>
 				출하 이력
 			</div>
-			<div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+			<div role="list" aria-label="출하 이력 목록" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
 				{processedRecords.length === 0 ? (
 					<EmptyState
 						icon={ReceiptText}
@@ -677,7 +677,7 @@ export default function SalesTab(options = {}) {
 					/>
 				) : (
 					processedRecords.map((record, index) => (
-						<PremiumCard key={record.id || index} className="p-0">
+						<PremiumCard key={record.id || index} role="listitem" className="p-0">
 							<PremiumCardContent className="p-3.5">
 								<div
 									style={{

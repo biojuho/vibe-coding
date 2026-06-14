@@ -502,7 +502,7 @@ export default function InventoryTab(options = {}) {
 				</form>
 			) : null}
 
-			<div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+			<div role="list" aria-label="창고 목록" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
 				{safeInventory.map((item) => {
 					const hasQuantity = item.quantity !== null;
 					const isLow =
@@ -518,6 +518,7 @@ export default function InventoryTab(options = {}) {
 					return (
 						<PremiumCard
 							key={item.id}
+							role="listitem"
 							className={`p-0 ${isLow ? "border-2 border-red-500/50" : ""}`}
 						>
 							<PremiumCardContent className="p-3.5 relative">

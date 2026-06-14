@@ -687,3 +687,17 @@ test("inventory quantity edit controls use Korean task labels", () => {
 	assert.doesNotMatch(source, /\{isQuantitySaving \? "수량 저장 중\.\.\." : "저장"\}/);
 	assert.doesNotMatch(source, />\s*OK\s*<\/PremiumButton>/);
 });
+
+test("InventoryTab and SalesTab item lists use role=list/listitem for screen reader navigation", () => {
+	const inventorySource = readSource("components/tabs/InventoryTab.js");
+	const salesSource = readSource("components/tabs/SalesTab.js");
+
+	// List semantics let screen readers report item count and navigate by item
+	assert.match(inventorySource, /role="list"/);
+	assert.match(inventorySource, /aria-label="창고 목록"/);
+	assert.match(inventorySource, /role="listitem"/);
+
+	assert.match(salesSource, /role="list"/);
+	assert.match(salesSource, /aria-label="출하 이력 목록"/);
+	assert.match(salesSource, /role="listitem"/);
+});
