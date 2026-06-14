@@ -692,3 +692,26 @@ test("subscription cancel success banner is shown to non-active users", () => {
 	// Must use role="status" for accessibility
 	assert.match(source, /role="status"/);
 });
+
+test("payment fail page announces error message to screen readers via role=alert", () => {
+	const source = readSource("app/subscription/fail/page.js");
+
+	// Primary failure message must be wrapped in role="alert" for immediate SR announcement
+	assert.match(source, /role="alert"/);
+	assert.match(source, /aria-live="assertive"/);
+	assert.match(source, /aria-atomic="true"/);
+	assert.doesNotMatch(
+		source,
+		/<p style=\{\{ marginTop: ["']10px["'], color: ["']var\(--color-text-secondary\)["'] \}\}>\s*\{failureMessage\}/,
+	);
+});
+
+test("payment result pages have distinct metadata titles for browser tabs", () => {
+	const failLayout = readSource("app/subscription/fail/layout.js");
+	const successLayout = readSource("app/subscription/success/layout.js");
+
+	assert.match(failLayout, /결제 실패 · Joolife 한우/);
+	assert.match(failLayout, /export const metadata = /);
+	assert.match(successLayout, /결제 완료 · Joolife 한우/);
+	assert.match(successLayout, /export const metadata = /);
+});

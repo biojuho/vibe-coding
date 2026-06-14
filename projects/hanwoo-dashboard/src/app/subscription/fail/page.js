@@ -91,7 +91,12 @@ function FailContent() {
 			>
 				결제를 완료하지 못했습니다
 			</h1>
-			<p style={{ marginTop: "10px", color: "var(--color-text-secondary)" }}>
+			<p
+				role="alert"
+				aria-live="assertive"
+				aria-atomic="true"
+				style={{ marginTop: "10px", color: "var(--color-text-secondary)" }}
+			>
 				{failureMessage}
 			</p>
 			<p
