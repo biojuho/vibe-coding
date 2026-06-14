@@ -677,3 +677,28 @@ test("toggleEventCompletion guards id and isCompleted type before DB update", ()
 	assert.match(scheduleAction, /if \(!normalizedId\)/);
 });
 
+// ── actions/inventory.js ──────────────────────────────────────────────────────
+
+const inventoryAction = readSource("lib/actions/inventory.js");
+
+test("addInventoryItem validates input before DB write and returns error on invalid data", () => {
+	assert.match(inventoryAction, /validateInventoryItemInput/);
+	assert.match(inventoryAction, /validation\.success/);
+	assert.match(inventoryAction, /success: false/);
+});
+
+test("updateInventoryQuantity validates quantity before DB update", () => {
+	assert.match(inventoryAction, /validateInventoryQuantityInput/);
+	assert.match(inventoryAction, /validation\.success/);
+});
+
+// ── actions/farm-settings.js ──────────────────────────────────────────────────
+
+const farmSettingsAction = readSource("lib/actions/farm-settings.js");
+
+test("updateFarmSettings validates input before upsert and returns error on invalid data", () => {
+	assert.match(farmSettingsAction, /validateFarmSettingsInput/);
+	assert.match(farmSettingsAction, /validation\.success/);
+	assert.match(farmSettingsAction, /success: false/);
+});
+

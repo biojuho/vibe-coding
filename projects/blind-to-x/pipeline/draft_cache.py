@@ -57,8 +57,8 @@ class DraftCache:
                     # Flush recent WAL writes so follow-up reads from fresh
                     # connections can see cache entries deterministically.
                     conn.execute("PRAGMA wal_checkpoint(FULL)")
-                except sqlite3.DatabaseError:
-                    pass
+                except sqlite3.DatabaseError as exc:
+                    logger.debug("WAL checkpoint failed (non-fatal): %s", exc)
             except Exception:
                 conn.rollback()
                 raise
