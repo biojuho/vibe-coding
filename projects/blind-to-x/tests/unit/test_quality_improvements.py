@@ -762,5 +762,49 @@ class TestFactChecker(unittest.TestCase):
         self.assertLessEqual(result.confidence, 1.0)
 
 
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# T-AB034: recommend_draft_type 라우팅 테스트 (기존 + 2026 신규 감정축)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+class TestRecommendDraftType(unittest.TestCase):
+    """recommend_draft_type: hook_type + emotion_axis 조합별 초안 타입 라우팅."""
+
+    def _rdt(self, hook_type: str, emotion_axis: str) -> str:
+        from pipeline.content_intelligence.classifiers import recommend_draft_type
+
+        return recommend_draft_type(hook_type, emotion_axis)
+
+    def test_분석형_hook_returns_분석형(self):
+        self.assertEqual(self._rdt("분석형", "공감"), "분석형")
+
+    def test_정보형_hook_returns_정보전달형(self):
+        self.assertEqual(self._rdt("정보형", "공감"), "정보전달형")
+
+    def test_논쟁형_hook_returns_논쟁형(self):
+        self.assertEqual(self._rdt("논쟁형", "공감"), "논쟁형")
+
+    def test_분노_emotion_returns_논쟁형(self):
+        self.assertEqual(self._rdt("공감형", "분노"), "논쟁형")
+
+    def test_경악_emotion_returns_논쟁형(self):
+        self.assertEqual(self._rdt("한줄팩폭형", "경악"), "논쟁형")
+
+    def test_default_공감형(self):
+        self.assertEqual(self._rdt("공감형", "공감"), "공감형")
+
+    def test_AI_전환_emotion_returns_분석형(self):
+        """T-AB034: AI_전환 감정축 → 분석형 초안."""
+        self.assertEqual(self._rdt("공감형", "AI_전환"), "분석형")
+
+    def test_고용불안_emotion_returns_공감형(self):
+        """T-AB034: 고용불안 감정축 → 공감형 초안."""
+        self.assertEqual(self._rdt("공감형", "고용불안"), "공감형")
+
+    def test_AI_전환_overrides_hook_type(self):
+        """T-AB034: AI_전환 감정은 hook_type보다 우선순위가 높음."""
+        self.assertEqual(self._rdt("한줄팩폭형", "AI_전환"), "분석형")
+
+
 if __name__ == "__main__":
     unittest.main()
