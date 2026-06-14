@@ -216,6 +216,7 @@ export default function LoginPage() {
 								enterKeyHint="next"
 								placeholder="아이디 입력"
 								aria-label="아이디"
+								aria-required="true"
 								aria-invalid={Boolean(error)}
 								aria-describedby={error ? loginErrorId : undefined}
 								aria-errormessage={error ? loginErrorId : undefined}
@@ -244,6 +245,7 @@ export default function LoginPage() {
 								enterKeyHint="go"
 								placeholder="비밀번호"
 								aria-label="비밀번호"
+								aria-required="true"
 								aria-invalid={Boolean(error)}
 								aria-describedby={error ? loginErrorId : undefined}
 								aria-errormessage={error ? loginErrorId : undefined}

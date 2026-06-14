@@ -108,3 +108,22 @@ test("register form links password mismatch error to input via aria-describedby"
 	// Confirm input must still declare aria-invalid for state signaling
 	assert.match(source, /aria-invalid=\{passwordMismatch\}/);
 });
+
+test("login form marks both username and password inputs as aria-required for screen readers", () => {
+	const source = readSource("app/login/page.js");
+	// WCAG 4.1.2: required fields must expose required state programmatically
+	// Both fields are required for login — screen readers should announce this
+	const requiredCount = (source.match(/aria-required="true"/g) || []).length;
+	assert.ok(requiredCount >= 2, `Expected ≥2 aria-required="true" on login form, found ${requiredCount}`);
+
+	// Verify on specific fields: aria-required must appear before aria-invalid for each
+	const usernameNameIdx = source.indexOf('name="username"');
+	const passwordNameIdx = source.indexOf('name="password"');
+	const usernameAriaRequired = source.indexOf('aria-required="true"', usernameNameIdx);
+	const usernameAriaInvalid = source.indexOf('aria-invalid=', usernameNameIdx);
+	const passwordAriaRequired = source.indexOf('aria-required="true"', passwordNameIdx);
+	const passwordAriaInvalid = source.indexOf('aria-invalid=', passwordNameIdx);
+
+	assert.ok(usernameAriaRequired !== -1 && usernameAriaRequired < usernameAriaInvalid, "username: aria-required missing or after aria-invalid");
+	assert.ok(passwordAriaRequired !== -1 && passwordAriaRequired < passwordAriaInvalid, "password: aria-required missing or after aria-invalid");
+});
