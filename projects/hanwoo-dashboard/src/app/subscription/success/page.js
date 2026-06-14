@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
@@ -253,7 +254,30 @@ function SuccessContent() {
 						결제가 완료되었습니다
 					</h1>
 					<p>Joolife 구독이 활성화되었습니다.</p>
-					<p>3초 후 대시보드로 이동합니다.</p>
+					<p style={{ color: "var(--color-text-muted)", fontSize: "14px" }}>
+						3초 후 대시보드로 자동 이동합니다.
+					</p>
+					<Link
+						href="/"
+						aria-label="대시보드로 이동"
+						title="대시보드로 이동"
+						style={{
+							display: "inline-flex",
+							alignItems: "center",
+							justifyContent: "center",
+							marginTop: "20px",
+							padding: "14px 24px",
+							borderRadius: "16px",
+							background: "var(--surface-gradient-primary)",
+							color: "white",
+							fontSize: "15px",
+							fontWeight: 700,
+							textDecoration: "none",
+							boxShadow: "var(--shadow-button-primary)",
+						}}
+					>
+						지금 대시보드로 이동
+					</Link>
 				</div>
 			) : (
 				<div>
@@ -269,7 +293,7 @@ function SuccessContent() {
 						{visibleStatus}
 					</h1>
 					{shouldShowPaymentRetryLink ? (
-						<a
+						<Link
 							href={PAYMENT_RETRY_PATH}
 							aria-label="결제 화면으로 돌아가기"
 							title="결제 화면으로 돌아가기"
@@ -289,7 +313,7 @@ function SuccessContent() {
 							}}
 						>
 							결제 화면으로 돌아가기
-						</a>
+						</Link>
 					) : null}
 					{shouldShowManualRetry ? (
 						<button

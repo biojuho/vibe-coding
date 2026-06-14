@@ -528,9 +528,9 @@ test("subscription success page recovers missing redirect parameters", () => {
 	assert.match(source, /shouldShowPaymentRetryLink \? \(/);
 	assert.match(
 		source,
-		/<a[\s\S]*?href=\{PAYMENT_RETRY_PATH\}[\s\S]*?aria-label="결제 화면으로 돌아가기"[\s\S]*?title="결제 화면으로 돌아가기"/,
+		/(?:<a|<Link)[\s\S]*?href=\{PAYMENT_RETRY_PATH\}[\s\S]*?aria-label="결제 화면으로 돌아가기"[\s\S]*?title="결제 화면으로 돌아가기"/,
 	);
-	assert.match(source, />\s*결제 화면으로 돌아가기\s*<\/a>/);
+	assert.match(source, />\s*결제 화면으로 돌아가기\s*<\/(?:a|Link)>/);
 });
 
 test("subscription success timer callbacks ignore stale cleanup completions", () => {
