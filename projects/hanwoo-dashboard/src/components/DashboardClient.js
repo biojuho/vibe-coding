@@ -2466,7 +2466,15 @@ export default function DashboardClient(options = {}) {
 							)}
 						</div>
 					)}
-					{renderContent()}
+					<div
+						role="tabpanel"
+						id={`panel-${activeTab}`}
+						aria-labelledby={`tab-${activeTab}`}
+						tabIndex={0}
+						className="focus-visible:outline-none"
+					>
+						{renderContent()}
+					</div>
 				</main>
 			)}
 			{!isFieldMode && (

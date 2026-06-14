@@ -1400,6 +1400,17 @@ test("tab navigation buttons expose Korean action labels and selected state", ()
 	assert.match(source, /title=\{tabActionLabel\}/);
 	assert.doesNotMatch(source, /export function TabBar\(\{ activeTab, onTabChange \}\)/);
 	assert.doesNotMatch(source, /onClick=\{\(\) => onTabChange\(t\.id\)\}/);
+	// Tab buttons must have id and aria-controls linking to their panels (WCAG 4.1.2)
+	assert.match(source, /id=\{`tab-\$\{t\.id\}`\}/);
+	assert.match(source, /aria-controls=\{`panel-\$\{t\.id\}`\}/);
+});
+
+test("DashboardClient tab content area declares role=tabpanel linked to active tab button", () => {
+	const source = readSource("components/DashboardClient.js");
+	// WCAG 4.1.2: tab panel must announce itself and be linked to the tab that controls it
+	assert.match(source, /role="tabpanel"/);
+	assert.match(source, /id=\{`panel-\$\{activeTab\}`\}/);
+	assert.match(source, /aria-labelledby=\{`tab-\$\{activeTab\}`\}/);
 });
 
 test("direct dashboard tab changes reset scroll before rendering target content", () => {

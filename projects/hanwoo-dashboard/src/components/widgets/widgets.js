@@ -66,6 +66,8 @@ export function TabBar(options = {}) {
 						onClick={() => handleTabChange(t.id)}
 						className={`tab-item ${isActive ? "active" : ""}`}
 						role="tab"
+						id={`tab-${t.id}`}
+						aria-controls={`panel-${t.id}`}
 						aria-selected={isActive}
 						tabIndex={isActive ? 0 : -1}
 						aria-label={tabActionLabel}
