@@ -464,6 +464,7 @@ export default function FeedTab(options = {}) {
 							id="feed-date"
 							type="date"
 							{...register("date")}
+							aria-required="true"
 							aria-invalid={Boolean(errors.date)}
 							aria-describedby={errors.date ? "feed-date-error" : undefined}
 							hasError={!!errors.date}
@@ -706,6 +707,7 @@ function Field(options = {}) {
 					type="number"
 					placeholder="0.0"
 					{...safeInputProps}
+					aria-required="true"
 					aria-invalid={Boolean(error)}
 					aria-describedby={error ? errorId : undefined}
 					hasError={!!error}

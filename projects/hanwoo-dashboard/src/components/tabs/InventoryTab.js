@@ -338,6 +338,7 @@ export default function InventoryTab(options = {}) {
 											inventoryNameInputRef.current = element;
 										}}
 										hasError={!!errors.name}
+										aria-required="true"
 										aria-invalid={Boolean(errors.name)}
 										aria-describedby={
 											errors.name ? "inventory-name-error" : undefined
@@ -369,6 +370,7 @@ export default function InventoryTab(options = {}) {
 											id="inventory-category"
 											{...register("category")}
 											hasError={!!errors.category}
+											aria-required="true"
 											aria-invalid={Boolean(errors.category)}
 											aria-describedby={
 												errors.category ? "inventory-category-error" : undefined
@@ -408,6 +410,7 @@ export default function InventoryTab(options = {}) {
 											placeholder="수량"
 											{...register("quantity")}
 											hasError={!!errors.quantity}
+											aria-required="true"
 											aria-invalid={Boolean(errors.quantity)}
 											aria-describedby={
 												errors.quantity ? "inventory-quantity-error" : undefined
@@ -439,6 +442,7 @@ export default function InventoryTab(options = {}) {
 											placeholder="단위 (예: kg, 박스)"
 											{...register("unit")}
 											hasError={!!errors.unit}
+											aria-required="true"
 											aria-invalid={Boolean(errors.unit)}
 											aria-describedby={
 												errors.unit ? "inventory-unit-error" : undefined

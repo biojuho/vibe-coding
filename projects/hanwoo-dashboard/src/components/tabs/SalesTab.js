@@ -359,6 +359,7 @@ export default function SalesTab(options = {}) {
 											saleDateRegistration.ref(element);
 											saleDateInputRef.current = element;
 										}}
+										aria-required="true"
 										aria-invalid={Boolean(errors.saleDate)}
 										aria-describedby={
 											errors.saleDate ? "sale-date-error" : undefined
@@ -385,6 +386,7 @@ export default function SalesTab(options = {}) {
 										type="number"
 										{...register("price")}
 										placeholder="예: 8500000"
+										aria-required="true"
 										aria-invalid={Boolean(errors.price)}
 										aria-describedby={
 											errors.price ? "sale-price-error" : undefined
@@ -407,6 +409,7 @@ export default function SalesTab(options = {}) {
 									<PremiumSelect
 										id="sale-cattle"
 										{...register("cattleId")}
+										aria-required="true"
 										aria-invalid={Boolean(errors.cattleId)}
 										aria-describedby={
 											errors.cattleId ? "sale-cattle-error" : undefined
@@ -449,6 +452,7 @@ export default function SalesTab(options = {}) {
 										<PremiumSelect
 											id="sale-grade"
 											{...register("grade")}
+											aria-required="true"
 											aria-invalid={Boolean(errors.grade)}
 											aria-describedby={
 												errors.grade ? "sale-grade-error" : undefined

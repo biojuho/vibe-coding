@@ -388,3 +388,42 @@ test("ScheduleTab inline form marks required fields with aria-required", () => {
 		assert.ok(reqIdx !== -1 && reqIdx < invIdx, `aria-required missing or misplaced for ${fieldId}`);
 	}
 });
+
+test("InventoryTab inline form marks required PremiumInput fields with aria-required", () => {
+	const source = readSource("components/tabs/InventoryTab.js");
+	const requiredCount = (source.match(/aria-required="true"/g) || []).length;
+	assert.ok(requiredCount >= 4, `Expected ≥4 aria-required on inventory form, found ${requiredCount}`);
+	for (const fieldId of ["inventory-name", "inventory-category", "inventory-quantity", "inventory-unit"]) {
+		const idIdx = source.indexOf(`id="${fieldId}"`);
+		const reqIdx = source.indexOf('aria-required="true"', idIdx);
+		const invIdx = source.indexOf("aria-invalid=", idIdx);
+		assert.ok(reqIdx !== -1 && reqIdx < invIdx, `aria-required missing or misplaced for ${fieldId}`);
+	}
+});
+
+test("SalesTab inline form marks required PremiumInput/Select fields with aria-required", () => {
+	const source = readSource("components/tabs/SalesTab.js");
+	const requiredCount = (source.match(/aria-required="true"/g) || []).length;
+	assert.ok(requiredCount >= 4, `Expected ≥4 aria-required on sales form, found ${requiredCount}`);
+	for (const fieldId of ["sale-date", "sale-price", "sale-cattle", "sale-grade"]) {
+		const idIdx = source.indexOf(`id="${fieldId}"`);
+		const reqIdx = source.indexOf('aria-required="true"', idIdx);
+		const invIdx = source.indexOf("aria-invalid=", idIdx);
+		assert.ok(reqIdx !== -1 && reqIdx < invIdx, `aria-required missing or misplaced for ${fieldId}`);
+	}
+});
+
+test("FeedTab form marks feed-date and dynamic number fields with aria-required", () => {
+	const source = readSource("components/tabs/FeedTab.js");
+	const requiredCount = (source.match(/aria-required="true"/g) || []).length;
+	assert.ok(requiredCount >= 2, `Expected ≥2 aria-required on feed form, found ${requiredCount}`);
+	// feed-date is a static field
+	const dateIdIdx = source.indexOf('id="feed-date"');
+	const dateReqIdx = source.indexOf('aria-required="true"', dateIdIdx);
+	const dateInvIdx = source.indexOf("aria-invalid=", dateIdIdx);
+	assert.ok(dateReqIdx !== -1 && dateReqIdx < dateInvIdx, "aria-required missing for feed-date");
+	// dynamic roughage/concentrate fields use id={fieldId} — also require aria-required
+	const dynIdIdx = source.indexOf("id={fieldId}");
+	const dynReqIdx = source.indexOf('aria-required="true"', dynIdIdx);
+	assert.ok(dynReqIdx !== -1, "aria-required missing for dynamic feed input (roughage/concentrate)");
+});
