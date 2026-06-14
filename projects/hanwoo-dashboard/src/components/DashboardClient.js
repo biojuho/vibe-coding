@@ -2126,7 +2126,7 @@ export default function DashboardClient(options = {}) {
 					/>
 				)}
 				{widgetSettings.visible.aiInsight && (
-					<AIInsightWidget summary={aiInsightSummary} />
+					<AIInsightWidget summary={aiInsightSummary} isPremium={isPremium} />
 				)}
 				{widgetSettings.visible.estrus && (
 					<EstrusAlertBanner

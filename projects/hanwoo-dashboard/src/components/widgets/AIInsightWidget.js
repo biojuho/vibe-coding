@@ -120,7 +120,7 @@ function normalizeAIInsightWidgetOptions(options) {
 }
 
 export default function AIInsightWidget(options = {}) {
-	const { summary } = normalizeAIInsightWidgetOptions(options);
+	const { summary, isPremium = true } = normalizeAIInsightWidgetOptions(options);
 	const stableSummary = useMemo(
 		() =>
 			summary && typeof summary === "object" && !Array.isArray(summary)
@@ -142,6 +142,15 @@ export default function AIInsightWidget(options = {}) {
 		: "AI 인사이트 새로고침";
 
 	useEffect(() => {
+		if (!isPremium) {
+			setInsights(buildHeuristicInsights(stableSummary));
+			setSource("heuristic");
+			setIsLoading(false);
+			setReason("규칙 기반 인사이트입니다. 프리미엄 구독 시 AI 인사이트로 전환됩니다.");
+			setCacheMeta(null);
+			return;
+		}
+
 		const controller = new AbortController();
 		let cancelled = false;
 		let didTimeout = false;
@@ -245,7 +254,7 @@ export default function AIInsightWidget(options = {}) {
 				abortRef.current = null;
 			}
 		};
-	}, [stableSummary, refreshNonce]);
+	}, [stableSummary, refreshNonce, isPremium]);
 
 	return (
 		<PremiumCard className="mb-4">
@@ -331,6 +340,17 @@ export default function AIInsightWidget(options = {}) {
 						</li>
 					))}
 				</ul>
+				{!isPremium && (
+					<div className="mt-3 pt-3 border-t border-[color:var(--color-surface-stroke)]">
+						<a
+							href="/subscription"
+							className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[12px] text-sm font-bold no-underline text-white w-full justify-center"
+							style={{ background: "var(--surface-gradient-primary)" }}
+						>
+							🤖 AI 인사이트 구독하기 →
+						</a>
+					</div>
+				)}
 			</PremiumCardContent>
 		</PremiumCard>
 	);

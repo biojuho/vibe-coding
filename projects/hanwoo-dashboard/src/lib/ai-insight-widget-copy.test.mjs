@@ -42,7 +42,7 @@ test("AI insight widget normalizes malformed top-level props before rendering", 
 	assert.match(source, /export default function AIInsightWidget\(options = \{\}\) \{/);
 	assert.match(
 		source,
-		/const \{ summary \} = normalizeAIInsightWidgetOptions\(options\);/,
+		/const \{ summary, isPremium = true \} = normalizeAIInsightWidgetOptions\(options\);/,
 	);
 	assert.match(
 		source,
@@ -254,7 +254,7 @@ test("AI insight widget exposes a busy-safe manual refresh control", () => {
 
 	assert.match(source, /RefreshCw/);
 	assert.match(source, /const \[refreshNonce,\s*setRefreshNonce\]/);
-	assert.match(source, /\[stableSummary,\s*refreshNonce\]/);
+	assert.match(source, /\[stableSummary,\s*refreshNonce,\s*isPremium\]/);
 	assert.match(source, /onClick=\{\(\) => setRefreshNonce\(\(current\) => current \+ 1\)\}/);
 	assert.match(source, /disabled=\{isLoading\}/);
 	assert.match(source, /aria-busy=\{isLoading\}/);
@@ -316,7 +316,7 @@ test("AI insight widget is registered, wired into DashboardClient, and supports 
 	assert.match(dashboard, /widgetSettings\.visible\.aiInsight/);
 	assert.match(dashboard, /<AIInsightWidget/);
 	assert.match(dashboard, /const aiInsightSummary = useMemo\(/);
-	assert.match(dashboard, /<AIInsightWidget summary=\{aiInsightSummary\} \/>/);
+	assert.match(dashboard, /<AIInsightWidget summary=\{aiInsightSummary\} isPremium=\{isPremium\} \/>/);
 	assert.doesNotMatch(dashboard, /<AIInsightWidget\s+summary=\{\{/);
 	assert.match(route, /export async function POST/);
 	assert.match(route, /requireAuthenticatedSession/);
