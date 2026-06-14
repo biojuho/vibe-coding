@@ -443,6 +443,16 @@ class TestFFmpegRendererExtended:
 
         assert result == 0.0
 
+    @patch("subprocess.run", side_effect=__import__("subprocess").TimeoutExpired(cmd="ffprobe", timeout=10))
+    def test_probe_duration_returns_zero_on_timeout(self, _mock_run: MagicMock):
+        r = FFmpegRenderer(tmp_dir=".tmp/test_ffmpeg")
+        assert r._probe_duration("clip.mp4") == 0.0
+
+    @patch("subprocess.run", side_effect=__import__("subprocess").CalledProcessError(returncode=1, cmd="ffprobe"))
+    def test_probe_duration_returns_zero_on_process_error(self, _mock_run: MagicMock):
+        r = FFmpegRenderer(tmp_dir=".tmp/test_ffmpeg")
+        assert r._probe_duration("clip.mp4") == 0.0
+
     def test_load_video_uses_probe_duration(self):
         r = FFmpegRenderer(tmp_dir=".tmp/test_ffmpeg")
         with patch.object(r, "_probe_duration", return_value=7.25) as probe:
