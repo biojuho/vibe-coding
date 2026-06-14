@@ -133,15 +133,15 @@ class ScriptStep(ScriptPromptsMixin, ScriptReviewMixin):
         )
 
     @staticmethod
-    def _trim_hook_to_limit(narration: str, limit: int = 40) -> str:
+    def _trim_hook_to_limit(narration: str, limit: int = 55) -> str:
         """Hook narration이 limit자 초과 시 단어 경계 우선으로 트림한다.
 
         TTS 음성은 원본 narration을 그대로 읽으므로 음성 품질에는 영향 없다.
         자막(caption_pillow) 렌더 시 픽셀 넘침 방지가 목적.
         - 공백이 포함된 경우: limit 이내의 마지막 공백 기준 단어 경계로 자름.
         - 공백이 없거나 단어 경계로 못 자르는 경우: 글자 단위 트림 + rstrip.
-        Default limit=40 은 hook_scorer 의 brevity_score 가 0.4 이상을 받는
-        구간(≤40자)과 일치하며 의미 있는 hook 문장을 보존한다.
+        T-AB024/T-AB026: 55자 tier(brevity=0.30)로 확장. 정보 밀집형 한국어 Hook
+        (24시간 만에+전 세계+4000만명 등)이 40자 cap에 잘려 의미 손실되는 문제 해소.
         """
         if len(narration) <= limit:
             return narration
@@ -211,12 +211,10 @@ class ScriptStep(ScriptPromptsMixin, ScriptReviewMixin):
             else:
                 structure_role = "body"
             # ── Hook narration 길이 트림 (자막 픽셀 넘침 방지) ───────────────
-            # hook_scorer.py brevity_score: ≤10=1.0, ≤15=0.9, ≤25=0.7, ≤40=0.4,
-            # >40=0.2. 자막 렌더 픽셀 넘침과 의미 보존을 함께 고려해 40 을 hard
-            # cap 으로 잡는다. (이전 15 hard cap 은 38~55자 hook 을 통째로 잘라
-            # 의미 손실 → 동일 trim 메시지가 다수 attempt 에서 반복되는 사례
-            # 확인. 2026-05-19 1차 quality run.)
-            _hook_narration_max_chars = 40
+            # T-AB024/T-AB026: hook_scorer.py 40-55자 tier(brevity=0.30) 추가로
+            # cap을 55로 상향. 정보 밀집형 한국어 Hook이 40자에서 잘려 의미 손실되는
+            # 문제 해소. (이전 40: brevity_score ≤40=0.4, >40=0.2 기준이었음)
+            _hook_narration_max_chars = 55
             if structure_role == "hook" and len(narration) > _hook_narration_max_chars:
                 logger.warning(
                     "Hook narration exceeds %d chars (%d chars): '%s…' — "

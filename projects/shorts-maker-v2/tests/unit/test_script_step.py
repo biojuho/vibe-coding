@@ -560,9 +560,9 @@ def test_run_uses_review_retry_when_scores_fail_threshold() -> None:
     assert title == "Retried draft"
     assert llm_router.generate_json.call_count == 2
     assert "Quality feedback to fix" in llm_router.generate_json.call_args.kwargs["user_prompt"]
-    # Phase 1 #5: hook hard cap 15→40 + 단어 경계 우선 트림. 78자 → 40자 head 의
-    # 마지막 공백("stronger" 뒤, position 36) 에서 절단 → 36자.
-    assert scenes[0].narration_ko == "The retried script now adds stronger"
+    # T-AB026: hook hard cap 40→55. 78자 → 55자 head의
+    # 마지막 공백("a" 뒤, position 52) 에서 절단 → 52자.
+    assert scenes[0].narration_ko == "The retried script now adds stronger specifics and a"
 
 
 def test_run_skips_review_errors_and_returns_best_result() -> None:
