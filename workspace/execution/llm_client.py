@@ -42,7 +42,6 @@ WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
 if str(WORKSPACE_ROOT) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_ROOT))
 
-from path_contract import REPO_ROOT, resolve_project_dir
 from execution.language_bridge import (
     BridgePolicy,
     BridgeValidationResult,
@@ -55,6 +54,7 @@ from execution.language_bridge import (
     validate_json_payload,
     validate_text_content,
 )
+from path_contract import REPO_ROOT, resolve_project_dir
 
 load_dotenv(REPO_ROOT / ".env")
 load_dotenv(resolve_project_dir("shorts-maker-v2", required_paths=("config.yaml",)) / ".env", override=False)
@@ -598,6 +598,81 @@ class LLMClient:
         payload_validation = validate_json_payload(payload, policy=policy)
         return payload_validation, payload
 
+    def _simple_loop_cache_key(
+        self,
+        providers: list[str],
+        system_prompt: str,
+        user_prompt: str,
+        temperature: float,
+    ) -> str | None:
+        if self.cache_ttl_sec <= 0:
+            return None
+        return _cache_key(providers, system_prompt, user_prompt, temperature)
+
+    def _cached_simple_loop_result(
+        self,
+        cache_key: str | None,
+        cache_decoder: Callable[[str], Any],
+        mode_label: str,
+    ) -> tuple[bool, Any | None]:
+        if cache_key is None:
+            return False, None
+        cached = _cache_get(cache_key, self.cache_ttl_sec)
+        if cached is None:
+            return False, None
+        logger.info("LLM 캐시 히트 (%s)", mode_label)
+        return True, cache_decoder(cached)
+
+    @staticmethod
+    def _cache_simple_loop_result(
+        cache_key: str | None,
+        result: Any,
+        cache_encoder: Callable[[Any], str],
+    ) -> None:
+        if cache_key is not None:
+            _cache_set(cache_key, cache_encoder(result))
+
+    @staticmethod
+    def _retry_wait_seconds(attempt: int) -> int:
+        return min(2**attempt, 10)
+
+    def _run_simple_attempt(
+        self,
+        *,
+        provider: str,
+        model: str,
+        system_prompt: str,
+        user_prompt: str,
+        temperature: float,
+        json_mode: bool,
+        cache_strategy: str,
+        parser: Callable[[str], Any],
+        cache_key: str | None,
+        cache_encoder: Callable[[Any], str],
+    ) -> Any:
+        content, in_tok, out_tok, cache_w, cache_r = self._generate_once(
+            provider,
+            system_prompt,
+            user_prompt,
+            temperature,
+            json_mode=json_mode,
+            cache_strategy=cache_strategy,
+        )
+        result = parser(content)
+
+        self._log_usage(
+            provider,
+            model,
+            in_tok,
+            out_tok,
+            cache_creation_tokens=cache_w,
+            cache_read_tokens=cache_r,
+            cache_creation_multiplier=_cache_creation_multiplier(cache_strategy),
+        )
+        logger.info("LLM 성공: %s (in=%d, out=%d)", provider, in_tok, out_tok)
+        self._cache_simple_loop_result(cache_key, result, cache_encoder)
+        return result
+
     def _run_simple_loop(
         self,
         *,
@@ -615,13 +690,10 @@ class LLMClient:
         if not providers:
             raise RuntimeError(self._no_providers_error_message())
 
-        # 캐시 조회
-        if self.cache_ttl_sec > 0:
-            key = _cache_key(providers, system_prompt, user_prompt, temperature)
-            cached = _cache_get(key, self.cache_ttl_sec)
-            if cached is not None:
-                logger.info("LLM 캐시 히트 (%s)", mode_label)
-                return cache_decoder(cached)
+        cache_key = self._simple_loop_cache_key(providers, system_prompt, user_prompt, temperature)
+        cache_hit, cached_result = self._cached_simple_loop_result(cache_key, cache_decoder, mode_label)
+        if cache_hit:
+            return cached_result
 
         all_errors: list[str] = []
 
@@ -637,29 +709,18 @@ class LLMClient:
                         attempt,
                         self.max_retries,
                     )
-                    content, in_tok, out_tok, cache_w, cache_r = self._generate_once(
-                        provider,
-                        system_prompt,
-                        user_prompt,
-                        temperature,
+                    return self._run_simple_attempt(
+                        provider=provider,
+                        model=model,
+                        system_prompt=system_prompt,
+                        user_prompt=user_prompt,
+                        temperature=temperature,
                         json_mode=json_mode,
                         cache_strategy=cache_strategy,
+                        parser=parser,
+                        cache_key=cache_key,
+                        cache_encoder=cache_encoder,
                     )
-                    result = parser(content)
-
-                    self._log_usage(
-                        provider,
-                        model,
-                        in_tok,
-                        out_tok,
-                        cache_creation_tokens=cache_w,
-                        cache_read_tokens=cache_r,
-                        cache_creation_multiplier=_cache_creation_multiplier(cache_strategy),
-                    )
-                    logger.info("LLM 성공: %s (in=%d, out=%d)", provider, in_tok, out_tok)
-                    if self.cache_ttl_sec > 0:
-                        _cache_set(key, cache_encoder(result))
-                    return result
 
                 except json.JSONDecodeError as e:
                     msg = f"{provider} attempt {attempt}: JSON parse error - {e}"
@@ -676,8 +737,7 @@ class LLMClient:
                         break
 
                 if attempt < self.max_retries:
-                    wait = min(2**attempt, 10)
-                    time.sleep(wait)
+                    time.sleep(self._retry_wait_seconds(attempt))
 
             logger.info("Provider %s 소진 → 다음 provider", provider)
 

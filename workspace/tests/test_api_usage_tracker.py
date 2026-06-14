@@ -285,6 +285,37 @@ def test_get_bridge_activity_for_date(monkeypatch, tmp_path):
     assert summary["by_provider"]["google"] == 2
 
 
+def test_bridge_activity_row_helper_preserves_counts():
+    summary = aut._empty_bridge_activity_summary()
+    scores = []
+    row = {
+        "bridge_mode": "enforce",
+        "reason_codes": '["mixed_language", "mojibake", "mixed_language"]',
+        "repair_count": 2,
+        "fallback_used": 1,
+        "language_score": 0.75,
+        "provider_used": "google",
+    }
+
+    aut._record_bridge_activity_row(summary, scores, row)
+
+    assert summary["total_calls"] == 1
+    assert summary["enforce_calls"] == 1
+    assert summary["repair_calls"] == 1
+    assert summary["fallback_calls"] == 1
+    assert summary["reason_codes"] == {"mixed_language": 2, "mojibake": 1}
+    assert summary["by_provider"] == {"google": 1}
+    assert scores == [0.75]
+    assert aut._bridge_top_reason_codes(summary["reason_codes"]) == [
+        {"reason_code": "mixed_language", "count": 2},
+        {"reason_code": "mojibake", "count": 1},
+    ]
+
+
+def test_bridge_reason_codes_helper_handles_malformed_json():
+    assert aut._bridge_reason_codes("NOT_VALID_JSON") == []
+
+
 def test_get_bridge_daily_and_reason_breakdown(monkeypatch, tmp_path):
     _patch_db(monkeypatch, tmp_path)
     aut.log_api_call(

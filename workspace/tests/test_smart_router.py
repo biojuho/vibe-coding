@@ -16,7 +16,13 @@ WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
 if str(WORKSPACE_ROOT) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_ROOT))
 
-from execution.smart_router import SmartRouter, ComplexityLevel
+from execution.smart_router import (
+    ComplexityLevel,
+    SmartRouter,
+    _analyze_prompt,
+    _complexity_level_for_score,
+    _score_prompt_analysis,
+)
 
 
 @pytest.fixture
@@ -153,3 +159,48 @@ class TestScoring:
         )
         # code blocks should add to score
         assert with_code.score >= no_code.score
+
+    def test_analyze_prompt_collects_keyword_and_structure_signals(self):
+        analysis = _analyze_prompt(
+            "Design architecture?\n"
+            "1. implement parsing?\n"
+            "2. write test?\n"
+            "```python\npass\n```\n"
+            "```js\nconsole.log()\n```"
+        )
+
+        assert analysis.token_count > 0
+        assert "architecture" in analysis.complex_hits
+        assert "implement" in analysis.moderate_hits
+        assert analysis.code_block_count == 4
+        assert analysis.has_multi_questions is True
+        assert analysis.has_numbered_list is True
+
+    def test_score_prompt_analysis_preserves_signal_order_and_clamp(self):
+        analysis = _analyze_prompt(
+            ("architecture debug microservice implement validate print " * 250)
+            + "\n1. step?\n2. step?\n3. step?\n"
+            + "```python\npass\n```\n```js\nconsole.log()\n```"
+        )
+
+        score, signals = _score_prompt_analysis(
+            analysis,
+            simple_threshold=5,
+            complex_threshold=10,
+        )
+
+        assert score == 1.0
+        assert signals[:4] == [
+            f"long_prompt({analysis.token_count} tokens)",
+            f"code_blocks({analysis.code_block_count})",
+            "multi_questions",
+            "numbered_list",
+        ]
+        assert any(signal.startswith("complex:architecture") for signal in signals)
+        assert any(signal.startswith("moderate:implement") for signal in signals)
+        assert any(signal.startswith("simple:print") for signal in signals)
+
+    def test_complexity_level_for_score_thresholds(self):
+        assert _complexity_level_for_score(0.0) == ComplexityLevel.SIMPLE
+        assert _complexity_level_for_score(0.15) == ComplexityLevel.MODERATE
+        assert _complexity_level_for_score(0.4) == ComplexityLevel.COMPLEX

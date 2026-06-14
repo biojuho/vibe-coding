@@ -45,7 +45,6 @@ from execution.result_tracker_db import (
     update_stats,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixture: redirect DB_PATH to a temp directory
 # ---------------------------------------------------------------------------

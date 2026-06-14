@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import builtins
 import json
 import sys
 import types
-import builtins
 from datetime import date
 from unittest.mock import MagicMock, patch
 

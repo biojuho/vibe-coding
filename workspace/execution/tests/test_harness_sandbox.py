@@ -18,7 +18,6 @@ from execution.harness_sandbox import (
     build_shorts_sandbox,
 )
 
-
 # ── SandboxConfig ──────────────────────────────────────────────────────
 
 

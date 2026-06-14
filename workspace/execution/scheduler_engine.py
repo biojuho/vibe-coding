@@ -560,97 +560,80 @@ def _execute_subprocess(
     target_cwd: Path,
     timeout_sec: int,
 ) -> tuple[int, str, str, str]:
-    """서브프로세스를 실행하고 (exit_code, stdout, stderr, error_type)을 반환."""
+    """Run a subprocess and return (exit_code, stdout, stderr, error_type)."""
 
-    exit_code = -2
-    stdout = ""
-    stderr = ""
-    error_type = ""
-    proc = None
     try:
-        if os.name == "nt":
-            # Windows: close_fds=True로 부모 프로세스의 파일 핸들 상속을 차단.
-            # pytest capture, sqlite3 등 부모 핸들이 자식에 상속되면 WinError 6이 날 수 있다.
-            proc = subprocess.Popen(
-                [resolved_exec, *resolved_args],
-                shell=False,
-                cwd=str(target_cwd),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                stdin=subprocess.DEVNULL,
-                encoding="utf-8",
-                errors="replace",
-                close_fds=True,
-                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW,
-            )
-            try:
-                out, err = proc.communicate(timeout=timeout_sec)
-            except subprocess.TimeoutExpired:
-                try:
-                    proc.kill()
-                except OSError:
-                    pass
-                try:
-                    out, err = proc.communicate()
-                except OSError:
-                    out, err = "", ""
-                exit_code = -1
-                error_type = "timeout"
-                stderr = f"Timeout after {timeout_sec} seconds"
-            else:
-                exit_code = proc.returncode
-                stdout = out or ""
-                stderr = err or ""
-                if exit_code != 0:
-                    error_type = "non_zero_exit"
-        else:
-            proc = subprocess.Popen(
-                [resolved_exec, *resolved_args],
-                shell=False,
-                cwd=str(target_cwd),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                encoding="utf-8",
-                errors="replace",
-            )
-            try:
-                out, err = proc.communicate(timeout=timeout_sec)
-            except subprocess.TimeoutExpired:
-                try:
-                    proc.kill()
-                except OSError:
-                    pass
-                try:
-                    out, err = proc.communicate()
-                except OSError:
-                    out, err = "", ""
-                exit_code = -1
-                error_type = "timeout"
-                stderr = f"Timeout after {timeout_sec} seconds"
-            else:
-                exit_code = proc.returncode
-                stdout = out or ""
-                stderr = err or ""
-                if exit_code != 0:
-                    error_type = "non_zero_exit"
+        proc = subprocess.Popen(
+            [resolved_exec, *resolved_args],
+            **_subprocess_popen_kwargs(target_cwd),
+        )
+        return _communicate_subprocess(proc, timeout_sec)
     except FileNotFoundError as exc:
-        exit_code = -4
-        error_type = "exec_not_found"
-        stderr = str(exc)
+        return _subprocess_exec_not_found_result(exc)
     except OSError as exc:
-        winerror = getattr(exc, "winerror", None)
-        if winerror in (2, 3):
-            exit_code = -4
-            error_type = "exec_not_found"
-        else:
-            exit_code = -2
-            error_type = "exception"
-        stderr = str(exc)
+        return _subprocess_os_error_result(exc)
     except Exception as exc:  # pragma: no cover - defensive path
-        exit_code = -2
-        error_type = "exception"
-        stderr = str(exc)
+        return _subprocess_exception_result(exc)
+
+
+def _subprocess_popen_kwargs(target_cwd: Path) -> Dict[str, Any]:
+    kwargs: Dict[str, Any] = {
+        "shell": False,
+        "cwd": str(target_cwd),
+        "stdout": subprocess.PIPE,
+        "stderr": subprocess.PIPE,
+        "encoding": "utf-8",
+        "errors": "replace",
+    }
+    if os.name == "nt":
+        # Windows: prevent inherited parent handles from breaking child processes.
+        kwargs.update(
+            {
+                "stdin": subprocess.DEVNULL,
+                "close_fds": True,
+                "creationflags": subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW,
+            }
+        )
+    return kwargs
+
+
+def _communicate_subprocess(proc: subprocess.Popen, timeout_sec: int) -> tuple[int, str, str, str]:
+    try:
+        out, err = proc.communicate(timeout=timeout_sec)
+    except subprocess.TimeoutExpired:
+        return _subprocess_timeout_result(proc, timeout_sec)
+    return _subprocess_completed_result(proc.returncode, out or "", err or "")
+
+
+def _subprocess_timeout_result(proc: subprocess.Popen, timeout_sec: int) -> tuple[int, str, str, str]:
+    try:
+        proc.kill()
+    except OSError:
+        pass
+    try:
+        proc.communicate()
+    except OSError:
+        pass
+    return -1, "", f"Timeout after {timeout_sec} seconds", "timeout"
+
+
+def _subprocess_completed_result(exit_code: int, stdout: str, stderr: str) -> tuple[int, str, str, str]:
+    error_type = "non_zero_exit" if exit_code != 0 else ""
     return exit_code, stdout, stderr, error_type
+
+
+def _subprocess_exec_not_found_result(exc: BaseException) -> tuple[int, str, str, str]:
+    return -4, "", str(exc), "exec_not_found"
+
+
+def _subprocess_os_error_result(exc: OSError) -> tuple[int, str, str, str]:
+    if getattr(exc, "winerror", None) in (2, 3):
+        return _subprocess_exec_not_found_result(exc)
+    return _subprocess_exception_result(exc)
+
+
+def _subprocess_exception_result(exc: BaseException) -> tuple[int, str, str, str]:
+    return -2, "", str(exc), "exception"
 
 
 async def run_task_async(task_id: int, trigger_type: str = "manual") -> TaskLog:
@@ -978,6 +961,62 @@ def get_recent_failure_summary(limit: int = 10, within_hours: int = 24) -> List[
     return summary
 
 
+def _attention_reasons(task: ScheduledTask, now: datetime, failure_threshold: int) -> List[str]:
+    reasons: List[str] = []
+    next_run_dt = _parse_datetime(task.next_run)
+
+    if not task.enabled and task.failure_count > 0:
+        reasons.append("auto_disabled")
+    if task.failure_count >= failure_threshold:
+        reasons.append("repeated_failures")
+    if task.enabled and next_run_dt is not None and next_run_dt <= now:
+        reasons.append("overdue")
+
+    return reasons
+
+
+def _attention_next_action(reasons: List[str]) -> str:
+    if "auto_disabled" in reasons:
+        return "오류 수정 후 재활성화"
+    if "repeated_failures" in reasons:
+        return "연속 실패 원인 점검"
+    if "overdue" in reasons:
+        return "작업 즉시 실행 또는 worker 확인"
+    return "상태 확인"
+
+
+def _attention_priority(task: ScheduledTask, reasons: List[str]) -> int:
+    priority = -task.failure_count
+    reason_weights = {
+        "auto_disabled": -20,
+        "repeated_failures": -10,
+        "overdue": -5,
+    }
+    return priority + sum(weight for reason, weight in reason_weights.items() if reason in reasons)
+
+
+def _attention_queue_item(
+    task: ScheduledTask,
+    now: datetime,
+    failure_threshold: int,
+) -> Optional[Dict[str, Any]]:
+    reasons = _attention_reasons(task, now, failure_threshold)
+    if not reasons:
+        return None
+
+    return {
+        "task_id": task.id,
+        "name": task.name,
+        "enabled": task.enabled,
+        "failure_count": task.failure_count,
+        "last_run": task.last_run or "",
+        "next_run": task.next_run or "",
+        "reasons": reasons,
+        "next_action": _attention_next_action(reasons),
+        "priority": _attention_priority(task, reasons),
+    }
+
+
 def get_attention_queue(limit: int = 10) -> List[Dict[str, Any]]:
     tasks = list_tasks()
     now = datetime.now()
@@ -985,47 +1024,9 @@ def get_attention_queue(limit: int = 10) -> List[Dict[str, Any]]:
     failure_threshold = max(2, MAX_FAILURE_COUNT // 2)
 
     for task in tasks:
-        reasons: List[str] = []
-        next_action = ""
-        next_run_dt = _parse_datetime(task.next_run)
-
-        if not task.enabled and task.failure_count > 0:
-            reasons.append("auto_disabled")
-            next_action = "오류 수정 후 재활성화"
-        if task.failure_count >= failure_threshold:
-            reasons.append("repeated_failures")
-            if not next_action:
-                next_action = "연속 실패 원인 점검"
-        if task.enabled and next_run_dt is not None and next_run_dt <= now:
-            reasons.append("overdue")
-            if not next_action:
-                next_action = "작업 즉시 실행 또는 worker 확인"
-
-        if not reasons:
-            continue
-
-        priority = 0
-        if "auto_disabled" in reasons:
-            priority -= 20
-        if "repeated_failures" in reasons:
-            priority -= 10
-        if "overdue" in reasons:
-            priority -= 5
-        priority -= task.failure_count
-
-        attention_items.append(
-            {
-                "task_id": task.id,
-                "name": task.name,
-                "enabled": task.enabled,
-                "failure_count": task.failure_count,
-                "last_run": task.last_run or "",
-                "next_run": task.next_run or "",
-                "reasons": reasons,
-                "next_action": next_action or "상태 확인",
-                "priority": priority,
-            }
-        )
+        attention_item = _attention_queue_item(task, now, failure_threshold)
+        if attention_item is not None:
+            attention_items.append(attention_item)
 
     attention_items.sort(key=lambda item: (item["priority"], item["name"]))
     return attention_items[:limit]

@@ -90,6 +90,56 @@ def check_auth() -> bool:
 # ──────────────────────────────────────────────
 
 
+def _create_notebook(title: str) -> str | None:
+    nb_data = _run_json(["create", title])
+    if not nb_data:
+        return None
+    nb_id = nb_data["id"]
+    print(f"  ✓ 노트북 생성: {nb_id}")
+    return nb_id
+
+
+def _add_url_sources(urls: list[str] | None) -> list[str]:
+    source_ids = []
+    for url in urls or []:
+        src = _run_json(["source", "add", url])
+        if src and "source_id" in src:
+            source_ids.append(src["source_id"])
+            print(f"  ✓ 소스 추가: {url}")
+    return source_ids
+
+
+def _research_source_command(query: str, search_mode: str) -> list[str]:
+    cmd = ["source", "add-research", query, "--mode", search_mode]
+    if search_mode == "deep":
+        cmd.append("--import-all")
+    return cmd
+
+
+def _add_research_sources(query: str | None, search_mode: str) -> None:
+    if not query:
+        return
+    _run(_research_source_command(query, search_mode))
+    print(f"  ✓ 자동 소스 탐색 및 연동 완료 ({search_mode} Research): {query}")
+
+
+def _wait_for_source_processing(source_ids: list[str], wait_seconds: int = 15) -> None:
+    if not source_ids:
+        return
+    print("  ⏳ 소스 인덱싱 대기...")
+    time.sleep(wait_seconds)
+
+
+def _ask_questions(questions: list[str] | None) -> list[dict[str, str]]:
+    answers = []
+    for question in questions or []:
+        result = _run_json(["ask", question])
+        if result and "answer" in result:
+            answers.append({"question": question, "answer": result["answer"]})
+            print(f"  ✓ Q: {question[:50]}...")
+    return answers
+
+
 def research_workflow(
     title: str,
     urls: list[str] | None = None,
@@ -113,45 +163,23 @@ def research_workflow(
         return None
 
     # 1. 노트북 생성
-    nb_data = _run_json(["create", title])
-    if not nb_data:
+    nb_id = _create_notebook(title)
+    if not nb_id:
         return None
-    nb_id = nb_data["id"]
-    print(f"  ✓ 노트북 생성: {nb_id}")
-
     # 2. 노트북 활성화
     _run(["use", nb_id])
 
     # 3. 소스 추가
-    source_ids = []
-    if urls:
-        for url in urls:
-            src = _run_json(["source", "add", url])
-            if src and "source_id" in src:
-                source_ids.append(src["source_id"])
-                print(f"  ✓ 소스 추가: {url}")
+    source_ids = _add_url_sources(urls)
 
     # 4. 웹 리서치 (단일 위키 대신 주제에 맞춰 자동 소스 탐색 및 연동)
-    if query:
-        cmd = ["source", "add-research", query, "--mode", search_mode]
-        if search_mode == "deep":
-            cmd.append("--import-all")
-        _run(cmd)
-        print(f"  ✓ 자동 소스 탐색 및 연동 완료 ({search_mode} Research): {query}")
+    _add_research_sources(query, search_mode)
 
     # 5. 소스 처리 대기
-    if source_ids:
-        print("  ⏳ 소스 인덱싱 대기...")
-        time.sleep(15)  # 기본 대기
+    _wait_for_source_processing(source_ids)
 
     # 6. 질의응답 (선택)
-    answers = []
-    if questions:
-        for q in questions:
-            result = _run_json(["ask", q])
-            if result and "answer" in result:
-                answers.append({"question": q, "answer": result["answer"]})
-                print(f"  ✓ Q: {q[:50]}...")
+    answers = _ask_questions(questions)
 
     return {"notebook_id": nb_id, "sources": source_ids, "answers": answers}
 

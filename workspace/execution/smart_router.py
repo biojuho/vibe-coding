@@ -179,6 +179,83 @@ class RoutedResult:
     output_tokens: int
 
 
+@dataclass(frozen=True)
+class _PromptAnalysis:
+    token_count: int
+    complex_hits: list[str]
+    moderate_hits: list[str]
+    simple_hits: list[str]
+    code_block_count: int
+    line_count: int
+    has_multi_questions: bool
+    has_numbered_list: bool
+
+
+def _analyze_prompt(prompt: str) -> _PromptAnalysis:
+    prompt_lower = prompt.lower()
+    return _PromptAnalysis(
+        token_count=len(prompt.split()),
+        complex_hits=[kw for kw in _COMPLEX_KEYWORDS if kw.lower() in prompt_lower],
+        moderate_hits=[kw for kw in _MODERATE_KEYWORDS if kw.lower() in prompt_lower],
+        simple_hits=[kw for kw in _SIMPLE_KEYWORDS if kw.lower() in prompt_lower],
+        code_block_count=len(re.findall(r"```", prompt)),
+        line_count=prompt.count("\n") + 1,
+        has_multi_questions=len(re.findall(r"\?", prompt)) >= 3,
+        has_numbered_list=bool(re.search(r"\n\s*\d+\.\s", prompt)),
+    )
+
+
+def _score_prompt_analysis(
+    analysis: _PromptAnalysis,
+    *,
+    simple_threshold: int,
+    complex_threshold: int,
+) -> tuple[float, list[str]]:
+    signals: list[str] = []
+    score = 0.0
+
+    score += len(analysis.complex_hits) * 0.2
+    score += len(analysis.moderate_hits) * 0.08
+    score -= len(analysis.simple_hits) * 0.1
+
+    if analysis.token_count > complex_threshold:
+        score += 0.25
+        signals.append(f"long_prompt({analysis.token_count} tokens)")
+    elif analysis.token_count < simple_threshold:
+        score -= 0.15
+        signals.append(f"short_prompt({analysis.token_count} tokens)")
+
+    if analysis.code_block_count >= 2:
+        score += 0.15
+        signals.append(f"code_blocks({analysis.code_block_count})")
+    if analysis.has_multi_questions:
+        score += 0.1
+        signals.append("multi_questions")
+    if analysis.has_numbered_list:
+        score += 0.05
+        signals.append("numbered_list")
+    if analysis.line_count > 30:
+        score += 0.1
+        signals.append(f"many_lines({analysis.line_count})")
+
+    if analysis.complex_hits:
+        signals.extend([f"complex:{kw}" for kw in analysis.complex_hits[:3]])
+    if analysis.moderate_hits:
+        signals.extend([f"moderate:{kw}" for kw in analysis.moderate_hits[:3]])
+    if analysis.simple_hits:
+        signals.extend([f"simple:{kw}" for kw in analysis.simple_hits[:3]])
+
+    return max(0.0, min(1.0, score)), signals
+
+
+def _complexity_level_for_score(score: float) -> ComplexityLevel:
+    if score >= 0.4:
+        return ComplexityLevel.COMPLEX
+    if score >= 0.15:
+        return ComplexityLevel.MODERATE
+    return ComplexityLevel.SIMPLE
+
+
 class SmartRouter:
     """복잡도 기반 모델 라우터.
 
@@ -223,71 +300,13 @@ class SmartRouter:
         Returns:
             RoutingDecision(complexity, providers, score, signals)
         """
-        prompt_lower = prompt.lower()
-        signals: list[str] = []
-
-        # 토큰 수 근사 (공백 분할)
-        token_count = len(prompt.split())
-
-        # 키워드 기반 스코어링
-        complex_hits = [kw for kw in _COMPLEX_KEYWORDS if kw.lower() in prompt_lower]
-        moderate_hits = [kw for kw in _MODERATE_KEYWORDS if kw.lower() in prompt_lower]
-        simple_hits = [kw for kw in _SIMPLE_KEYWORDS if kw.lower() in prompt_lower]
-
-        # 구조적 복잡도 신호
-        code_block_count = len(re.findall(r"```", prompt))
-        line_count = prompt.count("\n") + 1
-        has_multi_questions = len(re.findall(r"\?", prompt)) >= 3
-        has_numbered_list = bool(re.search(r"\n\s*\d+\.\s", prompt))
-
-        # 스코어 계산 (0.0 ~ 1.0)
-        score = 0.0
-
-        # 키워드 기반
-        score += len(complex_hits) * 0.2
-        score += len(moderate_hits) * 0.08
-        score -= len(simple_hits) * 0.1
-
-        # 길이 기반
-        if token_count > self.complex_threshold:
-            score += 0.25
-            signals.append(f"long_prompt({token_count} tokens)")
-        elif token_count < self.simple_threshold:
-            score -= 0.15
-            signals.append(f"short_prompt({token_count} tokens)")
-
-        # 구조 기반
-        if code_block_count >= 2:
-            score += 0.15
-            signals.append(f"code_blocks({code_block_count})")
-        if has_multi_questions:
-            score += 0.1
-            signals.append("multi_questions")
-        if has_numbered_list:
-            score += 0.05
-            signals.append("numbered_list")
-        if line_count > 30:
-            score += 0.1
-            signals.append(f"many_lines({line_count})")
-
-        # 신호 수집
-        if complex_hits:
-            signals.extend([f"complex:{kw}" for kw in complex_hits[:3]])
-        if moderate_hits:
-            signals.extend([f"moderate:{kw}" for kw in moderate_hits[:3]])
-        if simple_hits:
-            signals.extend([f"simple:{kw}" for kw in simple_hits[:3]])
-
-        # 최종 분류
-        score = max(0.0, min(1.0, score))
-
-        if score >= 0.4:
-            level = ComplexityLevel.COMPLEX
-        elif score >= 0.15:
-            level = ComplexityLevel.MODERATE
-        else:
-            level = ComplexityLevel.SIMPLE
-
+        analysis = _analyze_prompt(prompt)
+        score, signals = _score_prompt_analysis(
+            analysis,
+            simple_threshold=self.simple_threshold,
+            complex_threshold=self.complex_threshold,
+        )
+        level = _complexity_level_for_score(score)
         providers = list(self.PROVIDER_ROUTING[level])
 
         logger.info(

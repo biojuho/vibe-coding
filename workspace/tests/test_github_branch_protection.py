@@ -8,7 +8,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = REPO_ROOT / "execution" / "github_branch_protection.py"
 SPEC = importlib.util.spec_from_file_location("github_branch_protection", SCRIPT)

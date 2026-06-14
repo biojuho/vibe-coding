@@ -608,8 +608,9 @@ class HarnessSession:
             Explicit path to the YAML file.  Defaults to
             ``workspace/directives/agent_permissions.yaml``.
         """
-        import yaml as _yaml
         from pathlib import Path
+
+        import yaml as _yaml
 
         if yaml_path is None:
             yaml_path = str(Path(__file__).resolve().parents[1] / "directives" / "agent_permissions.yaml")

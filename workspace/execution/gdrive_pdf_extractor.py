@@ -140,8 +140,9 @@ def download_file(file_id: str, *, dest_dir: str | Path | None = None) -> Path:
     Raises:
         RuntimeError: 다운로드 실패 시.
     """
-    from googleapiclient.http import MediaIoBaseDownload
     import io
+
+    from googleapiclient.http import MediaIoBaseDownload
 
     service = _build_drive_service()
 

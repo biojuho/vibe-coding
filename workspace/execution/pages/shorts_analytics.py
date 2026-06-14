@@ -16,6 +16,7 @@ _MODULE_ERR = ""
 try:
     import plotly.express as px
     import plotly.graph_objects as go
+
     from execution.content_db import (
         get_channel_performance_summary,
         get_channel_stats,

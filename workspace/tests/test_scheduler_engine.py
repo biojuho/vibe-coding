@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import builtins
 import sqlite3
 import sys
-from pathlib import Path
-import builtins
 import types
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -512,8 +512,9 @@ def test_run_task_empty_executable(monkeypatch, tmp_path):
     _configure_tmp_db(monkeypatch, tmp_path)
     # Insert directly with empty executable so validation is bypassed at insert time
     conn = se._conn()
-    from croniter import croniter as _cron
     from datetime import datetime as _dt
+
+    from croniter import croniter as _cron
 
     next_run = _cron("*/5 * * * *", _dt.now()).get_next(_dt).strftime("%Y-%m-%d %H:%M:%S")
     conn.execute(
@@ -689,8 +690,9 @@ def test_run_task_legacy_command_fallback_in_run(monkeypatch, tmp_path):
     script.write_text("print('legacy-ok')\n", encoding="utf-8")
 
     conn = se._conn()
-    from croniter import croniter as _cron
     from datetime import datetime as _dt
+
+    from croniter import croniter as _cron
 
     next_run = _cron("*/5 * * * *", _dt.now()).get_next(_dt).strftime("%Y-%m-%d %H:%M:%S")
     conn.execute(
@@ -1104,7 +1106,8 @@ def test_scheduler_ops_summary_warning_state(monkeypatch, tmp_path):
     _configure_tmp_db(monkeypatch, tmp_path)
     se.touch_worker_heartbeat(note="half-stale")
 
-    from datetime import datetime as _dt, timedelta as _td
+    from datetime import datetime as _dt
+    from datetime import timedelta as _td
 
     # Set heartbeat to stale_after_sec//2 + 10 seconds ago (triggers warning but not critical)
     stale_sec = 180
@@ -1171,6 +1174,58 @@ def test_get_attention_queue_repeated_failures_only(monkeypatch, tmp_path):
     task_entry = next(item for item in queue if item["task_id"] == task_id)
     assert "repeated_failures" in task_entry["reasons"]
     assert "연속 실패" in task_entry["next_action"]
+
+
+def _scheduled_task_for_attention(**overrides):
+    values = {
+        "id": 1,
+        "name": "attention-task",
+        "executable": "python",
+        "args": ["-c", "print('ok')"],
+        "cwd": ".",
+        "cron_expression": "*/5 * * * *",
+        "timeout_sec": 30,
+        "enabled": True,
+        "last_run": "",
+        "next_run": "",
+        "created_at": "2026-01-01 00:00:00",
+        "failure_count": 0,
+    }
+    values.update(overrides)
+    return se.ScheduledTask(**values)
+
+
+def test_attention_helpers_build_disabled_priority_item():
+    now = se.datetime(2026, 1, 1, 12, 0, 0)
+    task = _scheduled_task_for_attention(enabled=False, failure_count=1)
+
+    item = se._attention_queue_item(task, now, failure_threshold=2)
+
+    assert item is not None
+    assert item["reasons"] == ["auto_disabled"]
+    assert item["next_action"] == se._attention_next_action(["auto_disabled"])
+    assert item["priority"] == -21
+
+
+def test_attention_helpers_preserve_reason_order_and_action_precedence():
+    now = se.datetime(2026, 1, 1, 12, 0, 0)
+    task = _scheduled_task_for_attention(
+        failure_count=2,
+        next_run="2000-01-01 00:00:00",
+    )
+
+    reasons = se._attention_reasons(task, now, failure_threshold=2)
+
+    assert reasons == ["repeated_failures", "overdue"]
+    assert se._attention_next_action(reasons) == se._attention_next_action(["repeated_failures"])
+    assert se._attention_priority(task, reasons) == -17
+
+
+def test_attention_helpers_skip_healthy_task():
+    now = se.datetime(2026, 1, 1, 12, 0, 0)
+    task = _scheduled_task_for_attention(next_run="2026-01-01 12:01:00")
+
+    assert se._attention_queue_item(task, now, failure_threshold=2) is None
 
 
 # ---------------------------------------------------------------------------
@@ -1255,6 +1310,58 @@ def test_execute_subprocess_timeout(tmp_path):
     assert exit_code == -1
     assert error_type == "timeout"
     assert "Timeout" in stderr
+
+
+def test_subprocess_popen_kwargs_preserve_windows_options(monkeypatch, tmp_path):
+    monkeypatch.setattr(se.os, "name", "nt")
+
+    kwargs = se._subprocess_popen_kwargs(tmp_path)
+
+    assert kwargs["shell"] is False
+    assert kwargs["cwd"] == str(tmp_path)
+    assert kwargs["stdout"] == se.subprocess.PIPE
+    assert kwargs["stderr"] == se.subprocess.PIPE
+    assert kwargs["stdin"] == se.subprocess.DEVNULL
+    assert kwargs["close_fds"] is True
+    assert kwargs["creationflags"] == (se.subprocess.CREATE_NEW_PROCESS_GROUP | se.subprocess.CREATE_NO_WINDOW)
+
+
+def test_subprocess_popen_kwargs_preserve_posix_options(monkeypatch, tmp_path):
+    monkeypatch.setattr(se.os, "name", "posix")
+
+    kwargs = se._subprocess_popen_kwargs(tmp_path)
+
+    assert kwargs["shell"] is False
+    assert kwargs["cwd"] == str(tmp_path)
+    assert "stdin" not in kwargs
+    assert "close_fds" not in kwargs
+    assert "creationflags" not in kwargs
+
+
+def test_subprocess_completed_result_maps_non_zero_exit():
+    assert se._subprocess_completed_result(0, "out", "err") == (0, "out", "err", "")
+    assert se._subprocess_completed_result(42, "out", "err") == (
+        42,
+        "out",
+        "err",
+        "non_zero_exit",
+    )
+
+
+def test_subprocess_timeout_result_preserves_public_timeout_contract():
+    class _TimeoutProc:
+        killed = False
+
+        def kill(self):
+            self.killed = True
+
+        def communicate(self):
+            return "late-out", "late-err"
+
+    proc = _TimeoutProc()
+
+    assert se._subprocess_timeout_result(proc, 3) == (-1, "", "Timeout after 3 seconds", "timeout")
+    assert proc.killed is True
 
 
 # ---------------------------------------------------------------------------

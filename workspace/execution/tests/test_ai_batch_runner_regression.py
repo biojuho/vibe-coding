@@ -1,6 +1,7 @@
 import asyncio
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 # execution/ 경로 구조 대응을 위해 절대 경로 임포트 추가 방지 목적으로
 # pytest 실행 시 execution/ 이 PYTHONPATH에 있다고 가정합니다.

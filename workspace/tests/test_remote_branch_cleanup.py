@@ -7,7 +7,6 @@ import json
 import sys
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = REPO_ROOT / "execution" / "remote_branch_cleanup.py"
 SPEC = importlib.util.spec_from_file_location("remote_branch_cleanup", SCRIPT)

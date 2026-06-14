@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 try:
-    from execution.debug_history_db import list_entries, get_stats
+    from execution.debug_history_db import get_stats, list_entries
 except ImportError:
     list_entries = None  # type: ignore[assignment]
     get_stats = None  # type: ignore[assignment]
@@ -157,18 +157,8 @@ def analyze_recent_errors(days: int = 7) -> Dict[str, Any]:
     }
 
 
-def detect_recurring_patterns(min_occurrences: int = 3) -> List[Dict[str, Any]]:
-    """Find errors that recur min_occurrences+ times in the last 7 days.
-
-    Returns:
-        List of dicts with: error_type, count, last_seen, affected_modules.
-    """
-    days = 7
-    cutoff = datetime.now() - timedelta(days=days)
-
-    # Collect (error_type, module, timestamp) tuples
+def _debug_history_pattern_records(cutoff: datetime) -> List[tuple[str, str, str]]:
     records: List[tuple[str, str, str]] = []
-
     if list_entries is not None:
         try:
             for entry in list_entries(limit=500):
@@ -185,29 +175,43 @@ def detect_recurring_patterns(min_occurrences: int = 3) -> List[Dict[str, Any]]:
                 )
         except Exception:
             pass
+    return records
 
+
+def _failure_snapshot_pattern_record(snap: Dict[str, Any]) -> tuple[str, str, str]:
+    error_text = snap.get("error", snap.get("message", ""))
+    return (
+        _classify_error(error_text),
+        snap.get("module", snap.get("source", "")),
+        snap.get("timestamp", snap.get("time", "")),
+    )
+
+
+def _watchdog_pattern_record(item: Dict[str, Any]) -> tuple[str, str, str]:
+    error_text = item.get("error", item.get("message", item.get("detail", "")))
+    return (
+        _classify_error(error_text),
+        item.get("module", item.get("task", "")),
+        item.get("timestamp", item.get("time", "")),
+    )
+
+
+def _collect_pattern_records(days: int = 7) -> List[tuple[str, str, str]]:
+    cutoff = datetime.now() - timedelta(days=days)
+    records = _debug_history_pattern_records(cutoff)
     for snap in _load_failure_snapshots(days):
-        error_text = snap.get("error", snap.get("message", ""))
-        records.append(
-            (
-                _classify_error(error_text),
-                snap.get("module", snap.get("source", "")),
-                snap.get("timestamp", snap.get("time", "")),
-            )
-        )
-
+        records.append(_failure_snapshot_pattern_record(snap))
     for item in _load_watchdog_errors(days):
-        error_text = item.get("error", item.get("message", item.get("detail", "")))
-        records.append(
-            (
-                _classify_error(error_text),
-                item.get("module", item.get("task", "")),
-                item.get("timestamp", item.get("time", "")),
-            )
-        )
+        records.append(_watchdog_pattern_record(item))
+    return records
 
-    # Group by error_type
-    grouped: Dict[str, Dict[str, Any]] = defaultdict(lambda: {"count": 0, "last_seen": "", "modules": set()})
+
+def _empty_pattern_group() -> Dict[str, Any]:
+    return {"count": 0, "last_seen": "", "modules": set()}
+
+
+def _group_pattern_records(records: List[tuple[str, str, str]]) -> Dict[str, Dict[str, Any]]:
+    grouped: Dict[str, Dict[str, Any]] = defaultdict(_empty_pattern_group)
     for error_type, module, ts_str in records:
         g = grouped[error_type]
         g["count"] += 1
@@ -215,7 +219,10 @@ def detect_recurring_patterns(min_occurrences: int = 3) -> List[Dict[str, Any]]:
             g["last_seen"] = ts_str
         if module:
             g["modules"].add(module)
+    return grouped
 
+
+def _recurring_patterns(grouped: Dict[str, Dict[str, Any]], min_occurrences: int) -> List[Dict[str, Any]]:
     patterns: List[Dict[str, Any]] = []
     for error_type, info in grouped.items():
         if info["count"] >= min_occurrences:
@@ -231,63 +238,73 @@ def detect_recurring_patterns(min_occurrences: int = 3) -> List[Dict[str, Any]]:
     return patterns
 
 
-def generate_weekly_report() -> str:
-    """Generate a human-readable weekly error report in Markdown."""
-    now = datetime.now()
-    current = analyze_recent_errors(days=7)
-    previous = analyze_recent_errors(days=14)
+def detect_recurring_patterns(min_occurrences: int = 3) -> List[Dict[str, Any]]:
+    """Find errors that recur min_occurrences+ times in the last 7 days.
 
-    # Trend: compare current week vs previous week (previous 14d minus current 7d)
-    prev_only_total = max(previous["total"] - current["total"], 0)
+    Returns:
+        List of dicts with: error_type, count, last_seen, affected_modules.
+    """
+    grouped = _group_pattern_records(_collect_pattern_records(days=7))
+    return _recurring_patterns(grouped, min_occurrences)
+
+
+def _trend_label(current_total: int, previous_total: int) -> str:
+    prev_only_total = max(previous_total - current_total, 0)
     if prev_only_total == 0:
-        trend = "NEW (no prior data)"
-    elif current["total"] > prev_only_total:
-        pct = round((current["total"] - prev_only_total) / prev_only_total * 100)
-        trend = f"UP +{pct}% ({prev_only_total} -> {current['total']})"
-    elif current["total"] < prev_only_total:
-        pct = round((prev_only_total - current["total"]) / prev_only_total * 100)
-        trend = f"DOWN -{pct}% ({prev_only_total} -> {current['total']})"
-    else:
-        trend = f"FLAT ({current['total']})"
+        return "NEW (no prior data)"
+    if current_total > prev_only_total:
+        pct = round((current_total - prev_only_total) / prev_only_total * 100)
+        return f"UP +{pct}% ({prev_only_total} -> {current_total})"
+    if current_total < prev_only_total:
+        pct = round((prev_only_total - current_total) / prev_only_total * 100)
+        return f"DOWN -{pct}% ({prev_only_total} -> {current_total})"
+    return f"FLAT ({current_total})"
 
-    # Severity breakdown from debug_history_db stats
-    severity_lines = ""
+
+def _severity_lines() -> str:
     if get_stats is not None:
         try:
             stats = get_stats()
             by_sev = stats.get("by_severity", {})
             if by_sev:
-                severity_lines = "\n".join(f"  - {sev}: {cnt}" for sev, cnt in sorted(by_sev.items()))
+                return "\n".join(f"  - {sev}: {cnt}" for sev, cnt in sorted(by_sev.items()))
         except Exception:
             pass
+    return ""
 
-    # Recurring patterns
-    patterns = detect_recurring_patterns(min_occurrences=3)
-    pattern_lines = ""
-    if patterns:
-        rows = []
-        for p in patterns[:10]:
-            mods = ", ".join(p["affected_modules"][:5]) or "(unknown)"
-            rows.append(f"| {p['error_type']} | {p['count']} | {p['last_seen'][:16]} | {mods} |")
-        pattern_lines = "| Category | Count | Last Seen | Modules |\n| --- | --- | --- | --- |\n" + "\n".join(rows)
-    else:
-        pattern_lines = "(no recurring patterns detected)"
 
-    # Category breakdown
-    cat_lines = ""
-    by_cat = current.get("by_category", {})
-    if by_cat:
-        cat_lines = "\n".join(f"  - {cat}: {cnt}" for cat, cnt in sorted(by_cat.items(), key=lambda x: -x[1]))
-    else:
-        cat_lines = "  (none)"
+def _pattern_lines(patterns: List[Dict[str, Any]]) -> str:
+    if not patterns:
+        return "(no recurring patterns detected)"
+    rows = []
+    for p in patterns[:10]:
+        mods = ", ".join(p["affected_modules"][:5]) or "(unknown)"
+        rows.append(f"| {p['error_type']} | {p['count']} | {p['last_seen'][:16]} | {mods} |")
+    return "| Category | Count | Last Seen | Modules |\n| --- | --- | --- | --- |\n" + "\n".join(rows)
 
-    # Top modules
-    top_mod_lines = ""
-    top_mods = current.get("top_modules", [])
-    if top_mods:
-        top_mod_lines = "\n".join(f"  - {m['module']}: {m['count']}" for m in top_mods)
-    else:
-        top_mod_lines = "  (none)"
+
+def _category_lines(by_category: Dict[str, int]) -> str:
+    if not by_category:
+        return "  (none)"
+    return "\n".join(f"  - {cat}: {cnt}" for cat, cnt in sorted(by_category.items(), key=lambda x: -x[1]))
+
+
+def _top_module_lines(top_modules: List[Dict[str, Any]]) -> str:
+    if not top_modules:
+        return "  (none)"
+    return "\n".join(f"  - {m['module']}: {m['count']}" for m in top_modules)
+
+
+def generate_weekly_report() -> str:
+    """Generate a human-readable weekly error report in Markdown."""
+    now = datetime.now()
+    current = analyze_recent_errors(days=7)
+    previous = analyze_recent_errors(days=14)
+    trend = _trend_label(current["total"], previous["total"])
+    severity_lines = _severity_lines()
+    pattern_lines = _pattern_lines(detect_recurring_patterns(min_occurrences=3))
+    cat_lines = _category_lines(current.get("by_category", {}))
+    top_mod_lines = _top_module_lines(current.get("top_modules", []))
 
     report = f"""# Weekly Error Report
 

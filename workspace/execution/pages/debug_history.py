@@ -9,6 +9,7 @@ import streamlit as st  # noqa: E402
 
 try:
     import plotly.express as px
+
     from execution.debug_history_db import (
         get_stats,
         list_entries,

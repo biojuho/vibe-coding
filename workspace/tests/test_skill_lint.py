@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
-
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_PATH = REPO_ROOT / "execution" / "skill_lint.py"
@@ -156,6 +156,67 @@ def test_generated_input_output_paths_are_not_required_bundled_files(tmp_path: P
 
     assert report["summary"]["status"] == "pass"
     assert report["issues"] == []
+
+
+def test_reference_helper_contracts_normalize_optional_and_candidate_paths(tmp_path: Path):
+    skill_path = _write_skill(
+        tmp_path,
+        "helper-contracts",
+        "---\n"
+        "name: helper-contracts\n"
+        "description: Use when validating direct reference helper contracts.\n"
+        "---\n\n"
+        "Use when testing helper contracts.\n",
+    )
+
+    assert skill_lint._clean_reference(" 'scripts\\helper.py' ") == "scripts/helper.py"
+    assert skill_lint._reference_is_optional("output/generated.json")
+    assert skill_lint._reference_is_optional("https://example.com/SKILL.md")
+    assert skill_lint._reference_is_optional("reports/YYYY-MM-DD.md")
+    assert not skill_lint._reference_is_optional("scripts/helper.py")
+
+    assert skill_lint._reference_candidates(tmp_path, skill_path, "skills/helper/scripts/run.py") == [
+        skill_path.parent / "skills/helper/scripts/run.py",
+        tmp_path / "skills/helper/scripts/run.py",
+        tmp_path / ".agents/skills/helper/scripts/run.py",
+    ]
+    assert skill_lint._reference_candidates(tmp_path, skill_path, "execution/tool.py") == [
+        skill_path.parent / "execution/tool.py",
+        tmp_path / "execution/tool.py",
+        tmp_path / "workspace/execution/tool.py",
+    ]
+
+
+def test_skill_issue_helpers_split_metadata_trigger_and_reference_checks(tmp_path: Path):
+    body = (
+        "---\n"
+        "name: duplicate\n"
+        "description: Use when validating split skill lint helper behavior.\n"
+        "---\n\n"
+        "See `scripts/missing.py`.\n"
+    )
+    _write_skill(tmp_path, "one", body)
+    _write_skill(tmp_path, "two", body)
+    skills = skill_lint.discover_skill_files(tmp_path)
+    skill = skills[0]
+
+    metadata_issues, description = skill_lint._skill_metadata_issues(
+        skill,
+        Counter(item.name.lower() for item in skills),
+    )
+
+    assert description == "Use when validating split skill lint helper behavior."
+    assert {issue["code"] for issue in metadata_issues} == {"duplicate_name"}
+    assert skill_lint._skill_trigger_issues(skill, "Plain helper description") == [
+        {
+            "skill": "duplicate",
+            "path": skill.relative_path,
+            "severity": "warning",
+            "code": "missing_trigger_guidance",
+            "message": "Skill should state when an agent should use it.",
+        }
+    ]
+    assert [issue["code"] for issue in skill_lint._skill_reference_issues(tmp_path, skill)] == ["broken_reference"]
 
 
 def test_references_inside_fenced_code_are_examples_not_required_files(tmp_path: Path):

@@ -12,7 +12,6 @@ import pytest
 
 from execution.harness_context import ContextWindow, Message
 
-
 # ── Message ──────────────────────────────────────────────────────
 
 

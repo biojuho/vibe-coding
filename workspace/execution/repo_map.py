@@ -17,8 +17,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
 
-from path_contract import REPO_ROOT, TMP_ROOT
 from execution._logging import logger
+from path_contract import REPO_ROOT, TMP_ROOT
 
 _ALLOWED_SUFFIXES = {
     ".py",

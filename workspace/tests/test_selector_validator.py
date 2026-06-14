@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from unittest.mock import patch
 
-
 # selector_validator는 dotenv를 모듈 레벨에서 호출하므로 임포트 전 mock 불필요
 from execution.selector_validator import (
     SITE_CHECKS,
@@ -15,7 +14,6 @@ from execution.selector_validator import (
     run_all_validations,
     validate_site,
 )
-
 
 # ── _css_to_pattern 테스트 ────────────────────────────────────
 

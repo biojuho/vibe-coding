@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Dict, List
 
 import _path_bootstrap
+
 from path_contract import REPO_ROOT
 
 WORKSPACE = _path_bootstrap.WORKSPACE

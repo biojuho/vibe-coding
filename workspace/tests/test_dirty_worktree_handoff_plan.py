@@ -7,7 +7,6 @@ import json
 import sys
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_PATH = REPO_ROOT / ".agents" / "skills" / "auto-research" / "scripts" / "dirty_worktree_handoff_plan.py"
 
@@ -256,3 +255,140 @@ def test_main_writes_json_and_markdown_from_existing_artifacts(tmp_path: Path) -
     assert "Previous plan freshness: missing_previous_json" in markdown
     assert "Deterministic JSON plus Markdown handoff" in markdown
     assert "Do not stage, commit, push, or revert automatically" in markdown
+
+
+def test_invalid_encoding_previous_json_is_treated_as_missing_previous_plan(tmp_path: Path) -> None:
+    github_path = tmp_path / "github.json"
+    session_path = tmp_path / "session.json"
+    readiness_path = tmp_path / "readiness.json"
+    gate_path = tmp_path / "gate.json"
+    previous_path = tmp_path / "previous-plan.json"
+    json_path = tmp_path / "plan.json"
+    md_path = tmp_path / "plan.md"
+    github_path.write_text(json.dumps(_github_inventory()), encoding="utf-8")
+    session_path.write_text(json.dumps(_session_orient()), encoding="utf-8")
+    readiness_path.write_text(json.dumps(_readiness()), encoding="utf-8")
+    gate_path.write_text(json.dumps(_gate()), encoding="utf-8")
+    previous_path.write_bytes(b"\xff\xfe\x00")
+
+    code = dirty_plan.main(
+        [
+            "--root",
+            str(tmp_path),
+            "--github-inventory",
+            str(github_path),
+            "--session-orient",
+            str(session_path),
+            "--readiness",
+            str(readiness_path),
+            "--code-review-gate",
+            str(gate_path),
+            "--previous-json",
+            str(previous_path),
+            "--output-json",
+            str(json_path),
+            "--output-md",
+            str(md_path),
+            "--json",
+        ]
+    )
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
+    markdown = md_path.read_text(encoding="utf-8")
+
+    assert code == 0
+    assert payload["status"] == "handoff_required"
+    assert payload["previous_plan_freshness"]["status"] == "missing_previous_json"
+    assert "Previous plan freshness: missing_previous_json" in markdown
+
+
+def test_load_json_returns_empty_for_invalid_encoding(tmp_path: Path) -> None:
+    path = tmp_path / "plan.json"
+    path.write_bytes(b"\xff\xfe\x00")
+
+    assert dirty_plan._load_json(path) == {}
+
+
+def test_main_reports_output_json_write_failure_without_overwriting(tmp_path: Path, capsys) -> None:
+    github_path = tmp_path / "github.json"
+    session_path = tmp_path / "session.json"
+    readiness_path = tmp_path / "readiness.json"
+    gate_path = tmp_path / "gate.json"
+    json_path = tmp_path / "plan.json"
+    md_path = tmp_path / "plan.md"
+    github_path.write_text(json.dumps(_github_inventory()), encoding="utf-8")
+    session_path.write_text(json.dumps(_session_orient()), encoding="utf-8")
+    readiness_path.write_text(json.dumps(_readiness()), encoding="utf-8")
+    gate_path.write_text(json.dumps(_gate()), encoding="utf-8")
+    json_path.write_text('{"status":"existing"}\n', encoding="utf-8")
+    json_path.with_name(f"{json_path.name}.refresh-tmp").mkdir()
+
+    code = dirty_plan.main(
+        [
+            "--root",
+            str(tmp_path),
+            "--github-inventory",
+            str(github_path),
+            "--session-orient",
+            str(session_path),
+            "--readiness",
+            str(readiness_path),
+            "--code-review-gate",
+            str(gate_path),
+            "--output-json",
+            str(json_path),
+            "--output-md",
+            str(md_path),
+            "--json",
+        ]
+    )
+
+    assert code == 4
+    assert json_path.read_text(encoding="utf-8") == '{"status":"existing"}\n'
+    assert not md_path.exists()
+    stdout = json.loads(capsys.readouterr().out)
+    assert stdout["status"] == "write_failed"
+    assert stdout["write_error_path"] == json_path.as_posix()
+    assert stdout["write_error"]
+
+
+def test_main_reports_blocked_output_parent_without_traceback(tmp_path: Path, capsys) -> None:
+    github_path = tmp_path / "github.json"
+    session_path = tmp_path / "session.json"
+    readiness_path = tmp_path / "readiness.json"
+    gate_path = tmp_path / "gate.json"
+    blocked_parent = tmp_path / "blocked-parent"
+    json_path = blocked_parent / "plan.json"
+    md_path = tmp_path / "plan.md"
+    github_path.write_text(json.dumps(_github_inventory()), encoding="utf-8")
+    session_path.write_text(json.dumps(_session_orient()), encoding="utf-8")
+    readiness_path.write_text(json.dumps(_readiness()), encoding="utf-8")
+    gate_path.write_text(json.dumps(_gate()), encoding="utf-8")
+    blocked_parent.write_text("not a directory\n", encoding="utf-8")
+
+    code = dirty_plan.main(
+        [
+            "--root",
+            str(tmp_path),
+            "--github-inventory",
+            str(github_path),
+            "--session-orient",
+            str(session_path),
+            "--readiness",
+            str(readiness_path),
+            "--code-review-gate",
+            str(gate_path),
+            "--output-json",
+            str(json_path),
+            "--output-md",
+            str(md_path),
+            "--json",
+        ]
+    )
+
+    assert code == 4
+    assert blocked_parent.read_text(encoding="utf-8") == "not a directory\n"
+    assert not md_path.exists()
+    stdout = json.loads(capsys.readouterr().out)
+    assert stdout["status"] == "write_failed"
+    assert stdout["write_error_path"] == json_path.as_posix()
+    assert stdout["write_error"]

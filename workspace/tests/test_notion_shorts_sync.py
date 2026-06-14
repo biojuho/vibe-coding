@@ -8,7 +8,6 @@ import pytest
 import execution.content_db as cdb
 import execution.notion_shorts_sync as ns
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

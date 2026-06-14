@@ -14,6 +14,7 @@ import argparse
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 import requests
 from dotenv import load_dotenv
@@ -22,13 +23,70 @@ WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
 if str(WORKSPACE_ROOT) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_ROOT))
 
-from path_contract import resolve_project_dir
-
 from execution._logging import logger  # noqa: E402
+from path_contract import resolve_project_dir
 
 _SHORTS_DIR = resolve_project_dir("shorts-maker-v2", required_paths=("config.yaml",))
 _DEFAULT_BGM_DIR = _SHORTS_DIR / "assets" / "bgm"
 _PIXABAY_MUSIC_API = "https://pixabay.com/api/music/"
+
+
+def _pixabay_search_params(api_key: str, query: str, count: int) -> dict[str, object]:
+    return {
+        "key": api_key,
+        "q": query,
+        "per_page": min(count, 20),  # Pixabay 최대 200, 안전하게 20
+    }
+
+
+def _bgm_output_dir(output_dir: Path | None) -> Path:
+    return Path(output_dir or _DEFAULT_BGM_DIR)
+
+
+def _pixabay_response_hits(resp: Any) -> Any | None:
+    try:
+        return resp.json().get("hits", [])
+    except ValueError as jde:
+        logger.error("Pixabay API 응답 JSON 파싱 실패: %s", jde)
+        return None
+
+
+def _bgm_destination(hit: dict[str, Any], dest_dir: Path, fallback_index: int) -> Path:
+    track_id = hit.get("id", fallback_index)
+    return dest_dir / f"bgm_{track_id}.mp3"
+
+
+def _write_audio_stream(audio_resp: Any, tmp_dest: Path) -> None:
+    with tmp_dest.open("wb") as f:
+        for chunk in audio_resp.iter_content(chunk_size=8192):
+            f.write(chunk)
+
+
+def _download_bgm_hit(hit: dict[str, Any], dest_dir: Path, fallback_index: int) -> Path | None:
+    audio_url = hit.get("audio", "")
+    if not audio_url:
+        return None
+
+    dest = _bgm_destination(hit, dest_dir, fallback_index)
+    filename = dest.name
+    if dest.exists():
+        logger.info("[SKIP] 이미 존재: %s", filename)
+        return dest
+
+    tmp_dest = dest.with_suffix(".tmp")
+    try:
+        audio_resp = requests.get(audio_url, timeout=120, stream=True)
+        audio_resp.raise_for_status()
+        _write_audio_stream(audio_resp, tmp_dest)
+        tmp_dest.rename(dest)
+        title = hit.get("tags", filename)
+        logger.info("[OK] %s  (%s)", filename, title)
+        return dest
+    except requests.RequestException as exc:
+        logger.error("다운로드 실패 (%s): %s", filename, exc)
+        if tmp_dest.exists():
+            tmp_dest.unlink()
+        return None
 
 
 def download_bgm(
@@ -52,16 +110,10 @@ def download_bgm(
         logger.warning("PIXABAY_API_KEY 없음 — BGM 다운로드 스킵. .env에 PIXABAY_API_KEY=<key> 추가 후 재실행하세요.")
         return []
 
-    dest_dir = output_dir or _DEFAULT_BGM_DIR
-    dest_dir = Path(dest_dir)
+    dest_dir = _bgm_output_dir(output_dir)
     dest_dir.mkdir(parents=True, exist_ok=True)
 
-    params = {
-        "key": api_key,
-        "q": query,
-        "per_page": min(count, 20),  # Pixabay 최대 200, 안전하게 20
-    }
-
+    params = _pixabay_search_params(api_key, query, count)
     try:
         resp = requests.get(_PIXABAY_MUSIC_API, params=params, timeout=30)
         resp.raise_for_status()
@@ -69,10 +121,8 @@ def download_bgm(
         logger.error("Pixabay API 호출 실패: %s", exc)
         return []
 
-    try:
-        hits = resp.json().get("hits", [])
-    except ValueError as jde:
-        logger.error("Pixabay API 응답 JSON 파싱 실패: %s", jde)
+    hits = _pixabay_response_hits(resp)
+    if hits is None:
         return []
     if not hits:
         logger.warning("검색 결과 없음: '%s'", query)
@@ -80,34 +130,9 @@ def download_bgm(
 
     downloaded: list[Path] = []
     for hit in hits[:count]:
-        audio_url = hit.get("audio", "")
-        if not audio_url:
-            continue
-
-        track_id = hit.get("id", len(downloaded))
-        filename = f"bgm_{track_id}.mp3"
-        dest = dest_dir / filename
-
-        if dest.exists():
-            logger.info("[SKIP] 이미 존재: %s", filename)
+        dest = _download_bgm_hit(hit, dest_dir, len(downloaded))
+        if dest is not None:
             downloaded.append(dest)
-            continue
-
-        tmp_dest = dest.with_suffix(".tmp")
-        try:
-            audio_resp = requests.get(audio_url, timeout=120, stream=True)
-            audio_resp.raise_for_status()
-            with tmp_dest.open("wb") as f:
-                for chunk in audio_resp.iter_content(chunk_size=8192):
-                    f.write(chunk)
-            tmp_dest.rename(dest)
-            title = hit.get("tags", filename)
-            logger.info("[OK] %s  (%s)", filename, title)
-            downloaded.append(dest)
-        except requests.RequestException as exc:
-            logger.error("다운로드 실패 (%s): %s", filename, exc)
-            if tmp_dest.exists():
-                tmp_dest.unlink()
 
     return downloaded
 

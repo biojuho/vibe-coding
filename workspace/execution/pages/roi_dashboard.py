@@ -9,12 +9,15 @@ import streamlit as st  # noqa: E402
 
 try:
     import plotly.graph_objects as go
-    from execution.roi_calculator import ROICalculator
+
     from execution.result_tracker_db import (
         get_all,
         get_channel_summary,
+    )
+    from execution.result_tracker_db import (
         init_db as init_result_db,
     )
+    from execution.roi_calculator import ROICalculator
 
     _MODULE_OK = True
 except ImportError as e:

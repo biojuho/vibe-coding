@@ -4,7 +4,6 @@ import importlib.util
 import json
 from pathlib import Path
 
-
 MODULE_PATH = (
     Path(__file__).resolve().parents[2]
     / ".agents"
@@ -101,6 +100,44 @@ def test_inventory_ignores_default_npm_no_test_placeholder(tmp_path: Path) -> No
     assert project_summary["has_tests"] is False
     assert project_summary["has_package_test_script"] is False
     assert project_summary["test_file_count"] == 0
+
+
+def test_inventory_treats_unreadable_package_scripts_as_missing(tmp_path: Path, monkeypatch) -> None:
+    root = tmp_path
+    project = root / "projects" / "locked-node-app"
+    project.mkdir(parents=True)
+    package_json = project / "package.json"
+    package_json.write_text(json.dumps({"scripts": {"test": "vitest run"}}), encoding="utf-8")
+
+    original_read_text = Path.read_text
+
+    def fake_read_text(self: Path, *args, **kwargs) -> str:
+        if self == package_json:
+            raise PermissionError("locked package metadata")
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", fake_read_text)
+
+    summary = inventory.build_inventory(root, include_prs=False)
+
+    project_summary = summary["projects"][0]
+    assert project_summary["path"] == "projects/locked-node-app"
+    assert project_summary["has_package_test_script"] is False
+    assert project_summary["has_tests"] is False
+
+
+def test_inventory_treats_invalid_package_encoding_as_missing(tmp_path: Path) -> None:
+    root = tmp_path
+    project = root / "projects" / "invalid-package-encoding"
+    project.mkdir(parents=True)
+    (project / "package.json").write_bytes(b"\xff\xfe\x00\x00")
+
+    summary = inventory.build_inventory(root, include_prs=False)
+
+    project_summary = summary["projects"][0]
+    assert project_summary["path"] == "projects/invalid-package-encoding"
+    assert project_summary["has_package_test_script"] is False
+    assert project_summary["has_tests"] is False
 
 
 def test_inventory_detects_colocated_python_tests_without_test_dir(tmp_path: Path) -> None:
@@ -205,6 +242,47 @@ def test_inventory_cli_output_file_writes_ascii_json_and_preserves_stdout(tmp_pa
     assert stdout_payload == file_payload
     assert file_payload["root"] == str(root.resolve())
     assert output.read_text(encoding="utf-8").isascii()
+
+
+def test_inventory_cli_reports_output_write_failure_without_overwriting(tmp_path: Path, capsys) -> None:
+    root = tmp_path
+    project = root / "projects" / "knowledge-dashboard"
+    project.mkdir(parents=True)
+    (project / "package.json").write_text(json.dumps({"scripts": {"test": "node --test"}}), encoding="utf-8")
+    (project / "README.md").write_text("# Knowledge Dashboard\n", encoding="utf-8")
+    output = root / ".tmp" / "github-inventory.json"
+    output.parent.mkdir()
+    output.write_text('{"status":"existing"}\n', encoding="utf-8")
+    output.with_name(f"{output.name}.refresh-tmp").mkdir()
+
+    result = inventory.main(["--root", str(root), "--output", str(output), "--json"])
+
+    assert result == 4
+    assert output.read_text(encoding="utf-8") == '{"status":"existing"}\n'
+    stdout = json.loads(capsys.readouterr().out)
+    assert stdout["status"] == "write_failed"
+    assert stdout["write_error_path"] == output.as_posix()
+    assert stdout["write_error"]
+
+
+def test_inventory_cli_reports_output_parent_write_failure_without_traceback(tmp_path: Path, capsys) -> None:
+    root = tmp_path
+    project = root / "projects" / "knowledge-dashboard"
+    project.mkdir(parents=True)
+    (project / "package.json").write_text(json.dumps({"scripts": {"test": "node --test"}}), encoding="utf-8")
+    (project / "README.md").write_text("# Knowledge Dashboard\n", encoding="utf-8")
+    blocked_parent = root / ".tmp-parent"
+    blocked_parent.write_text("not a directory\n", encoding="utf-8")
+    output = blocked_parent / "github-inventory.json"
+
+    result = inventory.main(["--root", str(root), "--output", str(output), "--json"])
+
+    assert result == 4
+    assert blocked_parent.read_text(encoding="utf-8") == "not a directory\n"
+    stdout = json.loads(capsys.readouterr().out)
+    assert stdout["status"] == "write_failed"
+    assert stdout["write_error_path"] == output.as_posix()
+    assert stdout["write_error"]
 
 
 def test_git_summary_keeps_status_dirty_lines_when_diff_is_clean(tmp_path: Path, monkeypatch) -> None:

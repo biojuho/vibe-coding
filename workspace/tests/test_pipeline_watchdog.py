@@ -6,7 +6,6 @@ import sqlite3
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-
 from execution.pipeline_watchdog import (
     STATUS_FAIL,
     STATUS_OK,

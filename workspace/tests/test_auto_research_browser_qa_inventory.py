@@ -11,7 +11,6 @@ import zlib
 from datetime import UTC, datetime
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_PATH = REPO_ROOT / ".agents" / "skills" / "auto-research" / "scripts" / "browser_qa_inventory.py"
 
@@ -302,6 +301,26 @@ def test_non_browser_package_is_hidden_by_default(tmp_path: Path) -> None:
     assert expanded_result["projects"][0]["status"] == "not_browser_app"
 
 
+def test_unreadable_package_json_is_treated_as_empty_metadata(tmp_path: Path, monkeypatch) -> None:
+    app = tmp_path / "projects" / "locked-browser-app"
+    _write_package(app, dependencies={"vite": "1.0.0"})
+    original_read_text = browser_qa_inventory.Path.read_text
+
+    def fake_read_text(path: Path, *args, **kwargs):
+        if path == app / "package.json":
+            raise OSError("locked")
+        return original_read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(browser_qa_inventory.Path, "read_text", fake_read_text)
+
+    default_result = browser_qa_inventory.build_inventory(tmp_path)
+    expanded_result = browser_qa_inventory.build_inventory(tmp_path, include_non_browser=True)
+
+    assert default_result["projects"] == []
+    assert expanded_result["projects"][0]["path"] == "projects/locked-browser-app"
+    assert expanded_result["projects"][0]["status"] == "not_browser_app"
+
+
 def test_generic_tokens_do_not_cross_match_dashboards_or_games(tmp_path: Path) -> None:
     _write_package(tmp_path / "projects" / "hanwoo-dashboard", dependencies={"next": "1.0.0"})
     _write_package(tmp_path / "projects" / "knowledge-dashboard", dependencies={"next": "1.0.0"})
@@ -430,3 +449,40 @@ def test_cli_output_file_can_be_combined_with_json_stdout(tmp_path: Path, capsys
     assert result == 0
     assert stdout_payload == file_payload
     assert file_payload["summary"]["browser_project_count"] == 1
+
+
+def test_main_reports_output_write_failure_without_overwriting(tmp_path: Path, capsys) -> None:
+    root = tmp_path
+    app = root / "projects" / "word-chain"
+    _write_package(app, dependencies={"vite": "1.0.0"})
+    output = root / ".tmp" / "browser-inventory.json"
+    output.parent.mkdir()
+    output.write_text('{"status":"existing"}\n', encoding="utf-8")
+    output.with_name(f"{output.name}.refresh-tmp").mkdir()
+
+    result = browser_qa_inventory.main(["--root", str(root), "--output", str(output), "--json"])
+
+    assert result == 4
+    assert output.read_text(encoding="utf-8") == '{"status":"existing"}\n'
+    stdout = json.loads(capsys.readouterr().out)
+    assert stdout["status"] == "write_failed"
+    assert stdout["write_error_path"] == output.as_posix()
+    assert stdout["write_error"]
+
+
+def test_main_reports_output_parent_write_failure_without_traceback(tmp_path: Path, capsys) -> None:
+    root = tmp_path
+    app = root / "projects" / "word-chain"
+    _write_package(app, dependencies={"vite": "1.0.0"})
+    blocked_parent = root / ".blocked-parent"
+    blocked_parent.write_text("not a directory\n", encoding="utf-8")
+    output = blocked_parent / "browser-inventory.json"
+
+    result = browser_qa_inventory.main(["--root", str(root), "--output", str(output), "--json"])
+
+    assert result == 4
+    assert blocked_parent.read_text(encoding="utf-8") == "not a directory\n"
+    stdout = json.loads(capsys.readouterr().out)
+    assert stdout["status"] == "write_failed"
+    assert stdout["write_error_path"] == output.as_posix()
+    assert stdout["write_error"]

@@ -5,7 +5,6 @@ import importlib.util
 import io
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = REPO_ROOT / "execution" / "task_id_gate.py"
 HOOK = REPO_ROOT / ".githooks" / "commit-msg"

@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import _path_bootstrap
+
 from path_contract import REPO_ROOT, resolve_project_dir
 
 WORKSPACE = _path_bootstrap.WORKSPACE

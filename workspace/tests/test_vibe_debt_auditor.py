@@ -13,6 +13,7 @@ WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
 if str(WORKSPACE_ROOT) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_ROOT))
 
+from execution.debt_history_db import DebtHistoryDB
 from execution.vibe_debt_auditor import (
     FunctionInfo,
     _audit_targets,
@@ -29,8 +30,6 @@ from execution.vibe_debt_auditor import (
     score_test_gap,
     summarize_project,
 )
-from execution.debt_history_db import DebtHistoryDB
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

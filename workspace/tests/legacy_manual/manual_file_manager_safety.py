@@ -1,10 +1,11 @@
-import sys
 import os
+import sys
 
 # Add project root to path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "projects", "personal-agent"))
 
 import shutil
+
 from tools.file_manager import organize_directory
 
 TEST_DIR = "temp_test_downloads"

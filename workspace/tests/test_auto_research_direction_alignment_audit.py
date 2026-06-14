@@ -7,7 +7,6 @@ import json
 import sys
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_PATH = REPO_ROOT / ".agents" / "skills" / "auto-research" / "scripts" / "direction_alignment_audit.py"
 
@@ -69,7 +68,7 @@ def _write_workspace(root: Path) -> None:
         ),
         encoding="utf-8",
     )
-    (tmp / "next-experiment-continuation.json").write_text(
+    (tmp / "next-experiment-current.json").write_text(
         json.dumps(
             {
                 "status": "blocked",
@@ -114,6 +113,19 @@ def test_build_audit_surfaces_missing_loop_evidence(tmp_path: Path) -> None:
     assert any("ab_decision.py" in blocker for blocker in loop_pillar["blockers"])
 
 
+def test_build_audit_treats_unreadable_text_artifact_as_missing(tmp_path: Path) -> None:
+    _write_workspace(tmp_path)
+    handoff = tmp_path / ".ai" / "HANDOFF.md"
+    handoff.unlink()
+    handoff.mkdir()
+
+    audit = direction_alignment_audit.build_audit(tmp_path)
+    local_pillar = next(pillar for pillar in audit["pillars"] if pillar["key"] == "local_first_operations")
+
+    assert audit["status"] in {"partial", "aligned_blocked"}
+    assert any("HANDOFF.md" in blocker for blocker in local_pillar["blockers"])
+
+
 def test_cli_output_file_is_ascii_safe(tmp_path: Path, capsys) -> None:
     root = tmp_path / "\ubc15\uc8fc\ud638"
     root.mkdir()
@@ -127,3 +139,39 @@ def test_cli_output_file_is_ascii_safe(tmp_path: Path, capsys) -> None:
     raw = output.read_bytes()
     assert all(byte < 128 for byte in raw)
     assert "\\ubc15\\uc8fc\\ud638" in raw.decode("ascii")
+
+
+def test_cli_output_write_failure_preserves_existing_file(tmp_path: Path, capsys) -> None:
+    root = tmp_path / "workspace"
+    root.mkdir()
+    _write_workspace(root)
+    output = tmp_path / "direction-alignment.json"
+    output.write_text('{"status":"existing"}\n', encoding="utf-8")
+    output.with_name("direction-alignment.json.refresh-tmp").mkdir()
+
+    code = direction_alignment_audit.main(["--root", str(root), "--output", str(output), "--json"])
+
+    stdout = json.loads(capsys.readouterr().out)
+    assert code == 4
+    assert stdout["status"] == "write_failed"
+    assert stdout["write_error_path"] == output.as_posix()
+    assert "IsADirectoryError" in stdout["write_error"] or "PermissionError" in stdout["write_error"]
+    assert json.loads(output.read_text(encoding="utf-8")) == {"status": "existing"}
+
+
+def test_cli_output_blocked_parent_reports_write_failed(tmp_path: Path, capsys) -> None:
+    root = tmp_path / "workspace"
+    root.mkdir()
+    _write_workspace(root)
+    blocked_parent = tmp_path / "blocked-parent"
+    output = blocked_parent / "direction-alignment.json"
+    blocked_parent.write_text("not a directory\n", encoding="utf-8")
+
+    code = direction_alignment_audit.main(["--root", str(root), "--output", str(output), "--json"])
+
+    stdout = json.loads(capsys.readouterr().out)
+    assert code == 4
+    assert stdout["status"] == "write_failed"
+    assert stdout["write_error_path"] == output.as_posix()
+    assert stdout["write_error"]
+    assert blocked_parent.read_text(encoding="utf-8") == "not a directory\n"

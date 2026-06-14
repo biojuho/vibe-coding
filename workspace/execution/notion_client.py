@@ -54,8 +54,8 @@ def is_configured() -> bool:
 
 def _request(method: str, endpoint: str, **kwargs) -> requests.Response:
     """Notion API 요청 + 429/5xx 지수 백오프 재시도."""
-    import time
     import logging as _logging
+    import time
 
     _log = _logging.getLogger(__name__)
 

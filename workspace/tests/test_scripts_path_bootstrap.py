@@ -5,7 +5,6 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS_DIR = WORKSPACE_ROOT / "scripts"
 

@@ -278,6 +278,62 @@ def get_provider_breakdown(days: int = 30) -> List[Dict]:
     return [dict(r) for r in rows]
 
 
+def _empty_bridge_activity_summary() -> Dict[str, Any]:
+    return {
+        "total_calls": 0,
+        "shadow_calls": 0,
+        "enforce_calls": 0,
+        "repair_calls": 0,
+        "fallback_calls": 0,
+        "average_language_score": None,
+        "reason_codes": {},
+        "by_provider": {},
+    }
+
+
+def _bridge_reason_codes(raw_reason_codes: str) -> Any:
+    try:
+        return json.loads(raw_reason_codes or "[]")
+    except json.JSONDecodeError:
+        return []
+
+
+def _record_bridge_activity_row(summary: Dict[str, Any], scores: List[float], row: Any) -> None:
+    summary["total_calls"] += 1
+    mode = row["bridge_mode"] or ""
+    if mode == "shadow":
+        summary["shadow_calls"] += 1
+    elif mode == "enforce":
+        summary["enforce_calls"] += 1
+
+    repair_count = int(row["repair_count"] or 0)
+    fallback_used = bool(row["fallback_used"])
+    provider_used = row["provider_used"] or ""
+    language_score = row["language_score"]
+
+    if repair_count > 0:
+        summary["repair_calls"] += 1
+    if fallback_used:
+        summary["fallback_calls"] += 1
+    if provider_used:
+        summary["by_provider"][provider_used] = summary["by_provider"].get(provider_used, 0) + 1
+    if language_score is not None:
+        scores.append(float(language_score))
+
+    for code in _bridge_reason_codes(row["reason_codes"] or "[]"):
+        summary["reason_codes"][code] = summary["reason_codes"].get(code, 0) + 1
+
+
+def _bridge_top_reason_codes(reason_codes: Dict[str, int]) -> List[Dict[str, Any]]:
+    return [
+        {"reason_code": reason, "count": count}
+        for reason, count in sorted(
+            reason_codes.items(),
+            key=lambda item: (-item[1], item[0]),
+        )
+    ]
+
+
 def get_bridge_activity_for_date(target_date: date) -> Dict:
     """Return bridge validation activity for a single day."""
     init_db()
@@ -291,57 +347,15 @@ def get_bridge_activity_for_date(target_date: date) -> Dict:
     ).fetchall()
     conn.close()
 
-    summary = {
-        "total_calls": 0,
-        "shadow_calls": 0,
-        "enforce_calls": 0,
-        "repair_calls": 0,
-        "fallback_calls": 0,
-        "average_language_score": None,
-        "reason_codes": {},
-        "by_provider": {},
-    }
+    summary = _empty_bridge_activity_summary()
     scores: List[float] = []
 
     for row in rows:
-        summary["total_calls"] += 1
-        mode = row["bridge_mode"] or ""
-        if mode == "shadow":
-            summary["shadow_calls"] += 1
-        elif mode == "enforce":
-            summary["enforce_calls"] += 1
-
-        repair_count = int(row["repair_count"] or 0)
-        fallback_used = bool(row["fallback_used"])
-        provider_used = row["provider_used"] or ""
-        language_score = row["language_score"]
-
-        if repair_count > 0:
-            summary["repair_calls"] += 1
-        if fallback_used:
-            summary["fallback_calls"] += 1
-        if provider_used:
-            summary["by_provider"][provider_used] = summary["by_provider"].get(provider_used, 0) + 1
-        if language_score is not None:
-            scores.append(float(language_score))
-
-        raw_reason_codes = row["reason_codes"] or "[]"
-        try:
-            reason_codes = json.loads(raw_reason_codes)
-        except json.JSONDecodeError:
-            reason_codes = []
-        for code in reason_codes:
-            summary["reason_codes"][code] = summary["reason_codes"].get(code, 0) + 1
+        _record_bridge_activity_row(summary, scores, row)
 
     if scores:
         summary["average_language_score"] = round(sum(scores) / len(scores), 4)
-    summary["top_reason_codes"] = [
-        {"reason_code": reason, "count": count}
-        for reason, count in sorted(
-            summary["reason_codes"].items(),
-            key=lambda item: (-item[1], item[0]),
-        )
-    ]
+    summary["top_reason_codes"] = _bridge_top_reason_codes(summary["reason_codes"])
     return summary
 
 

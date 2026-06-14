@@ -20,6 +20,7 @@ def _isolated_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 
 # ── import after monkeypatch setup ──────────────────────────
 from execution.channel_growth_tracker import (  # noqa: E402
+    _save_snapshot,
     add_channel,
     calculate_growth_rate,
     get_channel_comparison,
@@ -27,7 +28,6 @@ from execution.channel_growth_tracker import (  # noqa: E402
     get_growth_history,
     get_latest_snapshot,
     init_db,
-    _save_snapshot,
 )
 
 

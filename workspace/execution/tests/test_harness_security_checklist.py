@@ -7,7 +7,6 @@ from execution.harness_security_checklist import (
     Severity,
 )
 
-
 # ── SecurityIssue & SecurityReport ────────────────────────────────────
 
 

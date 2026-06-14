@@ -229,11 +229,60 @@ class TestReviewerWorker:
         assert "review_error" in result.metadata
 
 
+class TestFallbackCompiledGraph:
+    def test_prepare_initial_state_preserves_input_and_sets_defaults(self) -> None:
+        from execution.graph_engine import _FallbackCompiledGraph
+
+        fallback = _FallbackCompiledGraph(MagicMock())
+        state = fallback._prepare_initial_state({"vibe_input": "Build fibonacci", "results": ["existing"]})
+
+        assert state["vibe_input"] == "Build fibonacci"
+        assert state["results"] == ["existing"]
+        assert state["variant_results"] == []
+        assert state["errors"] == []
+        assert state["reflection_notes"] == ""
+        assert state["evaluator_summary"] == ""
+
+    def test_append_patch_items_extends_existing_collection(self) -> None:
+        from execution.graph_engine import _FallbackCompiledGraph
+
+        state = {"results": ["coder"]}
+        patch = {"results": ["tester"]}
+
+        _FallbackCompiledGraph._append_patch_items(state, patch, "results")
+
+        assert state["results"] == ["coder", "tester"]
+        assert patch["results"] == ["tester"]
+
+    def test_invoke_runs_reviewer_path_and_accumulates_state(self) -> None:
+        from execution.graph_engine import _FallbackCompiledGraph
+
+        owner = MagicMock()
+        owner.supervisor_node.return_value = {"tasks": [{"id": "task-0"}], "next_worker": "prepare_variants"}
+        owner.prepare_variants_node.return_value = {"variant_tasks": [{"id": "task-0:a"}]}
+        owner.variant_coder_node.return_value = {"variant_results": ["variant-a"]}
+        owner.reduce_variants_node.return_value = {"results": ["coder"], "next_worker": "tester"}
+        owner.tester_node.return_value = {"results": ["tester"], "next_worker": "reviewer"}
+        owner.reviewer_node.return_value = {"results": ["reviewer"]}
+        owner.evaluator_node.return_value = {"confidence": 0.85, "iteration": 1}
+        owner.route_after_evaluator.return_value = "output"
+        owner.output_node.return_value = {"final_output": "done"}
+
+        result = _FallbackCompiledGraph(owner).invoke({"vibe_input": "Build fibonacci"})
+
+        assert result["variant_results"] == ["variant-a"]
+        assert result["results"] == ["coder", "tester", "reviewer"]
+        assert result["final_output"] == "done"
+        owner.debugger_node.assert_not_called()
+
+
 class TestVibeCodingGraph:
     def _make_graph(self, llm: MagicMock):
         from execution.graph_engine import VibeCodingGraph
 
-        return VibeCodingGraph(llm_client=llm, max_iterations=2)
+        graph = VibeCodingGraph(llm_client=llm, max_iterations=2)
+        graph.context_selector = None
+        return graph
 
     def test_graph_builds(self, mock_llm: MagicMock) -> None:
         graph = self._make_graph(mock_llm)

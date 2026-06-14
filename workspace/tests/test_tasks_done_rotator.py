@@ -27,6 +27,10 @@ def _done_row(task_id: str, note: str = "done note") -> str:
     return f"| {task_id} | {note} | Codex | 2026-06-07 |"
 
 
+def _done_checklist(task_id: str, note: str = "done note") -> str:
+    return f"- [x] {task_id} {note}"
+
+
 def _write_tasks(
     tmp_path: Path,
     done_rows: list[str],
@@ -59,6 +63,21 @@ def test_parse_done_entries_are_scoped_to_done():
     assert rng is not None
     entries = rotator.parse_done_entries(tmp_lines, *rng)
     assert [e.task_id for e in entries] == ["T-100", "T-099"]
+
+
+def test_parse_done_entries_supports_project_checklists():
+    tmp_lines = (
+        "# TASKS\n\n"
+        "## TODO\n\n"
+        "- [x] T-900 todo-looking checklist row\n\n"
+        "## DONE\n\n" + _done_checklist("T-2368", "newest") + "\n" + _done_checklist("T-2367b", "suffixed") + "\n"
+    ).splitlines()
+    rng = rotator.find_done_section(tmp_lines)
+    assert rng is not None
+
+    entries = rotator.parse_done_entries(tmp_lines, *rng)
+
+    assert [e.task_id for e in entries] == ["T-2368", "T-2367b"]
 
 
 def test_rotate_keeps_newest_n(tmp_path):
@@ -115,6 +134,30 @@ def test_rotate_normalizes_latest_heading(tmp_path):
     assert "(Latest 5)" not in text
 
 
+def test_rotate_checklist_done_entries_and_normalizes_plain_heading(tmp_path):
+    rows = [_done_checklist(f"T-{2360 + i}", f"entry-{i}") for i in range(7)]
+    tasks = _write_tasks(tmp_path, rows)
+    text = tasks.read_text(encoding="utf-8").replace("## DONE (Latest 5)", "## DONE")
+    tasks.write_text(text, encoding="utf-8")
+
+    result = rotator.rotate(tmp_path, keep_count=3, today=date(2026, 6, 7))
+
+    assert result["status"] == "rotated"
+    assert result["kept"] == 3
+    assert result["archived"] == 4
+
+    text = tasks.read_text(encoding="utf-8")
+    assert "## DONE (Latest 3)" in text
+    assert "entry-0" in text
+    assert "entry-2" in text
+    assert "entry-3" not in text
+    assert "entry-6" not in text
+
+    archive = (tmp_path / ".ai" / "archive" / "TASKS_DONE_archive_2026-06-07.md").read_text(encoding="utf-8")
+    assert "entry-3" in archive
+    assert "entry-6" in archive
+
+
 def test_rotate_does_not_touch_todo_or_in_progress(tmp_path):
     rows = [_done_row(f"T-{100 + i}", f"entry-{i}") for i in range(8)]
     tasks = _write_tasks(
@@ -157,6 +200,26 @@ def test_rotate_dry_run_does_not_write(tmp_path):
     assert result["dry_run"] is True
     assert tasks.read_text(encoding="utf-8") == original
     assert not (tmp_path / ".ai" / "archive" / "TASKS_DONE_archive_2026-06-07.md").exists()
+
+
+def test_rotate_prepares_tasks_temp_before_replacing_archive(tmp_path):
+    rows = [_done_row(f"T-{100 + i}", f"entry-{i}") for i in range(8)]
+    tasks = _write_tasks(tmp_path, rows)
+    original_tasks = tasks.read_text(encoding="utf-8")
+    archive = tmp_path / ".ai" / "archive" / "TASKS_DONE_archive_2026-06-07.md"
+    archive.parent.mkdir(parents=True, exist_ok=True)
+    archive.write_text("existing archive\n", encoding="utf-8")
+    original_archive = archive.read_text(encoding="utf-8")
+    tasks_tmp = tasks.with_name(f"{tasks.name}.tmp")
+    tasks_tmp.mkdir()
+
+    result = rotator.rotate(tmp_path, keep_count=5, today=date(2026, 6, 7))
+
+    assert result["status"] == "write_failed"
+    assert result["archived"] == 3
+    assert result["write_error_path"].endswith("TASKS.md.tmp")
+    assert tasks.read_text(encoding="utf-8") == original_tasks
+    assert archive.read_text(encoding="utf-8") == original_archive
 
 
 def test_rotate_skip_when_tasks_missing(tmp_path):

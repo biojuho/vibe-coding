@@ -2,9 +2,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-
 from execution.process_manager import ProcessManager, TrackedProcess
-
 
 # ---------------------------------------------------------------------------
 # Helpers

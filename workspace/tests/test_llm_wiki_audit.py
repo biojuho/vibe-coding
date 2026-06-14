@@ -9,7 +9,6 @@ import sys
 from datetime import date
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_PATH = REPO_ROOT / "execution" / "llm_wiki_audit.py"
 
@@ -1037,6 +1036,37 @@ def test_write_strict_release_evidence_enables_strict_mode_and_records_artifact(
     assert evidence["release_gate"]["status"] == "pass"
     assert evidence["release_gate"]["strict_manifest_warning_mode"] is True
     assert evidence["report"]["summary"]["strict_release_evidence_path"] == ".tmp/strict-evidence.json"
+
+
+def test_write_strict_release_evidence_reports_blocked_output_parent(tmp_path: Path, capsys):
+    _write_minimal_healthy_wiki(tmp_path)
+    blocked_parent = tmp_path / ".tmp" / "blocked-parent"
+    blocked_parent.parent.mkdir()
+    blocked_parent.write_text("preserve me\n", encoding="utf-8")
+
+    exit_code = audit.main(
+        [
+            "--repo-root",
+            str(tmp_path),
+            "--today",
+            "2026-06-08",
+            "--write-strict-release-evidence",
+            "--strict-release-evidence-path",
+            ".tmp/blocked-parent/strict-evidence.json",
+            "--json",
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 4
+    assert payload["status"] == "write_failed"
+    assert payload["summary"]["strict_manifest_warning_mode"] is True
+    assert payload["summary"]["strict_manifest_warning_failure"] is False
+    assert payload["summary"]["strict_release_evidence_path"] == ".tmp/blocked-parent/strict-evidence.json"
+    assert payload["summary"]["strict_release_evidence_status"] == "pass"
+    assert payload["summary"]["strict_release_evidence_write_status"] == "write_failed"
+    assert payload["write_error_path"].endswith(str(Path(".tmp") / "blocked-parent" / "strict-evidence.json"))
+    assert blocked_parent.read_text(encoding="utf-8") == "preserve me\n"
 
 
 def test_write_strict_release_evidence_records_failure_on_unexpected_manifest_warning(

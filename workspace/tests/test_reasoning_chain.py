@@ -18,10 +18,9 @@ WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
 if str(WORKSPACE_ROOT) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_ROOT))
 
-from execution.reasoning_chain import ReasoningChain, ReasoningResult
 from execution.confidence_verifier import ConfidenceVerifier
-from execution.thought_decomposer import ThoughtDecomposer, TaskNode, CompositeResult
-
+from execution.reasoning_chain import ReasoningChain, ReasoningResult
+from execution.thought_decomposer import CompositeResult, TaskNode, ThoughtDecomposer
 
 # ══════════════════════════════════════════════════════════════
 # ReasoningChain 테스트

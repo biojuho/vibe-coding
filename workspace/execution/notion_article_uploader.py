@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -28,6 +29,10 @@ from execution._logging import logger
 
 NOTION_API_VERSION = "2022-06-28"
 NOTION_BASE_URL = "https://api.notion.com/v1"
+NOTION_TEXT_CHUNK_SIZE = 2000
+BOLD_MARKDOWN_PATTERN = re.compile(r"(\*\*[^*]+\*\*)")
+HEADING_1_OR_2_PATTERN = re.compile(r"^#{1,2} ")
+ORDERED_LIST_PATTERN = re.compile(r"^\d+\. ")
 
 
 # ── Notion API 헬퍼 ─────────────────────────────────────────────────────────
@@ -51,6 +56,7 @@ class NotionClient:
     def post(self, path: str, body: dict, *, max_retries: int = 3) -> dict:
         """POST 요청 (동기). 429/5xx 시 지수 백오프 재시도."""
         import time
+
         import httpx
 
         url = f"{NOTION_BASE_URL}{path}"
@@ -88,6 +94,64 @@ class NotionClient:
 # ── Markdown → Notion 블록 변환 ─────────────────────────────────────────────
 
 
+def _notion_text(content: str, *, bold: bool = False) -> dict:
+    part = {"type": "text", "text": {"content": content}}
+    if bold:
+        part["annotations"] = {"bold": True}
+    return part
+
+
+def _plain_text_parts(chunk: str) -> list[dict]:
+    parts: list[dict] = []
+    while len(chunk) > NOTION_TEXT_CHUNK_SIZE:
+        parts.append(_notion_text(chunk[:NOTION_TEXT_CHUNK_SIZE]))
+        chunk = chunk[NOTION_TEXT_CHUNK_SIZE:]
+    if chunk:
+        parts.append(_notion_text(chunk))
+    return parts
+
+
+def _notion_rich_text(text: str) -> list[dict]:
+    """Convert a small Markdown bold subset to Notion rich_text."""
+    parts: list[dict] = []
+    for chunk in BOLD_MARKDOWN_PATTERN.split(text):
+        if not chunk:
+            continue
+        if chunk.startswith("**") and chunk.endswith("**"):
+            parts.append(_notion_text(chunk[2:-2], bold=True))
+        else:
+            parts.extend(_plain_text_parts(chunk))
+    return parts or [_notion_text("")]
+
+
+def _notion_block(block_type: str, content: str) -> dict:
+    return {
+        "object": "block",
+        "type": block_type,
+        block_type: {"rich_text": _notion_rich_text(content)},
+    }
+
+
+def _markdown_line_to_notion_block(line: str) -> dict:
+    stripped = line.rstrip()
+
+    if stripped.startswith("### "):
+        return _notion_block("heading_3", stripped[4:])
+    if stripped.startswith("## ") or stripped.startswith("# "):
+        content = HEADING_1_OR_2_PATTERN.sub("", stripped)
+        return _notion_block("heading_2", content)
+    if stripped.startswith(("- ", "* ")):
+        return _notion_block("bulleted_list_item", stripped[2:])
+    if ORDERED_LIST_PATTERN.match(stripped):
+        content = ORDERED_LIST_PATTERN.sub("", stripped)
+        return _notion_block("numbered_list_item", content)
+    if stripped in {"---", "***"}:
+        return {"object": "block", "type": "divider", "divider": {}}
+    if stripped == "":
+        return {"object": "block", "type": "paragraph", "paragraph": {"rich_text": []}}
+    return _notion_block("paragraph", stripped)
+
+
 def markdown_to_notion_blocks(markdown: str) -> list[dict]:
     """Markdown 텍스트를 Notion 블록 리스트로 변환합니다.
 
@@ -111,64 +175,7 @@ def markdown_to_notion_blocks(markdown: str) -> list[dict]:
         Notion API는 한 번에 최대 100블록까지 허용합니다.
         이 함수는 분할 없이 모든 블록을 반환하므로 호출 측에서 100개씩 나눠 업로드해야 합니다.
     """
-    import re
-
-    blocks: list[dict] = []
-    lines = markdown.split("\n")
-
-    def _rich_text(text: str) -> list[dict]:
-        """간단한 **bold** 파싱을 지원하는 rich_text 변환."""
-        parts: list[dict] = []
-        # **bold** 패턴 분리
-        for chunk in re.split(r"(\*\*[^*]+\*\*)", text):
-            if not chunk:
-                continue
-            if chunk.startswith("**") and chunk.endswith("**"):
-                parts.append(
-                    {
-                        "type": "text",
-                        "text": {"content": chunk[2:-2]},
-                        "annotations": {"bold": True},
-                    }
-                )
-            else:
-                # 텍스트 2000자 제한 (Notion API 제약)
-                while len(chunk) > 2000:
-                    parts.append({"type": "text", "text": {"content": chunk[:2000]}})
-                    chunk = chunk[2000:]
-                if chunk:
-                    parts.append({"type": "text", "text": {"content": chunk}})
-        return parts or [{"type": "text", "text": {"content": ""}}]
-
-    def _block(block_type: str, content: str) -> dict:
-        return {
-            "object": "block",
-            "type": block_type,
-            block_type: {"rich_text": _rich_text(content)},
-        }
-
-    for line in lines:
-        stripped = line.rstrip()
-
-        if stripped.startswith("### "):
-            blocks.append(_block("heading_3", stripped[4:]))
-        elif stripped.startswith("## ") or stripped.startswith("# "):
-            # H1은 heading_2로 변환 (페이지 제목과 구분)
-            content = re.sub(r"^#{1,2} ", "", stripped)
-            blocks.append(_block("heading_2", content))
-        elif stripped.startswith(("- ", "* ")):
-            blocks.append(_block("bulleted_list_item", stripped[2:]))
-        elif re.match(r"^\d+\. ", stripped):
-            content = re.sub(r"^\d+\. ", "", stripped)
-            blocks.append(_block("numbered_list_item", content))
-        elif stripped == "---" or stripped == "***":
-            blocks.append({"object": "block", "type": "divider", "divider": {}})
-        elif stripped == "":
-            blocks.append({"object": "block", "type": "paragraph", "paragraph": {"rich_text": []}})
-        else:
-            blocks.append(_block("paragraph", stripped))
-
-    return blocks
+    return [_markdown_line_to_notion_block(line) for line in markdown.split("\n")]
 
 
 def _chunk_blocks(blocks: list[dict], size: int = 100) -> list[list[dict]]:

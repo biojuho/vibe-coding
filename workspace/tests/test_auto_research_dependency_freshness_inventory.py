@@ -7,7 +7,6 @@ import json
 import sys
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_PATH = REPO_ROOT / ".agents" / "skills" / "auto-research" / "scripts" / "dependency_freshness_inventory.py"
 
@@ -88,6 +87,18 @@ def test_patch_minor_wanted_update_is_candidate() -> None:
     assert result["classification"] == "adopt_patch_minor"
     assert result["wanted_delta"] == "patch"
     assert result["candidate"] is True
+    assert result["deferred"] is False
+
+
+def test_missing_local_current_with_wanted_equal_latest_is_not_manual_inspect() -> None:
+    result = dependency_freshness_inventory.classify_dependency(
+        "matter-js",
+        {"wanted": "0.20.0", "latest": "0.20.0"},
+    )
+
+    assert result["classification"] == "range_current_missing_install"
+    assert result["action"] == "none"
+    assert result["candidate"] is False
     assert result["deferred"] is False
 
 
@@ -185,6 +196,31 @@ def test_build_inventory_summarizes_candidates_and_deferred(tmp_path: Path) -> N
     assert result["recommendations"] == [
         "Run a focused patch/minor dependency update experiment for: projects/word-chain (react)"
     ]
+
+
+def test_unreadable_package_json_is_treated_as_empty_metadata(tmp_path: Path, monkeypatch) -> None:
+    project_path = tmp_path / "projects" / "locked-dependencies"
+    _write_package(project_path, {"react": "^19.0.0"})
+    original_read_text = dependency_freshness_inventory.Path.read_text
+
+    def fake_read_text(path: Path, *args, **kwargs):
+        if path == project_path / "package.json":
+            raise OSError("locked")
+        return original_read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(dependency_freshness_inventory.Path, "read_text", fake_read_text)
+
+    result = dependency_freshness_inventory.build_inventory(
+        tmp_path,
+        runner=lambda _path, _timeout: _npm_result({}),
+    )
+
+    assert result["summary"]["package_project_count"] == 1
+    assert result["summary"]["clean_project_count"] == 1
+    assert result["projects"][0]["path"] == "projects/locked-dependencies"
+    assert result["projects"][0]["status"] == "clean"
+    assert result["projects"][0]["dependencies"] == []
+    assert result["recommendations"] == []
 
 
 def test_major_only_deferred_recommendation_names_major_migrations(tmp_path: Path) -> None:
@@ -688,3 +724,51 @@ def test_invalid_npm_json_marks_project_unavailable(tmp_path: Path) -> None:
     assert result["recommendations"] == [
         "Fix npm outdated availability or JSON output for: projects/knowledge-dashboard"
     ]
+
+
+def test_main_reports_output_write_failure_without_overwriting(tmp_path: Path, capsys) -> None:
+    _write_package(tmp_path)
+    output = tmp_path / "dependency.json"
+    output.write_text('{"status":"existing"}\n', encoding="utf-8")
+    output.with_name(f"{output.name}.refresh-tmp").mkdir()
+
+    code = dependency_freshness_inventory.main(
+        [
+            "--root",
+            str(tmp_path),
+            "--output",
+            str(output),
+            "--json",
+        ]
+    )
+
+    assert code == 4
+    assert output.read_text(encoding="utf-8") == '{"status":"existing"}\n'
+    stdout = json.loads(capsys.readouterr().out)
+    assert stdout["status"] == "write_failed"
+    assert stdout["write_error_path"] == output.as_posix()
+    assert stdout["write_error"]
+
+
+def test_main_reports_output_parent_write_failure_without_traceback(tmp_path: Path, capsys) -> None:
+    _write_package(tmp_path)
+    blocked_parent = tmp_path / ".blocked-parent"
+    blocked_parent.write_text("not a directory\n", encoding="utf-8")
+    output = blocked_parent / "dependency.json"
+
+    code = dependency_freshness_inventory.main(
+        [
+            "--root",
+            str(tmp_path),
+            "--output",
+            str(output),
+            "--json",
+        ]
+    )
+
+    assert code == 4
+    assert blocked_parent.read_text(encoding="utf-8") == "not a directory\n"
+    stdout = json.loads(capsys.readouterr().out)
+    assert stdout["status"] == "write_failed"
+    assert stdout["write_error_path"] == output.as_posix()
+    assert stdout["write_error"]

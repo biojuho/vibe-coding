@@ -160,6 +160,72 @@ def _update_notion_page(page_id: str, stats: dict, video_id: str | None = None) 
     return resp.status_code == 200
 
 
+def _youtube_video_id_from_url(yt_url: str) -> str:
+    if "youtu.be/" in yt_url:
+        return yt_url.split("youtu.be/")[-1].split("?")[0]
+    if "?v=" in yt_url:
+        return yt_url.split("?v=")[-1].split("&")[0]
+    if "shorts/" in yt_url:
+        return yt_url.split("shorts/")[-1].split("?")[0]
+    return ""
+
+
+def _existing_youtube_video_id(props: dict) -> str:
+    rt = props.get("YouTube Video ID", {}).get("rich_text", [])
+    if not rt:
+        return ""
+    return rt[0].get("plain_text", "")
+
+
+def _page_video_info(page: dict) -> dict | None:
+    props = page.get("properties", {})
+    yt_url = (props.get("유튜브 URL") or {}).get("url") or ""
+    video_id = _existing_youtube_video_id(props) or _youtube_video_id_from_url(yt_url)
+    if not video_id:
+        return None
+    return {"page_id": page["id"], "video_id": video_id}
+
+
+def _page_video_infos(pages: list[dict]) -> list[dict]:
+    page_info: list[dict] = []
+    for page in pages:
+        info = _page_video_info(page)
+        if info:
+            page_info.append(info)
+    return page_info
+
+
+def _fetch_stats_result(video_ids: list[str], page_info: list[dict]) -> tuple[dict[str, dict] | None, dict | None]:
+    try:
+        return _fetch_yt_stats(video_ids), None
+    except ValueError as exc:
+        logger.error("YouTube API Key 필요: %s", exc)
+        return None, {"updated": 0, "skipped": len(page_info), "errors": [str(exc)]}
+    except Exception as exc:
+        logger.error("YouTube API 실패: %s", exc)
+        return None, {"updated": 0, "skipped": len(page_info), "errors": [str(exc)]}
+
+
+def _update_pages_from_stats(page_info: list[dict], stats_map: dict[str, dict]) -> dict:
+    updated = 0
+    skipped = 0
+    errors: list[str] = []
+
+    for info in page_info:
+        vid = info["video_id"]
+        if vid not in stats_map:
+            skipped += 1
+            continue
+        ok = _update_notion_page(info["page_id"], stats_map[vid], video_id=vid)
+        if ok:
+            updated += 1
+            logger.info("✅ 업데이트: %s → 조회수 %d", vid, stats_map[vid]["views"])
+        else:
+            errors.append(f"page={info['page_id']} vid={vid}")
+
+    return {"updated": updated, "skipped": skipped, "errors": errors}
+
+
 # ── 메인 실행 ────────────────────────────────────────────────
 
 
@@ -177,32 +243,7 @@ def run(
     pages = _get_uploaded_pages(channel=channel, days=days)
     logger.info("수집 대상: %d개 Notion 페이지", len(pages))
 
-    # YouTube Video ID 추출 (유튜브 URL에서)
-    page_info: list[dict] = []
-    for page in pages:
-        props = page.get("properties", {})
-        yt_url = (props.get("유튜브 URL") or {}).get("url") or ""
-        yt_video_id = ""
-
-        # URL에서 video ID 파싱: youtu.be/ID 또는 ?v=ID
-        if "youtu.be/" in yt_url:
-            yt_video_id = yt_url.split("youtu.be/")[-1].split("?")[0]
-        elif "?v=" in yt_url:
-            yt_video_id = yt_url.split("?v=")[-1].split("&")[0]
-        elif "shorts/" in yt_url:
-            yt_video_id = yt_url.split("shorts/")[-1].split("?")[0]
-
-        # Notion에 저장된 YouTube Video ID 우선 사용
-        existing_vid = ""
-        vid_prop = props.get("YouTube Video ID", {})
-        rt = vid_prop.get("rich_text", [])
-        if rt:
-            existing_vid = rt[0].get("plain_text", "")
-
-        video_id = existing_vid or yt_video_id
-        if video_id:
-            page_info.append({"page_id": page["id"], "video_id": video_id})
-
+    page_info = _page_video_infos(pages)
     if not page_info:
         logger.info("업로드된 YouTube 영상 없음 (YouTube Video ID 미설정)")
         return {"updated": 0, "skipped": len(pages), "errors": []}
@@ -215,33 +256,18 @@ def run(
         logger.info("수집 대상 video_ids: %s", video_ids[:5])
         return {"updated": 0, "skipped": len(page_info), "errors": []}
 
-    try:
-        stats_map = _fetch_yt_stats(video_ids)
-    except ValueError as exc:
-        logger.error("YouTube API Key 필요: %s", exc)
-        return {"updated": 0, "skipped": len(page_info), "errors": [str(exc)]}
-    except Exception as exc:
-        logger.error("YouTube API 실패: %s", exc)
-        return {"updated": 0, "skipped": len(page_info), "errors": [str(exc)]}
+    stats_map, error_result = _fetch_stats_result(video_ids, page_info)
+    if error_result is not None:
+        return error_result
 
-    updated = 0
-    skipped = 0
-    errors: list[str] = []
-
-    for info in page_info:
-        vid = info["video_id"]
-        if vid not in stats_map:
-            skipped += 1
-            continue
-        ok = _update_notion_page(info["page_id"], stats_map[vid], video_id=vid)
-        if ok:
-            updated += 1
-            logger.info("✅ 업데이트: %s → 조회수 %d", vid, stats_map[vid]["views"])
-        else:
-            errors.append(f"page={info['page_id']} vid={vid}")
-
-    logger.info("완료: 업데이트 %d / 스킵 %d / 에러 %d", updated, skipped, len(errors))
-    return {"updated": updated, "skipped": skipped, "errors": errors}
+    result = _update_pages_from_stats(page_info, stats_map or {})
+    logger.info(
+        "완료: 업데이트 %d / 스킵 %d / 에러 %d",
+        result["updated"],
+        result["skipped"],
+        len(result["errors"]),
+    )
+    return result
 
 
 def _cli() -> None:

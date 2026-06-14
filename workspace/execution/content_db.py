@@ -878,7 +878,7 @@ def get_channel_performance_summary() -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 
-def _cli() -> None:
+def _build_cli_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Shorts Content DB CLI")
     sub = parser.add_subparsers(dest="cmd")
 
@@ -905,7 +905,31 @@ def _cli() -> None:
     ch_get_p = sub.add_parser("channel-get", help="채널 설정 조회")
     ch_get_p.add_argument("--channel", required=True)
 
-    args = parser.parse_args()
+    return parser
+
+
+def _channel_settings_kwargs(args: argparse.Namespace) -> dict[str, str]:
+    return {
+        k: v
+        for k, v in {
+            "voice": args.voice,
+            "style_preset": args.style_preset,
+            "font_color": args.font_color,
+            "image_style_prefix": args.image_style_prefix,
+        }.items()
+        if v
+    }
+
+
+def _print_channel_settings(channel: str) -> None:
+    settings = get_channel_settings(channel)
+    if settings:
+        print(json.dumps(settings, indent=2, ensure_ascii=False))
+    else:
+        print(f"[{channel}] 설정 없음")
+
+
+def _run_cli_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     if args.cmd == "init":
         init_db()
         print("DB 초기화 완료:", DB_PATH)
@@ -924,34 +948,23 @@ def _cli() -> None:
             print(ch)
     elif args.cmd == "kpis":
         init_db()
-        import json
-
         print(json.dumps(get_kpis(), indent=2))
     elif args.cmd == "channel-set":
         init_db()
-        kwargs = {
-            k: v
-            for k, v in {
-                "voice": args.voice,
-                "style_preset": args.style_preset,
-                "font_color": args.font_color,
-                "image_style_prefix": args.image_style_prefix,
-            }.items()
-            if v
-        }
+        kwargs = _channel_settings_kwargs(args)
         upsert_channel_settings(args.channel, **kwargs)
         print(f"채널 설정 저장: [{args.channel}] {kwargs}")
     elif args.cmd == "channel-get":
         init_db()
-        import json
-
-        settings = get_channel_settings(args.channel)
-        if settings:
-            print(json.dumps(settings, indent=2, ensure_ascii=False))
-        else:
-            print(f"[{args.channel}] 설정 없음")
+        _print_channel_settings(args.channel)
     else:
         parser.print_help()
+
+
+def _cli() -> None:
+    parser = _build_cli_parser()
+    args = parser.parse_args()
+    _run_cli_command(args, parser)
 
 
 if __name__ == "__main__":

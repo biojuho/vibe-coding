@@ -8,7 +8,6 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_PATH = REPO_ROOT / ".agents" / "skills" / "auto-research" / "scripts" / "debug_loop_inventory.py"
 
@@ -522,6 +521,189 @@ def test_cli_writes_markdown_and_json_from_artifacts(tmp_path: Path) -> None:
     assert "- Expected nonzero gates:" in output_md.read_text(encoding="utf-8")
 
 
+def test_cli_markdown_write_failure_preserves_existing_outputs(tmp_path: Path, capsys) -> None:
+    inputs = {
+        "session.json": _session(),
+        "selector.json": _selector(),
+        "readiness.json": _readiness(),
+        "completion.json": _completion(),
+        "handoff.json": _handoff_plan(),
+    }
+    for name, payload in inputs.items():
+        (tmp_path / name).write_text(json.dumps(payload), encoding="utf-8")
+    output_md = tmp_path / ".tmp" / "debug-loop-known-bugs-current.md"
+    output_json = tmp_path / ".tmp" / "debug-loop-known-bugs-current.json"
+    output_md_tmp = output_md.with_name(f"{output_md.name}.refresh-tmp")
+    output_md.parent.mkdir(parents=True)
+    output_md.write_text("existing markdown\n", encoding="utf-8")
+    output_json.write_text('{"status":"existing"}\n', encoding="utf-8")
+    output_md_tmp.mkdir()
+
+    code = debug_loop_inventory.main(
+        [
+            "--root",
+            str(tmp_path),
+            "--session-orient",
+            str(tmp_path / "session.json"),
+            "--selector",
+            str(tmp_path / "selector.json"),
+            "--readiness",
+            str(tmp_path / "readiness.json"),
+            "--completion-audit",
+            str(tmp_path / "completion.json"),
+            "--dirty-handoff-plan",
+            str(tmp_path / "handoff.json"),
+            "--output-md",
+            str(output_md),
+            "--output-json",
+            str(output_json),
+            "--json",
+        ]
+    )
+    stdout = json.loads(capsys.readouterr().out)
+
+    assert code == 4
+    assert stdout["status"] == "write_failed"
+    assert stdout["write_error"]
+    assert stdout["write_error_path"] == output_md.as_posix()
+    assert output_md.read_text(encoding="utf-8") == "existing markdown\n"
+    assert json.loads(output_json.read_text(encoding="utf-8")) == {"status": "existing"}
+
+
+def test_cli_json_write_failure_preserves_existing_outputs(tmp_path: Path, capsys) -> None:
+    inputs = {
+        "session.json": _session(),
+        "selector.json": _selector(),
+        "readiness.json": _readiness(),
+        "completion.json": _completion(),
+        "handoff.json": _handoff_plan(),
+    }
+    for name, payload in inputs.items():
+        (tmp_path / name).write_text(json.dumps(payload), encoding="utf-8")
+    output_md = tmp_path / ".tmp" / "debug-loop-known-bugs-current.md"
+    output_json = tmp_path / ".tmp" / "debug-loop-known-bugs-current.json"
+    output_json_tmp = output_json.with_name(f"{output_json.name}.refresh-tmp")
+    output_md.parent.mkdir(parents=True)
+    output_md.write_text("existing markdown\n", encoding="utf-8")
+    output_json.write_text('{"status":"existing"}\n', encoding="utf-8")
+    output_json_tmp.mkdir()
+
+    code = debug_loop_inventory.main(
+        [
+            "--root",
+            str(tmp_path),
+            "--session-orient",
+            str(tmp_path / "session.json"),
+            "--selector",
+            str(tmp_path / "selector.json"),
+            "--readiness",
+            str(tmp_path / "readiness.json"),
+            "--completion-audit",
+            str(tmp_path / "completion.json"),
+            "--dirty-handoff-plan",
+            str(tmp_path / "handoff.json"),
+            "--output-md",
+            str(output_md),
+            "--output-json",
+            str(output_json),
+            "--json",
+        ]
+    )
+    stdout = json.loads(capsys.readouterr().out)
+
+    assert code == 4
+    assert stdout["status"] == "write_failed"
+    assert stdout["write_error"]
+    assert stdout["write_error_path"] == output_json.as_posix()
+    assert output_md.read_text(encoding="utf-8") == "existing markdown\n"
+    assert json.loads(output_json.read_text(encoding="utf-8")) == {"status": "existing"}
+
+
+def test_cli_markdown_blocked_parent_returns_write_failed_json(tmp_path: Path, capsys) -> None:
+    inputs = {
+        "session.json": _session(),
+        "selector.json": _selector(),
+        "readiness.json": _readiness(),
+        "completion.json": _completion(),
+        "handoff.json": _handoff_plan(),
+    }
+    for name, payload in inputs.items():
+        (tmp_path / name).write_text(json.dumps(payload), encoding="utf-8")
+    blocked_parent = tmp_path / ".tmp" / "blocked-parent"
+    blocked_parent.parent.mkdir(parents=True)
+    blocked_parent.write_text("blocking file\n", encoding="utf-8")
+    output_md = blocked_parent / "debug-loop-known-bugs-current.md"
+    output_json = tmp_path / ".tmp" / "debug-loop-known-bugs-current.json"
+    output_json.write_text('{"status":"existing"}\n', encoding="utf-8")
+
+    code = debug_loop_inventory.main(
+        [
+            "--root",
+            str(tmp_path),
+            "--session-orient",
+            str(tmp_path / "session.json"),
+            "--selector",
+            str(tmp_path / "selector.json"),
+            "--readiness",
+            str(tmp_path / "readiness.json"),
+            "--completion-audit",
+            str(tmp_path / "completion.json"),
+            "--dirty-handoff-plan",
+            str(tmp_path / "handoff.json"),
+            "--output-md",
+            str(output_md),
+            "--output-json",
+            str(output_json),
+            "--json",
+        ]
+    )
+    stdout = json.loads(capsys.readouterr().out)
+
+    assert code == 4
+    assert stdout["status"] == "write_failed"
+    assert stdout["write_error_path"] == output_md.as_posix()
+    assert "FileExistsError" in stdout["write_error"] or "NotADirectoryError" in stdout["write_error"]
+    assert blocked_parent.read_text(encoding="utf-8") == "blocking file\n"
+    assert json.loads(output_json.read_text(encoding="utf-8")) == {"status": "existing"}
+
+
+def test_cli_reads_utf16_provided_input_artifacts(tmp_path: Path, capsys) -> None:
+    inputs = {
+        "session.json": _session(),
+        "selector.json": _selector(),
+        "readiness.json": _readiness(),
+        "completion.json": _completion(),
+        "handoff.json": _handoff_plan(),
+    }
+    for name, payload in inputs.items():
+        encoding = "utf-16" if name == "session.json" else "utf-8"
+        (tmp_path / name).write_text(json.dumps(payload), encoding=encoding)
+
+    code = debug_loop_inventory.main(
+        [
+            "--root",
+            str(tmp_path),
+            "--session-orient",
+            str(tmp_path / "session.json"),
+            "--selector",
+            str(tmp_path / "selector.json"),
+            "--readiness",
+            str(tmp_path / "readiness.json"),
+            "--completion-audit",
+            str(tmp_path / "completion.json"),
+            "--dirty-handoff-plan",
+            str(tmp_path / "handoff.json"),
+            "--json",
+            "--fail-on-completion-blocked",
+        ]
+    )
+    stdout = json.loads(capsys.readouterr().out)
+
+    assert code == debug_loop_inventory.COMPLETION_BLOCKED_EXIT_CODE
+    assert stdout["summary"]["completion_gate"] == "blocked"
+    assert stdout["summary"]["blocked_item_count"] == 5
+
+
 def test_cli_with_full_input_artifacts_does_not_collect_live_inputs(
     monkeypatch,
     tmp_path: Path,
@@ -838,7 +1020,7 @@ def test_collect_completion_audit_uses_expanded_launch_audit_timeout(monkeypatch
         assert root == tmp_path
         calls.append((args, timeout))
         if any("launch_objective_audit.py" in part for part in args):
-            launch_audit = tmp_path / ".tmp" / "launch-objective-audit-current.json"
+            launch_audit = tmp_path / Path(args[args.index("--output") + 1])
             launch_audit.parent.mkdir(parents=True, exist_ok=True)
             launch_audit.write_text(json.dumps({"objective": "launch"}), encoding="utf-8")
         return {"status": "incomplete"}
@@ -848,12 +1030,86 @@ def test_collect_completion_audit_uses_expanded_launch_audit_timeout(monkeypatch
     result = debug_loop_inventory._collect_completion_audit_input(tmp_path, timeout=30)
 
     assert result == {"status": "incomplete"}
-    assert debug_loop_inventory._launch_objective_audit_timeout(30) == 90
-    assert debug_loop_inventory._launch_objective_audit_timeout(0) == 3
+    assert debug_loop_inventory._launch_objective_audit_timeout(30) == 150
+    assert debug_loop_inventory._launch_objective_audit_timeout(0) == 5
     launch_call = next(call for call in calls if any("launch_objective_audit.py" in part for part in call[0]))
     completion_call = next(call for call in calls if any("completion_audit.py" in part for part in call[0]))
-    assert launch_call[1] == 90
+    assert launch_call[1] == 150
     assert completion_call[1] == 30
+    assert Path(launch_call[0][launch_call[0].index("--output") + 1]).as_posix() == (
+        ".tmp/launch-objective-audit-refresh.json"
+    )
+    assert Path(completion_call[0][2]) == tmp_path / ".tmp" / "launch-objective-audit-current.json"
+    assert not (tmp_path / ".tmp" / "launch-objective-audit-refresh.json").exists()
+
+
+def test_collect_completion_audit_preserves_current_launch_audit_when_refresh_fails(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    current_launch_audit = tmp_path / ".tmp" / "launch-objective-audit-current.json"
+    refresh_launch_audit = tmp_path / ".tmp" / "launch-objective-audit-refresh.json"
+    current_launch_audit.parent.mkdir(parents=True, exist_ok=True)
+    current_launch_audit.write_text(json.dumps({"sentinel": "current"}), encoding="utf-8")
+    refresh_launch_audit.write_text(json.dumps({"sentinel": "stale-refresh"}), encoding="utf-8")
+    calls: list[list[str]] = []
+
+    def fake_run_json(root: Path, args: list[str], timeout: int) -> dict[str, object]:
+        assert root == tmp_path
+        calls.append(args)
+        if any("launch_objective_audit.py" in part for part in args):
+            return {"_input_error": {"reason": "helper unavailable"}}
+        raise AssertionError("completion audit must not run after launch audit refresh failure")
+
+    monkeypatch.setattr(debug_loop_inventory, "_run_json", fake_run_json)
+
+    result = debug_loop_inventory._collect_completion_audit_input(tmp_path, timeout=30)
+
+    assert result == {"_input_error": {"reason": "helper unavailable"}}
+    assert json.loads(current_launch_audit.read_text(encoding="utf-8")) == {"sentinel": "current"}
+    assert not refresh_launch_audit.exists()
+    assert len(calls) == 1
+
+
+def test_collect_completion_audit_reports_launch_audit_promotion_failure(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    current_launch_audit = tmp_path / ".tmp" / "launch-objective-audit-current.json"
+    refresh_launch_audit = tmp_path / ".tmp" / "launch-objective-audit-refresh.json"
+    current_launch_audit.parent.mkdir(parents=True, exist_ok=True)
+    current_launch_audit.write_text(json.dumps({"sentinel": "current"}), encoding="utf-8")
+
+    def fake_run_json(root: Path, args: list[str], timeout: int) -> dict[str, object]:
+        assert root == tmp_path
+        if any("launch_objective_audit.py" in part for part in args):
+            refresh_launch_audit.write_text(json.dumps({"sentinel": "refresh"}), encoding="utf-8")
+            return {"status": "incomplete"}
+        raise AssertionError("completion audit must not run after launch audit promotion failure")
+
+    def fail_replace(refresh_path: Path, current_path: Path) -> None:
+        assert refresh_path == refresh_launch_audit
+        assert current_path == current_launch_audit
+        raise debug_loop_inventory.RefreshPromotionFailure(
+            current_path,
+            "PermissionError: target locked",
+        )
+
+    monkeypatch.setattr(debug_loop_inventory, "_run_json", fake_run_json)
+    monkeypatch.setattr(debug_loop_inventory, "_replace_refresh_file", fail_replace)
+
+    result = debug_loop_inventory._collect_completion_audit_input(tmp_path, timeout=30)
+
+    assert result == {
+        "_input_error": {
+            "reason": "refresh_promotion_failed",
+            "returncode": 1,
+            "path": current_launch_audit.as_posix(),
+            "detail": "PermissionError: target locked",
+        }
+    }
+    assert json.loads(current_launch_audit.read_text(encoding="utf-8")) == {"sentinel": "current"}
+    assert not refresh_launch_audit.exists()
 
 
 def test_collect_inputs_replaces_dirty_plan_from_successful_refresh(monkeypatch, tmp_path: Path) -> None:
@@ -908,7 +1164,7 @@ def test_collect_inputs_preserves_current_dirty_plan_when_refresh_fails(monkeypa
 
     inputs = debug_loop_inventory.collect_inputs(tmp_path, timeout=30)
 
-    assert not stale_launch_audit.exists()
+    assert json.loads(stale_launch_audit.read_text(encoding="utf-8")) == {"stale": True}
     assert json.loads(current_dirty_plan.read_text(encoding="utf-8")) == {"status": "stale"}
     assert current_dirty_plan_md.read_text(encoding="utf-8") == "stale"
     assert not refresh_dirty_plan.exists()
@@ -919,6 +1175,53 @@ def test_collect_inputs_preserves_current_dirty_plan_when_refresh_fails(monkeypa
         "_input_error": {"reason": "helper failed"},
     }
     assert not any(any("completion_audit.py" in part for part in call) for call in calls)
+
+
+def test_collect_inputs_reports_dirty_plan_promotion_failure(monkeypatch, tmp_path: Path) -> None:
+    current_plan = tmp_path / ".tmp" / "scoped-dirty-worktree-handoff-plan-current.json"
+    current_plan_md = tmp_path / ".tmp" / "scoped-dirty-worktree-handoff-plan-current.md"
+    refresh_plan = tmp_path / ".tmp" / "scoped-dirty-worktree-handoff-plan-refresh.json"
+    refresh_plan_md = tmp_path / ".tmp" / "scoped-dirty-worktree-handoff-plan-refresh.md"
+    launch_audit = tmp_path / ".tmp" / "launch-objective-audit-current.json"
+    current_plan.parent.mkdir(parents=True, exist_ok=True)
+    current_plan.write_text(json.dumps({"status": "current"}), encoding="utf-8")
+    current_plan_md.write_text("current", encoding="utf-8")
+
+    def fake_run_json(root: Path, args: list[str], timeout: int) -> dict[str, object]:
+        assert root == tmp_path
+        if any("launch_objective_audit.py" in part for part in args):
+            launch_audit.write_text(json.dumps({}), encoding="utf-8")
+        if any("dirty_worktree_handoff_plan.py" in part for part in args):
+            refresh_plan.write_text(json.dumps({"status": "refresh"}), encoding="utf-8")
+            refresh_plan_md.write_text("refresh", encoding="utf-8")
+        return {}
+
+    def fail_replace(refresh_path: Path, current_path: Path) -> None:
+        assert refresh_path == refresh_plan
+        assert current_path == current_plan
+        raise debug_loop_inventory.RefreshPromotionFailure(
+            current_path,
+            "PermissionError: target locked",
+        )
+
+    monkeypatch.setattr(debug_loop_inventory, "_run_json", fake_run_json)
+    monkeypatch.setattr(debug_loop_inventory, "_replace_refresh_file", fail_replace)
+
+    inputs = debug_loop_inventory.collect_inputs(tmp_path, timeout=30)
+
+    assert json.loads(current_plan.read_text(encoding="utf-8")) == {"status": "current"}
+    assert current_plan_md.read_text(encoding="utf-8") == "current"
+    assert not refresh_plan.exists()
+    assert not refresh_plan_md.exists()
+    assert inputs["dirty_handoff_plan"] == {
+        "status": "current",
+        "_input_error": {
+            "reason": "refresh_promotion_failed",
+            "returncode": 1,
+            "path": current_plan.as_posix(),
+            "detail": "PermissionError: target locked",
+        },
+    }
 
 
 def test_completion_audit_input_from_launch_audit_runs_or_preserves_error(

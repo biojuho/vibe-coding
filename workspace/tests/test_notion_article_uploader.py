@@ -27,6 +27,30 @@ def test_markdown_to_notion_blocks_handles_common_syntax() -> None:
     assert any(part.get("annotations", {}).get("bold") for part in rich_text)
 
 
+def test_notion_rich_text_splits_plain_chunks_and_marks_bold() -> None:
+    rich_text = uploader._notion_rich_text(f"{'x' * 2001} **bold** tail")
+
+    assert [part["text"]["content"] for part in rich_text] == [
+        "x" * 2000,
+        "x ",
+        "bold",
+        " tail",
+    ]
+    assert rich_text[2]["annotations"]["bold"] is True
+
+
+def test_markdown_line_to_notion_block_classifies_lines() -> None:
+    assert uploader._markdown_line_to_notion_block("### Detail")["type"] == "heading_3"
+    assert uploader._markdown_line_to_notion_block("* bullet")["type"] == "bulleted_list_item"
+    assert uploader._markdown_line_to_notion_block("2. step")["type"] == "numbered_list_item"
+    assert uploader._markdown_line_to_notion_block("***")["type"] == "divider"
+    assert uploader._markdown_line_to_notion_block("") == {
+        "object": "block",
+        "type": "paragraph",
+        "paragraph": {"rich_text": []},
+    }
+
+
 def test_chunk_blocks_splits_at_hundred() -> None:
     blocks = [{"type": "paragraph"}] * 205
 

@@ -161,6 +161,55 @@ def test_rotate_appends_to_existing_archive(tmp_path):
     assert "second archive" in archive_text
 
 
+def test_rotate_prepares_session_log_temp_before_replacing_archive(tmp_path):
+    _write_session_log(
+        tmp_path,
+        [_row("2026-05-08", summary="keep"), _row("2026-04-15", summary="would archive")],
+    )
+    session_log = tmp_path / ".ai" / "SESSION_LOG.md"
+    original_session_log = session_log.read_text(encoding="utf-8")
+    archive = tmp_path / ".ai" / "archive" / "SESSION_LOG_before_2026-05-01.md"
+    archive.parent.mkdir(parents=True, exist_ok=True)
+    archive.write_text("existing archive\n", encoding="utf-8")
+    original_archive = archive.read_text(encoding="utf-8")
+    session_log_tmp = session_log.with_name(f"{session_log.name}.tmp")
+    session_log_tmp.mkdir()
+
+    result = rotator.rotate(tmp_path, keep_days=7, today=date(2026, 5, 8))
+
+    assert result["status"] == "write_failed"
+    assert result["archived_table_rows"] == 1
+    assert result["write_error_path"].endswith("SESSION_LOG.md.tmp")
+    assert session_log.read_text(encoding="utf-8") == original_session_log
+    assert archive.read_text(encoding="utf-8") == original_archive
+
+
+def test_cli_write_failed_returns_exit_4(tmp_path, capsys):
+    _write_session_log(
+        tmp_path,
+        [_row("2026-05-08", summary="keep"), _row("2026-04-15", summary="would archive")],
+    )
+    session_log = tmp_path / ".ai" / "SESSION_LOG.md"
+    session_log.with_name(f"{session_log.name}.tmp").mkdir()
+
+    code = rotator.main(
+        [
+            "--repo-root",
+            str(tmp_path),
+            "--keep-days",
+            "7",
+            "--today",
+            "2026-05-08",
+            "--json",
+        ]
+    )
+
+    stdout = capsys.readouterr().out
+    assert code == 4
+    assert '"status": "write_failed"' in stdout
+    assert "SESSION_LOG.md.tmp" in stdout
+
+
 @pytest.mark.parametrize("keep_days,expected_archived", [(0, 3), (7, 2), (60, 0)])
 def test_keep_days_parameter(tmp_path, keep_days, expected_archived):
     _write_session_log(

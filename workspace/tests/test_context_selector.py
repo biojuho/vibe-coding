@@ -10,7 +10,7 @@ WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
 if str(WORKSPACE_ROOT) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_ROOT))
 
-from execution.context_selector import ContextSelector, ContextProfile  # noqa: E402
+from execution.context_selector import ContextProfile, ContextSelector  # noqa: E402
 from execution.repo_map import RepoMapBuilder, RepoMapEntry  # noqa: E402
 
 

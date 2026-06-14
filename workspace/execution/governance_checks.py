@@ -65,6 +65,38 @@ def _check_result(name: str, status: str, detail: str = "", **extra: object) -> 
     return result
 
 
+def _index_table_state(line: str) -> tuple[bool, bool] | None:
+    if line.startswith("|") and "Directive" in line and "Execution Script" in line:
+        return True, False
+    if line.startswith("|") and re.match(r"\|\s*Script\s*\|", line):
+        return False, True
+    if "SOP → Execution" in line:
+        return True, False
+    if "매핑 없는 Execution" in line:
+        return False, True
+    if line.startswith("---"):
+        return False, False
+    return None
+
+
+def _index_row_cells(line: str) -> list[str] | None:
+    if not line.startswith("|") or line.startswith("|--"):
+        return None
+
+    cells = [cell.strip() for cell in line.split("|")[1:-1]]
+    if len(cells) < 2:
+        return None
+    return cells
+
+
+def _index_script_names(scripts_raw: str) -> list[str]:
+    return [
+        re.sub(r"`", "", script).strip()
+        for script in re.split(r"[,;→]", scripts_raw)
+        if re.sub(r"`", "", script).strip().endswith(".py")
+    ]
+
+
 def parse_index(index_path: Path = INDEX_FILE) -> tuple[dict[str, list[str]], dict[str, str]]:
     """Parse directives/INDEX.md into mapped SOPs and explicitly-unmapped scripts."""
     text = index_path.read_text(encoding="utf-8")
@@ -77,44 +109,18 @@ def parse_index(index_path: Path = INDEX_FILE) -> tuple[dict[str, list[str]], di
     for line in text.splitlines():
         line = line.strip()
 
-        if line.startswith("|") and "Directive" in line and "Execution Script" in line:
-            in_sop_table = True
-            in_unmapped_table = False
-            continue
-        if line.startswith("|") and re.match(r"\|\s*Script\s*\|", line):
-            in_sop_table = False
-            in_unmapped_table = True
+        state = _index_table_state(line)
+        if state is not None:
+            in_sop_table, in_unmapped_table = state
             continue
 
-        if "SOP → Execution" in line:
-            in_sop_table = True
-            in_unmapped_table = False
-            continue
-        if "매핑 없는 Execution" in line:
-            in_sop_table = False
-            in_unmapped_table = True
-            continue
-        if line.startswith("---"):
-            in_sop_table = False
-            in_unmapped_table = False
-            continue
-
-        if not line.startswith("|") or line.startswith("|--"):
-            continue
-
-        cells = [c.strip() for c in line.split("|")[1:-1]]
-        if len(cells) < 2:
+        cells = _index_row_cells(line)
+        if cells is None:
             continue
 
         if in_sop_table and cells[0] and not cells[0].startswith("Directive"):
             sop_name = cells[0]
-            scripts_raw = cells[1]
-            scripts = [
-                re.sub(r"`", "", s).strip()
-                for s in re.split(r"[,;→]", scripts_raw)
-                if re.sub(r"`", "", s).strip().endswith(".py")
-            ]
-            sop_map[sop_name] = scripts
+            sop_map[sop_name] = _index_script_names(cells[1])
 
         if in_unmapped_table and cells[0] and not cells[0].startswith("Script"):
             unmapped[cells[0]] = cells[1] if len(cells) > 1 else ""
@@ -199,6 +205,81 @@ def audit_relay_claim_consistency(
     )
 
 
+def _directive_mapping_repo_root(root: Path) -> Path:
+    return root.parent if root.name == "workspace" else root
+
+
+def _missing_sop_issues(sop_map: dict[str, list[str]], directives_dir: Path) -> list[str]:
+    return [
+        f"[SOP MISSING] {sop} listed in INDEX but not found" for sop in sop_map if not (directives_dir / sop).exists()
+    ]
+
+
+def _mapped_script_candidates(script: str, *, execution_dir: Path, root: Path, repo_root: Path) -> list[Path]:
+    return [
+        execution_dir / script,
+        root / script,
+        repo_root / script,
+        repo_root / "execution" / script,
+    ]
+
+
+def _mapped_script_issues(
+    sop_map: dict[str, list[str]], *, execution_dir: Path, root: Path, repo_root: Path
+) -> tuple[set[str], list[str]]:
+    all_mapped_scripts: set[str] = set()
+    issues: list[str] = []
+
+    for sop, scripts in sop_map.items():
+        for script in scripts:
+            all_mapped_scripts.add(script)
+            candidates = _mapped_script_candidates(script, execution_dir=execution_dir, root=root, repo_root=repo_root)
+            if not any(candidate.exists() for candidate in candidates):
+                issues.append(f"[SCRIPT MISSING] {script} (mapped by {sop})")
+
+    return all_mapped_scripts, issues
+
+
+def _unmapped_script_issues(unmapped: dict[str, str], execution_dir: Path) -> tuple[set[str], list[str]]:
+    issues = [
+        f"[UNMAPPED MISSING] {script} listed as unmapped but not found"
+        for script in unmapped
+        if not (execution_dir / script).exists()
+    ]
+    return set(unmapped), issues
+
+
+def _actual_execution_scripts(execution_dir: Path) -> set[str]:
+    return {path.name for path in execution_dir.glob("*.py") if not path.name.startswith("__")}
+
+
+def _actual_directive_sops(directives_dir: Path) -> set[str]:
+    return {
+        path.name for path in directives_dir.glob("*.md") if path.name != "INDEX.md" and not path.name.startswith("_")
+    }
+
+
+def _orphan_script_issues(actual_scripts: set[str], all_mapped_scripts: set[str]) -> list[str]:
+    return [
+        f"[ORPHAN] {orphan} exists in execution/ but not in INDEX.md"
+        for orphan in sorted(actual_scripts - all_mapped_scripts)
+    ]
+
+
+def _orphan_sop_issues(actual_sops: set[str], mapped_sops: set[str]) -> list[str]:
+    return [
+        f"[ORPHAN SOP] {orphan} exists in directives/ but not in INDEX.md"
+        for orphan in sorted(actual_sops - mapped_sops)
+    ]
+
+
+def _directive_mapping_detail_status(sop_count: int, unmapped_count: int, issue_count: int) -> tuple[str, str]:
+    detail = f"Checked {sop_count} SOP mappings, {unmapped_count} unmapped scripts"
+    if issue_count:
+        return f"{detail}; found {issue_count} issue(s)", STATUS_FAIL
+    return f"{detail}; no mapping drift detected", STATUS_OK
+
+
 def audit_directive_mapping(
     *,
     index_path: Path = INDEX_FILE,
@@ -207,49 +288,26 @@ def audit_directive_mapping(
     root: Path = WORKSPACE_ROOT,
 ) -> dict[str, object]:
     sop_map, unmapped = parse_index(index_path=index_path)
-    issues: list[str] = []
-    repo_root = root.parent
+    repo_root = _directive_mapping_repo_root(root)
 
-    for sop in sop_map:
-        if not (directives_dir / sop).exists():
-            issues.append(f"[SOP MISSING] {sop} listed in INDEX but not found")
+    issues = _missing_sop_issues(sop_map, directives_dir)
+    mapped_scripts, mapped_issues = _mapped_script_issues(
+        sop_map,
+        execution_dir=execution_dir,
+        root=root,
+        repo_root=repo_root,
+    )
+    unmapped_scripts, unmapped_issues = _unmapped_script_issues(unmapped, execution_dir)
+    issues.extend(mapped_issues)
+    issues.extend(unmapped_issues)
 
-    all_mapped_scripts: set[str] = set()
-    repo_root = root.parent if root.name == "workspace" else root
-    for sop, scripts in sop_map.items():
-        for script in scripts:
-            all_mapped_scripts.add(script)
-            candidates = [
-                execution_dir / script,
-                root / script,
-                repo_root / script,
-                repo_root / "execution" / script,
-            ]
-            if not any(candidate.exists() for candidate in candidates):
-                issues.append(f"[SCRIPT MISSING] {script} (mapped by {sop})")
+    all_mapped_scripts = mapped_scripts | unmapped_scripts
+    actual_scripts = _actual_execution_scripts(execution_dir)
+    actual_sops = _actual_directive_sops(directives_dir)
+    issues.extend(_orphan_script_issues(actual_scripts, all_mapped_scripts))
+    issues.extend(_orphan_sop_issues(actual_sops, set(sop_map.keys())))
 
-    for script in unmapped:
-        all_mapped_scripts.add(script)
-        if not (execution_dir / script).exists():
-            issues.append(f"[UNMAPPED MISSING] {script} listed as unmapped but not found")
-
-    actual_scripts = {path.name for path in execution_dir.glob("*.py") if not path.name.startswith("__")}
-    for orphan in sorted(actual_scripts - all_mapped_scripts):
-        issues.append(f"[ORPHAN] {orphan} exists in execution/ but not in INDEX.md")
-
-    actual_sops = {
-        path.name for path in directives_dir.glob("*.md") if path.name != "INDEX.md" and not path.name.startswith("_")
-    }
-    for orphan in sorted(actual_sops - set(sop_map.keys())):
-        issues.append(f"[ORPHAN SOP] {orphan} exists in directives/ but not in INDEX.md")
-
-    detail = f"Checked {len(sop_map)} SOP mappings, {len(unmapped)} unmapped scripts"
-    if issues:
-        detail += f"; found {len(issues)} issue(s)"
-        status = STATUS_FAIL
-    else:
-        detail += "; no mapping drift detected"
-        status = STATUS_OK
+    detail, status = _directive_mapping_detail_status(len(sop_map), len(unmapped), len(issues))
 
     return _check_result(
         "directive_mapping",

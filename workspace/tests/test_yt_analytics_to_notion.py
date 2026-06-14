@@ -12,10 +12,12 @@ from execution.yt_analytics_to_notion import (
     _get_uploaded_pages,
     _notion_headers,
     _notion_request,
+    _page_video_info,
     _update_notion_page,
+    _update_pages_from_stats,
+    _youtube_video_id_from_url,
     run,
 )
-
 
 # ── _notion_headers 테스트 ────────────────────────────────────
 
@@ -111,6 +113,42 @@ class TestUpdateNotionPage:
 
         result = _update_notion_page("page-123", {"views": 0, "likes": 0, "comments": 0})
         assert result is False
+
+
+class TestVideoInfoHelpers:
+    def test_youtube_video_id_from_url_variants(self):
+        assert _youtube_video_id_from_url("https://youtu.be/abc123?t=1") == "abc123"
+        assert _youtube_video_id_from_url("https://youtube.com/watch?v=watch_id&x=1") == "watch_id"
+        assert _youtube_video_id_from_url("https://youtube.com/shorts/short_id?feature=share") == "short_id"
+        assert _youtube_video_id_from_url("https://example.com/no-video") == ""
+
+    def test_page_video_info_prefers_existing_video_id(self):
+        page = {
+            "id": "page-1",
+            "properties": {
+                "유튜브 URL": {"url": "https://youtu.be/url_id"},
+                "YouTube Video ID": {"rich_text": [{"plain_text": "existing_id"}]},
+            },
+        }
+
+        assert _page_video_info(page) == {"page_id": "page-1", "video_id": "existing_id"}
+
+    @patch("execution.yt_analytics_to_notion._update_notion_page")
+    def test_update_pages_from_stats_counts_missing_and_failed_updates(self, mock_update):
+        mock_update.side_effect = [True, False]
+        page_info = [
+            {"page_id": "page-1", "video_id": "vid-1"},
+            {"page_id": "page-2", "video_id": "vid-2"},
+            {"page_id": "page-3", "video_id": "missing"},
+        ]
+        stats_map = {
+            "vid-1": {"views": 10, "likes": 1, "comments": 0},
+            "vid-2": {"views": 20, "likes": 2, "comments": 1},
+        }
+
+        result = _update_pages_from_stats(page_info, stats_map)
+
+        assert result == {"updated": 1, "skipped": 1, "errors": ["page=page-2 vid=vid-2"]}
 
 
 # ── _get_uploaded_pages 테스트 ────────────────────────────────

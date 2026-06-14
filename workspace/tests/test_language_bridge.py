@@ -109,7 +109,7 @@ def test_bridge_policy_as_dict() -> None:
 
 
 def test_build_repair_messages_non_json_mode() -> None:
-    from execution.language_bridge import build_repair_messages, BridgeValidationResult
+    from execution.language_bridge import BridgeValidationResult, build_repair_messages
 
     validation = BridgeValidationResult(
         passed=False,

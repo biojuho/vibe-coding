@@ -20,7 +20,6 @@ from execution.harness_middleware import (
     SessionBudget,
 )
 
-
 # ── SessionBudget ────────────────────────────────────────────────
 
 

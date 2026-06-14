@@ -17,15 +17,15 @@ import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
+
 from execution.language_bridge import ensure_utf8_stdio
 
 WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
 if str(WORKSPACE_ROOT) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_ROOT))
 
-from path_contract import REPO_ROOT, resolve_project_dir
-
 import execution._logging  # noqa: F401 — loguru 설정 활성화
+from path_contract import REPO_ROOT, resolve_project_dir
 
 logger = logging.getLogger(__name__)
 _ROOT = REPO_ROOT
@@ -152,6 +152,57 @@ JSON 형식: {{"topics": [...]}}"""
     return topics
 
 
+def _pending_topics(items: list[dict]) -> list[dict]:
+    return [item for item in items if item["status"] == "pending"]
+
+
+def _has_enough_pending(items: list[dict], threshold: int) -> bool:
+    return len(_pending_topics(items)) > threshold
+
+
+def _channel_trending_keywords() -> list[str]:
+    trending = get_trending_topics(count=10)
+    if _COMMUNITY_TRENDS_OK:
+        try:
+            community = get_community_trend_titles(limit=5)
+            if community:
+                logger.debug("[COMMUNITY] %s", ", ".join(community[:3]))
+                trending = trending + community
+        except Exception:
+            logger.warning("커뮤니티 트렌드 수집 실패 (무시)")
+    if trending:
+        logger.debug("[TREND] %s", ", ".join(trending[:5]))
+    return trending
+
+
+def _generate_channel_topics(channel: str, items: list[dict], count: int) -> list[str]:
+    existing = [item["topic"] for item in items]
+    top_performers = get_top_performing_topics(limit=10, channel=channel)
+    return generate_topics(
+        channel,
+        existing,
+        count=count,
+        top_performers=top_performers,
+        trending_keywords=_channel_trending_keywords(),
+    )
+
+
+def _record_channel_topics(
+    result: dict[str, list[str]],
+    channel: str,
+    topics: list[str],
+    *,
+    dry_run: bool,
+) -> None:
+    result[channel] = topics
+    for topic in topics:
+        if dry_run:
+            logger.info("  [DRY] %s", topic)
+        else:
+            add_topic(topic, channel=channel, notes="auto-generated")
+            logger.info("  [ADD] %s", topic)
+
+
 def check_and_replenish(
     threshold: int = THRESHOLD,
     count: int = GEN_COUNT,
@@ -166,44 +217,19 @@ def check_and_replenish(
 
     for ch in channels:
         items = get_all(channel=ch)
-        pending = [i for i in items if i["status"] == "pending"]
 
-        if len(pending) > threshold:
+        if _has_enough_pending(items, threshold):
             continue
 
+        pending = _pending_topics(items)
         logger.info("[%s] pending %d개 <= %d -> 보충 시작", ch, len(pending), threshold)
-        existing = [i["topic"] for i in items]
-        top_performers = get_top_performing_topics(limit=10, channel=ch)
-        trending = get_trending_topics(count=10)
-        if _COMMUNITY_TRENDS_OK:
-            try:
-                community = get_community_trend_titles(limit=5)
-                if community:
-                    logger.debug("[COMMUNITY] %s", ", ".join(community[:3]))
-                    trending = trending + community
-            except Exception:
-                logger.warning("커뮤니티 트렌드 수집 실패 (무시)")
-        if trending:
-            logger.debug("[TREND] %s", ", ".join(trending[:5]))
-        new_topics = generate_topics(
-            ch,
-            existing,
-            count=count,
-            top_performers=top_performers,
-            trending_keywords=trending,
-        )
+        new_topics = _generate_channel_topics(ch, items, count)
 
         if not new_topics:
             logger.warning("[%s] 생성 실패 또는 결과 없음", ch)
             continue
 
-        result[ch] = new_topics
-        for topic in new_topics:
-            if dry_run:
-                logger.info("  [DRY] %s", topic)
-            else:
-                add_topic(topic, channel=ch, notes="auto-generated")
-                logger.info("  [ADD] %s", topic)
+        _record_channel_topics(result, ch, new_topics, dry_run=dry_run)
 
     return result
 

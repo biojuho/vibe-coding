@@ -10,13 +10,14 @@ WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
 if str(WORKSPACE_ROOT) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_ROOT))
 
-from path_contract import resolve_project_dir
-
 import streamlit as st
+
+from path_contract import resolve_project_dir
 
 try:
     import plotly.express as px
     import plotly.graph_objects as go
+
     from execution.api_usage_tracker import (
         MONTHLY_BUDGET_USD,
         get_daily_breakdown,

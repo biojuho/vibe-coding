@@ -24,14 +24,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, Dict, Optional
 
-from execution._ci_models import (
-    DEFAULT_EXCLUDES,
-    SEVERITY_ORDER,
-    AnalysisReport,
-    FileReport,
-    detect_language,
-)
-from execution._ci_utils import read_file_safe, should_skip
 from execution._ci_analyzers import (
     BaseAnalyzer,
     CAnalyzer,
@@ -40,16 +32,22 @@ from execution._ci_analyzers import (
     JSAnalyzer,
     PythonAnalyzer,
 )
-from execution._ci_report import ReportGenerator
 
 # ---------------------------------------------------------------------------
 # Public re-exports (backward-compat for existing importers)
 # ---------------------------------------------------------------------------
 # 기존 코드가 code_improver 에서 직접 임포트하는 심볼을 유지합니다.
 from execution._ci_models import (  # noqa: F401
-    Issue,
+    DEFAULT_EXCLUDES,
+    SEVERITY_ORDER,
+    AnalysisReport,
     FileMetrics,
+    FileReport,
+    Issue,
+    detect_language,
 )
+from execution._ci_report import ReportGenerator
+from execution._ci_utils import read_file_safe, should_skip
 
 # ---------------------------------------------------------------------------
 # Analyzer registry

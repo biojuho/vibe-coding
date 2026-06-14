@@ -20,7 +20,7 @@ from typing_extensions import TypedDict
 
 try:
     from langgraph.checkpoint.memory import MemorySaver
-    from langgraph.constants import Send
+    from langgraph.types import Send
     from langgraph.graph import END, START, StateGraph
 
     LANGGRAPH_AVAILABLE = True
@@ -107,50 +107,67 @@ class _FallbackCompiledGraph:
         self.owner = owner
 
     def invoke(self, initial_state: dict[str, Any], config: dict[str, Any] | None = None) -> dict[str, Any]:
+        state = self._prepare_initial_state(initial_state)
+        state.update(self.owner.supervisor_node(state))
+
+        while True:
+            self._run_worker_iteration(state)
+            if state.get("next_worker") == "prepare_variants":
+                continue
+
+            state.update(self.owner.evaluator_node(state))
+            if self.owner.route_after_evaluator(state) == "output":
+                state.update(self.owner.output_node(state))
+                return state
+
+    def _prepare_initial_state(self, initial_state: dict[str, Any]) -> dict[str, Any]:
         state = dict(initial_state)
         state.setdefault("results", [])
         state.setdefault("variant_results", [])
         state.setdefault("errors", [])
         state.setdefault("reflection_notes", "")
         state.setdefault("evaluator_summary", "")
+        return state
 
-        state.update(self.owner.supervisor_node(state))
+    @staticmethod
+    def _append_patch_items(state: dict[str, Any], patch: dict[str, Any], key: str) -> None:
+        if patch.get(key):
+            state[key] = state.get(key, []) + patch[key]
 
-        while True:
-            state.update(self.owner.prepare_variants_node(state))
+    def _run_worker_iteration(self, state: dict[str, Any]) -> None:
+        state.update(self.owner.prepare_variants_node(state))
+        self._run_variant_coders(state)
+        self._run_reducer(state)
+        self._run_tester(state)
+        if state["next_worker"] == "debugger":
+            self._run_debugger(state)
+            return
+        self._run_reviewer(state)
 
-            for task_variant in state.get("variant_tasks", []):
-                patch = self.owner.variant_coder_node({"task_variant": task_variant})
-                if patch.get("variant_results"):
-                    state["variant_results"] = state.get("variant_results", []) + patch["variant_results"]
-                if patch.get("errors"):
-                    state["errors"] = state.get("errors", []) + patch["errors"]
+    def _run_variant_coders(self, state: dict[str, Any]) -> None:
+        for task_variant in state.get("variant_tasks", []):
+            patch = self.owner.variant_coder_node({"task_variant": task_variant})
+            self._append_patch_items(state, patch, "variant_results")
+            self._append_patch_items(state, patch, "errors")
 
-            reduce_patch = self.owner.reduce_variants_node(state)
-            if reduce_patch.get("results"):
-                state["results"] = state.get("results", []) + reduce_patch["results"]
-            state["next_worker"] = reduce_patch.get("next_worker", state.get("next_worker", "tester"))
+    def _run_reducer(self, state: dict[str, Any]) -> None:
+        reduce_patch = self.owner.reduce_variants_node(state)
+        self._append_patch_items(state, reduce_patch, "results")
+        state["next_worker"] = reduce_patch.get("next_worker", state.get("next_worker", "tester"))
 
-            tester_patch = self.owner.tester_node(state)
-            if tester_patch.get("results"):
-                state["results"] = state.get("results", []) + tester_patch["results"]
-            state["next_worker"] = tester_patch.get("next_worker", state.get("next_worker", "reviewer"))
+    def _run_tester(self, state: dict[str, Any]) -> None:
+        tester_patch = self.owner.tester_node(state)
+        self._append_patch_items(state, tester_patch, "results")
+        state["next_worker"] = tester_patch.get("next_worker", state.get("next_worker", "reviewer"))
 
-            if state["next_worker"] == "debugger":
-                debugger_patch = self.owner.debugger_node(state)
-                if debugger_patch.get("results"):
-                    state["results"] = state.get("results", []) + debugger_patch["results"]
-                state["next_worker"] = debugger_patch.get("next_worker", "prepare_variants")
-                continue
+    def _run_debugger(self, state: dict[str, Any]) -> None:
+        debugger_patch = self.owner.debugger_node(state)
+        self._append_patch_items(state, debugger_patch, "results")
+        state["next_worker"] = debugger_patch.get("next_worker", "prepare_variants")
 
-            reviewer_patch = self.owner.reviewer_node(state)
-            if reviewer_patch.get("results"):
-                state["results"] = state.get("results", []) + reviewer_patch["results"]
-
-            state.update(self.owner.evaluator_node(state))
-            if self.owner.route_after_evaluator(state) == "output":
-                state.update(self.owner.output_node(state))
-                return state
+    def _run_reviewer(self, state: dict[str, Any]) -> None:
+        reviewer_patch = self.owner.reviewer_node(state)
+        self._append_patch_items(state, reviewer_patch, "results")
 
 
 class VibeCodingGraph:

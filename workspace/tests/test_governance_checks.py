@@ -24,6 +24,81 @@ def _index_text(rows: list[str]) -> str:
     )
 
 
+def test_index_table_state_detects_sections_and_reset() -> None:
+    assert gc._index_table_state("| Directive | Execution Script(s) | Notes |") == (True, False)
+    assert gc._index_table_state("| Script | Type | Purpose |") == (False, True)
+    assert gc._index_table_state("## SOP → Execution Mapping") == (True, False)
+    assert gc._index_table_state("## 매핑 없는 Execution Scripts") == (False, True)
+    assert gc._index_table_state("---") == (False, False)
+    assert gc._index_table_state("plain text") is None
+
+
+def test_index_row_cells_ignores_non_data_rows() -> None:
+    assert gc._index_row_cells("not a table") is None
+    assert gc._index_row_cells("|--------|------|") is None
+    assert gc._index_row_cells("| a | b |") == ["a", "b"]
+
+
+def test_index_script_names_keeps_python_scripts_only() -> None:
+    scripts = gc._index_script_names("`one.py`, docs.md; two.py → nested/three.py")
+
+    assert scripts == ["one.py", "two.py", "nested/three.py"]
+
+
+def test_mapped_script_candidates_include_workspace_and_repo_roots(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    workspace_root = repo_root / "workspace"
+    execution_dir = workspace_root / "execution"
+
+    candidates = gc._mapped_script_candidates(
+        "tool.py",
+        execution_dir=execution_dir,
+        root=workspace_root,
+        repo_root=repo_root,
+    )
+
+    assert candidates == [
+        execution_dir / "tool.py",
+        workspace_root / "tool.py",
+        repo_root / "tool.py",
+        repo_root / "execution" / "tool.py",
+    ]
+
+
+def test_mapped_and_unmapped_script_issues_report_missing_files(tmp_path: Path) -> None:
+    workspace_root = tmp_path / "workspace"
+    execution_dir = workspace_root / "execution"
+    execution_dir.mkdir(parents=True)
+    (execution_dir / "present.py").write_text("print('ok')\n", encoding="utf-8")
+
+    mapped_scripts, mapped_issues = gc._mapped_script_issues(
+        {"present.md": ["present.py"], "missing.md": ["missing.py"]},
+        execution_dir=execution_dir,
+        root=workspace_root,
+        repo_root=tmp_path,
+    )
+    unmapped_scripts, unmapped_issues = gc._unmapped_script_issues(
+        {"present.py": "utility", "missing_unmapped.py": "utility"},
+        execution_dir,
+    )
+
+    assert mapped_scripts == {"present.py", "missing.py"}
+    assert mapped_issues == ["[SCRIPT MISSING] missing.py (mapped by missing.md)"]
+    assert unmapped_scripts == {"present.py", "missing_unmapped.py"}
+    assert unmapped_issues == ["[UNMAPPED MISSING] missing_unmapped.py listed as unmapped but not found"]
+
+
+def test_directive_mapping_detail_status() -> None:
+    assert gc._directive_mapping_detail_status(2, 1, 0) == (
+        "Checked 2 SOP mappings, 1 unmapped scripts; no mapping drift detected",
+        gc.STATUS_OK,
+    )
+    assert gc._directive_mapping_detail_status(2, 1, 3) == (
+        "Checked 2 SOP mappings, 1 unmapped scripts; found 3 issue(s)",
+        gc.STATUS_FAIL,
+    )
+
+
 def test_audit_directive_mapping_detects_orphan_script(tmp_path: Path) -> None:
     directives_dir = tmp_path / "directives"
     execution_dir = tmp_path / "execution"

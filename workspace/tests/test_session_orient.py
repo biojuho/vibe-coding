@@ -45,6 +45,28 @@ def _write_handoff(tmp_path: Path, dates: list[str], extra_sections: str = "") -
     (ai / "HANDOFF.md").write_text(body, encoding="utf-8")
 
 
+def test_current_addendum_dates_stops_at_next_handoff_section():
+    lines = [
+        "# HANDOFF - AI Context Relay",
+        "",
+        "## Current Addendum",
+        "| Date | 2026-05-12 |",
+        "## Latest Update",
+        "| Date | 2024-01-01 |",
+    ]
+
+    assert orient._current_addendum_dates(lines) == [date(2026, 5, 12)]
+
+
+def test_handoff_rotation_fields_preserves_empty_date_shape():
+    fields = orient._handoff_rotation_fields([], today=date(2026, 5, 12))
+
+    assert fields == {
+        "archivable_addendum_count": 0,
+        "rotation_suggested": False,
+    }
+
+
 def test_handoff_snapshot_counts_addenda(tmp_path):
     _write_handoff(tmp_path, ["2026-05-08", "2026-05-01", "2026-04-15"])
     snap = orient.handoff_snapshot(tmp_path, today=date(2026, 5, 12))
@@ -134,6 +156,98 @@ def test_handoff_snapshot_only_checks_latest_head_claim(tmp_path):
     assert snap["latest_head_claims"] == []
     assert snap["stale_head_claims"] == []
     assert snap["head_claim_status"] == "none"
+
+
+def test_handoff_snapshot_flags_out_of_order_task_id_addendum(tmp_path):
+    ai = tmp_path / ".ai"
+    ai.mkdir(parents=True)
+    (ai / "HANDOFF.md").write_text(
+        "# HANDOFF - AI Context Relay\n\n"
+        "## Current Addendum\n\n"
+        "| Field | Value |\n"
+        "|---|---|\n"
+        "| Date | 2026-05-12 |\n"
+        "| Tool | Test |\n"
+        "| Work | **T-2509 older experiment**. |\n"
+        "| Next Priorities | continue T-2509 |\n\n"
+        "| Field | Value |\n"
+        "|---|---|\n"
+        "| Date | 2026-05-12 |\n"
+        "| Tool | Test |\n"
+        "| Work | **T-2510 newer experiment**. |\n"
+        "| Next Priorities | continue T-2510 |\n",
+        encoding="utf-8",
+    )
+
+    snap = orient.handoff_snapshot(tmp_path, today=date(2026, 5, 12), current_head="def5678")
+
+    assert snap["latest_next_priorities"] == "continue T-2509"
+    assert snap["effective_latest_task_id"] == "T-2510"
+    assert snap["effective_latest_next_priorities"] == "continue T-2510"
+    assert snap["latest_next_priority_status"] == "out_of_order"
+    assert snap["latest_addendum_order_status"] == "out_of_order"
+    assert snap["latest_addendum_order_issue"] == {
+        "first_task_id": "T-2509",
+        "newer_task_id": "T-2510",
+        "reason": "Current Addendum first block is T-2509, but a later block mentions T-2510.",
+    }
+
+
+def test_handoff_snapshot_ignores_future_task_id_in_next_priorities(tmp_path):
+    ai = tmp_path / ".ai"
+    ai.mkdir(parents=True)
+    (ai / "HANDOFF.md").write_text(
+        "# HANDOFF - AI Context Relay\n\n"
+        "## Current Addendum\n\n"
+        "| Field | Value |\n"
+        "|---|---|\n"
+        "| Date | 2026-05-12 |\n"
+        "| Tool | Test |\n"
+        "| Work | **T-2542 prompt checklist next A/B id advisory**. |\n"
+        "| Next Priorities | Checklist suggests next A/B task id T-2543 for a future experiment. |\n\n"
+        "| Field | Value |\n"
+        "|---|---|\n"
+        "| Date | 2026-05-12 |\n"
+        "| Tool | Test |\n"
+        "| Work | **T-2541 previous verification rerun**. |\n"
+        "| Next Priorities | Older note mentions T-9999 as unrelated future text. |\n",
+        encoding="utf-8",
+    )
+
+    snap = orient.handoff_snapshot(tmp_path, today=date(2026, 5, 12), current_head="def5678")
+
+    assert snap["effective_latest_task_id"] == "T-2542"
+    assert snap["latest_addendum_order_status"] == "ok"
+    assert snap["latest_addendum_order_issue"] is None
+
+
+def test_handoff_snapshot_prefers_primary_work_task_id_over_related_mentions(tmp_path):
+    ai = tmp_path / ".ai"
+    ai.mkdir(parents=True)
+    (ai / "HANDOFF.md").write_text(
+        "# HANDOFF - AI Context Relay\n\n"
+        "## Current Addendum\n\n"
+        "| Field | Value |\n"
+        "|---|---|\n"
+        "| Date | 2026-05-12 |\n"
+        "| Tool | Test |\n"
+        "| Work | **T-2544 approval matrix token pathspec visibility**. "
+        "Continued after concurrent T-2543/T-2545 session-orient A/B artifacts. |\n"
+        "| Next Priorities | continue |\n\n"
+        "| Field | Value |\n"
+        "|---|---|\n"
+        "| Date | 2026-05-12 |\n"
+        "| Tool | Test |\n"
+        "| Work | **T-2542 prompt checklist next A/B id advisory**. |\n"
+        "| Next Priorities | continue |\n",
+        encoding="utf-8",
+    )
+
+    snap = orient.handoff_snapshot(tmp_path, today=date(2026, 5, 12), current_head="def5678")
+
+    assert snap["effective_latest_task_id"] == "T-2544"
+    assert snap["latest_addendum_order_status"] == "ok"
+    assert snap["latest_addendum_order_issue"] is None
 
 
 def test_handoff_snapshot_flags_stale_closeout_next_priority_when_clean_synced(tmp_path):
@@ -440,6 +554,37 @@ def test_render_handoff_section_surfaces_stale_next_priority():
     )
 
     assert any("stale latest next priority: git clean/synced" in line for line in lines)
+
+
+def test_rich_worktree_details_preserve_status_markup():
+    details = orient._rich_worktree_details({"staged": 1, "modified": 2, "untracked": 3, "unmerged": 4})
+
+    assert details == [
+        "[bold green]Staged: 1[/]",
+        "[bold yellow]Modified: 2[/]",
+        "[bold cyan]Untracked: 3[/]",
+        "[bold red]Unmerged: 4[/]",
+    ]
+    assert orient._rich_worktree_details({}) == []
+
+
+def test_rich_diagnostic_text_helpers_preserve_fallbacks():
+    assert orient._rich_workspace_db_text({"available": False}) == "[bold red]Database Unavailable[/]"
+    assert (
+        orient._rich_workspace_db_text(
+            {"available": True, "table_count": 2, "index_count": 3, "missing_recommended": ["idx"]}
+        )
+        == "Tables: 2, Indexes: 3 [bold red](missing 1 indexes!)[/]"
+    )
+
+    assert orient._rich_graph_text({"available": False}) == "[bold red]Graph Status Unavailable[/]"
+    assert "Freshness:[/] current HEAD" in orient._rich_graph_text(
+        {"available": True, "nodes": "1", "edges": "2", "files": "3", "freshness": "current"}
+    )
+    assert orient._rich_ci_lines({"available": False, "reason": "no gh"}) == [
+        "[dim red]CI stats unavailable (no gh)[/]"
+    ]
+    assert orient._rich_ci_lines({"available": True, "recent_runs": []}) == ["[dim]No recent runs on this branch[/]"]
 
 
 def test_required_release_checks_green_for_current_head():

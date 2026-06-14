@@ -9,7 +9,6 @@ from pathlib import Path
 
 import pytest
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_PATH = REPO_ROOT / ".agents" / "skills" / "auto-research" / "scripts" / "ab_decision.py"
 
@@ -46,6 +45,35 @@ def test_load_json_accepts_utf8_bom_manifest(tmp_path: Path) -> None:
     assert result["failed_gates"] == []
 
 
+def test_load_json_accepts_powershell_utf16_manifest(tmp_path: Path) -> None:
+    path = tmp_path / "ab-manifest.json"
+    path.write_text(json.dumps(_manifest()), encoding="utf-16")
+
+    result = ab_decision.decide(ab_decision._load_json(path))
+
+    assert result["decision"] == "adopt_candidate"
+    assert result["failed_gates"] == []
+
+
+def test_load_json_reports_unreadable_manifest(tmp_path: Path, monkeypatch) -> None:
+    path = tmp_path / "ab-manifest.json"
+    path.write_text(json.dumps(_manifest()), encoding="utf-8")
+    original_read_bytes = ab_decision.Path.read_bytes
+
+    def fake_read_bytes(read_path: Path, *args, **kwargs):
+        if read_path == path:
+            raise OSError("locked")
+        return original_read_bytes(read_path, *args, **kwargs)
+
+    monkeypatch.setattr(ab_decision.Path, "read_bytes", fake_read_bytes)
+
+    with pytest.raises(SystemExit) as excinfo:
+        ab_decision._load_json(path)
+
+    assert str(excinfo.value).startswith(f"manifest unreadable: {path}:")
+    assert "locked" in str(excinfo.value)
+
+
 def test_metric_score_handles_direction_weights_and_zero_weight_warning() -> None:
     contributions, score_delta, warnings = ab_decision._metric_score(
         {"cost": 8.0, "noise": 5.0, "quality": 10.0},
@@ -77,3 +105,54 @@ def test_decision_reason_prioritizes_failed_gate_over_positive_score() -> None:
 
     assert decision == "reject_candidate"
     assert reason == "candidate failed required gates"
+
+
+def test_cli_writes_ascii_json_artifact(tmp_path: Path, capsys) -> None:
+    manifest = tmp_path / "ab-manifest.json"
+    output = tmp_path / "ab-decision.json"
+    manifest.write_text(json.dumps(_manifest()), encoding="utf-8")
+
+    code = ab_decision.main([str(manifest), "--output", str(output), "--json"])
+    stdout = json.loads(capsys.readouterr().out)
+    persisted = json.loads(output.read_text(encoding="utf-8"))
+
+    assert code == 0
+    assert stdout["decision"] == "adopt_candidate"
+    assert persisted["decision"] == "adopt_candidate"
+    assert output.read_text(encoding="utf-8").isascii()
+
+
+def test_cli_reports_output_write_failure_without_overwriting_existing_decision(tmp_path: Path, capsys) -> None:
+    manifest = tmp_path / "ab-manifest.json"
+    output = tmp_path / "ab-decision.json"
+    output_tmp = output.with_name(f"{output.name}.refresh-tmp")
+    manifest.write_text(json.dumps(_manifest()), encoding="utf-8")
+    output.write_text('{"decision":"existing"}\n', encoding="utf-8")
+    output_tmp.mkdir()
+
+    code = ab_decision.main([str(manifest), "--output", str(output), "--json"])
+    stdout = json.loads(capsys.readouterr().out)
+
+    assert code == 4
+    assert stdout["decision"] == "write_failed"
+    assert stdout["write_error_path"] == output.as_posix()
+    assert stdout["write_error"]
+    assert output.read_text(encoding="utf-8") == '{"decision":"existing"}\n'
+
+
+def test_cli_reports_output_parent_write_failure_without_traceback(tmp_path: Path, capsys) -> None:
+    manifest = tmp_path / "ab-manifest.json"
+    blocked_parent = tmp_path / ".tmp" / "blocked-parent"
+    output = blocked_parent / "ab-decision.json"
+    manifest.write_text(json.dumps(_manifest()), encoding="utf-8")
+    blocked_parent.parent.mkdir(parents=True)
+    blocked_parent.write_text("blocking file\n", encoding="utf-8")
+
+    code = ab_decision.main([str(manifest), "--output", str(output), "--json"])
+    stdout = json.loads(capsys.readouterr().out)
+
+    assert code == 4
+    assert stdout["decision"] == "write_failed"
+    assert stdout["write_error_path"] == output.as_posix()
+    assert "FileExistsError" in stdout["write_error"] or "NotADirectoryError" in stdout["write_error"]
+    assert blocked_parent.read_text(encoding="utf-8") == "blocking file\n"

@@ -18,7 +18,6 @@ import types
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
 if str(WORKSPACE_ROOT) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_ROOT))
@@ -34,7 +33,6 @@ from execution.workers import (
     _format_review_summary,
     _normalize_review_payload,
 )
-
 
 # ---------------------------------------------------------------------------
 # _extract_json_object

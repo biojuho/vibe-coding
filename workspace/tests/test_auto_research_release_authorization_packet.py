@@ -7,7 +7,6 @@ import json
 import sys
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_PATH = REPO_ROOT / ".agents" / "skills" / "auto-research" / "scripts" / "release_authorization_packet.py"
 
@@ -466,6 +465,78 @@ def test_missing_llm_wiki_strict_evidence_is_packet_blocker(tmp_path: Path) -> N
     )
 
 
+def test_invalid_encoding_llm_wiki_strict_evidence_is_packet_blocker(tmp_path: Path) -> None:
+    artifact = tmp_path / release_authorization_packet.DEFAULT_LLM_WIKI_STRICT_EVIDENCE_PATH
+    artifact.parent.mkdir(parents=True, exist_ok=True)
+    artifact.write_bytes(b"\xff\xfe\x00")
+
+    packet = release_authorization_packet.build_packet(
+        tmp_path,
+        readiness=_readiness(external=False),
+        git_info=_git_info(),
+    )
+
+    assert packet["llm_wiki_strict_evidence"]["available"] is False
+    assert packet["summary"]["llm_wiki_strict_evidence_status"] == "missing"
+    assert (
+        "LLM Wiki strict release evidence artifact missing: .tmp/llm-wiki-strict-audit-current.json"
+        in packet["blockers"]
+    )
+
+
+def test_load_json_returns_empty_for_invalid_encoding(tmp_path: Path) -> None:
+    path = tmp_path / "readiness.json"
+    path.write_bytes(b"\xff\xfe\x00")
+
+    assert release_authorization_packet._load_json(path) == {}
+
+
+def test_load_json_accepts_powershell_utf16_json(tmp_path: Path) -> None:
+    path = tmp_path / "readiness.json"
+    payload = _readiness(ahead_count=7, external=False)
+    path.write_text(json.dumps(payload), encoding="utf-16")
+
+    loaded = release_authorization_packet._load_json(path)
+
+    assert loaded["workspace_gates"]["github_release"]["ahead_count"] == 7
+    assert loaded["projects"][0]["tasks"] == []
+
+
+def test_utf16_llm_wiki_strict_evidence_is_not_reported_missing(tmp_path: Path) -> None:
+    artifact = tmp_path / release_authorization_packet.DEFAULT_LLM_WIKI_STRICT_EVIDENCE_PATH
+    artifact.parent.mkdir(parents=True, exist_ok=True)
+    artifact.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "evidence_type": "llm_wiki_strict_release_audit",
+                "release_gate": {
+                    "status": "pass",
+                    "accepted_manifest_warning_count": 1,
+                    "unexpected_manifest_warning_count": 0,
+                    "strict_manifest_warning_failure": False,
+                },
+                "git": {"head_sha": "abc123"},
+                "report": {"summary": {"status": "pass", "source_inventory_count": 12}},
+            }
+        ),
+        encoding="utf-16",
+    )
+
+    packet = release_authorization_packet.build_packet(
+        tmp_path,
+        readiness=_readiness(external=False),
+        git_info=_git_info(),
+    )
+
+    assert packet["llm_wiki_strict_evidence"]["available"] is True
+    assert packet["llm_wiki_strict_evidence"]["status"] == "pass"
+    assert packet["llm_wiki_strict_evidence"]["audit_status"] == "pass"
+    assert packet["llm_wiki_strict_evidence"]["source_inventory_count"] == 12
+    assert packet["summary"]["llm_wiki_strict_evidence_status"] == "pass"
+    assert not any("LLM Wiki strict release evidence artifact missing" in blocker for blocker in packet["blockers"])
+
+
 def test_llm_wiki_strict_evidence_failures_are_packet_blockers(tmp_path: Path) -> None:
     _write_llm_wiki_evidence(tmp_path, status="fail")
 
@@ -502,9 +573,9 @@ def test_large_ahead_range_defaults_to_readable_commit_preview(tmp_path: Path) -
 
     assert packet["git"]["commit_count"] == 40
     assert len(packet["git"]["commits_ahead"]) == release_authorization_packet.DEFAULT_COMMIT_PREVIEW_LIMIT
-    assert packet["git"]["commits_ahead_omitted"] == 15
-    assert packet["summary"]["commit_preview_count"] == 25
-    assert packet["summary"]["commit_omitted_count"] == 15
+    assert packet["git"]["commits_ahead_omitted"] == 5
+    assert packet["summary"]["commit_preview_count"] == 35
+    assert packet["summary"]["commit_omitted_count"] == 5
     assert packet["git"]["review_commands"][0] == "git log --oneline --decorate=no origin/main..HEAD"
 
 
@@ -579,3 +650,70 @@ def test_cli_writes_ascii_json_with_fixture_readiness(tmp_path: Path, capsys, mo
     assert stdout["summary"]["commit_preview_count"] <= release_authorization_packet.DEFAULT_COMMIT_PREVIEW_LIMIT
     assert persisted["git"]["head_sha"]
     assert output.read_text(encoding="utf-8").isascii()
+
+
+def test_cli_output_write_failure_preserves_existing_packet(tmp_path: Path, capsys, monkeypatch) -> None:
+    root = REPO_ROOT
+    readiness = tmp_path / "readiness.json"
+    output = tmp_path / "packet.json"
+    temp_output = output.with_name(f"{output.name}.refresh-tmp")
+    readiness.write_text(json.dumps(_readiness()), encoding="utf-8")
+    output.write_text('{"status":"previous"}\n', encoding="utf-8")
+    temp_output.mkdir()
+    monkeypatch.setattr(
+        release_authorization_packet,
+        "_collect_current_head_actions",
+        lambda *_args, **_kwargs: _current_head_actions(),
+    )
+
+    code = release_authorization_packet.main(
+        [
+            "--root",
+            str(root),
+            "--readiness",
+            str(readiness),
+            "--output",
+            str(output),
+            "--json",
+        ]
+    )
+    stdout = json.loads(capsys.readouterr().out)
+
+    assert code == 4
+    assert stdout["status"] == "write_failed"
+    assert stdout["write_error"]
+    assert stdout["write_error_path"] == output.as_posix()
+    assert json.loads(output.read_text(encoding="utf-8")) == {"status": "previous"}
+
+
+def test_cli_output_parent_write_failure_reports_structured_json(tmp_path: Path, capsys, monkeypatch) -> None:
+    root = REPO_ROOT
+    readiness = tmp_path / "readiness.json"
+    blocked_parent = tmp_path / "blocked-parent"
+    output = blocked_parent / "packet.json"
+    readiness.write_text(json.dumps(_readiness()), encoding="utf-8")
+    blocked_parent.write_text("not a directory", encoding="utf-8")
+    monkeypatch.setattr(
+        release_authorization_packet,
+        "_collect_current_head_actions",
+        lambda *_args, **_kwargs: _current_head_actions(),
+    )
+
+    code = release_authorization_packet.main(
+        [
+            "--root",
+            str(root),
+            "--readiness",
+            str(readiness),
+            "--output",
+            str(output),
+            "--json",
+        ]
+    )
+    stdout = json.loads(capsys.readouterr().out)
+
+    assert code == 4
+    assert stdout["status"] == "write_failed"
+    assert stdout["write_error"]
+    assert stdout["write_error_path"] == output.as_posix()
+    assert blocked_parent.read_text(encoding="utf-8") == "not a directory"

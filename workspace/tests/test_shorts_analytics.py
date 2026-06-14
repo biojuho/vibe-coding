@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import importlib
 import sys
-import tomllib
 import types
 from pathlib import Path
 
 import pytest
+import tomllib
 
 WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
 

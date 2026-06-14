@@ -576,6 +576,44 @@ def test_cli_prints_help_without_command(monkeypatch, capsys):
     assert "usage:" in capsys.readouterr().out.lower()
 
 
+def test_build_cli_parser_preserves_channel_set_options():
+    parser = cdb._build_cli_parser()
+
+    args = parser.parse_args(
+        [
+            "channel-set",
+            "--channel",
+            "space",
+            "--voice",
+            "nova",
+            "--style-preset",
+            "neon",
+            "--font-color",
+            "#00FFAA",
+            "--image-prefix",
+            "cinematic",
+        ]
+    )
+
+    assert args.cmd == "channel-set"
+    assert args.channel == "space"
+    assert cdb._channel_settings_kwargs(args) == {
+        "voice": "nova",
+        "style_preset": "neon",
+        "font_color": "#00FFAA",
+        "image_style_prefix": "cinematic",
+    }
+
+
+def test_run_cli_command_prints_help_without_command(capsys):
+    parser = cdb._build_cli_parser()
+    args = parser.parse_args([])
+
+    cdb._run_cli_command(args, parser)
+
+    assert "usage:" in capsys.readouterr().out.lower()
+
+
 # ---------------------------------------------------------------------------
 # upsert_channel_settings — invalid fields ValueError (line 189)
 # ---------------------------------------------------------------------------

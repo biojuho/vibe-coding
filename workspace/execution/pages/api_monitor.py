@@ -6,22 +6,23 @@ WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
 if str(WORKSPACE_ROOT) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_ROOT))
 
-from path_contract import TMP_ROOT, resolve_project_dir
-
 import streamlit as st
+
+from path_contract import TMP_ROOT, resolve_project_dir
 
 try:
     import plotly.express as px
     import plotly.graph_objects as go
+
     from execution.api_usage_tracker import (
+        check_api_keys,
+        get_blind_to_x_summary,
         get_bridge_daily_breakdown,
         get_bridge_provider_breakdown,
         get_bridge_reason_breakdown,
-        check_api_keys,
         get_daily_breakdown,
         get_provider_breakdown,
         get_usage_summary,
-        get_blind_to_x_summary,
         init_db,
     )
     from execution.language_bridge import BridgePolicy

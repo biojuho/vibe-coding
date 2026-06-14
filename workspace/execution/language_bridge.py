@@ -9,7 +9,6 @@ import unicodedata
 from dataclasses import dataclass
 from typing import Any, Iterable
 
-
 _HANGUL_RE = re.compile(r"[가-힣]")
 _CJK_RE = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
 _JAMO_RE = re.compile(r"[\u1100-\u11ff\u3130-\u318f\ua960-\ua97f\ud7b0-\ud7ff]")

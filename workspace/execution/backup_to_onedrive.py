@@ -11,8 +11,6 @@ Usage:
 
 from __future__ import annotations
 
-import execution._logging  # noqa: F401 — loguru 중앙 설정 활성화
-
 import argparse
 import json
 import os
@@ -22,6 +20,8 @@ from pathlib import Path
 from typing import Set
 
 from dotenv import load_dotenv
+
+import execution._logging  # noqa: F401 — loguru 중앙 설정 활성화
 
 load_dotenv()
 
@@ -139,6 +139,64 @@ def _snapshot_sqlite_dbs(dest: Path, *, dry_run: bool = False) -> list[dict]:
     return results
 
 
+def _backup_relative_path(src_file: Path) -> Path | None:
+    if src_file.is_dir():
+        return None
+    try:
+        return src_file.relative_to(_ROOT)
+    except ValueError:
+        return None
+
+
+def _should_skip_backup_source(src_file: Path, rel: Path) -> bool:
+    return _should_skip_dir(rel) or _should_skip_file(src_file)
+
+
+def _copy_backup_source(src_file: Path, dst: Path, rel: Path, *, dry_run: bool) -> tuple[int, str | None]:
+    if dry_run:
+        logger.info("[DRY-RUN] %s → %s", rel, dst)
+        return src_file.stat().st_size, None
+
+    try:
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src_file, dst)
+        return src_file.stat().st_size, None
+    except Exception as exc:
+        logger.warning("Failed to copy %s: %s", rel, exc)
+        return 0, f"{rel}: {exc}"
+
+
+def _copy_project_files(dest: Path, *, dry_run: bool = False) -> dict:
+    file_count = 0
+    skipped_count = 0
+    total_bytes = 0
+    errors: list[str] = []
+
+    for src_file in _ROOT.rglob("*"):
+        rel = _backup_relative_path(src_file)
+        if rel is None:
+            continue
+
+        if _should_skip_backup_source(src_file, rel):
+            skipped_count += 1
+            continue
+
+        copied_bytes, error = _copy_backup_source(src_file, dest / rel, rel, dry_run=dry_run)
+        if error is not None:
+            errors.append(error)
+            continue
+
+        file_count += 1
+        total_bytes += copied_bytes
+
+    return {
+        "file_count": file_count,
+        "skipped_count": skipped_count,
+        "total_bytes": total_bytes,
+        "errors": errors,
+    }
+
+
 def backup(dry_run: bool = False) -> dict:
     """핵심 파일을 OneDrive로 백업.
 
@@ -151,46 +209,7 @@ def backup(dry_run: bool = False) -> dict:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M")
     dest = _BACKUP_ROOT / f"backup_{timestamp}"
 
-    file_count = 0
-    skipped_count = 0
-    total_bytes = 0
-    errors: list[str] = []
-
-    for src_file in _ROOT.rglob("*"):
-        # 디렉토리는 건너뛰기
-        if src_file.is_dir():
-            continue
-
-        # 제외 대상 확인
-        try:
-            rel = src_file.relative_to(_ROOT)
-        except ValueError:
-            continue
-
-        if _should_skip_dir(rel):
-            skipped_count += 1
-            continue
-
-        if _should_skip_file(src_file):
-            skipped_count += 1
-            continue
-
-        dst = dest / rel
-
-        if dry_run:
-            logger.info("[DRY-RUN] %s → %s", rel, dst)
-            file_count += 1
-            total_bytes += src_file.stat().st_size
-            continue
-
-        try:
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src_file, dst)
-            file_count += 1
-            total_bytes += src_file.stat().st_size
-        except Exception as exc:
-            errors.append(f"{rel}: {exc}")
-            logger.warning("Failed to copy %s: %s", rel, exc)
+    file_stats = _copy_project_files(dest, dry_run=dry_run)
 
     # SQLite DB 안전 스냅샷 (VACUUM INTO)
     db_snapshots = _snapshot_sqlite_dbs(dest, dry_run=dry_run)
@@ -202,12 +221,12 @@ def backup(dry_run: bool = False) -> dict:
     result = {
         "timestamp": timestamp,
         "dest": str(dest),
-        "file_count": file_count,
-        "skipped_count": skipped_count,
-        "total_bytes": total_bytes,
-        "total_mb": round(total_bytes / (1024 * 1024), 1),
+        "file_count": file_stats["file_count"],
+        "skipped_count": file_stats["skipped_count"],
+        "total_bytes": file_stats["total_bytes"],
+        "total_mb": round(file_stats["total_bytes"] / (1024 * 1024), 1),
         "db_snapshots": db_snapshots,
-        "errors": errors,
+        "errors": file_stats["errors"],
         "dry_run": dry_run,
     }
 

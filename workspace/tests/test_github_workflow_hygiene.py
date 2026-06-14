@@ -3,7 +3,6 @@ from __future__ import annotations
 import configparser
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 REQUIRED_WORKFLOW_FILES = {
     "active-project-matrix": REPO_ROOT / ".github" / "workflows" / "full-test-matrix.yml",

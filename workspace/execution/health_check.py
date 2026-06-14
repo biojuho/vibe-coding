@@ -168,16 +168,56 @@ def check_env_vars() -> List[Dict]:
     return results
 
 
-def _check_single_api(api: Dict) -> Dict:
-    """Check one API target; intended for parallel execution."""
-    name = api["name"]
-
+def _multi_key_api_result(api: Dict, name: str) -> Optional[Dict]:
     if "env_keys" in api:
         missing = [k for k in api["env_keys"] if not os.getenv(k, "")]
         if missing:
             return _check_result(name, "api", STATUS_WARN, f"missing keys: {', '.join(missing)}")
         return _check_result(name, "api", STATUS_OK, "all keys set")
+    return None
 
+
+def _api_auth_headers(api: Dict, api_key: str) -> Dict:
+    headers = {"Authorization": f"{api.get('auth_header', 'Bearer')} {api_key}"}
+    headers.update(api.get("extra_headers", {}))
+    return headers
+
+
+def _api_status_result(name: str, api: Dict, status_code: int) -> Dict:
+    if status_code == 200:
+        return _check_result(name, "api", STATUS_OK, "connected")
+    if status_code == 401:
+        return _check_result(
+            name,
+            "api",
+            api.get("auth_failure_status", STATUS_FAIL),
+            api.get("auth_failure_detail", "401 Unauthorized - token invalid/expired"),
+        )
+    if status_code == 403:
+        return _check_result(
+            name,
+            "api",
+            api.get("permission_failure_status", STATUS_FAIL),
+            api.get("permission_failure_detail", "403 Forbidden - insufficient permissions"),
+        )
+    if status_code == 429:
+        return _check_result(name, "api", STATUS_WARN, "429 Rate Limited")
+    return _check_result(name, "api", STATUS_WARN, f"HTTP {status_code}")
+
+
+def _api_ping_result(name: str, api: Dict, headers: Dict) -> Dict:
+    try:
+        resp = requests.get(api["url"], headers=headers, timeout=10)
+        return _api_status_result(name, api, resp.status_code)
+    except requests.ConnectionError:
+        return _check_result(name, "api", STATUS_FAIL, "connection failed")
+    except requests.Timeout:
+        return _check_result(name, "api", STATUS_FAIL, "timeout (10s)")
+    except Exception as exc:
+        return _check_result(name, "api", STATUS_FAIL, str(exc))
+
+
+def _single_key_api_result(api: Dict, name: str) -> Dict:
     env_key = api.get("env_key", "")
     api_key = os.getenv(env_key, "")
     if not api_key:
@@ -187,36 +227,16 @@ def _check_single_api(api: Dict) -> Dict:
     if not url:
         return _check_result(name, "api", STATUS_OK, "key present (no ping endpoint)")
 
-    headers = {"Authorization": f"{api.get('auth_header', 'Bearer')} {api_key}"}
-    headers.update(api.get("extra_headers", {}))
-    try:
-        resp = requests.get(url, headers=headers, timeout=10)
-        if resp.status_code == 200:
-            return _check_result(name, "api", STATUS_OK, "connected")
-        elif resp.status_code == 401:
-            return _check_result(
-                name,
-                "api",
-                api.get("auth_failure_status", STATUS_FAIL),
-                api.get("auth_failure_detail", "401 Unauthorized - token invalid/expired"),
-            )
-        elif resp.status_code == 403:
-            return _check_result(
-                name,
-                "api",
-                api.get("permission_failure_status", STATUS_FAIL),
-                api.get("permission_failure_detail", "403 Forbidden - insufficient permissions"),
-            )
-        elif resp.status_code == 429:
-            return _check_result(name, "api", STATUS_WARN, "429 Rate Limited")
-        else:
-            return _check_result(name, "api", STATUS_WARN, f"HTTP {resp.status_code}")
-    except requests.ConnectionError:
-        return _check_result(name, "api", STATUS_FAIL, "connection failed")
-    except requests.Timeout:
-        return _check_result(name, "api", STATUS_FAIL, "timeout (10s)")
-    except Exception as exc:
-        return _check_result(name, "api", STATUS_FAIL, str(exc))
+    return _api_ping_result(name, api, _api_auth_headers(api, api_key))
+
+
+def _check_single_api(api: Dict) -> Dict:
+    """Check one API target; intended for parallel execution."""
+    name = api["name"]
+    multi_key_result = _multi_key_api_result(api, name)
+    if multi_key_result is not None:
+        return multi_key_result
+    return _single_key_api_result(api, name)
 
 
 def check_api_connections() -> List[Dict]:
@@ -348,99 +368,135 @@ _KEY_VALIDATION_ENDPOINTS: Dict[str, Dict] = {
 }
 
 
-def check_api_key_health() -> List[Dict]:
-    """Check API key presence, format, and lightweight validity.
-
-    For each known API key environment variable:
-    - Check if the key is set (non-empty)
-    - Validate key format (prefix pattern)
-    - If a lightweight validation endpoint exists, ping it to verify auth
-    Returns a list of check results in the standard format.
-    """
-    results: List[Dict] = []
-
-    # Collect all known API key env vars from API_CHECKS + format patterns
+def _api_key_names() -> List[str]:
     all_key_names: List[str] = []
     for api in API_CHECKS:
         if "env_key" in api:
             all_key_names.append(api["env_key"])
         if "env_keys" in api:
             all_key_names.extend(api["env_keys"])
-    # Add keys from format patterns not already covered
+
     for k in _KEY_FORMAT_PATTERNS:
         if k not in all_key_names:
             all_key_names.append(k)
 
-    # Deduplicate while preserving order
     seen: set = set()
     unique_keys: List[str] = []
     for k in all_key_names:
         if k not in seen:
             seen.add(k)
             unique_keys.append(k)
+    return unique_keys
 
-    for env_key in unique_keys:
-        value = os.getenv(env_key, "")
-        check_name = f"key:{env_key}"
 
-        # 1) Not set
-        if not value:
-            results.append(_check_result(check_name, "api", STATUS_WARN, "key not set"))
-            continue
+def _api_key_format_result(env_key: str, value: str) -> Optional[Dict]:
+    if env_key not in _KEY_FORMAT_PATTERNS:
+        return None
+    expected_prefix, pattern = _KEY_FORMAT_PATTERNS[env_key]
+    if pattern.match(value):
+        return None
+    return _check_result(f"key:{env_key}", "api", STATUS_WARN, f"unexpected format (expected {expected_prefix})")
 
-        # 2) Format validation
-        if env_key in _KEY_FORMAT_PATTERNS:
-            expected_prefix, pattern = _KEY_FORMAT_PATTERNS[env_key]
-            if not pattern.match(value):
-                results.append(
-                    _check_result(check_name, "api", STATUS_WARN, f"unexpected format (expected {expected_prefix})")
-                )
+
+def _api_key_validation_headers(endpoint: Dict, value: str) -> Dict:
+    headers = {"Authorization": f"{endpoint.get('auth_header', 'Bearer')} {value}"}
+    headers.update(endpoint.get("extra_headers", {}))
+    return headers
+
+
+def _api_key_validation_status_result(check_name: str, endpoint: Dict, status_code: int) -> Dict:
+    if status_code == 200:
+        return _check_result(check_name, "api", STATUS_OK, "valid (auth ok)")
+    if status_code == 401:
+        return _check_result(
+            check_name,
+            "api",
+            endpoint.get("auth_failure_status", STATUS_FAIL),
+            endpoint.get("auth_failure_detail", "invalid or expired (401)"),
+        )
+    if status_code == 403:
+        return _check_result(
+            check_name,
+            "api",
+            endpoint.get("permission_failure_status", STATUS_FAIL),
+            endpoint.get("permission_failure_detail", "forbidden (403) - check permissions"),
+        )
+    if status_code == 429:
+        return _check_result(check_name, "api", STATUS_WARN, "rate limited (429) - key likely valid")
+    return _check_result(check_name, "api", STATUS_WARN, f"HTTP {status_code}")
+
+
+def _api_key_validation_result(env_key: str, value: str) -> Dict:
+    check_name = f"key:{env_key}"
+    endpoint = _KEY_VALIDATION_ENDPOINTS[env_key]
+    headers = _api_key_validation_headers(endpoint, value)
+    try:
+        resp = requests.get(endpoint["url"], headers=headers, timeout=8)
+        return _api_key_validation_status_result(check_name, endpoint, resp.status_code)
+    except requests.ConnectionError:
+        return _check_result(check_name, "api", STATUS_FAIL, "connection failed")
+    except requests.Timeout:
+        return _check_result(check_name, "api", STATUS_WARN, "timeout (8s) - key format ok")
+    except Exception as exc:
+        return _check_result(check_name, "api", STATUS_FAIL, str(exc))
+
+
+def _api_key_health_result(env_key: str) -> Dict:
+    value = os.getenv(env_key, "")
+    check_name = f"key:{env_key}"
+    if not value:
+        return _check_result(check_name, "api", STATUS_WARN, "key not set")
+
+    format_result = _api_key_format_result(env_key, value)
+    if format_result is not None:
+        return format_result
+
+    if env_key in _KEY_VALIDATION_ENDPOINTS:
+        return _api_key_validation_result(env_key, value)
+    return _check_result(check_name, "api", STATUS_OK, "key set, format ok (no ping endpoint)")
+
+
+def check_api_key_health() -> List[Dict]:
+    """Check API key presence, format, and lightweight validity."""
+    return [_api_key_health_result(env_key) for env_key in _api_key_names()]
+
+
+def _parse_env_key_file(filepath: Path) -> set[str]:
+    keys: set[str] = set()
+    with open(filepath, encoding="utf-8", errors="replace") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
                 continue
+            if "=" in line:
+                key = line.split("=", 1)[0].strip()
+                if key:
+                    keys.add(key)
+    return keys
 
-        # 3) Lightweight endpoint validation (if available)
-        if env_key in _KEY_VALIDATION_ENDPOINTS:
-            ep = _KEY_VALIDATION_ENDPOINTS[env_key]
-            headers = {"Authorization": f"{ep.get('auth_header', 'Bearer')} {value}"}
-            headers.update(ep.get("extra_headers", {}))
-            try:
-                resp = requests.get(ep["url"], headers=headers, timeout=8)
-                if resp.status_code == 200:
-                    results.append(_check_result(check_name, "api", STATUS_OK, "valid (auth ok)"))
-                elif resp.status_code == 401:
-                    results.append(
-                        _check_result(
-                            check_name,
-                            "api",
-                            ep.get("auth_failure_status", STATUS_FAIL),
-                            ep.get("auth_failure_detail", "invalid or expired (401)"),
-                        )
-                    )
-                elif resp.status_code == 403:
-                    results.append(
-                        _check_result(
-                            check_name,
-                            "api",
-                            ep.get("permission_failure_status", STATUS_FAIL),
-                            ep.get("permission_failure_detail", "forbidden (403) - check permissions"),
-                        )
-                    )
-                elif resp.status_code == 429:
-                    results.append(
-                        _check_result(check_name, "api", STATUS_WARN, "rate limited (429) - key likely valid")
-                    )
-                else:
-                    results.append(_check_result(check_name, "api", STATUS_WARN, f"HTTP {resp.status_code}"))
-            except requests.ConnectionError:
-                results.append(_check_result(check_name, "api", STATUS_FAIL, "connection failed"))
-            except requests.Timeout:
-                results.append(_check_result(check_name, "api", STATUS_WARN, "timeout (8s) - key format ok"))
-            except Exception as exc:
-                results.append(_check_result(check_name, "api", STATUS_FAIL, str(exc)))
-        else:
-            # No validation endpoint: format-only check passed
-            results.append(_check_result(check_name, "api", STATUS_OK, "key set, format ok (no ping endpoint)"))
 
+def _env_completeness_delta_results(missing: list[str], extra: list[str]) -> List[Dict]:
+    results: List[Dict] = []
+    if missing:
+        results.append(
+            _check_result(
+                "env_completeness:missing",
+                "env",
+                STATUS_WARN,
+                f"keys in .env.example but not in .env: {', '.join(missing)}",
+            )
+        )
+    if extra:
+        results.append(
+            _check_result(
+                "env_completeness:extra", "env", STATUS_OK, f"extra keys in .env (not in example): {', '.join(extra)}"
+            )
+        )
     return results
+
+
+def _env_completeness_match_result(env_keys: set[str]) -> Dict:
+    return _check_result("env_completeness", "env", STATUS_OK, f".env matches .env.example ({len(env_keys)} keys)")
 
 
 def check_env_completeness() -> List[Dict]:
@@ -458,46 +514,15 @@ def check_env_completeness() -> List[Dict]:
     if not env_path.is_file():
         return [_check_result("env_completeness", "env", STATUS_FAIL, ".env file not found")]
 
-    def _parse_keys(filepath: Path) -> set:
-        keys: set = set()
-        with open(filepath, encoding="utf-8", errors="replace") as f:
-            for line in f:
-                line = line.strip()
-                if not line or line.startswith("#"):
-                    continue
-                if "=" in line:
-                    key = line.split("=", 1)[0].strip()
-                    if key:
-                        keys.add(key)
-        return keys
-
-    env_keys = _parse_keys(env_path)
-    example_keys = _parse_keys(example_path)
+    env_keys = _parse_env_key_file(env_path)
+    example_keys = _parse_env_key_file(example_path)
 
     missing = sorted(example_keys - env_keys)
     extra = sorted(env_keys - example_keys)
+    results = _env_completeness_delta_results(missing, extra)
 
-    results: List[Dict] = []
-
-    if missing:
-        results.append(
-            _check_result(
-                "env_completeness:missing",
-                "env",
-                STATUS_WARN,
-                f"keys in .env.example but not in .env: {', '.join(missing)}",
-            )
-        )
-    if extra:
-        results.append(
-            _check_result(
-                "env_completeness:extra", "env", STATUS_OK, f"extra keys in .env (not in example): {', '.join(extra)}"
-            )
-        )
-    if not missing and not extra:
-        results.append(
-            _check_result("env_completeness", "env", STATUS_OK, f".env matches .env.example ({len(env_keys)} keys)")
-        )
+    if not results:
+        results.append(_env_completeness_match_result(env_keys))
 
     return results
 

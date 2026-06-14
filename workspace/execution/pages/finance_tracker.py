@@ -11,6 +11,7 @@ import streamlit as st  # noqa: E402
 try:
     import plotly.express as px
     import plotly.graph_objects as go
+
     from execution.finance_db import (
         CATEGORIES,
         add_transaction,

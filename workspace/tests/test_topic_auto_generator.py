@@ -109,6 +109,44 @@ def test_check_and_replenish_returns_empty_without_channels(monkeypatch):
     assert tag.check_and_replenish() == {}
 
 
+def test_pending_topic_helpers_use_threshold_boundary():
+    items = [
+        {"topic": "queued", "status": "pending"},
+        {"topic": "done", "status": "success"},
+    ]
+
+    assert tag._pending_topics(items) == [items[0]]
+    assert tag._has_enough_pending(items, threshold=0) is True
+    assert tag._has_enough_pending(items, threshold=1) is False
+
+
+def test_channel_trending_keywords_appends_community_terms(monkeypatch, caplog):
+    monkeypatch.setattr(tag, "_COMMUNITY_TRENDS_OK", True)
+    monkeypatch.setattr(tag, "get_trending_topics", lambda count=10: ["trend"])
+    monkeypatch.setattr(tag, "get_community_trend_titles", lambda limit=5: ["community"])
+
+    with caplog.at_level("DEBUG", logger="execution.topic_auto_generator"):
+        assert tag._channel_trending_keywords() == ["trend", "community"]
+
+    assert "[COMMUNITY] community" in caplog.text
+    assert "[TREND] trend, community" in caplog.text
+
+
+def test_record_channel_topics_adds_or_dry_runs(monkeypatch, caplog):
+    added = []
+    monkeypatch.setattr(tag, "add_topic", lambda topic, channel="", notes="": added.append((topic, channel, notes)))
+    result: dict[str, list[str]] = {}
+
+    with caplog.at_level("INFO", logger="execution.topic_auto_generator"):
+        tag._record_channel_topics(result, "space", ["fresh"], dry_run=False)
+        tag._record_channel_topics(result, "history", ["preview"], dry_run=True)
+
+    assert result == {"space": ["fresh"], "history": ["preview"]}
+    assert added == [("fresh", "space", "auto-generated")]
+    assert "[ADD] fresh" in caplog.text
+    assert "[DRY] preview" in caplog.text
+
+
 def test_check_and_replenish_dry_run(monkeypatch, caplog):
     monkeypatch.setattr(tag, "get_channels", lambda: ["space"])
     monkeypatch.setattr(

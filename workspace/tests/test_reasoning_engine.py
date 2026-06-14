@@ -10,7 +10,6 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock
 
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
 if str(WORKSPACE_ROOT) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_ROOT))
@@ -25,10 +24,9 @@ from execution.reasoning_engine import (
     _parse_json_items,
     _replace_newlines_in_json_strings,
     _robust_json_parse,
-    _strip_json_markdown_fence,
     _strength_for_count,
+    _strip_json_markdown_fence,
 )
-
 
 # ── _robust_json_parse 테스트 ─────────────────────────────────
 

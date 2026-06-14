@@ -7,7 +7,6 @@ import json
 import sys
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_PATH = REPO_ROOT / ".agents" / "skills" / "auto-research" / "scripts" / "llm_wiki_release_summary.py"
 
@@ -120,3 +119,197 @@ def test_strict_cli_fails_when_evidence_is_not_ready(tmp_path: Path, capsys) -> 
     assert stdout["status"] == "fail"
     assert "- [ ] strict release gate status is pass" in summary
     assert "- [ ] evidence HEAD matches the current packet HEAD" in summary
+
+
+def test_invalid_encoding_packet_is_treated_as_missing_packet(tmp_path: Path, capsys) -> None:
+    packet_path = tmp_path / ".tmp" / "release-authorization-packet.json"
+    packet_path.parent.mkdir(parents=True)
+    packet_path.write_bytes(b"\xff\xfe\x00")
+
+    code = llm_wiki_release_summary.main(
+        [
+            "--root",
+            str(tmp_path),
+            "--packet",
+            ".tmp/release-authorization-packet.json",
+            "--output",
+            ".tmp/summary.md",
+            "--json",
+            "--strict",
+        ]
+    )
+    stdout = json.loads(capsys.readouterr().out)
+    summary = (tmp_path / ".tmp" / "summary.md").read_text(encoding="utf-8")
+
+    assert code == 1
+    assert stdout["status"] == "fail"
+    assert stdout["packet_status"] == "unknown"
+    assert "- [ ] strict evidence artifact is available" in summary
+    assert "- [ ] strict release gate status is pass" in summary
+
+
+def test_load_json_returns_empty_for_invalid_encoding(tmp_path: Path) -> None:
+    packet_path = tmp_path / "release-authorization-packet.json"
+    packet_path.write_bytes(b"\xff\xfe\x00")
+
+    assert llm_wiki_release_summary._load_json(packet_path) == {}
+
+
+def test_cli_reports_output_write_failure_without_overwriting_existing_summary(tmp_path: Path, capsys) -> None:
+    packet_path = tmp_path / ".tmp" / "release-authorization-packet.json"
+    output = tmp_path / ".tmp" / "summary.md"
+    output_tmp = output.with_name(f"{output.name}.refresh-tmp")
+    packet_path.parent.mkdir(parents=True)
+    packet_path.write_text(json.dumps(_packet()), encoding="utf-8")
+    output.write_text("existing summary\n", encoding="utf-8")
+    output_tmp.mkdir()
+
+    code = llm_wiki_release_summary.main(
+        [
+            "--root",
+            str(tmp_path),
+            "--packet",
+            ".tmp/release-authorization-packet.json",
+            "--output",
+            ".tmp/summary.md",
+            "--json",
+        ]
+    )
+    stdout = json.loads(capsys.readouterr().out)
+
+    assert code == 4
+    assert stdout["status"] == "write_failed"
+    assert stdout["write_error_path"] == ".tmp/summary.md"
+    assert stdout["write_error"]
+    assert stdout["write_error"].split(":", 1)[0].endswith("Error")
+    assert output.read_text(encoding="utf-8") == "existing summary\n"
+
+
+def test_cli_reports_output_parent_write_failure_without_traceback(tmp_path: Path, capsys) -> None:
+    packet_path = tmp_path / "release-authorization-packet.json"
+    output_parent = tmp_path / ".tmp"
+    packet_path.write_text(json.dumps(_packet()), encoding="utf-8")
+    output_parent.write_text("not a directory\n", encoding="utf-8")
+
+    code = llm_wiki_release_summary.main(
+        [
+            "--root",
+            str(tmp_path),
+            "--packet",
+            "release-authorization-packet.json",
+            "--output",
+            ".tmp/summary.md",
+            "--json",
+        ]
+    )
+    stdout = json.loads(capsys.readouterr().out)
+
+    assert code == 4
+    assert stdout["status"] == "write_failed"
+    assert stdout["write_error_path"] == ".tmp/summary.md"
+    assert stdout["write_error"]
+
+
+def test_cli_reports_artifact_dir_write_failure_without_overwriting_summary(tmp_path: Path, capsys) -> None:
+    packet_path = tmp_path / ".tmp" / "release-authorization-packet.json"
+    output = tmp_path / ".tmp" / "summary.md"
+    artifact_dir = tmp_path / "release-evidence" / "llm-wiki"
+    packet_path.parent.mkdir(parents=True)
+    artifact_dir.parent.mkdir(parents=True)
+    packet_path.write_text(json.dumps(_packet()), encoding="utf-8")
+    output.write_text("existing summary\n", encoding="utf-8")
+    artifact_dir.write_text("blocking file\n", encoding="utf-8")
+
+    code = llm_wiki_release_summary.main(
+        [
+            "--root",
+            str(tmp_path),
+            "--packet",
+            ".tmp/release-authorization-packet.json",
+            "--output",
+            ".tmp/summary.md",
+            "--artifact-dir",
+            "release-evidence/llm-wiki",
+            "--json",
+        ]
+    )
+    stdout = json.loads(capsys.readouterr().out)
+
+    assert code == 4
+    assert stdout["status"] == "write_failed"
+    assert stdout["write_error_path"] == "release-evidence/llm-wiki"
+    assert stdout["write_error"]
+    assert output.read_text(encoding="utf-8") == "existing summary\n"
+    assert artifact_dir.read_text(encoding="utf-8") == "blocking file\n"
+
+
+def test_cli_reports_artifact_copy_failure_without_partial_artifact_refresh(tmp_path: Path, capsys) -> None:
+    packet_path = tmp_path / ".tmp" / "release-authorization-packet.json"
+    evidence_path = tmp_path / ".tmp" / "llm-wiki-strict-audit-current.json"
+    output = tmp_path / ".tmp" / "summary.md"
+    artifact_dir = tmp_path / "release-evidence" / "llm-wiki"
+    artifact_summary = artifact_dir / "llm-wiki-release-summary.md"
+    artifact_evidence = artifact_dir / "llm-wiki-strict-audit-current.json"
+    blocked_evidence_tmp = artifact_evidence.with_name(f"{artifact_evidence.name}.refresh-tmp")
+    packet_path.parent.mkdir(parents=True)
+    artifact_dir.mkdir(parents=True)
+    packet_path.write_text(json.dumps(_packet()), encoding="utf-8")
+    evidence_path.write_text('{"status": "pass"}\n', encoding="utf-8")
+    output.write_text("existing output summary\n", encoding="utf-8")
+    artifact_summary.write_text("existing artifact summary\n", encoding="utf-8")
+    artifact_evidence.write_text('{"status":"existing"}\n', encoding="utf-8")
+    blocked_evidence_tmp.mkdir()
+
+    code = llm_wiki_release_summary.main(
+        [
+            "--root",
+            str(tmp_path),
+            "--packet",
+            ".tmp/release-authorization-packet.json",
+            "--output",
+            ".tmp/summary.md",
+            "--artifact-dir",
+            "release-evidence/llm-wiki",
+            "--json",
+        ]
+    )
+    stdout = json.loads(capsys.readouterr().out)
+
+    assert code == 4
+    assert stdout["status"] == "write_failed"
+    assert stdout["write_error_path"] == "release-evidence/llm-wiki/llm-wiki-strict-audit-current.json"
+    assert "IsADirectoryError" in stdout["write_error"]
+    assert artifact_summary.read_text(encoding="utf-8") == "existing artifact summary\n"
+    assert artifact_evidence.read_text(encoding="utf-8") == '{"status":"existing"}\n'
+    assert blocked_evidence_tmp.is_dir()
+
+
+def test_cli_reuses_evidence_when_artifact_dir_already_contains_source(tmp_path: Path, capsys) -> None:
+    packet_path = tmp_path / ".tmp" / "release-authorization-packet.json"
+    evidence_path = tmp_path / ".tmp" / "llm-wiki-strict-audit-current.json"
+    packet_path.parent.mkdir(parents=True)
+    packet_path.write_text(json.dumps(_packet()), encoding="utf-8")
+    evidence_path.write_text('{"status": "pass"}\n', encoding="utf-8")
+
+    code = llm_wiki_release_summary.main(
+        [
+            "--root",
+            str(tmp_path),
+            "--packet",
+            ".tmp/release-authorization-packet.json",
+            "--output",
+            ".tmp/summary.md",
+            "--artifact-dir",
+            ".tmp",
+            "--json",
+            "--strict",
+        ]
+    )
+    stdout = json.loads(capsys.readouterr().out)
+
+    assert code == 0
+    assert stdout["status"] == "pass"
+    assert stdout["artifact_upload"]["prepared"] is True
+    assert stdout["artifact_upload"]["directory"] == ".tmp"
+    assert stdout["artifact_upload"]["evidence_path"] == ".tmp/llm-wiki-strict-audit-current.json"
+    assert stdout["write_error"] == ""

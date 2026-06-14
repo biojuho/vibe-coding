@@ -9,11 +9,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
-
 # execution 경로 추가
 ROOT_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT_DIR / "execution"))
 
+from qaqc_history_db import QaQcHistoryDB  # noqa: E402
 from qaqc_runner import (  # noqa: E402
     _parse_count,
     _parse_duration,
@@ -21,8 +21,6 @@ from qaqc_runner import (  # noqa: E402
     check_ast,
     determine_verdict,
 )
-from qaqc_history_db import QaQcHistoryDB  # noqa: E402
-
 
 # ── _parse_count 테스트 ────────────────────────────────────
 

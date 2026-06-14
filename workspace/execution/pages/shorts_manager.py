@@ -18,8 +18,8 @@ WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
 if str(WORKSPACE_ROOT) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_ROOT))
 
-from path_contract import resolve_project_dir
 from execution.youtube_metadata import build_shorts_upload_metadata
+from path_contract import resolve_project_dir
 
 # ---------------------------------------------------------------------------
 # 경로 설정 + 모듈 import
@@ -33,10 +33,10 @@ try:
         add_topic,
         delete_item,
         get_all,
-        get_channel_settings,
         get_channel_readiness_summary,
-        get_manifest_sync_diffs,
+        get_channel_settings,
         get_kpis,
+        get_manifest_sync_diffs,
         get_recent_failure_items,
         get_review_queue_items,
         get_youtube_stats,
@@ -54,7 +54,11 @@ _YT_ERR = ""
 try:
     from execution.youtube_uploader import (
         get_auth_status as yt_get_auth_status,
+    )
+    from execution.youtube_uploader import (
         upload_pending_items as yt_upload_pending,
+    )
+    from execution.youtube_uploader import (
         upload_video as yt_upload,
     )
 
@@ -67,7 +71,11 @@ _NOTION_ERR = ""
 try:
     from execution.notion_shorts_sync import (
         is_configured as notion_is_configured,
+    )
+    from execution.notion_shorts_sync import (
         sync_all as notion_sync_all,
+    )
+    from execution.notion_shorts_sync import (
         sync_item as notion_sync_item,
     )
 

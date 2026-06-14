@@ -11,15 +11,14 @@ import pytest
 from execution.llm_client import (
     DEFAULT_MODELS,
     DEFAULT_PROVIDER_ORDER,
-    LLMClient,
     OPENAI_COMPATIBLE_BASE_URLS,
     PRICING,
     PROVIDER_ALIASES,
+    LLMClient,
     _cache_get,
     _cache_key,
     _cache_set,
 )
-
 
 # ── 상수 테스트 ───────────────────────────────────────────────
 
@@ -367,6 +366,63 @@ class TestCacheSetParentDir:
 
 
 # ── _get_client for all providers (lines 254-282) ───────────
+
+
+class TestSimpleLoopHelpers:
+    def _make_client(self):
+        client = LLMClient.__new__(LLMClient)
+        client.provider_order = ["openai"]
+        client.models = dict(DEFAULT_MODELS)
+        client.api_keys = {"openai": "sk-test"}
+        client.max_retries = 2
+        client.cache_ttl_sec = 0
+        client.track_usage = False
+        client._clients = {}
+        client.caller_script = ""
+        client.request_timeout_sec = 30
+        return client
+
+    def test_simple_loop_cache_key_disabled(self):
+        client = self._make_client()
+        assert client._simple_loop_cache_key(["openai"], "sys", "user", 0.7) is None
+
+    def test_cached_simple_loop_result_decodes_hit(self, tmp_path):
+        client = self._make_client()
+        client.cache_ttl_sec = 3600
+        with patch("execution.llm_client._CACHE_DB_PATH", tmp_path / "cache.db"):
+            _cache_set("cache-key", "cached")
+            hit, result = client._cached_simple_loop_result("cache-key", lambda val: f"decoded:{val}", "text")
+        assert hit is True
+        assert result == "decoded:cached"
+
+    def test_retry_wait_seconds_caps_exponential_backoff(self):
+        assert LLMClient._retry_wait_seconds(1) == 2
+        assert LLMClient._retry_wait_seconds(4) == 10
+
+    @patch.object(LLMClient, "_generate_once")
+    def test_run_simple_attempt_logs_usage_and_writes_cache(self, mock_gen, tmp_path):
+        client = self._make_client()
+        mock_gen.return_value = ("raw content", 3, 5, 0, 0)
+        with (
+            patch.object(client, "_log_usage") as mock_log_usage,
+            patch("execution.llm_client._CACHE_DB_PATH", tmp_path / "cache.db"),
+        ):
+            result = client._run_simple_attempt(
+                provider="openai",
+                model="gpt-4o-mini",
+                system_prompt="sys",
+                user_prompt="user",
+                temperature=0.7,
+                json_mode=False,
+                cache_strategy="off",
+                parser=lambda val: val.upper(),
+                cache_key="cache-key",
+                cache_encoder=lambda val: f"cache:{val}",
+            )
+            cached = _cache_get("cache-key", 3600)
+        assert result == "RAW CONTENT"
+        assert cached == "cache:RAW CONTENT"
+        mock_log_usage.assert_called_once()
 
 
 class TestGetClientProviders:

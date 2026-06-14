@@ -23,6 +23,7 @@ _MODULE_ERR = ""
 try:
     import plotly.express as px
     import plotly.graph_objects as go
+
     from execution.result_tracker_db import (
         PLATFORMS,
         add_content,

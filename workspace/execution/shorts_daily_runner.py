@@ -223,6 +223,7 @@ def main() -> int:
     # 주제 자동 보충
     try:
         import logging as _logging
+
         from execution.topic_auto_generator import check_and_replenish
 
         print("\n[주제 보충 체크]")

@@ -17,8 +17,8 @@ WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
 if str(WORKSPACE_ROOT) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_ROOT))
 
-import streamlit as st  # noqa: E402
 import pandas as pd  # noqa: E402
+import streamlit as st  # noqa: E402
 
 # ── Graceful imports ──────────────────────────────────────────
 
@@ -26,8 +26,14 @@ import pandas as pd  # noqa: E402
 try:
     from execution.result_tracker_db import (
         get_all as rt_get_all,
-        get_platform_summary as rt_platform_summary,
+    )
+    from execution.result_tracker_db import (
         get_daily_trend as rt_daily_trend,
+    )
+    from execution.result_tracker_db import (
+        get_platform_summary as rt_platform_summary,
+    )
+    from execution.result_tracker_db import (
         init_db as rt_init_db,
     )
 
@@ -42,9 +48,11 @@ except ImportError:
 # api_usage_tracker
 try:
     from execution.api_usage_tracker import (
-        get_usage_summary,
         get_daily_breakdown,
         get_provider_breakdown,
+        get_usage_summary,
+    )
+    from execution.api_usage_tracker import (
         init_db as api_init_db,
     )
 
@@ -60,6 +68,8 @@ except ImportError:
 try:
     from execution.debug_history_db import (
         get_stats as debug_get_stats,
+    )
+    from execution.debug_history_db import (
         init_db as debug_init_db,
     )
 

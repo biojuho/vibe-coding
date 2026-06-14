@@ -7,7 +7,6 @@ import json
 import sys
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = REPO_ROOT / "execution" / "project_qc_runner.py"
 SPEC = importlib.util.spec_from_file_location("project_qc_runner", SCRIPT)
@@ -127,6 +126,53 @@ def test_run_plan_reports_subprocess_failures(monkeypatch) -> None:
     assert MODULE.exit_code_for_results(results) == 1
     assert results[0]["status"] == "failed"
     assert results[0]["stdout_tail"] == "failed stdout"
+
+
+def test_run_plan_normalizes_windows_pytest_postpass_returncode(monkeypatch) -> None:
+    plan = MODULE.build_plan(["blind-to-x"], ["test"])
+
+    def fake_run(*args, **kwargs):
+        return MODULE.subprocess.CompletedProcess(
+            args[0],
+            4294967295,
+            stdout="12 passed, 1 skipped in 1.2s\n",
+            stderr="",
+        )
+
+    monkeypatch.setattr(MODULE, "PROJECT_QC_HEARTBEAT_SECONDS", 0)
+    monkeypatch.setattr(MODULE, "run_subprocess_capture", fake_run)
+    monkeypatch.setattr(MODULE, "python_has_module", lambda python_path, module_name: True)
+
+    results = MODULE.run_plan(plan, timeout_seconds=5, stop_on_failure=False)
+
+    assert MODULE.exit_code_for_results(results) == 0
+    assert results[0]["status"] == "passed"
+    assert results[0]["returncode"] == 0
+    assert results[0]["raw_returncode"] == 4294967295
+    assert results[0]["returncode_normalized_reason"] == "windows_pytest_postpass_returncode"
+
+
+def test_run_plan_keeps_windows_pytest_postpass_returncode_when_summary_is_not_success(monkeypatch) -> None:
+    plan = MODULE.build_plan(["blind-to-x"], ["test"])
+
+    def fake_run(*args, **kwargs):
+        return MODULE.subprocess.CompletedProcess(
+            args[0],
+            4294967295,
+            stdout="1 failed, 11 passed in 1.2s\n",
+            stderr="",
+        )
+
+    monkeypatch.setattr(MODULE, "PROJECT_QC_HEARTBEAT_SECONDS", 0)
+    monkeypatch.setattr(MODULE, "run_subprocess_capture", fake_run)
+    monkeypatch.setattr(MODULE, "python_has_module", lambda python_path, module_name: True)
+
+    results = MODULE.run_plan(plan, timeout_seconds=5, stop_on_failure=False)
+
+    assert MODULE.exit_code_for_results(results) == 1
+    assert results[0]["status"] == "failed"
+    assert results[0]["returncode"] == 4294967295
+    assert "raw_returncode" not in results[0]
 
 
 def test_run_item_retries_transient_next_build_lock(monkeypatch) -> None:
@@ -343,6 +389,50 @@ def test_main_writes_project_qc_artifact(monkeypatch, tmp_path: Path) -> None:
     assert persisted["projects"]["blind-to-x"]["passed"] == 2
 
 
+def test_main_artifact_temp_write_failure_returns_structured_json_without_overwriting(
+    monkeypatch, tmp_path: Path
+) -> None:
+    fake_results = [_passed_result("blind-to-x", "test")]
+    monkeypatch.setattr(MODULE, "run_plan", lambda plan, timeout_seconds, stop_on_failure: fake_results)
+
+    output_path = tmp_path / "project_qc.json"
+    existing = {"status": "existing", "projects": {}}
+    output_path.write_text(json.dumps(existing), encoding="utf-8")
+    (tmp_path / "project_qc.json.refresh-tmp").mkdir()
+
+    code, output = run_main(["--project", "blind-to-x", "--json", "--artifact", str(output_path)])
+
+    payload = json.loads(output)
+    persisted = json.loads(output_path.read_text(encoding="utf-8"))
+    assert code == 4
+    assert payload["status"] == "artifact_write_failed"
+    assert payload["results_status"] == "passed"
+    assert payload["artifact_error_path"] == str(output_path)
+    assert payload["artifact_intended_path"] == str(output_path)
+    assert payload["results"] == fake_results
+    assert persisted == existing
+
+
+def test_main_artifact_blocked_parent_returns_structured_json(monkeypatch, tmp_path: Path) -> None:
+    fake_results = [_passed_result("blind-to-x", "test")]
+    monkeypatch.setattr(MODULE, "run_plan", lambda plan, timeout_seconds, stop_on_failure: fake_results)
+
+    blocked_parent = tmp_path / "blocked-parent"
+    blocked_parent.write_text("keep me", encoding="utf-8")
+    output_path = blocked_parent / "project_qc.json"
+
+    code, output = run_main(["--project", "blind-to-x", "--json", "--artifact", str(output_path)])
+
+    payload = json.loads(output)
+    assert code == 4
+    assert payload["status"] == "artifact_write_failed"
+    assert payload["results_status"] == "passed"
+    assert payload["artifact_error_path"] == str(output_path)
+    assert payload["artifact_intended_path"] == str(output_path)
+    assert payload["results"] == fake_results
+    assert blocked_parent.read_text(encoding="utf-8") == "keep me"
+
+
 def test_default_partial_run_does_not_overwrite_canonical_latest(monkeypatch, tmp_path: Path) -> None:
     fake_results = [_passed_result("blind-to-x", "test")]
     latest_path = tmp_path / "project_qc_runner_latest.json"
@@ -364,6 +454,37 @@ def test_default_partial_run_does_not_overwrite_canonical_latest(monkeypatch, tm
     assert persisted["projects"]["blind-to-x"]["coverage"] == "partial"
 
 
+def test_default_partial_runs_merge_project_latest_artifacts(monkeypatch, tmp_path: Path) -> None:
+    latest_path = tmp_path / "project_qc_runner_latest.json"
+    partial_path = tmp_path / "project_qc_runner_partial_latest.json"
+    monkeypatch.setattr(MODULE, "DEFAULT_ARTIFACT_PATH", latest_path)
+    monkeypatch.setattr(MODULE, "DEFAULT_PARTIAL_ARTIFACT_PATH", partial_path)
+
+    def fake_run_plan(plan, timeout_seconds, stop_on_failure):
+        return [
+            _passed_result(item.project, item.check.id, passed=11 if item.project == "blind-to-x" else 22)
+            for item in plan
+        ]
+
+    monkeypatch.setattr(MODULE, "run_plan", fake_run_plan)
+
+    blind_code, blind_output = run_main(["--project", "blind-to-x", "--json"])
+    shorts_code, shorts_output = run_main(["--project", "shorts-maker-v2", "--json"])
+
+    blind_payload = json.loads(blind_output)
+    shorts_payload = json.loads(shorts_output)
+    persisted = json.loads(partial_path.read_text(encoding="utf-8"))
+    assert blind_code == 0
+    assert shorts_code == 0
+    assert blind_payload["artifact_path"] == str(partial_path)
+    assert shorts_payload["artifact_path"] == str(partial_path)
+    assert not latest_path.exists()
+    assert set(persisted["projects"]) == {"blind-to-x", "shorts-maker-v2"}
+    assert persisted["projects"]["blind-to-x"]["passed"] == 22
+    assert persisted["projects"]["shorts-maker-v2"]["passed"] == 44
+    assert set(persisted[MODULE.PROJECT_QC_PROJECT_SOURCES_KEY]) == {"blind-to-x", "shorts-maker-v2"}
+
+
 def test_default_full_workspace_run_updates_canonical_latest(monkeypatch, tmp_path: Path) -> None:
     latest_path = tmp_path / "project_qc_runner_latest.json"
     partial_path = tmp_path / "project_qc_runner_partial_latest.json"
@@ -383,6 +504,33 @@ def test_default_full_workspace_run_updates_canonical_latest(monkeypatch, tmp_pa
     assert not partial_path.exists()
     assert set(persisted["projects"]) == set(MODULE.PROJECTS)
     assert all(project["coverage"] == "complete" for project in persisted["projects"].values())
+
+
+def test_configured_payload_lists_project_commands() -> None:
+    payload = MODULE._configured_payload()
+
+    assert payload["status"] == "configured"
+    assert "blind-to-x" in payload["projects"]
+    assert [check["id"] for check in payload["projects"]["hanwoo-dashboard"]["checks"]] == [
+        "test",
+        "lint",
+        "build",
+        "smoke",
+    ]
+    assert "npm" in payload["projects"]["hanwoo-dashboard"]["checks"][1]["command"]
+
+
+def test_results_payload_skips_artifact_when_disabled(tmp_path: Path) -> None:
+    payload = MODULE._results_payload(
+        [_passed_result("blind-to-x", "test")],
+        tmp_path / "project_qc.json",
+        no_artifact=True,
+    )
+
+    assert payload == {
+        "status": "passed",
+        "results": [_passed_result("blind-to-x", "test")],
+    }
 
 
 def test_list_json_includes_all_project_commands() -> None:

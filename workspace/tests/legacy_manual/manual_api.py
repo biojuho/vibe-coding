@@ -1,5 +1,6 @@
-import httpx
 import logging
+
+import httpx
 
 # 디버그 로그 활성화
 logging.basicConfig(level=logging.DEBUG)

@@ -139,6 +139,42 @@ def test_rotate_skip_when_no_current_addendum(tmp_path):
     assert result["status"] == "skip"
 
 
+def test_current_addendum_heading_accepts_descriptor_suffix(tmp_path):
+    handoff = tmp_path / ".ai" / "HANDOFF.md"
+    handoff.parent.mkdir(parents=True, exist_ok=True)
+    handoff.write_text(
+        "# HANDOFF\n\n"
+        "## Current Addendum (2026-05-08 / Codex)\n\n"
+        + _build_addendum("2026-04-15", "stale entry")
+        + "\n## Last Session\n\n- preserved\n",
+        encoding="utf-8",
+    )
+
+    result = rotator.rotate(tmp_path, keep_days=7, today=date(2026, 5, 8), dry_run=True)
+
+    assert result["status"] == "rotated"
+    assert result["archived"] == 1
+
+
+def test_prose_current_addendum_suffix_noops_instead_of_false_missing_heading(tmp_path):
+    handoff = tmp_path / ".ai" / "HANDOFF.md"
+    handoff.parent.mkdir(parents=True, exist_ok=True)
+    handoff.write_text(
+        "# HANDOFF.md\n\n"
+        "## Current Addendum (2026-05-08 / Codex autonomous debug loop)\n\n"
+        "- **Goal this session**: prose-style project handoff.\n\n"
+        "## Last Session\n\n"
+        "- preserved\n",
+        encoding="utf-8",
+    )
+
+    result = rotator.rotate(tmp_path, keep_days=7, today=date(2026, 5, 8), dry_run=True)
+
+    assert result["status"] == "noop"
+    assert result["kept"] == 0
+    assert result["archived"] == 0
+
+
 def test_rotate_dry_run_does_not_write(tmp_path):
     _write_handoff(
         tmp_path,
@@ -189,6 +225,32 @@ def test_rotate_appends_to_existing_archive(tmp_path):
     archive_text = (tmp_path / ".ai" / "archive" / "HANDOFF_archive_2026-05-08.md").read_text(encoding="utf-8")
     assert "first archive" in archive_text
     assert "second archive" in archive_text
+
+
+def test_rotate_prepares_handoff_temp_before_replacing_archive(tmp_path):
+    _write_handoff(
+        tmp_path,
+        [
+            _build_addendum("2026-05-08", "keep"),
+            _build_addendum("2026-04-15", "would archive"),
+        ],
+    )
+    handoff = tmp_path / ".ai" / "HANDOFF.md"
+    original_handoff = handoff.read_text(encoding="utf-8")
+    archive = tmp_path / ".ai" / "archive" / "HANDOFF_archive_2026-05-08.md"
+    archive.parent.mkdir(parents=True, exist_ok=True)
+    archive.write_text("existing archive\n", encoding="utf-8")
+    original_archive = archive.read_text(encoding="utf-8")
+    handoff_tmp = handoff.with_name(f"{handoff.name}.tmp")
+    handoff_tmp.mkdir()
+
+    result = rotator.rotate(tmp_path, keep_days=7, today=date(2026, 5, 8))
+
+    assert result["status"] == "write_failed"
+    assert result["archived"] == 1
+    assert result["write_error_path"].endswith("HANDOFF.md.tmp")
+    assert handoff.read_text(encoding="utf-8") == original_handoff
+    assert archive.read_text(encoding="utf-8") == original_archive
 
 
 @pytest.mark.parametrize("keep_days,expected_archived", [(0, 3), (7, 2), (60, 0)])

@@ -6,7 +6,6 @@ import io
 import sys
 import types
 
-
 import execution.finance_db as fdb
 
 

@@ -5,6 +5,7 @@ import py_compile
 from pathlib import Path
 
 import _path_bootstrap
+
 from path_contract import workspace_path
 
 WORKSPACE_ROOT = _path_bootstrap.WORKSPACE

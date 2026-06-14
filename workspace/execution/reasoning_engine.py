@@ -36,7 +36,6 @@ if str(WORKSPACE_ROOT) not in sys.path:
 
 from execution._logging import logger  # noqa: E402
 
-
 # ── 도메인 모델 ──────────────────────────────────────────────
 
 

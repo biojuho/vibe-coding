@@ -10,7 +10,6 @@ import importlib
 import sys
 from unittest.mock import MagicMock, patch
 
-
 # Streamlit을 mock하여 모듈 임포트 시 에러 방지
 _mock_st = MagicMock()
 _mock_st.set_page_config = MagicMock()
@@ -54,11 +53,11 @@ with patch.dict("sys.modules", {"streamlit": _mock_st, "psutil": _mock_psutil}):
         _build_terminal_launch,
         _count_passed_projects,
         _group_projects_by_category,
+        _normalize_terminal_command,
         _project_evidence_line,
         _project_quality_markdown,
-        _qc_project_summary,
-        _normalize_terminal_command,
         _project_rows,
+        _qc_project_summary,
         _resolve_target_directory,
         _safe_int,
         _status_chip_class,

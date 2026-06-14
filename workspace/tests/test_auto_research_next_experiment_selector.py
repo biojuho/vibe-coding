@@ -9,7 +9,6 @@ import sys
 import time
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_PATH = REPO_ROOT / ".agents" / "skills" / "auto-research" / "scripts" / "next_experiment_selector.py"
 
@@ -509,6 +508,43 @@ def test_cli_reads_dirty_handoff_plan_artifact(tmp_path: Path, capsys) -> None:
     assert "not a source failure" in expectation["meaning"]
 
 
+def test_cli_reads_recent_default_dirty_handoff_plan_cache(tmp_path: Path, capsys) -> None:
+    dirty_paths = [".ai/HANDOFF.md", ".agents/skills/auto-research/scripts/next_experiment_selector.py"]
+    readiness = tmp_path / "readiness.json"
+    github = tmp_path / "github.json"
+    browser = tmp_path / "browser.json"
+    dependency = tmp_path / "dependency.json"
+    dirty_plan = tmp_path / next_experiment_selector.DIRTY_HANDOFF_PLAN_CACHE
+    readiness.write_text(json.dumps(_readiness(workspace=1, local=1, external=1)), encoding="utf-8")
+    github.write_text(json.dumps(_github(dirty=2, dirty_paths=dirty_paths)), encoding="utf-8")
+    browser.write_text(json.dumps(_browser()), encoding="utf-8")
+    dependency.write_text(json.dumps(_dependency()), encoding="utf-8")
+    dirty_plan.parent.mkdir(parents=True)
+    dirty_plan.write_text(json.dumps(_dirty_plan(dirty_paths=dirty_paths, previous_status="current")), encoding="utf-8")
+
+    code = next_experiment_selector.main(
+        [
+            "--root",
+            str(tmp_path),
+            "--readiness",
+            str(readiness),
+            "--github",
+            str(github),
+            "--browser",
+            str(browser),
+            "--dependency",
+            str(dependency),
+            "--json",
+        ]
+    )
+    stdout = json.loads(capsys.readouterr().out)
+
+    assert code == 0
+    assert stdout["status"] == "blocked"
+    assert stdout["selected"]["kind"] == "dirty_worktree_handoff_current"
+    assert "previous handoff plan freshness=current" in stdout["selected"]["evidence"]
+
+
 def test_cli_live_helper_defaults_are_bounded(tmp_path: Path, capsys, monkeypatch) -> None:
     calls = []
 
@@ -647,6 +683,81 @@ def test_cli_missing_input_artifact_does_not_route_to_completion(tmp_path: Path,
     assert stdout["selected"]["kind"] == "input_evidence_unavailable"
     assert persisted["selected"]["kind"] == "input_evidence_unavailable"
     assert any("missing artifact" in item for item in stdout["selected"]["evidence"])
+
+
+def test_cli_reports_output_write_failure_without_overwriting_existing_selection(tmp_path: Path, capsys) -> None:
+    github = tmp_path / "github.json"
+    browser = tmp_path / "browser.json"
+    dependency = tmp_path / "dependency.json"
+    readiness = tmp_path / "readiness.json"
+    output = tmp_path / "next.json"
+    output_tmp = output.with_name(f"{output.name}.refresh-tmp")
+    github.write_text(json.dumps(_github()), encoding="utf-8")
+    browser.write_text(json.dumps(_browser()), encoding="utf-8")
+    dependency.write_text(json.dumps(_dependency()), encoding="utf-8")
+    readiness.write_text(json.dumps(_readiness(external=1)), encoding="utf-8")
+    output.write_text('{"status":"existing"}\n', encoding="utf-8")
+    output_tmp.mkdir()
+
+    code = next_experiment_selector.main(
+        [
+            "--readiness",
+            str(readiness),
+            "--github",
+            str(github),
+            "--browser",
+            str(browser),
+            "--dependency",
+            str(dependency),
+            "--output",
+            str(output),
+            "--json",
+        ]
+    )
+    stdout = json.loads(capsys.readouterr().out)
+
+    assert code == 4
+    assert stdout["status"] == "write_failed"
+    assert stdout["write_error_path"] == output.as_posix()
+    assert stdout["write_error"]
+    assert output.read_text(encoding="utf-8") == '{"status":"existing"}\n'
+
+
+def test_cli_output_blocked_parent_reports_write_failed(tmp_path: Path, capsys) -> None:
+    github = tmp_path / "github.json"
+    browser = tmp_path / "browser.json"
+    dependency = tmp_path / "dependency.json"
+    readiness = tmp_path / "readiness.json"
+    blocked_parent = tmp_path / "blocked-parent"
+    output = blocked_parent / "next.json"
+    github.write_text(json.dumps(_github()), encoding="utf-8")
+    browser.write_text(json.dumps(_browser()), encoding="utf-8")
+    dependency.write_text(json.dumps(_dependency()), encoding="utf-8")
+    readiness.write_text(json.dumps(_readiness(external=1)), encoding="utf-8")
+    blocked_parent.write_text("blocking file\n", encoding="utf-8")
+
+    code = next_experiment_selector.main(
+        [
+            "--readiness",
+            str(readiness),
+            "--github",
+            str(github),
+            "--browser",
+            str(browser),
+            "--dependency",
+            str(dependency),
+            "--output",
+            str(output),
+            "--json",
+        ]
+    )
+    stdout = json.loads(capsys.readouterr().out)
+
+    assert code == 4
+    assert stdout["status"] == "write_failed"
+    assert stdout["write_error_path"] == output.as_posix()
+    assert stdout["write_error"]
+    assert blocked_parent.read_text(encoding="utf-8") == "blocking file\n"
 
 
 def test_cli_reads_utf16_input_artifacts(tmp_path: Path, capsys) -> None:

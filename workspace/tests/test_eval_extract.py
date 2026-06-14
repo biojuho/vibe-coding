@@ -123,7 +123,6 @@ def test_to_yaml_dict_shape():
 
 def test_write_eval_yaml_round_trip(tmp_path):
     import yaml
-
     from execution.blind_to_x_eval_extract import EvalCase, to_yaml_dict, write_eval_yaml
 
     cases = [

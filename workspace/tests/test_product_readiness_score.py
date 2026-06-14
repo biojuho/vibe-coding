@@ -7,7 +7,7 @@ import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_PATH = REPO_ROOT / "execution" / "product_readiness_score.py"
@@ -39,6 +39,49 @@ def test_blind_to_x_env_check_is_required_for_launch_readiness():
 
 def test_knowledge_dashboard_runtime_auth_check_is_required_for_launch_readiness():
     assert "dashboard_runtime_auth" in readiness.PROJECTS["knowledge-dashboard"].env_checks
+
+
+def test_cli_output_write_failure_returns_structured_json_without_overwriting(
+    tmp_path: Path, monkeypatch, capsys
+) -> None:
+    output_path = tmp_path / "product_readiness.json"
+    output_path.write_text('{"status":"existing"}\n', encoding="utf-8")
+    output_path.with_name(f"{output_path.name}.refresh-tmp").mkdir()
+    monkeypatch.setattr(
+        readiness,
+        "build_report",
+        lambda repo_root: {"generated_at": "2026-06-14T00:00:00Z", "overall": {"state": "blocked"}},
+    )
+
+    code = readiness.main(["--repo-root", str(tmp_path), "--output", str(output_path), "--json"])
+    stdout = json.loads(capsys.readouterr().out)
+
+    assert code == 4
+    assert output_path.read_text(encoding="utf-8") == '{"status":"existing"}\n'
+    assert stdout["status"] == "write_failed"
+    assert stdout["write_error_path"] == output_path.as_posix()
+    assert stdout["write_error"]
+    assert stdout["overall"]["state"] == "blocked"
+
+
+def test_cli_output_blocked_parent_returns_structured_json(tmp_path: Path, monkeypatch, capsys) -> None:
+    blocked_parent = tmp_path / "blocked-parent"
+    output_path = blocked_parent / "product_readiness.json"
+    blocked_parent.write_text("blocking file\n", encoding="utf-8")
+    monkeypatch.setattr(
+        readiness,
+        "build_report",
+        lambda repo_root: {"generated_at": "2026-06-14T00:00:00Z", "overall": {"state": "blocked"}},
+    )
+
+    code = readiness.main(["--repo-root", str(tmp_path), "--output", str(output_path), "--json"])
+    stdout = json.loads(capsys.readouterr().out)
+
+    assert code == 4
+    assert blocked_parent.read_text(encoding="utf-8") == "blocking file\n"
+    assert stdout["status"] == "write_failed"
+    assert stdout["write_error_path"] == output_path.as_posix()
+    assert "FileExistsError" in stdout["write_error"]
 
 
 def test_hanwoo_env_example_is_required_launch_document():
@@ -142,6 +185,54 @@ def _write_latest_project_qc(root: Path) -> Path:
     return path
 
 
+def _write_partial_project_qc(
+    root: Path,
+    *,
+    project_name: str = "blind-to-x",
+    timestamp: str = "2026-05-13T02:00:00+00:00",
+    passed: int = 99,
+    coverage: str = "complete",
+    observed_checks: list[str] | None = None,
+    missing_checks: list[str] | None = None,
+    head_sha: str = "abc123",
+) -> Path:
+    path = root / ".tmp" / "project_qc_runner_partial_latest.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    observed = observed_checks or ["test", "lint"]
+    missing = missing_checks or []
+    path.write_text(
+        json.dumps(
+            {
+                "timestamp": timestamp,
+                "source": "project_qc_runner",
+                "schema_version": readiness._current_project_qc_artifact_schema_version(),
+                "git": {
+                    "available": True,
+                    "head_sha": head_sha,
+                    "branch": "main",
+                    "dirty_count": 0,
+                    "dirty_paths": [],
+                },
+                "status": "passed",
+                "projects": {
+                    project_name: {
+                        "status": "PASS",
+                        "passed": passed,
+                        "failed": 0,
+                        "errors": 0,
+                        "coverage": coverage,
+                        "expected_checks": ["test", "lint"],
+                        "observed_checks": observed,
+                        "missing_checks": missing,
+                    }
+                },
+            },
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
 def _write_qaqc_timestamp(path: Path, timestamp: str) -> None:
     data = json.loads(path.read_text(encoding="utf-8"))
     data["timestamp"] = timestamp
@@ -233,6 +324,157 @@ def _unpublished_head_github_status() -> dict:
     }
     status["blockers"] = [status["checks"][1]]
     return status
+
+
+def test_project_qc_freshness_merges_time_and_head_staleness() -> None:
+    freshness = readiness._project_qc_freshness(
+        {"timestamp": "2026-05-01T00:00:00+00:00"},
+        "blind-to-x",
+        datetime(2026, 5, 13, tzinfo=timezone.utc),
+        {
+            "artifact_head_sha": "old-head",
+            "current_head_sha": "new-head",
+            "changed_paths_available": True,
+            "changed_paths_since_qc": [
+                "projects/blind-to-x/pipeline/process.py",
+                "projects/shorts-maker-v2/render.py",
+            ],
+            "changed_paths_error": "diff failed",
+        },
+    )
+
+    assert freshness["stale"] is True
+    assert freshness["stale_reasons"] == ["age", readiness.PROJECT_QC_ARTIFACT_HEAD_STALE]
+    assert freshness["artifact_head_sha"] == "old-head"
+    assert freshness["current_head_sha"] == "new-head"
+    assert freshness["head_stale"] is True
+    assert freshness["changed_paths_available"] is True
+    assert freshness["relevant_changes_since_qc"] == ["projects/blind-to-x/pipeline/process.py"]
+    assert freshness["changed_paths_error"] == "diff failed"
+
+
+def test_project_qc_contract_state_reports_schema_and_expected_check_drift(monkeypatch) -> None:
+    monkeypatch.setattr(readiness, "_current_project_qc_artifact_schema_version", lambda: "current-schema")
+    monkeypatch.setattr(
+        readiness,
+        "_current_project_qc_expected_checks",
+        lambda: {"hanwoo-dashboard": ("build", "lint", "smoke", "test")},
+    )
+
+    missing_checks, contract_mismatches = readiness._project_qc_contract_state(
+        {"source": readiness.PROJECT_QC_SOURCE, "schema_version": "old-schema"},
+        "hanwoo-dashboard",
+        {"observed_checks": ["test", "lint"], "missing_checks": []},
+        [],
+    )
+
+    assert missing_checks == ["build", "smoke"]
+    assert contract_mismatches == [readiness.PROJECT_QC_ARTIFACT_CONTRACT_MISMATCH]
+
+
+def test_project_qc_counts_combines_failures_and_errors() -> None:
+    assert readiness._project_qc_counts({"passed": "5", "failed": "2", "errors": "3", "skipped": "1"}) == {
+        "passed": 5,
+        "failed": 5,
+        "skipped": 1,
+    }
+
+
+def test_blind_to_x_launch_env_checks_report_notion_and_provider_blockers(tmp_path: Path) -> None:
+    checks = readiness._blind_to_x_launch_env_checks(tmp_path, readiness.PROJECTS["blind-to-x"])
+
+    assert [check["name"] for check in checks] == [
+        "Notion review queue keys",
+        "blind-to-x LLM provider keys",
+    ]
+    assert all(check["severity"] == "blocker" for check in checks)
+    assert "NOTION_API_KEY" in checks[0]["message"]
+    assert "at least one LLM provider API key" in checks[1]["message"]
+
+
+def test_supabase_password_env_check_accepts_configured_database_url(tmp_path: Path) -> None:
+    env_path = tmp_path / "projects" / "hanwoo-dashboard" / ".env"
+    env_path.parent.mkdir(parents=True, exist_ok=True)
+    env_path.write_text("DATABASE_URL=postgres://user:secret@example/db\n", encoding="utf-8")
+
+    checks = readiness._supabase_password_env_checks(tmp_path, readiness.PROJECTS["hanwoo-dashboard"])
+
+    assert checks == [
+        {
+            "name": "Supabase DATABASE_URL",
+            "ok": True,
+            "severity": "ok",
+            "message": "DATABASE_URL is present; run the live Prisma check to verify current Supabase credentials.",
+        }
+    ]
+
+
+def test_shorts_provider_env_check_counts_only_usable_keys(tmp_path: Path) -> None:
+    env_path = tmp_path / "projects" / "shorts-maker-v2" / ".env"
+    env_path.parent.mkdir(parents=True, exist_ok=True)
+    env_path.write_text("OPENAI_API_KEY=sk-real-test-key\nGOOGLE_API_KEY=your_google_key\n", encoding="utf-8")
+
+    checks = readiness._shorts_provider_env_checks(tmp_path, readiness.PROJECTS["shorts-maker-v2"])
+
+    assert checks == [
+        {
+            "name": "Shorts generation provider keys",
+            "ok": True,
+            "severity": "ok",
+            "message": "1 Shorts generation provider key(s) are configured.",
+        }
+    ]
+
+
+def test_dashboard_runtime_auth_env_checks_allow_session_secret_fallback(tmp_path: Path) -> None:
+    env_path = tmp_path / "projects" / "knowledge-dashboard" / ".env.local"
+    env_path.parent.mkdir(parents=True, exist_ok=True)
+    env_path.write_text("DASHBOARD_API_KEY=knowledge-dashboard-test-key\n", encoding="utf-8")
+
+    checks = readiness._dashboard_runtime_auth_env_checks(tmp_path, readiness.PROJECTS["knowledge-dashboard"])
+
+    assert checks == [
+        {
+            "name": "Dashboard API key",
+            "ok": True,
+            "severity": "ok",
+            "message": "DASHBOARD_API_KEY is configured for authenticated dashboard routes.",
+        },
+        {
+            "name": "Dashboard session signing secret",
+            "ok": True,
+            "severity": "watch",
+            "message": "DASHBOARD_SESSION_SECRET is optional; DASHBOARD_API_KEY fallback will sign sessions.",
+        },
+    ]
+
+
+def test_project_score_value_combines_component_scores() -> None:
+    score = readiness._project_score_value(
+        qc_score=35,
+        active_blockers=[],
+        docs=[{"present": True}, {"present": True}],
+        dirty_paths=[],
+        env={"score": 15},
+    )
+
+    assert score == 100
+
+
+def test_project_blocker_breakdown_counts_task_and_env_blockers() -> None:
+    breakdown = readiness._project_blocker_breakdown(
+        active_blockers=[{"id": "T-1"}, {"id": "T-2"}],
+        user_task_blockers=[{"id": "T-1"}],
+        agent_task_blockers=[{"id": "T-2"}],
+        env_blockers=[{"name": "env"}],
+    )
+
+    assert breakdown == {
+        "task_count": 2,
+        "user_task_count": 1,
+        "agent_task_count": 1,
+        "environment_count": 1,
+    }
 
 
 def test_hanwoo_placeholder_marks_project_blocked(tmp_path: Path):
@@ -580,22 +822,26 @@ def test_github_release_gate_blocks_missing_required_actions(tmp_path: Path):
 def test_github_release_status_marks_unpublished_head_actions_as_publish_blocker(tmp_path: Path, monkeypatch):
     (tmp_path / ".git").mkdir()
 
-    def fake_text_command(_repo_root: Path, command: list[str], timeout: int = 10) -> str:
+    def fake_run_command(
+        _repo_root: Path, command: list[str], *, default: Any = "", timeout: int = 10, parse_json: bool = False
+    ):
         if command == ["git", "rev-parse", "HEAD"]:
-            return "abc123"
-        if command == ["git", "status", "--short", "--branch"]:
-            return "## main...origin/main [ahead 2]"
-        return ""
+            result = "abc123"
+        elif command == ["git", "status", "--short", "--branch"]:
+            result = "## main...origin/main [ahead 2]"
+        elif command[:3] == ["gh", "pr", "list"]:
+            result = []
+        elif command[:3] == ["gh", "run", "list"]:
+            result = []
+        else:
+            return default
+        if parse_json:
+            return result
+        if isinstance(result, str):
+            return result.strip()
+        return result
 
-    def fake_json_command(_repo_root: Path, command: list[str], timeout: int = 15):
-        if command[:3] == ["gh", "pr", "list"]:
-            return []
-        if command[:3] == ["gh", "run", "list"]:
-            return []
-        return None
-
-    monkeypatch.setattr(readiness, "_run_text_command", fake_text_command)
-    monkeypatch.setattr(readiness, "_run_json_command", fake_json_command)
+    monkeypatch.setattr(readiness, "_run_command", fake_run_command)
 
     status = readiness._github_release_status(tmp_path)
 
@@ -720,6 +966,151 @@ def test_partial_project_qc_runner_artifact_does_not_score_as_fresh_qc(tmp_path:
         blind["recommendations"][0]
         == "Refresh project QC so the score reflects the latest test/lint/build/smoke state."
     )
+
+
+def test_default_qc_data_uses_newer_complete_partial_project_artifact(tmp_path: Path):
+    _write_project_files(tmp_path)
+    _write_latest_project_qc(tmp_path)
+    _write_partial_project_qc(tmp_path, passed=99)
+    _write_tasks(
+        tmp_path, "# TASKS\n\n## TODO\n\n| ID | Task | Owner | Priority | Auto | Created |\n|---|---|---|---|---|---|\n"
+    )
+    _write_required_env(tmp_path)
+
+    report = readiness.build_report(
+        tmp_path,
+        git_status_text="",
+        github_status=_passing_github_status(),
+        now=datetime(2026, 5, 13, tzinfo=timezone.utc),
+    )
+
+    blind = next(project for project in report["projects"] if project["name"] == "blind-to-x")
+    shorts = next(project for project in report["projects"] if project["name"] == "shorts-maker-v2")
+    assert blind["qc"]["available"] is True
+    assert blind["qc"]["passed"] == 99
+    assert blind["qc"]["stale"] is False
+    assert shorts["qc"]["passed"] == 20
+
+
+def test_default_qc_data_preserves_merged_partial_projects(tmp_path: Path, monkeypatch):
+    _write_project_files(tmp_path)
+    _write_latest_project_qc(tmp_path)
+    blind_partial_path = _write_partial_project_qc(
+        tmp_path,
+        project_name="blind-to-x",
+        timestamp="2026-05-13T02:00:00+00:00",
+        passed=99,
+        head_sha="blind-head",
+    )
+    blind_partial = json.loads(blind_partial_path.read_text(encoding="utf-8"))
+    _write_partial_project_qc(
+        tmp_path,
+        project_name="shorts-maker-v2",
+        timestamp="2026-05-13T03:00:00+00:00",
+        passed=88,
+        head_sha="shorts-head",
+    )
+    merged_partial = json.loads(blind_partial_path.read_text(encoding="utf-8"))
+    merged_partial["projects"]["blind-to-x"] = blind_partial["projects"]["blind-to-x"]
+    merged_partial[readiness.PROJECT_QC_PROJECT_SOURCES_KEY] = {
+        "blind-to-x": blind_partial,
+        "shorts-maker-v2": json.loads(blind_partial_path.read_text(encoding="utf-8")),
+    }
+    blind_partial_path.write_text(json.dumps(merged_partial), encoding="utf-8")
+    _write_tasks(
+        tmp_path, "# TASKS\n\n## TODO\n\n| ID | Task | Owner | Priority | Auto | Created |\n|---|---|---|---|---|---|\n"
+    )
+    _write_required_env(tmp_path)
+
+    def fake_changed_paths(repo_root: Path, base_sha: str, head_sha: str) -> dict:
+        if base_sha == head_sha:
+            return {"available": True, "paths": []}
+        return {"available": True, "paths": ["projects/blind-to-x/pipeline/process.py"]}
+
+    monkeypatch.setattr(readiness, "_changed_paths_between", fake_changed_paths)
+    github_status = _passing_github_status()
+    github_status["head_sha"] = "blind-head"
+
+    report = readiness.build_report(
+        tmp_path,
+        git_status_text="",
+        github_status=github_status,
+        now=datetime(2026, 5, 13, tzinfo=timezone.utc),
+    )
+
+    blind = next(project for project in report["projects"] if project["name"] == "blind-to-x")
+    shorts = next(project for project in report["projects"] if project["name"] == "shorts-maker-v2")
+    assert blind["qc"]["passed"] == 99
+    assert blind["qc"]["head_stale"] is False
+    assert shorts["qc"]["passed"] == 88
+
+
+def test_newer_incomplete_partial_project_qc_does_not_replace_canonical_complete(tmp_path: Path):
+    _write_project_files(tmp_path)
+    _write_latest_project_qc(tmp_path)
+    _write_partial_project_qc(
+        tmp_path,
+        passed=99,
+        coverage="partial",
+        observed_checks=["test"],
+        missing_checks=["lint"],
+    )
+    _write_tasks(
+        tmp_path, "# TASKS\n\n## TODO\n\n| ID | Task | Owner | Priority | Auto | Created |\n|---|---|---|---|---|---|\n"
+    )
+    _write_required_env(tmp_path)
+
+    report = readiness.build_report(
+        tmp_path,
+        git_status_text="",
+        github_status=_passing_github_status(),
+        now=datetime(2026, 5, 13, tzinfo=timezone.utc),
+    )
+
+    blind = next(project for project in report["projects"] if project["name"] == "blind-to-x")
+    assert blind["qc"]["available"] is True
+    assert blind["qc"]["passed"] == 10
+    assert blind["qc"]["missing_checks"] == []
+
+
+def test_merged_partial_project_qc_uses_project_artifact_head_freshness(tmp_path: Path, monkeypatch):
+    _write_project_files(tmp_path)
+    latest_path = _write_latest_project_qc(tmp_path)
+    data = json.loads(latest_path.read_text(encoding="utf-8"))
+    data["git"] = {
+        "available": True,
+        "head_sha": "old-head",
+        "branch": "main",
+        "dirty_count": 0,
+        "dirty_paths": [],
+    }
+    latest_path.write_text(json.dumps(data), encoding="utf-8")
+    _write_partial_project_qc(tmp_path, passed=99, head_sha="new-head")
+    _write_tasks(
+        tmp_path, "# TASKS\n\n## TODO\n\n| ID | Task | Owner | Priority | Auto | Created |\n|---|---|---|---|---|---|\n"
+    )
+    _write_required_env(tmp_path)
+
+    def fake_changed_paths(repo_root: Path, base_sha: str, head_sha: str) -> dict:
+        if base_sha == head_sha:
+            return {"available": True, "paths": []}
+        return {"available": True, "paths": ["projects/blind-to-x/scrapers/ppomppu.py"]}
+
+    monkeypatch.setattr(readiness, "_changed_paths_between", fake_changed_paths)
+    github_status = _passing_github_status()
+    github_status["head_sha"] = "new-head"
+
+    report = readiness.build_report(
+        tmp_path,
+        git_status_text="",
+        github_status=github_status,
+        now=datetime(2026, 5, 13, tzinfo=timezone.utc),
+    )
+
+    blind = next(project for project in report["projects"] if project["name"] == "blind-to-x")
+    assert blind["qc"]["passed"] == 99
+    assert blind["qc"]["head_stale"] is False
+    assert blind["qc"]["stale"] is False
 
 
 def test_dirty_paths_lower_the_matching_project_only(tmp_path: Path):

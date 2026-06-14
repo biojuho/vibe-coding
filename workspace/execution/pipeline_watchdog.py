@@ -17,8 +17,6 @@ Usage (library):
 
 from __future__ import annotations
 
-import execution._logging  # noqa: F401 — loguru 중앙 설정 활성화
-
 import argparse
 import json
 import os
@@ -32,6 +30,8 @@ from typing import Any, Dict, List
 
 import requests
 from dotenv import load_dotenv
+
+import execution._logging  # noqa: F401 — loguru 중앙 설정 활성화
 
 WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
 if str(WORKSPACE_ROOT) not in sys.path:

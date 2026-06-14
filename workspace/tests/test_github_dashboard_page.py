@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pytest
 
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
 PAGE_SOURCE = WORKSPACE_ROOT / "execution" / "pages" / "github_dashboard.py"
 

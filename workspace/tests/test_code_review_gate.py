@@ -15,7 +15,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-
 from execution.code_review_gate import (
     _allows_unqualified_test_source,
     _change_analysis,
@@ -31,9 +30,9 @@ from execution.code_review_gate import (
     _looks_like_test_node,
     _looks_like_test_path,
     _parse_python_source,
-    _tested_source_keys,
-    _test_mentions_from_tree,
     _print_report,
+    _test_mentions_from_tree,
+    _tested_source_keys,
     evaluate,
     filter_graph_relevant_files,
     get_staged_files,

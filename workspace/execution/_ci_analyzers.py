@@ -31,7 +31,6 @@ from execution._ci_utils import (
     _python_cyclomatic,
 )
 
-
 # ---------------------------------------------------------------------------
 # Rule table entry (used by _scan_rules / _scan_lines)
 # ---------------------------------------------------------------------------

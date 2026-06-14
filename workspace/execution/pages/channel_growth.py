@@ -9,6 +9,7 @@ import streamlit as st  # noqa: E402
 
 try:
     import plotly.graph_objects as go
+
     from execution.channel_growth_tracker import (
         add_channel,
         collect_channel_stats,
