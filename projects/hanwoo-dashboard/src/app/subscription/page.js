@@ -155,6 +155,8 @@ export default async function SubscriptionPage({ searchParams }) {
 			</p>
 
 			<div
+				role="list"
+				aria-label="구독 혜택 목록"
 				style={{
 					display: "grid",
 					gridTemplateColumns: "1fr 1fr",
@@ -164,6 +166,7 @@ export default async function SubscriptionPage({ searchParams }) {
 			>
 				{features.map((feature) => (
 					<div
+						role="listitem"
 						key={feature.title}
 						style={{
 							background: "var(--color-surface-elevated)",

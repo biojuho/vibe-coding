@@ -130,3 +130,15 @@ test("alert banners normalize malformed notification and building payloads befor
 		/export function CalvingAlertBanner\(\{ notifications = \[\], buildings = \[\] \}\)/,
 	);
 });
+
+test("EstrusAlertBanner notification list uses role=list/listitem for screen reader navigation", () => {
+	const source = readSource("components/widgets/AlertBanners.js");
+	assert.match(source, /role="list"/);
+	assert.match(source, /aria-label="발정 알림 목록"/);
+	assert.match(source, /role="listitem"/);
+});
+
+test("CalvingAlertBanner notification list uses role=list/listitem for screen reader navigation", () => {
+	const source = readSource("components/widgets/AlertBanners.js");
+	assert.match(source, /aria-label="분만 알림 목록"/);
+});

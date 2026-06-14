@@ -99,7 +99,7 @@ export function EstrusAlertBanner(options = {}) {
 							: `${estrusNotifications.length}두 임박`}
 					</span>
 				</div>
-				<div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+				<div role="list" aria-label="발정 알림 목록" style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
 					{estrusNotifications.map((notification, index) => {
 						const building = safeBuildings.find(
 							(item) => item.id === notification.buildingId,
@@ -108,6 +108,7 @@ export function EstrusAlertBanner(options = {}) {
 
 						return (
 							<div
+								role="listitem"
 								key={notification.id}
 								className="animate-fadeInUp"
 								style={{
@@ -203,7 +204,7 @@ export function CalvingAlertBanner(options = {}) {
 						분만 알림 — {calvingNotifications.length}두 분만 임박 (14일 이내)
 					</span>
 				</div>
-				<div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+				<div role="list" aria-label="분만 알림 목록" style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
 					{calvingNotifications.map((notification, index) => {
 						const building = safeBuildings.find(
 							(item) => item.id === notification.buildingId,
@@ -212,6 +213,7 @@ export function CalvingAlertBanner(options = {}) {
 
 						return (
 							<div
+								role="listitem"
 								key={notification.id}
 								className="animate-fadeInUp"
 								style={{

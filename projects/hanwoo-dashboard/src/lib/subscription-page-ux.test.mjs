@@ -93,3 +93,10 @@ test("CancelSubscriptionButton trigger has aria-label and confirm button has ari
 	assert.match(source, /aria-label=\{isPending \? "구독 해지 처리 중"/);
 	assert.match(source, /구독 해지 최종 확인/);
 });
+
+test("SubscriptionPage features grid uses role=list/listitem for screen reader navigation", () => {
+	const source = readSource("app/subscription/page.js");
+	assert.match(source, /role="list"/);
+	assert.match(source, /aria-label="구독 혜택 목록"/);
+	assert.match(source, /role="listitem"/);
+});
