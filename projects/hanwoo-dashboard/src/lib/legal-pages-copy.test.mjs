@@ -11,6 +11,32 @@ function readSource(relativePath) {
 	return readFileSync(path.join(SRC_ROOT, relativePath), "utf8");
 }
 
+test("privacy policy accurately reflects data collected by the app", () => {
+	const privacySource = readSource("app/privacy/page.js");
+
+	// App collects: username + password (hashed) — NOT email/phone/real-name
+	assert.match(privacySource, /아이디\(사용자명\)/);
+	assert.match(privacySource, /비밀번호/);
+	assert.doesNotMatch(privacySource, /이름, 연락처, 이메일 주소/);
+
+	// Payment data mention (Toss Payments stores payment keys)
+	assert.match(privacySource, /결제/);
+
+	// Password security disclosure
+	assert.match(privacySource, /bcrypt/);
+});
+
+test("terms page includes subscription billing terms", () => {
+	const termsSource = readSource("app/terms/page.js");
+
+	assert.match(termsSource, /9,900원/);
+	assert.match(termsSource, /14일/);
+	assert.match(termsSource, /토스페이먼츠/);
+	assert.match(termsSource, /환불/);
+	assert.match(termsSource, /30일/);
+	assert.match(termsSource, /구독 해지/);
+});
+
 test("legal pages expose stable support channels without personal contact details", () => {
 	const privacySource = readSource("app/privacy/page.js");
 	const termsSource = readSource("app/terms/page.js");
