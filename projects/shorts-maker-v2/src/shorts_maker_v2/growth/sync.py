@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import importlib
 import json
+import logging
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from shorts_maker_v2.config import AppConfig, resolve_runtime_paths
 from shorts_maker_v2.growth.feedback_loop import GrowthLoopEngine
@@ -84,7 +87,8 @@ def _load_success_manifests(output_dir: Path) -> dict[str, dict[str, Any]]:
     for path in sorted(output_dir.glob("*_manifest.json")):
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
-        except Exception:
+        except Exception as exc:
+            logger.debug("Skipping malformed manifest %s: %s", path.name, exc)
             continue
 
         job_id = str(payload.get("job_id", "")).strip()

@@ -27,6 +27,7 @@ const errorTextStyle = {
 };
 
 function getPregnancyDateTime(value) {
+	if (value == null) return Number.POSITIVE_INFINITY;
 	const date =
 		value instanceof Date ? new Date(value.getTime()) : new Date(value);
 	return Number.isNaN(date.getTime())

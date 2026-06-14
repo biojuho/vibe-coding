@@ -74,9 +74,11 @@ export function estimateDailyFeedConsumptionKg(options = {}) {
 		lookbackDays = 30,
 		now = new Date(),
 	} = normalizeTodayFocusOptions(options);
+	const safeLookbackDays =
+		Number.isFinite(lookbackDays) && lookbackDays > 0 ? lookbackDays : 30;
 	if (!Array.isArray(feedHistory) || feedHistory.length === 0) return null;
 	const today = startOfDay(now);
-	const cutoff = new Date(today.getTime() - lookbackDays * 86400000);
+	const cutoff = new Date(today.getTime() - safeLookbackDays * 86400000);
 
 	let totalKg = 0;
 	let samples = 0;
@@ -94,7 +96,7 @@ export function estimateDailyFeedConsumptionKg(options = {}) {
 	}
 
 	if (samples === 0) return null;
-	return totalKg / lookbackDays;
+	return totalKg / safeLookbackDays;
 }
 
 function formatDaysLeft(target, today) {
