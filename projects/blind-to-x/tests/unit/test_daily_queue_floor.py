@@ -129,3 +129,48 @@ class TestResolveDailyQueueFloor:
         assert state.current == 2
         assert state.remaining == 0
         assert state.active is False
+
+
+class TestResolveTimezone:
+    """_resolve_timezone: valid zones pass through, invalid zones fall back to Asia/Seoul."""
+
+    def setup_method(self):
+        from pipeline.daily_queue_floor import _resolve_timezone
+
+        self._fn = _resolve_timezone
+
+    def test_none_config_returns_seoul(self):
+        from zoneinfo import ZoneInfo
+
+        result = self._fn(None)
+        assert result == ZoneInfo("Asia/Seoul")
+
+    def test_valid_timezone_is_returned(self):
+        from zoneinfo import ZoneInfo
+
+        result = self._fn(_cfg(**{"schedule.timezone": "UTC"}))
+        assert result == ZoneInfo("UTC")
+
+    def test_asia_seoul_explicit_returns_seoul(self):
+        from zoneinfo import ZoneInfo
+
+        result = self._fn(_cfg(**{"schedule.timezone": "Asia/Seoul"}))
+        assert result == ZoneInfo("Asia/Seoul")
+
+    def test_invalid_timezone_falls_back_to_seoul(self):
+        from zoneinfo import ZoneInfo
+
+        result = self._fn(_cfg(**{"schedule.timezone": "Invalid/Timezone"}))
+        assert result == ZoneInfo("Asia/Seoul")
+
+    def test_empty_string_timezone_falls_back_to_seoul(self):
+        from zoneinfo import ZoneInfo
+
+        result = self._fn(_cfg(**{"schedule.timezone": ""}))
+        assert result == ZoneInfo("Asia/Seoul")
+
+    def test_new_york_timezone_is_returned(self):
+        from zoneinfo import ZoneInfo
+
+        result = self._fn(_cfg(**{"schedule.timezone": "America/New_York"}))
+        assert result == ZoneInfo("America/New_York")
