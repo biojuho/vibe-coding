@@ -13,6 +13,7 @@ import {
 	parseInsightResponse,
 } from "@/lib/ai-insight.mjs";
 import { requireAuthenticatedSession } from "@/lib/auth-guard";
+import { checkRateLimit } from "@/lib/rate-limit.mjs";
 import { getSubscriptionStatus } from "@/lib/subscription-queries";
 
 const SYSTEM_INSTRUCTION = `
@@ -153,6 +154,22 @@ export async function POST(request) {
 		);
 	}
 
+	const userId =
+		session && session.user && typeof session.user.id === "string"
+			? session.user.id
+			: null;
+
+	if (userId) {
+		const rateResult = checkRateLimit(`ai-insight:${userId}`, { maxRequests: 20, windowMs: 3600000 });
+		if (!rateResult.allowed) {
+			emitInsightMetric({ event: "rate_limited", durationMs: Date.now() - startedAt });
+			return Response.json(
+				{ error: "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.", code: "RATE_LIMITED" },
+				{ status: 429, headers: { "Retry-After": String(rateResult.retryAfterSeconds ?? 3600) } },
+			);
+		}
+	}
+
 	const body = await readJsonBody(request);
 	const safeBody = normalizeInsightRequestBody(body);
 	const summary = safeBody.summary ?? null;
@@ -174,10 +191,6 @@ export async function POST(request) {
 		});
 	}
 
-	const userId =
-		session && session.user && typeof session.user.id === "string"
-			? session.user.id
-			: null;
 	const hasUserId = userId !== null;
 	const cacheKey = userId
 		? buildCacheKey({ userId, summary })
