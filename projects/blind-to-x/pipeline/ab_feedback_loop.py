@@ -18,9 +18,10 @@ from pipeline.style_bandit import get_style_bandit
 logger = logging.getLogger(__name__)
 
 # Reward mapping from Notion performance_grade → bandit reward scalar
+# S≠A 구분 (T-AB025): Thompson Sampling이 바이럴(S)과 우수(A)를 다르게 학습하도록
 _GRADE_TO_REWARD: dict[str, float] = {
-    "S": 1.0,
-    "A": 1.0,
+    "S": 1.0,  # 바이럴/역대급
+    "A": 0.85,  # 우수 (기존 1.0과 동일하여 신호 없음 → 0.85로 분리)
     "B": 0.7,
     "C": 0.5,
     "D": 0.2,

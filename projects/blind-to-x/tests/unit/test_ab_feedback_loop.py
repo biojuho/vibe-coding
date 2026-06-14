@@ -333,6 +333,27 @@ class TestUpdateStyleBandit:
             mock_bandit.update.assert_called_once_with("연봉", "공감형", 1.0)
 
     @patch("pipeline.ab_feedback_loop.ImageABTester")
+    def test_grade_a_lower_than_s(self, _):
+        """T-AB025: A-grade reward must be < S-grade to allow Thompson Sampling discrimination."""
+        from unittest.mock import MagicMock
+
+        from pipeline.ab_feedback_loop import _GRADE_TO_REWARD
+
+        assert _GRADE_TO_REWARD["S"] > _GRADE_TO_REWARD["A"], "S must yield higher reward than A"
+        assert _GRADE_TO_REWARD["A"] >= 0.8, "A-grade should still be a strong positive signal"
+
+        mock_bandit = MagicMock()
+        with patch("pipeline.ab_feedback_loop.get_style_bandit", return_value=mock_bandit):
+            loop = ABFeedbackLoop(MagicMock(), FakeConfig())
+            records = [
+                {"topic_cluster": "연봉", "chosen_draft_type": "공감형", "performance_grade": "A", "views": 300},
+            ]
+            loop._update_style_bandit(records)
+            called_reward = mock_bandit.update.call_args[0][2]
+            assert called_reward < 1.0, "A-grade should not give full reward (same as S)"
+            assert called_reward == _GRADE_TO_REWARD["A"]
+
+    @patch("pipeline.ab_feedback_loop.ImageABTester")
     def test_grade_d_gives_low_reward(self, _):
         mock_bandit = MagicMock()
         with patch("pipeline.ab_feedback_loop.get_style_bandit", return_value=mock_bandit):
