@@ -411,7 +411,7 @@ class MLScorer:
                 score = round(min(100.0, max(0.0, raw / _LOG_VIEWS_MAX * 100)), 1)
             else:
                 # Both logistic and gradient binary models output probability → scale to 0-100
-                score = round(raw * 100, 1)
+                score = round(min(100.0, max(0.0, raw * 100)), 1)
             return score, {
                 "method": "ml",
                 "model_tier": model_tier,

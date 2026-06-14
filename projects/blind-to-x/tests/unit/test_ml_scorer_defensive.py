@@ -208,3 +208,29 @@ class TestLoadTrainingDataTimeout:
         # DB 연결 실패 시에도 안전하게 빈 결과 반환
         assert isinstance(data, list)
         assert isinstance(count, int)
+
+
+def test_predict_score_binary_clamps_to_0_100():
+    """BTX-ML001: binary model path clamps raw probability*100 to [0, 100].
+
+    predict_proba() always returns [0,1] per sklearn contract, but the
+    clamp provides defensive parity with the continuous model path.
+    """
+    from unittest.mock import MagicMock
+
+    from pipeline.ml_scorer import MLScorer
+
+    scorer = MLScorer.__new__(MLScorer)
+    scorer._heuristic_row_count = 0
+
+    # Mock bundle: predict_raw returns 1.5 (anomalously > 1.0)
+    mock_bundle = MagicMock()
+    mock_bundle.target_type = "binary"
+    mock_bundle.model_tier = "gradient"
+    mock_bundle.training_rows = 100
+    mock_bundle.predict_raw.return_value = 1.5  # raw > 1.0 → would be 150 without clamp
+    scorer._bundle = mock_bundle
+
+    score, meta = scorer.predict_score("연봉", "공감형", "공감", "공감형")
+    assert 0.0 <= score <= 100.0, f"score {score} out of [0, 100]"
+    assert meta["method"] == "ml"
