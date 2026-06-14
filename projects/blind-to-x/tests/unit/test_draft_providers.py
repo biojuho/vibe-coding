@@ -366,3 +366,62 @@ class TestLangfuseTraceHook:
         result = asyncio.run(obj._generate_once("openai", "draft prompt"))
 
         assert result == ("draft", 3, 4, 0, 0)
+
+
+# ── _emit_workspace_langfuse_trace ──────────────────────────────────────────
+
+
+class TestEmitWorkspaceLangfuseTrace:
+    def test_disabled_env_is_noop(self, monkeypatch):
+        monkeypatch.setenv("LANGFUSE_ENABLED", "0")
+        from pipeline.draft_providers import _emit_workspace_langfuse_trace
+
+        _emit_workspace_langfuse_trace(provider="openai", model="gpt-4o", input_tokens=10, output_tokens=5)
+
+    def test_enabled_but_import_fails_is_silenced(self, monkeypatch):
+        monkeypatch.setenv("LANGFUSE_ENABLED", "1")
+        from unittest.mock import patch
+
+        from pipeline.draft_providers import _emit_workspace_langfuse_trace
+
+        with (
+            patch("pipeline.draft_providers.Path.is_dir", return_value=True),
+            patch.dict("sys.modules", {"execution.llm_client": None}),
+        ):
+            # None in sys.modules → AttributeError on `_emit_langfuse_trace` access → caught by except
+            _emit_workspace_langfuse_trace(
+                provider="anthropic", model="claude-3-5-haiku-20251001", input_tokens=8, output_tokens=4
+            )
+
+    def test_enabled_calls_emit_with_correct_args(self, monkeypatch):
+        monkeypatch.setenv("LANGFUSE_ENABLED", "1")
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock, patch
+
+        from pipeline.draft_providers import _emit_workspace_langfuse_trace
+
+        fake_client = MagicMock()
+        fake_module = SimpleNamespace(_emit_langfuse_trace=fake_client)
+
+        with (
+            patch("pipeline.draft_providers.Path.is_dir", return_value=True),
+            patch.dict("sys.modules", {"execution.llm_client": fake_module}),
+        ):
+            _emit_workspace_langfuse_trace(
+                provider="openai",
+                model="gpt-4o",
+                input_tokens=20,
+                output_tokens=10,
+                cache_creation_tokens=2,
+                cache_read_tokens=3,
+                latency_ms=123.4,
+                success=True,
+                error="",
+            )
+
+        fake_client.assert_called_once()
+        call_kwargs = fake_client.call_args.kwargs
+        assert call_kwargs["provider"] == "openai"
+        assert call_kwargs["model"] == "gpt-4o"
+        assert call_kwargs["input_tokens"] == 20
+        assert call_kwargs["output_tokens"] == 10

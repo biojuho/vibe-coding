@@ -23,6 +23,7 @@ from pipeline.draft_quality_gate import (
     _has_cliche_opening,
     _has_generic_cta,
     _has_scene_anchor,
+    _load_quality_gate_patterns,
     _looks_like_error_text,
 )
 
@@ -445,3 +446,23 @@ class TestVagueExpressionCheck:
         result = gate.validate("twitter", text)
         vague_matched = [i for i in result.items if "구체성" in i.rule]
         assert vague_matched, f"Phrase {phrase!r} should produce a specificity item"
+
+
+# ── _load_quality_gate_patterns ──────────────────────────────────────────────
+
+
+class TestLoadQualityGatePatterns:
+    def test_returns_empty_dict_on_exception(self):
+        with patch("pipeline.draft_quality_gate.get_rule_section", side_effect=RuntimeError("yaml broken")):
+            result = _load_quality_gate_patterns()
+        assert result == {}
+
+    def test_returns_empty_dict_when_section_is_not_dict(self):
+        with patch("pipeline.draft_quality_gate.get_rule_section", return_value=["list", "not", "dict"]):
+            result = _load_quality_gate_patterns()
+        assert result == {}
+
+    def test_returns_section_when_dict(self):
+        with patch("pipeline.draft_quality_gate.get_rule_section", return_value={"generic_cta_regex": "패턴"}):
+            result = _load_quality_gate_patterns()
+        assert result == {"generic_cta_regex": "패턴"}
