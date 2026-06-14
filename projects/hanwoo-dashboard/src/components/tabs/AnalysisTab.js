@@ -437,11 +437,12 @@ export default function AnalysisTab(options = {}) {
 						</div>
 					</div>
 
-					<div className="grid gap-3">
+					<div role="list" aria-label="상위 출하 목록" className="grid gap-3">
 						{topSales.length > 0 ? (
 							topSales.map((sale, index) => (
 								<div
 									key={sale.id}
+									role="listitem"
 									className="clay-inset flex items-center justify-between gap-3 rounded-[22px] p-4"
 								>
 									<div className="flex min-w-0 items-center gap-3">

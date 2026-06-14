@@ -416,3 +416,10 @@ test("financial chart widget normalizes numeric inputs before chart aggregation"
 	assert.doesNotMatch(summarySource, /salesThisMonth\._sum\.price \?\? 0/);
 	assert.doesNotMatch(summarySource, /expensesThisMonth\._sum\.amount \?\? 0/);
 });
+
+test("AnalysisTab top-sales list uses role=list/listitem for screen reader navigation", () => {
+	const source = readFileSync(path.join(SRC_ROOT, "components/tabs/AnalysisTab.js"), "utf8");
+	assert.match(source, /role="list"/);
+	assert.match(source, /aria-label="상위 출하 목록"/);
+	assert.match(source, /role="listitem"/);
+});
