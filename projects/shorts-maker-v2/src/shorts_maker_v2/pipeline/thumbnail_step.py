@@ -295,8 +295,8 @@ def _generate_pillow_thumbnail(
     """
     from PIL import Image, ImageDraw, ImageFilter
 
-    W, H = 1080, 1920
-    GOLD = (255, 215, 0)
+    W, H = 1080, 1920  # noqa: N806
+    GOLD = (255, 215, 0)  # noqa: N806
 
     # 1. 배경: 씬 이미지 or 그라데이션
     if bg_image_path and Path(bg_image_path).exists():
@@ -375,8 +375,8 @@ def _pillow_gradient_bg(w: int, h: int):
     import numpy as np
     from PIL import Image
 
-    TOP_COLOR = np.array([13, 13, 30], dtype=np.float32)
-    BOT_COLOR = np.array([20, 8, 58], dtype=np.float32)
+    TOP_COLOR = np.array([13, 13, 30], dtype=np.float32)  # noqa: N806
+    BOT_COLOR = np.array([20, 8, 58], dtype=np.float32)  # noqa: N806
     t = np.linspace(0, 1, h, dtype=np.float32).reshape(h, 1, 1)
     gradient = (TOP_COLOR * (1 - t) + BOT_COLOR * t).astype(np.uint8)
     gradient = np.broadcast_to(gradient, (h, w, 3)).copy()

@@ -561,7 +561,7 @@ class LLMRouter:
         policy: Any | None = None,
     ) -> str:
         bridge = _get_bridge()
-        BridgePolicy = bridge["BridgePolicy"]
+        BridgePolicy = bridge["BridgePolicy"]  # noqa: N806
         preferred_provider_order = bridge["preferred_provider_order"]
         build_bridge_system_prompt = bridge["build_bridge_system_prompt"]
         normalize_prompt_text = bridge["normalize_prompt_text"]
@@ -746,7 +746,7 @@ class LLMRouter:
         policy: Any | None = None,
     ) -> dict[str, Any]:
         bridge = _get_bridge()
-        BridgePolicy = bridge["BridgePolicy"]
+        BridgePolicy = bridge["BridgePolicy"]  # noqa: N806
         preferred_provider_order = bridge["preferred_provider_order"]
         build_bridge_system_prompt = bridge["build_bridge_system_prompt"]
         normalize_prompt_text = bridge["normalize_prompt_text"]

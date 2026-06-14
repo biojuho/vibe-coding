@@ -23,7 +23,7 @@ except ImportError:
 
     class _MissingEdgeTTS:
         @staticmethod
-        def Communicate(*_args: Any, **_kwargs: Any):
+        def Communicate(*_args: Any, **_kwargs: Any):  # noqa: N802
             raise ImportError("edge-tts package is required for EdgeTTSClient") from None
 
     edge_tts = _MissingEdgeTTS()

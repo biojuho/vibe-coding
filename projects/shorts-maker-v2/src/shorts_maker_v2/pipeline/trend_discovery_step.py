@@ -225,7 +225,7 @@ Rules:
         entries: list[dict[str, str]] = []
         try:
             try:
-                from defusedxml import ElementTree as ET
+                from defusedxml import ElementTree as ET  # noqa: N817
             except ImportError:
                 import xml.etree.ElementTree as ET  # noqa: S314 — defusedxml tried first; fallback parses trusted YouTube RSS only
             root = ET.fromstring(xml_text)

@@ -207,9 +207,9 @@ def _extract_forbidden(channel_context: str) -> str:
     없으면 빈 문자열 반환.
     """
     lines = channel_context.split("\n")
-    forbidden_lines = [l.strip() for l in lines if "금지:" in l or "금지 " in l]
+    forbidden_lines = [line.strip() for line in lines if "금지:" in line or "금지 " in line]
     if forbidden_lines:
-        return "\n\n⚠️ 이 채널 절대 금지 표현 (반드시 준수):\n" + "\n".join(f"  - {l}" for l in forbidden_lines)
+        return "\n\n⚠️ 이 채널 절대 금지 표현 (반드시 준수):\n" + "\n".join(f"  - {line}" for line in forbidden_lines)
     return ""
 
 

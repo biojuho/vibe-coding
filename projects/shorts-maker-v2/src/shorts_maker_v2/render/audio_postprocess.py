@@ -25,7 +25,7 @@ def _resolve_pydub():
         return audio_segment, high_pass, low_pass
 
     try:
-        from pydub import AudioSegment as imported_audio_segment
+        from pydub import AudioSegment as imported_audio_segment  # noqa: N813
         from pydub.effects import (
             high_pass_filter as imported_high_pass_filter,
         )

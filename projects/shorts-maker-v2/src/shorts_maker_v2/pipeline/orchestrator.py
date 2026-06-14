@@ -665,11 +665,16 @@ class PipelineOrchestrator:
 
                 status.start("script", detail="Generating script")
                 _t0 = time.perf_counter()
-                title, scene_plans, hook_pattern, cta_violations = self.script_step.run(
+                script_result = self.script_step.run(
                     topic,
                     research_context=research_context,
                     structure_outline=structure_outline,
                 )
+                if len(script_result) == 3:
+                    title, scene_plans, hook_pattern = script_result
+                    cta_violations = []
+                else:
+                    title, scene_plans, hook_pattern, cta_violations = script_result
                 # SMV2-CV002: CTA 금지어 위반을 degraded_steps 로 표면화
                 for cv in cta_violations:
                     degraded_steps.append(
@@ -1117,7 +1122,7 @@ class PipelineOrchestrator:
 
             # ── 영상 길이 점검: 총 오디오가 MAX_SHORTS_SEC 초과 시 경고만 출력 ──
             # (씬 삭제 대신 경고 로그만 남겨 영상이 완전한 형태로 렌더링되도록 함)
-            MAX_SHORTS_SEC = 43.0  # 45초 상한 - 인트로/전환 여유 2초
+            MAX_SHORTS_SEC = 43.0  # noqa: N806  # 45초 상한 - 인트로/전환 여유 2초
             total_audio = sum(a.duration_sec for a in scene_assets)
             if total_audio > MAX_SHORTS_SEC:
                 jlog.warning(

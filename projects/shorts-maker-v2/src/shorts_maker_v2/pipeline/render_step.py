@@ -1068,7 +1068,7 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
         final_video = self._concatenate_scene_clips(all_clips, fps=self.config.video.fps)
 
         # ── YouTube Shorts 하드 리밋 (59초) ──
-        MAX_SHORTS_DURATION = 59.0  # YouTube Shorts 최대 60초, 1초 마진
+        MAX_SHORTS_DURATION = 59.0  # noqa: N806  # YouTube Shorts 최대 60초, 1초 마진
         final_video = self._trim_to_shorts_limit(final_video, max_duration=MAX_SHORTS_DURATION)
 
         # BGM: Lyria AI 생성 (1순위) → local assets 폴백

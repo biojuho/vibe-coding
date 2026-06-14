@@ -23,7 +23,7 @@ def _get_pipeline_orchestrator_class():
     """Load the heavy render pipeline only for commands that actually generate videos."""
     global PipelineOrchestrator
     if PipelineOrchestrator is None:
-        from shorts_maker_v2.pipeline.orchestrator import PipelineOrchestrator as orchestrator_cls
+        from shorts_maker_v2.pipeline.orchestrator import PipelineOrchestrator as orchestrator_cls  # noqa: N813
 
         PipelineOrchestrator = orchestrator_cls
     return PipelineOrchestrator
