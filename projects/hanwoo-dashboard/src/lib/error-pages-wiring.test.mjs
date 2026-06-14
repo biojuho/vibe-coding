@@ -550,3 +550,36 @@ test("auth proxy preserves request origin in protected-route callback urls", () 
 	assert.doesNotMatch(source, /new URL\(["']\/login["'], request\.nextUrl\.origin\)/);
 	assert.doesNotMatch(source, /authorized\(\{ auth \}\) \{\s+return !!auth\?\.user;/);
 });
+
+test("register page has password visibility toggles and real-time mismatch feedback", () => {
+	const source = readSource("app/register/page.js");
+
+	// Password visibility toggles imported
+	assert.match(source, /Eye,\s*EyeOff/);
+
+	// Password field has a show/hide toggle
+	assert.match(
+		source,
+		/type=\{showPassword \? ["']text["'] : ["']password["']\}/,
+	);
+	// Confirm field has a separate show/hide toggle
+	assert.match(
+		source,
+		/type=\{showConfirm \? ["']text["'] : ["']password["']\}/,
+	);
+
+	// Real-time mismatch detection (not just on submit)
+	assert.match(
+		source,
+		/const passwordMismatch = confirm\.length > 0 && password !== confirm/,
+	);
+	// Mismatch feedback shown inline without submitting
+	assert.match(source, /비밀번호가 일치하지 않습니다/);
+
+	// aria-invalid marks the confirm field as invalid during mismatch
+	assert.match(source, /aria-invalid=\{passwordMismatch\}/);
+
+	// Error div has an id for screen reader association
+	assert.match(source, /id=\{registerErrorId\}/);
+	assert.match(source, /const registerErrorId = ["']register-error-message["']/);
+});

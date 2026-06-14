@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, LockKeyhole, UserRound } from "lucide-react";
+import { Eye, EyeOff, Loader2, LockKeyhole, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -33,6 +33,10 @@ export default function RegisterPage() {
 	const [agreed, setAgreed] = useState(false);
 	const [error, setError] = useState("");
 	const [loading, setLoading] = useState(false);
+	const [showPassword, setShowPassword] = useState(false);
+	const [showConfirm, setShowConfirm] = useState(false);
+	const passwordMismatch = confirm.length > 0 && password !== confirm;
+	const registerErrorId = "register-error-message";
 
 	const handleSubmit = async (e) => {
 		e.preventDefault();
@@ -161,14 +165,36 @@ export default function RegisterPage() {
 							/>
 							<input
 								id="reg-password"
-								type="password"
+								type={showPassword ? "text" : "password"}
 								autoComplete="new-password"
 								placeholder="8자 이상"
 								value={password}
 								onChange={(e) => setPassword(e.target.value)}
 								required
-								style={FIELD_STYLE}
+								style={{ ...FIELD_STYLE, paddingRight: "44px" }}
 							/>
+							<button
+								type="button"
+								onClick={() => setShowPassword((v) => !v)}
+								aria-pressed={showPassword}
+								aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
+								title={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
+								style={{
+									position: "absolute",
+									right: "12px",
+									top: "50%",
+									transform: "translateY(-50%)",
+									background: "none",
+									border: "none",
+									cursor: "pointer",
+									color: "var(--color-text-secondary)",
+									padding: "4px",
+									display: "flex",
+									alignItems: "center",
+								}}
+							>
+								{showPassword ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+							</button>
 						</div>
 					</div>
 
@@ -191,15 +217,47 @@ export default function RegisterPage() {
 							/>
 							<input
 								id="reg-confirm"
-								type="password"
+								type={showConfirm ? "text" : "password"}
 								autoComplete="new-password"
 								placeholder="비밀번호 재입력"
 								value={confirm}
 								onChange={(e) => setConfirm(e.target.value)}
 								required
-								style={FIELD_STYLE}
+								aria-invalid={passwordMismatch}
+								style={{
+									...FIELD_STYLE,
+									paddingRight: "44px",
+									borderColor: passwordMismatch ? "var(--color-danger)" : undefined,
+								}}
 							/>
+							<button
+								type="button"
+								onClick={() => setShowConfirm((v) => !v)}
+								aria-pressed={showConfirm}
+								aria-label={showConfirm ? "비밀번호 확인 숨기기" : "비밀번호 확인 보기"}
+								title={showConfirm ? "비밀번호 확인 숨기기" : "비밀번호 확인 보기"}
+								style={{
+									position: "absolute",
+									right: "12px",
+									top: "50%",
+									transform: "translateY(-50%)",
+									background: "none",
+									border: "none",
+									cursor: "pointer",
+									color: "var(--color-text-secondary)",
+									padding: "4px",
+									display: "flex",
+									alignItems: "center",
+								}}
+							>
+								{showConfirm ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+							</button>
 						</div>
+						{passwordMismatch && (
+							<p style={{ fontSize: "12px", color: "var(--color-danger)", marginTop: "4px", fontWeight: 600 }}>
+								비밀번호가 일치하지 않습니다.
+							</p>
+						)}
 					</div>
 
 					<label
@@ -244,6 +302,7 @@ export default function RegisterPage() {
 
 					{error && (
 						<div
+							id={registerErrorId}
 							role="alert"
 							style={{
 								background: "color-mix(in srgb, var(--color-danger) 12%, transparent)",
