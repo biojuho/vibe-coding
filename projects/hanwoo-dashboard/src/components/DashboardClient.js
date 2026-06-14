@@ -1987,6 +1987,7 @@ export default function DashboardClient(options = {}) {
 					cattleList={cattleList}
 					expenseRecords={expenseRecords}
 					marketPrice={initialMarketPrice}
+					profitability={initialProfitability}
 				/>
 			);
 		}

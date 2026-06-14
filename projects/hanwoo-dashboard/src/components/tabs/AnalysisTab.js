@@ -16,6 +16,7 @@ import {
 	YAxis,
 } from "recharts";
 import { formatMoney, toFiniteNumber } from "@/lib/utils";
+import { ProfitabilityWidget } from "@/components/widgets/ProfitabilityWidget";
 
 const GRADE_ORDER = ["1++", "1+", "1", "2", "3", "D"];
 const MARKET_GRADE_MAP = { "1++": "grade1pp", "1+": "grade1p", "1": "grade1" };
@@ -92,6 +93,7 @@ export default function AnalysisTab(options = {}) {
 		cattleList = [],
 		expenseRecords = [],
 		marketPrice = null,
+		profitability = null,
 	} = normalizeAnalysisTabOptions(options);
 	const safeSaleRecords = useMemo(
 		() => normalizeAnalysisItems(saleRecords),
@@ -509,7 +511,7 @@ export default function AnalysisTab(options = {}) {
 													<div
 														className="h-full rounded-full"
 														style={{
-															width: ,
+															width: `${pct}%`,
 															background: "var(--chart-clay-1)",
 														}}
 													/>
@@ -585,6 +587,12 @@ export default function AnalysisTab(options = {}) {
 					</div>
 				</section>
 			)}
+
+			<ProfitabilityWidget
+				data={profitability?.data}
+				error={profitability?.error}
+				meta={profitability?.meta ?? null}
+			/>
 		</div>
 	);
 }
