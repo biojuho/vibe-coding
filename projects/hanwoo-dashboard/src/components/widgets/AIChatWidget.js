@@ -373,6 +373,29 @@ export default function AIChatWidget({ isPremium = true } = {}) {
 		if (event.key === "Escape") {
 			event.preventDefault();
 			closeWidget();
+			return;
+		}
+		if (event.key === "Tab") {
+			const panel = event.currentTarget;
+			const focusable = Array.from(
+				panel.querySelectorAll(
+					'button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])',
+				),
+			);
+			if (focusable.length === 0) return;
+			const first = focusable[0];
+			const last = focusable[focusable.length - 1];
+			if (event.shiftKey) {
+				if (document.activeElement === first) {
+					event.preventDefault();
+					last.focus();
+				}
+			} else {
+				if (document.activeElement === last) {
+					event.preventDefault();
+					first.focus();
+				}
+			}
 		}
 	};
 
@@ -382,6 +405,8 @@ export default function AIChatWidget({ isPremium = true } = {}) {
 				role="dialog"
 				aria-modal="true"
 				aria-label="AI 농장 비서 - 구독 필요"
+				tabIndex={-1}
+				onKeyDown={handlePanelKeyDown}
 				style={{
 					position: "fixed",
 					bottom: "90px",

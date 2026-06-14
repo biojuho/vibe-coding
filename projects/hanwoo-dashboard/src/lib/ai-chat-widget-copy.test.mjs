@@ -240,3 +240,19 @@ test("AI chat route normalizes Gemini stream helper options before provider setu
 		/function createGeminiChatStream\(\{\s+apiKey,/,
 	);
 });
+
+test("AIChatWidget traps Tab focus in both premium chat panel and upsell panel", () => {
+	const source = readSource("components/widgets/AIChatWidget.js");
+
+	// Tab trap inside handlePanelKeyDown (shared by both panels via event.currentTarget)
+	assert.match(source, /event\.key === ["']Tab["']/);
+	assert.match(source, /event\.currentTarget/);
+	assert.match(source, /querySelectorAll[\s\S]{0,200}button:not\(\[disabled\]\)/);
+	assert.match(source, /document\.activeElement === first/);
+	assert.match(source, /document\.activeElement === last/);
+	assert.match(source, /event\.shiftKey/);
+
+	// Upsell panel connects to handlePanelKeyDown and is focusable
+	assert.match(source, /aria-label="AI 농장 비서 - 구독 필요"[\s\S]{0,200}tabIndex=\{-1\}/);
+	assert.match(source, /aria-label="AI 농장 비서 - 구독 필요"[\s\S]{0,200}onKeyDown=\{handlePanelKeyDown\}/);
+});
