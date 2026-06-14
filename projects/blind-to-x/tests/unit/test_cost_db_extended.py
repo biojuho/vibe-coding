@@ -465,3 +465,27 @@ def test_top_performing_drafts_and_calibrated_weights_roundtrip(tmp_path) -> Non
         conn.execute("UPDATE calibrated_weights SET calibrated_at = ?", (stale_timestamp,))
 
     assert db.load_calibrated_weights(max_age_days=7) is None
+
+
+# ── get_circuit_skip_hours debug log (BTX-OBS003) ────────────────
+
+
+def test_get_circuit_skip_hours_db_failure_logs_debug(tmp_path, caplog):
+    """BTX-OBS003: get_circuit_skip_hours DB 실패 시 debug 로그, 기본값 0 반환."""
+    import logging
+    from contextlib import contextmanager
+    from unittest.mock import patch
+
+    db = _make_db(tmp_path)
+
+    @contextmanager
+    def _broken_conn():
+        raise RuntimeError("db gone")
+        yield  # unreachable, makes it a generator
+
+    with patch.object(db, "_conn", _broken_conn):
+        with caplog.at_level(logging.DEBUG, logger="pipeline.cost_db"):
+            hours = db.get_circuit_skip_hours("anthropic")
+
+    assert hours == 0.0
+    assert any("db gone" in r.message for r in caplog.records)

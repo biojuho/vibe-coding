@@ -186,3 +186,46 @@ class TestDraftCacheRedis:
         cache = self._make_cache_with_redis(tmp_path, mock_backend)
         # Should not raise
         cache.clear()
+
+
+# ── DraftCache debug log coverage (BTX-OBS003) ──────────────────────
+
+
+class TestDraftCacheDebugLogging:
+    def test_init_redis_unavailable_logs_debug(self, tmp_path, caplog):
+        """BTX-OBS003: __init__ Redis 초기화 실패 시 debug 로그 출력."""
+        import logging
+
+        with caplog.at_level(logging.DEBUG, logger="pipeline.draft_cache"):
+            with patch("pipeline.db_backend.get_cache_backend", side_effect=RuntimeError("no redis"), create=True):
+                DraftCache(db_path=tmp_path / "c.db")
+        assert any("Redis" in r.message or "SQLite" in r.message for r in caplog.records)
+
+    def test_delete_sqlite_failure_logs_debug(self, tmp_path, caplog):
+        """BTX-OBS003: DraftCache.delete() SQLite 실패 시 debug 로그 출력."""
+        import logging
+
+        with patch("pipeline.db_backend.get_cache_backend", side_effect=ImportError, create=True):
+            cache = DraftCache(db_path=tmp_path / "c.db")
+
+        def _raise(*_a, **_kw):
+            raise RuntimeError("disk full")
+
+        cache._conn = _raise
+        with caplog.at_level(logging.DEBUG, logger="pipeline.draft_cache"):
+            cache.delete("some-key")  # should not raise
+        assert any("disk full" in r.message for r in caplog.records)
+
+    def test_delete_redis_failure_logs_debug(self, tmp_path, caplog):
+        """BTX-OBS003: DraftCache.delete() Redis 실패 시 debug 로그 출력."""
+        import logging
+
+        mock_backend = MagicMock()
+        mock_backend.delete.side_effect = RuntimeError("redis crash")
+        with patch("pipeline.db_backend.get_cache_backend", return_value=mock_backend, create=True):
+            cache = DraftCache(db_path=tmp_path / "c.db")
+        cache._redis_backend = mock_backend
+
+        with caplog.at_level(logging.DEBUG, logger="pipeline.draft_cache"):
+            cache.delete("some-key")  # should not raise
+        assert any("redis crash" in r.message for r in caplog.records)

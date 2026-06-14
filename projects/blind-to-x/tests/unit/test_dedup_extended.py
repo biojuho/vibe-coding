@@ -77,6 +77,35 @@ class TestEmbeddingCache:
         except Exception:
             pass  # init may fail, that's fine
 
+    def test_get_failure_emits_debug_log(self, tmp_path, caplog):
+        """BTX-OBS003: _EmbeddingCache.get() 실패 시 debug 로그 출력."""
+        import logging
+
+        cache = _EmbeddingCache(db_path=tmp_path / "test_cache.db")
+
+        def _raise(*_a, **_kw):
+            raise OSError("read error")
+
+        cache._conn = _raise
+        with caplog.at_level(logging.DEBUG, logger="pipeline.dedup"):
+            result = cache.get("any text")
+        assert result is None
+        assert any("read error" in r.message for r in caplog.records)
+
+    def test_set_failure_emits_debug_log(self, tmp_path, caplog):
+        """BTX-OBS003: _EmbeddingCache.set() 실패 시 debug 로그 출력."""
+        import logging
+
+        cache = _EmbeddingCache(db_path=tmp_path / "test_cache.db")
+
+        def _raise(*_a, **_kw):
+            raise OSError("write error")
+
+        cache._conn = _raise
+        with caplog.at_level(logging.DEBUG, logger="pipeline.dedup"):
+            cache.set("any text", [0.1, 0.2])  # should not raise
+        assert any("write error" in r.message for r in caplog.records)
+
 
 # ── normalize_korean_text ────────────────────────────────────────
 
