@@ -107,7 +107,7 @@ test("profitability service normalizes DB row collections before calculations", 
 	assert.match(source, /function normalizeProfitabilityServiceRows\(rows\) \{/);
 	assert.match(
 		source,
-		/return Array\.isArray\(rows\)\s*\?\s*rows\.filter\(\(row\) => isProfitabilityServiceRow\(row\)\)\s*:\s*\[\];/,
+		/return Array\.isArray\(rows\)[\s\S]{0,40}\?[\s\S]{0,40}rows\.filter\(\(row\) => isProfitabilityServiceRow\(row\)\)[\s\S]{0,40}:[\s\S]{0,20}\[\];/,
 	);
 	assert.match(
 		source,
@@ -121,7 +121,7 @@ test("profitability service normalizes DB row collections before calculations", 
 	assert.match(source, /const soldCattle = soldCattleIds\.length/);
 	assert.match(
 		source,
-		/normalizeProfitabilityServiceRows\([\s\S]*?await prisma\.cattle\.findMany\([\s\S]*?\.catch\(\(\) => \[\]\)/,
+		/const soldCattle = soldCattleIds\.length[\s\S]*?\? normalizeProfitabilityServiceRows\([\s\S]*?await prisma\.cattle[\s\S]*?\.findMany\([\s\S]*?\.catch\([\s\S]*?return \[\];[\s\S]*?\)[\s\S]*?: \[\];/,
 	);
 	assert.match(
 		source,
