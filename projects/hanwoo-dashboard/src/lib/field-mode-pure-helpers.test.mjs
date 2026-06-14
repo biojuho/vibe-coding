@@ -110,6 +110,30 @@ test("FieldModeView.js normalizeStoredChecklist returns createFreshChecklist for
 	assert.match(src, /return createFreshChecklist\(\)/);
 });
 
+test("FieldModeView.js readStoredChecklist: reads localStorage, falls back to createFreshChecklist on error", () => {
+	assert.match(src, /function readStoredChecklist\(todayKey\)/);
+	assert.match(src, /localStorage\.getItem\(todayKey\)/);
+	assert.match(src, /normalizeStoredChecklist\(JSON\.parse\(saved\)\)/);
+	assert.match(src, /return createFreshChecklist\(\)/);
+});
+
+test("FieldModeView.js writeStoredChecklist: writes JSON to localStorage, silently catches errors", () => {
+	assert.match(src, /function writeStoredChecklist\(todayKey, checklist\)/);
+	assert.match(src, /localStorage\.setItem\(todayKey, JSON\.stringify\(checklist\)\)/);
+});
+
+test("FieldModeView.js scheduleFieldModeTimer: wraps window.setTimeout, returns null on error", () => {
+	assert.match(src, /function scheduleFieldModeTimer\(callback, delay\)/);
+	assert.match(src, /window\.setTimeout\(callback, delay\)/);
+	assert.match(src, /return null/);
+});
+
+test("FieldModeView.js clearFieldModeTimer: early-returns for null, wraps window.clearTimeout", () => {
+	assert.match(src, /function clearFieldModeTimer\(timeoutId\)/);
+	assert.match(src, /if \(timeoutId === null\)/);
+	assert.match(src, /window\.clearTimeout\(timeoutId\)/);
+});
+
 // ── createFreshChecklist behavioral tests ─────────────────────────────────────
 
 test("createFreshChecklist returns an array with the same length as DEFAULT_CHECKLIST", () => {
