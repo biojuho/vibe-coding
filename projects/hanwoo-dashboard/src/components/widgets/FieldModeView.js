@@ -496,6 +496,7 @@ export default function FieldModeView(options = {}) {
 
 	return (
 		<div
+			id="main-content"
 			className="field-mode-wrapper min-h-screen text-amber-50"
 			style={{
 				background: "radial-gradient(circle at 50% 0%, #1c2b1c, #0a0e0a)",

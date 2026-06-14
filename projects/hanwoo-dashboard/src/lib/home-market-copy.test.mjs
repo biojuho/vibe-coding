@@ -2214,3 +2214,10 @@ test("offline status banner announces to screen readers with role=alert", () => 
 	// WifiOff icon is decorative — must be hidden from screen reader
 	assert.match(source, /WifiOff[\s\S]{0,50}aria-hidden="true"/);
 });
+
+test("FieldModeView exposes id=main-content so skip link works in field mode too", () => {
+	const source = readSource("components/widgets/FieldModeView.js");
+
+	// Field mode wrapper must have id so "본문으로 건너뛰기" skip link lands here
+	assert.match(source, /id="main-content"/);
+});
