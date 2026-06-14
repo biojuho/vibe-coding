@@ -119,7 +119,8 @@ class NotionUploader(
                 items.append(f"{obj_type}:{title or '(untitled)'} ({raw.get('id', '')})")
                 if len(items) >= limit:
                     break
-        except Exception:
+        except Exception as exc:
+            logger.debug("_list_accessible_sources failed (non-fatal): %s", exc)
             return []
         return items
 

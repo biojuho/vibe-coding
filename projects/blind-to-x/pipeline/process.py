@@ -58,7 +58,7 @@ def _config_int(config: Any, key: str, default: int) -> int:
         value = config.get(key, default)
         parsed = int(value)
         return parsed if parsed > 0 else default
-    except Exception:
+    except (TypeError, ValueError):
         return default
 
 
