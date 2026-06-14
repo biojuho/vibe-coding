@@ -865,6 +865,7 @@ export default function SettingsTab(options = {}) {
 					size="sm"
 					disabled={isSavingBuilding}
 					aria-busy={isSavingBuilding}
+					aria-expanded={isAdding}
 					aria-label={buildingAddFormButtonLabel}
 					title={buildingAddFormButtonLabel}
 					onClick={() => {

@@ -517,7 +517,7 @@ test("settings building form waits for async saves before re-enabling actions", 
 	assert.doesNotMatch(source, /"\+ 동 추가"/);
 	assert.match(
 		source,
-		/size="sm"\s+disabled=\{isSavingBuilding\}\s+aria-busy=\{isSavingBuilding\}\s+aria-label=\{buildingAddFormButtonLabel\}\s+title=\{buildingAddFormButtonLabel\}/,
+		/size="sm"\s+disabled=\{isSavingBuilding\}\s+aria-busy=\{isSavingBuilding\}\s+aria-expanded=\{isAdding\}\s+aria-label=\{buildingAddFormButtonLabel\}\s+title=\{buildingAddFormButtonLabel\}/,
 	);
 	assert.match(source, /\{buildingAddFormButtonText\}/);
 	assert.match(
@@ -754,4 +754,11 @@ test("settings change-password form has Eye/EyeOff toggles and real-time mismatc
 	assert.match(source, /새 비밀번호 보기/);
 	assert.match(source, /새 비밀번호 확인 숨기기/);
 	assert.match(source, /새 비밀번호 확인 보기/);
+});
+
+test("SettingsTab building add form toggle button declares aria-expanded so screen readers announce form state", () => {
+	const source = readSource("components/tabs/SettingsTab.js");
+
+	// The "축사 등록" button discloses an inline form (WCAG 4.1.2 State)
+	assert.match(source, /aria-expanded=\{isAdding\}/);
 });
