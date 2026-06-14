@@ -192,7 +192,8 @@ def _approximate_word_timings(text: str, audio_path: Path) -> list[dict]:
         from mutagen.mp3 import MP3
 
         audio_dur = MP3(str(audio_path)).info.length
-    except Exception:
+    except Exception as exc:
+        logger.debug("edge_tts: mutagen MP3 duration probe failed for %s: %s", audio_path, exc)
         return []
 
     if audio_dur <= 0:

@@ -6,9 +6,12 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
+
+logger = logging.getLogger(__name__)
 
 # 채널별 브랜드 컬러, 아이콘, 표시명 (ending_card.py와 동일)
 _CHANNEL_BRAND: dict[str, dict] = {
@@ -161,5 +164,6 @@ def ensure_outro_assets(
             channel_key=channel_key,
             font_candidates=font_candidates,
         )
-    except Exception:
+    except Exception as exc:
+        logger.warning("outro_card: ensure_outro_assets failed for channel %r: %s", channel_key, exc)
         return None

@@ -206,7 +206,8 @@ class PipelineOrchestrator:
             data = yaml.safe_load(profiles_path.read_text(encoding="utf-8"))
             channels = data.get("channels", {})
             return channels.get(channel_key)
-        except Exception:
+        except Exception as exc:
+            logger.debug("orchestrator: channel profile load failed for %r: %s", channel_key, exc)
             return None
 
     @staticmethod

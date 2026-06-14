@@ -178,7 +178,8 @@ class MediaFallbackMixin:
                 visual_path = self._generate_image(safe_prompt, img_path)
                 cost_guard.add_image_cost()
                 return Path(visual_path), failures
-            except Exception:
+            except Exception as exc:
+                logger.debug("fallback_mixin: DALL-E sanitized retry failed for scene %s: %s", scene_id, exc)
                 return None, failures
         except Exception as exc:
             return None, [self._image_failure("image_dalle", exc)]

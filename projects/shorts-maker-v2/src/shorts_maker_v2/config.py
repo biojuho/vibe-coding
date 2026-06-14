@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+logger = logging.getLogger(__name__)
 
 _DEFAULT_FONT_CANDIDATES = (
     "C:/Windows/Fonts/malgunbd.ttf",
@@ -289,7 +292,8 @@ def _load_locale_yaml(language: str, filename: str) -> dict[str, Any]:
     try:
         with locale_path.open(encoding="utf-8") as handle:
             data = yaml.safe_load(handle) or {}
-    except Exception:
+    except Exception as exc:
+        logger.debug("config: locale file read failed for %s: %s", locale_path, exc)
         return {}
     return data if isinstance(data, dict) else {}
 

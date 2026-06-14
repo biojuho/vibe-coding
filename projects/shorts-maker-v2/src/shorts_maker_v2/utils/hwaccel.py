@@ -45,7 +45,8 @@ def _encoder_available(codec: str) -> bool:
             timeout=10,
         )
         return codec in result.stdout.decode(errors="replace")
-    except Exception:
+    except Exception as exc:
+        logger.debug("hwaccel: encoder list probe failed for %r: %s", codec, exc)
         return False
 
 
@@ -73,7 +74,8 @@ def _test_encode(codec: str) -> bool:
                 timeout=15,
             )
             return result.returncode == 0 and out.exists()
-        except Exception:
+        except Exception as exc:
+            logger.debug("hwaccel: test encode failed for %r: %s", codec, exc)
             return False
 
 

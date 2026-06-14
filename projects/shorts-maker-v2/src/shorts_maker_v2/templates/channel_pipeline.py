@@ -30,7 +30,8 @@ class ChannelPipeline:
             from shorts_maker_v2.utils.channel_router import ChannelRouter
 
             return ChannelRouter().get_profile(channel_key)
-        except Exception:
+        except Exception as exc:
+            logger.debug("channel_pipeline: profile load failed for %r: %s", channel_key, exc)
             return {}
 
     def _build_keywords(self) -> dict[str, tuple[int, int, int, int]] | None:

@@ -41,7 +41,8 @@ def is_available() -> bool:
         import whisperx  # noqa: F401
 
         _AVAILABILITY_CACHE = True
-    except Exception:
+    except Exception as exc:
+        logger.debug("whisperx not available (optional dependency): %s", exc)
         _AVAILABILITY_CACHE = False
     return _AVAILABILITY_CACHE
 
