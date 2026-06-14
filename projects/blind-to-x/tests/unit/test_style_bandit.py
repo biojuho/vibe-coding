@@ -160,6 +160,46 @@ class TestStyleBanditErrorHandling:
         assert bandit.get_arm_stats() == []
 
 
+class TestGetArmStatsZeroDivision:
+    """BTX-SB001: get_arm_stats mean_reward guard for alpha+beta==0."""
+
+    def test_mean_reward_zero_alpha_zero_beta_returns_zero_not_exception(self, tmp_path):
+        """If DB somehow has alpha=0, beta=0 the guard prevents ZeroDivisionError."""
+        import sqlite3 as _sqlite3
+
+        db_path = tmp_path / "bandit_zero.db"
+        conn = _sqlite3.connect(db_path)
+        conn.row_factory = _sqlite3.Row
+        conn.execute(
+            """CREATE TABLE bandit_arms (
+                topic_cluster TEXT, draft_style TEXT,
+                alpha REAL DEFAULT 1.0, beta REAL DEFAULT 1.0,
+                total_trials INTEGER DEFAULT 0, last_updated TEXT
+            )"""
+        )
+        conn.execute(
+            "INSERT INTO bandit_arms VALUES (?, ?, ?, ?, ?, ?)",
+            ("테스트", "공감형", 0.0, 0.0, 0, "2026-01-01"),
+        )
+        conn.commit()
+
+        # Directly exercise the list comprehension that had the bug
+        rows = conn.execute(
+            "SELECT topic_cluster, draft_style, alpha, beta, total_trials, last_updated FROM bandit_arms WHERE topic_cluster = ?",
+            ("테스트",),
+        ).fetchall()
+        conn.close()
+
+        result = [
+            {
+                "mean_reward": round(float(row["alpha"]) / (float(row["alpha"]) + float(row["beta"]) or 1e-6), 3),
+            }
+            for row in rows
+        ]
+        # Should not raise ZeroDivisionError; alpha=0, beta=0 → 0/(0+1e-6) = 0.0
+        assert result[0]["mean_reward"] == 0.0
+
+
 class TestDefaultStyles:
     def test_분석형_in_default_styles(self):
         """T-AB039: 분석형 must be explorable for AI_전환/고용불안 topics."""

@@ -214,7 +214,7 @@ class StyleBandit:
                     "draft_style": row["draft_style"],
                     "alpha": round(float(row["alpha"]), 3),
                     "beta": round(float(row["beta"]), 3),
-                    "mean_reward": round(float(row["alpha"]) / (float(row["alpha"]) + float(row["beta"])), 3),
+                    "mean_reward": round(float(row["alpha"]) / (float(row["alpha"]) + float(row["beta"]) or 1e-6), 3),
                     "total_trials": int(row["total_trials"]),
                     "last_updated": row["last_updated"],
                 }
