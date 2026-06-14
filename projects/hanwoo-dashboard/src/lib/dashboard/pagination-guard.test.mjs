@@ -89,3 +89,46 @@ test("getNextDashboardPaginationState tolerates malformed helper input", () => {
 		"cursor-5",
 	);
 });
+
+test("sanitizeDashboardPageInfoTransition returns hasMore=false and null cursor when pagination is done", () => {
+	const result = sanitizeDashboardPageInfoTransition({
+		receivedPageInfo: { hasMore: false, nextCursor: null, limit: 50 },
+		source: "cattle",
+	});
+	assert.equal(result.hasMore, false);
+	assert.equal(result.nextCursor, null);
+	assert.equal(result.paginationError, null);
+});
+
+test("sanitizeDashboardPageInfoTransition uses source in error messages", () => {
+	const result = sanitizeDashboardPageInfoTransition({
+		receivedPageInfo: { hasMore: true, nextCursor: null, limit: 50 },
+		source: "expenses",
+	});
+	assert.match(result.paginationError, /expenses/);
+});
+
+test("getNextDashboardPaginationState returns hasMore=false when receivedPageInfo.hasMore is false", () => {
+	const result = getNextDashboardPaginationState({
+		receivedPageInfo: { hasMore: false, nextCursor: null },
+		seenCursors: new Set(),
+		pageCount: 1,
+		source: "sales",
+	});
+	assert.equal(result.hasMore, false);
+	assert.equal(result.nextCursor, null);
+	assert.equal(result.paginationError, null);
+});
+
+test("getNextDashboardPaginationState respects a custom maxPages limit", () => {
+	assert.throws(
+		() =>
+			getNextDashboardPaginationState({
+				receivedPageInfo: { hasMore: true, nextCursor: "c-x" },
+				pageCount: 5,
+				maxPages: 5,
+				source: "cattle",
+			}),
+		/exceeded 5 pages/,
+	);
+});
