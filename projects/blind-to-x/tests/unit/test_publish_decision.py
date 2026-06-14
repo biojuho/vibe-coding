@@ -91,6 +91,8 @@ def test_forbidden_ai_tone_is_hard_hold_with_zero_ceiling():
         "이건 완전 팩폭이에요.",
         "잠깐, 현실 자각 타임 가져봅시다.",
         "정신 차리고 봐, 이게 현실이야.",
+        # draft_quality_gate CTA 패턴 동기화 (T-AB022)
+        "이 방법 한 수 알려드릴게요.",
     ],
 )
 def test_influencer_slang_forbidden_tones_are_blocked(bad_phrase):

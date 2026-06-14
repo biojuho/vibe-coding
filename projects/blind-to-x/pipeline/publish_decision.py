@@ -34,6 +34,8 @@ _FORBIDDEN_TONE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("팩폭", re.compile(r"팩폭")),
     ("현실 자각 타임", re.compile(r"현실\s*자각\s*타임")),
     ("정신 차리고 봐", re.compile(r"정신\s*차리고\s*봐")),
+    # draft_quality_gate.py CTA 패턴과 동기화 (influencer 교훈형 CTA)
+    ("한 수 알려", re.compile(r"한\s*수\s*알려")),
 )
 
 
