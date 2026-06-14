@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PackagePlus } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import EmptyState from "@/components/ui/empty-state";
 import { PremiumButton } from "@/components/ui/premium-button";
@@ -84,6 +84,16 @@ export default function InventoryTab(options = {}) {
 	const { inventory, onAddItem, onUpdateQuantity, quickActionIntent = null } =
 		normalizeInventoryTabOptions(options);
 	const safeInventory = normalizeInventoryItems(inventory);
+	const lowStockCount = useMemo(
+		() =>
+			safeInventory.filter(
+				(item) =>
+					item.quantity !== null &&
+					item.threshold !== null &&
+					item.quantity <= item.threshold,
+			).length,
+		[safeInventory],
+	);
 	const handleAddItem =
 		typeof onAddItem === "function" ? onAddItem : async () => false;
 	const handleUpdateQuantity =
@@ -282,6 +292,20 @@ export default function InventoryTab(options = {}) {
 					{addFormButtonText}
 				</PremiumButton>
 			</div>
+
+			{lowStockCount > 0 && (
+				<div style={{ marginBottom: "12px" }}>
+					<div
+						className="clay-stat-chip"
+						style={{
+							color: "var(--color-danger)",
+							borderColor: "color-mix(in srgb, var(--color-danger) 50%, transparent)",
+						}}
+					>
+						부족 경고 {lowStockCount}건
+					</div>
+				</div>
+			)}
 
 			{isAdding ? (
 				<form

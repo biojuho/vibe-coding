@@ -479,11 +479,38 @@ export default function ScheduleTab(options = {}) {
 						aria-hidden="true"
 					/>
 				</button>
-				<div
-					className="text-2xl font-bold text-[color:var(--color-text)]"
-					style={{ fontFamily: "var(--font-display-custom)" }}
-				>
-					{currentDate.getFullYear()}년 {currentDate.getMonth() + 1}월
+				<div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
+					<div
+						className="text-2xl font-bold text-[color:var(--color-text)]"
+						style={{ fontFamily: "var(--font-display-custom)" }}
+					>
+						{currentDate.getFullYear()}년 {currentDate.getMonth() + 1}월
+					</div>
+					{(() => {
+						const now = new Date();
+						const isCurrentMonth =
+							currentDate.getFullYear() === now.getFullYear() &&
+							currentDate.getMonth() === now.getMonth();
+						return isCurrentMonth ? null : (
+							<button
+								type="button"
+								onClick={() => setCurrentDate(new Date())}
+								aria-label="오늘 달로 이동"
+								title="오늘 달로 이동"
+								className="text-xs font-bold"
+								style={{
+									color: "var(--color-primary-custom)",
+									background: "none",
+									border: "none",
+									cursor: "pointer",
+									padding: "0",
+									lineHeight: 1.2,
+								}}
+							>
+								← 오늘로
+							</button>
+						);
+					})()}
 				</div>
 				<button
 					type="button"
