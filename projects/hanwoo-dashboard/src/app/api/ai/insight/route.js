@@ -1,5 +1,10 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+// Allow up to 60 s on Vercel Pro — the internal GEMINI_INSIGHT_TIMEOUT_MS guard
+// (10 s) fires first; without maxDuration the platform kills at 10 s default
+// before the heuristic fallback path can complete.
+export const maxDuration = 60;
+
 import {
 	buildCacheKey,
 	dropCachedInsight,

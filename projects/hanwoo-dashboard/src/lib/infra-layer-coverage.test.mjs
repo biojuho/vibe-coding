@@ -328,3 +328,40 @@ test("getSalesRecords has a SALES_RECORD_LIMIT cap to prevent full-table scan", 
 	assert.match(salesActions, /SALES_RECORD_LIMIT = 5000/);
 	assert.match(salesActions, /take: SALES_RECORD_LIMIT/);
 });
+
+// ── AI routes ─────────────────────────────────────────────────────────────────
+
+const insightRoute = readSource("app/api/ai/insight/route.js");
+const chatRoute = readSource("app/api/ai/chat/route.js");
+
+test("AI insight route exports maxDuration=60 to prevent Vercel platform timeout", () => {
+	assert.match(insightRoute, /export const maxDuration = 60/);
+});
+
+test("AI chat route exports maxDuration=60 for SSE stream duration", () => {
+	assert.match(chatRoute, /export const maxDuration = 60/);
+});
+
+// ── ErrorBoundary ─────────────────────────────────────────────────────────────
+
+const errorBoundary = readSource("components/ErrorBoundary.js");
+
+test("ErrorBoundary error div has role=alert for screen reader announcement on error", () => {
+	assert.match(errorBoundary, /role="alert"/);
+	assert.match(errorBoundary, /aria-live="assertive"/);
+});
+
+// ── Prisma schema indices ─────────────────────────────────────────────────────
+
+const schema = readFileSync(
+	path.join(SRC_ROOT, "..", "prisma", "schema.prisma"),
+	"utf8",
+);
+
+test("Subscription model has composite userId+status index for AI/subscription queries", () => {
+	assert.match(schema, /@@index\(\[userId, status\]\)/);
+});
+
+test("ExpenseRecord model has buildingId+date index for per-barn expense aggregation", () => {
+	assert.match(schema, /@@index\(\[buildingId, date\]\)/);
+});

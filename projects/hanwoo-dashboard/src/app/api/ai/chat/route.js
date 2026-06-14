@@ -1,5 +1,9 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+// Allow up to 60 s on Vercel Pro — SSE chat streams can run longer than the
+// default 10 s platform timeout; this gives the connection time to complete.
+export const maxDuration = 60;
+
 import {
 	createAiChatSseStream,
 	handleAiChatRequest,

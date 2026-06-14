@@ -161,6 +161,8 @@ model Subscription {
   trialEndDate    DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+
+  @@index([userId, status])         // 사용자별 구독 상태 조회 (AI/구독 API 모든 요청에 사용)
 }
 
 model PaymentLog {
@@ -191,6 +193,7 @@ model ExpenseRecord {
   @@index([date])                   // 날짜 범위 비용 조회
   @@index([cattleId, date])         // 소별 비용 이력
   @@index([category, date])         // 카테고리별 비용 집계
+  @@index([buildingId, date])       // 축사별 비용 집계
 }
 
 model CattleHistory {

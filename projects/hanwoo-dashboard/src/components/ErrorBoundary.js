@@ -59,7 +59,7 @@ export class ErrorBoundary extends React.Component {
 			}
 			const resetButtonLabel = "대시보드 새로고침 및 복구 시도";
 			return (
-				<div className="flex flex-col items-center justify-center p-8 text-center min-h-[300px] border border-red-500/30 bg-red-950/20 rounded-xl">
+				<div role="alert" aria-live="assertive" className="flex flex-col items-center justify-center p-8 text-center min-h-[300px] border border-red-500/30 bg-red-950/20 rounded-xl">
 					<AlertTriangle
 						className="h-12 w-12 text-amber-500 mb-4 animate-pulse"
 						aria-hidden="true"
