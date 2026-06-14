@@ -77,6 +77,18 @@ export default function RootLayout(options = {}) {
 			<body
 				className={`${notoSansKr.variable} ${notoSerifKr.variable} ${cormorantGaramond.variable}`}
 			>
+				<noscript>
+					<div
+						style={{
+							padding: "40px 20px",
+							textAlign: "center",
+							fontFamily: "sans-serif",
+							color: "#666",
+						}}
+					>
+						<strong>JavaScript가 필요합니다.</strong> 이 서비스를 이용하려면 브라우저에서 JavaScript를 활성화해 주세요.
+					</div>
+				</noscript>
 				<a href="#main-content" className="skip-to-main">
 					본문으로 건너뛰기
 				</a>

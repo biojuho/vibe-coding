@@ -131,6 +131,24 @@ test("AIChatWidget non-premium close button has aria-label for screen readers", 
 	assert.match(source, /title="AI 농장 비서 닫기"/);
 });
 
+test("root layout has noscript fallback for users with JavaScript disabled", () => {
+	const layoutSource = readProjectFile("src/app/layout.js");
+
+	assert.match(layoutSource, /<noscript>/);
+	assert.match(layoutSource, /JavaScript가 필요합니다/);
+	assert.match(layoutSource, /<\/noscript>/);
+});
+
+test("NotificationModal has Tab focus trap matching other dialog components", () => {
+	const source = readProjectFile("src/components/ui/NotificationModal.js");
+
+	assert.match(source, /event\.key === ["']Tab["']/);
+	assert.match(source, /querySelectorAll[\s\S]{0,200}button:not\(\[disabled\]\)/);
+	assert.match(source, /document\.activeElement === first/);
+	assert.match(source, /document\.activeElement === last/);
+	assert.match(source, /event\.shiftKey/);
+});
+
 test("globals.css respects prefers-reduced-motion for accessibility", () => {
 	const cssSource = readProjectFile("src/app/globals.css");
 
