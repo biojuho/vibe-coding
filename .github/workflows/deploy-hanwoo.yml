@@ -1,0 +1,78 @@
+name: deploy-hanwoo-dashboard
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "projects/hanwoo-dashboard/**"
+      - ".github/workflows/deploy-hanwoo.yml"
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: deploy-hanwoo-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: postgresql://smoke:smoke@127.0.0.1:5432/hanwoo_smoke?sslmode=disable
+      AUTH_SECRET: ci-smoke-test-secret-not-for-production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm --filter hanwoo-dashboard run lint
+
+      - name: Test
+        run: pnpm --filter hanwoo-dashboard run test
+
+      - name: Build
+        run: pnpm --filter hanwoo-dashboard run build
+
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: quality-gate
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Deploy to Vercel
+        id: deploy
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_HANWOO }}
+          working-directory: projects/hanwoo-dashboard
+          vercel-args: "--prod"
+          github-comment: false
