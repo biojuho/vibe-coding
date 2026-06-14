@@ -148,3 +148,41 @@ test("addDays accepts timestamp numbers as base date", () => {
 	const result = addDays(ts, 1);
 	assert.equal(result.toISOString().slice(0, 10), "2026-01-02");
 });
+
+test("addDays with negative days subtracts from the base date", () => {
+	const base = new Date("2026-01-15T00:00:00Z");
+	const result = addDays(base, -7);
+	assert.equal(result.toISOString().slice(0, 10), "2026-01-08");
+});
+
+test("addDays treats NaN days as 0 (safe fallback)", () => {
+	const base = new Date("2026-06-01T00:00:00Z");
+	const result = addDays(base, Number.NaN);
+	assert.equal(result.toISOString().slice(0, 10), "2026-06-01");
+});
+
+// ── normalizePaymentOrderId boundary values ───────────────────────────────────
+
+test("normalizePaymentOrderId accepts IDs at exactly 6 chars (minimum)", () => {
+	assert.equal(normalizePaymentOrderId("abcdef"), "abcdef");
+});
+
+test("normalizePaymentOrderId accepts IDs at exactly 64 chars (maximum)", () => {
+	const id64 = "a".repeat(64);
+	assert.equal(normalizePaymentOrderId(id64), id64);
+});
+
+test("normalizePaymentOrderId rejects IDs at 5 chars (below minimum)", () => {
+	assert.equal(normalizePaymentOrderId("abcde"), "");
+});
+
+// ── normalizePaymentKey boundary values ──────────────────────────────────────
+
+test("normalizePaymentKey accepts keys at exactly 200 chars (maximum)", () => {
+	const key200 = "k".repeat(200);
+	assert.equal(normalizePaymentKey(key200), key200);
+});
+
+test("normalizePaymentKey trims leading/trailing whitespace and accepts result", () => {
+	assert.equal(normalizePaymentKey("  validkey  "), "validkey");
+});
