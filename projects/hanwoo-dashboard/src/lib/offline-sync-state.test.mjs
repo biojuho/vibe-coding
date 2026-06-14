@@ -118,3 +118,39 @@ test("createFailedQueueItemState can dead-letter permanent failures immediately"
 	assert.equal(result.item.retryCount, 1);
 	assert.equal(result.item.deadLetteredAt, 4000);
 });
+
+test("isPermanentOfflineQueueFailure catches Korean permanent failure messages", () => {
+	assert.equal(isPermanentOfflineQueueFailure("유효하지 않은 이표번호입니다"), true);
+	assert.equal(isPermanentOfflineQueueFailure("필수 항목이 빠졌습니다"), true);
+	assert.equal(isPermanentOfflineQueueFailure("개체를 찾을 수 없습니다"), true);
+	assert.equal(isPermanentOfflineQueueFailure("존재하지 않는 농장입니다"), true);
+});
+
+test("isPermanentOfflineQueueFailure returns false for non-string and empty inputs", () => {
+	assert.equal(isPermanentOfflineQueueFailure(null), false);
+	assert.equal(isPermanentOfflineQueueFailure(undefined), false);
+	assert.equal(isPermanentOfflineQueueFailure(""), false);
+	assert.equal(isPermanentOfflineQueueFailure("   "), false);
+	assert.equal(isPermanentOfflineQueueFailure(42), false);
+});
+
+test("createFailedQueueItemState respects custom maxRetries option", () => {
+	const result = createFailedQueueItemState(
+		{ id: "queue-4", retryCount: 1 },
+		{ errorMessage: "timeout", attemptedAt: 5000, maxRetries: 2 },
+	);
+	assert.equal(result.disposition, "dead-letter");
+	assert.equal(result.item.retryCount, 2);
+	assert.equal(result.item.deadLetteredAt, 5000);
+});
+
+test("normalizeOfflineQueueMetadata treats negative retryCount as 0", () => {
+	const result = normalizeOfflineQueueMetadata({ retryCount: -1, lastAttemptAt: 1000 });
+	assert.equal(result.retryCount, 0);
+	assert.equal(result.lastAttemptAt, 1000);
+});
+
+test("normalizeOfflineQueueMetadata treats float retryCount as 0", () => {
+	const result = normalizeOfflineQueueMetadata({ retryCount: 1.5 });
+	assert.equal(result.retryCount, 0);
+});
