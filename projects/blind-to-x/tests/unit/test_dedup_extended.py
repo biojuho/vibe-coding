@@ -372,3 +372,9 @@ class TestCheckCrossSourceDuplicates:
         result = check_cross_source_duplicates(candidates, use_semantic=False)
         # At least one duplicate pair should be removed
         assert len(result) <= 5
+
+
+def test_cosine_similarity_mismatched_lengths_raises():
+    """zip(strict=True) 계약: 길이 다른 벡터는 ValueError."""
+    with pytest.raises(ValueError):
+        _cosine_similarity([1.0, 2.0], [1.0, 2.0, 3.0])

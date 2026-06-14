@@ -377,3 +377,10 @@ class TestBuildWeeklyReportPayload:
         assert "success_patterns" in report
         assert "failure_patterns" in report
         assert "records" in report
+
+
+class TestPearsonCorrStrictZip:
+    def test_mismatched_lengths_raises(self):
+        """zip(strict=True) 계약: xs/ys 길이 불일치 시 ValueError."""
+        with pytest.raises(ValueError):
+            FeedbackLoop._pearson_corr([1.0, 2.0, 3.0], [1.0, 2.0])
