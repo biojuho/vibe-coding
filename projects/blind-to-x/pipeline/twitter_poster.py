@@ -69,11 +69,17 @@ class TwitterPoster:
                 media_ids = None
                 if image_path:
                     logger.info("Uploading media to Twitter: %s", image_path)
-                    media = await asyncio.to_thread(self.api_v1.media_upload, filename=image_path)
+                    media = await asyncio.wait_for(
+                        asyncio.to_thread(self.api_v1.media_upload, filename=image_path),
+                        timeout=60,
+                    )
                     media_ids = [media.media_id]
 
                 logger.info("Posting tweet (attempt %d/%d)...", attempt, max_retries)
-                response = await asyncio.to_thread(self.client_v2.create_tweet, text=text, media_ids=media_ids)
+                response = await asyncio.wait_for(
+                    asyncio.to_thread(self.client_v2.create_tweet, text=text, media_ids=media_ids),
+                    timeout=30,
+                )
                 tweet_id = response.data["id"]
                 tweet_url = f"https://x.com/user/status/{tweet_id}"
                 logger.info("Successfully posted to Twitter: %s", tweet_url)

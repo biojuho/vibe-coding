@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -178,5 +179,32 @@ class TestPostTweet:
 
         with patch("asyncio.to_thread", side_effect=RuntimeError("unknown error")):
             result = await poster.post_tweet("hello", max_retries=3)
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_api_timeout_returns_none(self):
+        """BTX-TP001: asyncio.TimeoutError from wait_for is caught and returns None."""
+        poster = self._make_poster()
+
+        with patch("asyncio.wait_for", side_effect=asyncio.TimeoutError):
+            result = await poster.post_tweet("hello")
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_media_upload_timeout_returns_none(self):
+        """BTX-TP001: timeout on media_upload path also returns None."""
+        poster = self._make_poster()
+
+        call_count = 0
+
+        async def timeout_on_first(*_args, **_kwargs):
+            nonlocal call_count
+            call_count += 1
+            raise asyncio.TimeoutError
+
+        with patch("asyncio.wait_for", side_effect=timeout_on_first):
+            result = await poster.post_tweet("hello", image_path="/tmp/img.png")
 
         assert result is None
