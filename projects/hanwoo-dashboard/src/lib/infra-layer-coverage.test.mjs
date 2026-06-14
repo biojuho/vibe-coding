@@ -555,3 +555,49 @@ test("createExpenseRecord validates expense input before DB write", () => {
 	assert.match(expenseAction, /success: false/);
 });
 
+// ── /api/health ───────────────────────────────────────────────────────────────
+
+const healthRoute = readSource("app/api/health/route.js");
+
+test("health route skips DB probe during build phase (NEXT_PHASE / CI)", () => {
+	assert.match(healthRoute, /NEXT_PHASE.*phase-production-build|phase-production-build.*NEXT_PHASE/);
+	assert.match(healthRoute, /CI.*===.*"1"|CI.*=== '1'/);
+	assert.match(healthRoute, /isBuildPhase/);
+	assert.match(healthRoute, /buildHealthResponse.*skipped.*true|skipped: true/s);
+});
+
+test("health route probes DB with Prisma.$queryRaw and returns 200 on success", () => {
+	assert.match(healthRoute, /prisma\.\$queryRaw/);
+	assert.match(healthRoute, /connected: true/);
+	assert.match(healthRoute, /buildHealthResponse/);
+	assert.doesNotMatch(healthRoute, /status: 503/);
+});
+
+test("health route returns degraded response without exposing raw error in production", () => {
+	assert.match(healthRoute, /connected: false/);
+	assert.match(healthRoute, /isProductionLike.*NODE_ENV.*production|NODE_ENV.*production.*isProductionLike/);
+	assert.match(healthRoute, /isProductionLike \? undefined : error/);
+	assert.match(healthRoute, /console\.error.*Health check database warning/);
+});
+
+// ── health-response.mjs ───────────────────────────────────────────────────────
+
+const healthResponseLib = readSource("lib/health-response.mjs");
+
+test("buildHealthResponse returns 200+healthy on connected=true, 503+degraded on connected=false", () => {
+	assert.match(healthResponseLib, /status: "healthy"/);
+	assert.match(healthResponseLib, /database: "connected"/);
+	assert.match(healthResponseLib, /status: "degraded"/);
+	assert.match(healthResponseLib, /database: "disconnected"/);
+	assert.match(healthResponseLib, /init: \{ status: 503 \}/);
+	assert.match(healthResponseLib, /init: \{ status: 200 \}/);
+});
+
+test("normalizeHealthWarning accepts Error objects and strings, falls back to default", () => {
+	assert.match(healthResponseLib, /value instanceof Error/);
+	assert.match(healthResponseLib, /typeof value === "string"/);
+	assert.match(healthResponseLib, /DEFAULT_DATABASE_WARNING/);
+	assert.match(healthResponseLib, /Database connectivity issue/);
+	assert.doesNotMatch(healthResponseLib, /warning: error\.message/);
+});
+
