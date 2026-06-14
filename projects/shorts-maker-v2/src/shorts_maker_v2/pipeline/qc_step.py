@@ -502,7 +502,7 @@ class QCStep:
             from shorts_maker_v2.config import _DEFAULT_FONT_CANDIDATES
 
             fallback_fonts: tuple[str, ...] = _DEFAULT_FONT_CANDIDATES
-        except Exception:  # pragma: no cover - config import 실패 시 방어
+        except ImportError:  # pragma: no cover - config import 실패 시 방어
             fallback_fonts = ()
 
         fallback_style = CaptionStyle(
