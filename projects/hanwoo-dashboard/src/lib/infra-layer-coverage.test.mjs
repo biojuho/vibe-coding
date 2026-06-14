@@ -352,6 +352,29 @@ test("payments/confirm uses atomic Prisma transaction to prevent partial payment
 	assert.match(paymentConfirm, /subscription\.upsert/);
 });
 
+test("payments/confirm fails fast with 500 when TOSS_PAYMENTS_SECRET_KEY env var is missing", () => {
+	// Missing secret key means we cannot call the Toss API at all — fail explicitly
+	// rather than sending an unauthenticated request that would return 401 from Toss.
+	assert.match(paymentConfirm, /process\.env\.TOSS_PAYMENTS_SECRET_KEY/);
+	assert.match(paymentConfirm, /!secretKey/);
+	assert.match(paymentConfirm, /결제 설정이 완료되지 않았습니다/);
+});
+
+test("payments/confirm uses Toss Basic auth header (secret-key:empty-password base64)", () => {
+	// Toss Payments API requires Basic auth with secretKey as the username and empty password.
+	// Using the secret key directly as a Bearer token would be rejected.
+	assert.match(paymentConfirm, /Buffer\.from\(`\$\{secretKey\}:`\)\.toString\("base64"\)/);
+	assert.match(paymentConfirm, /Authorization.*Basic \$\{basicAuth\}/);
+});
+
+test("payments/confirm is idempotent: DONE order returns success without re-confirming Toss", () => {
+	// A client retry after a lost success response must not re-call Toss confirm
+	// (Toss would reject a second confirm for the same orderId anyway).
+	assert.match(paymentConfirm, /existingLog\?\.status === "DONE"/);
+	assert.match(paymentConfirm, /paymentLog\.findUnique/);
+	assert.match(paymentConfirm, /success: true/);
+});
+
 // ── actions/cattle.js and actions/sales.js ────────────────────────────────────
 
 const cattleActions = readSource("lib/actions/cattle.js");
