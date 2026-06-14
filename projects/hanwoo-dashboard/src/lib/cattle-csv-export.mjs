@@ -1,4 +1,4 @@
-export function buildCattleCsvRows(cattleList) {
+export function buildCattleCsvRows(cattleList, buildings = []) {
 	const headers = [
 		"개체 번호",
 		"이름",
@@ -6,10 +6,15 @@ export function buildCattleCsvRows(cattleList) {
 		"생년월일",
 		"성별",
 		"상태",
-		"축사 번호",
+		"체중(kg)",
+		"축사 이름",
 		"칸 번호",
 		"메모",
 	];
+
+	const buildingMap = Array.isArray(buildings)
+		? Object.fromEntries(buildings.map((b) => [b.id, b.name || b.buildingName || ""]))
+		: {};
 
 	const safeCattleList = normalizeCattleCsvRows(cattleList);
 
@@ -20,7 +25,8 @@ export function buildCattleCsvRows(cattleList) {
 		formatCsvDate(cattle.birthDate),
 		cattle.gender || "",
 		cattle.status || "",
-		cattle.buildingId || "",
+		cattle.weight != null ? String(cattle.weight) : "",
+		buildingMap[cattle.buildingId] || cattle.buildingId || "",
 		cattle.penNumber || "",
 		(cattle.memo || "").replace(/,/g, " ").replace(/\s+/g, " ").trim(),
 	]);

@@ -37,7 +37,7 @@ function normalizeExcelExportButtonOptions(options) {
 }
 
 export default function ExcelExportButton(options = {}) {
-	const { cattleList = [], resolveCattleList = null } =
+	const { cattleList = [], resolveCattleList = null, buildings = [] } =
 		normalizeExcelExportButtonOptions(options);
 	const { notify } = useAppFeedback();
 	const [isPreparing, setIsPreparing] = useState(false);
@@ -76,7 +76,7 @@ export default function ExcelExportButton(options = {}) {
 				return;
 			}
 
-			const csvContent = buildCattleCsvRows(rows);
+			const csvContent = buildCattleCsvRows(rows, buildings);
 			const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
 			downloadUrl = URL.createObjectURL(blob);
 			downloadLink = document.createElement("a");

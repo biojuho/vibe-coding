@@ -18,6 +18,6 @@ test("buildCattleCsvRows leaves malformed birth dates blank", () => {
 		},
 	]);
 
-	assert.match(csv, /cow-3,날짜깨짐,410001111111,,암,사육중,barn-3,C-1,/);
+	assert.match(csv, /cow-3,날짜깨짐,410001111111,,암,사육중,,barn-3,C-1,/);
 	assert.doesNotMatch(csv, /Invalid Date/);
 });

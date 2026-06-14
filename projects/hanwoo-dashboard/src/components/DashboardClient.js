@@ -2043,6 +2043,7 @@ export default function DashboardClient(options = {}) {
 						<ExcelExportButton
 							cattleList={cattleList}
 							resolveCattleList={ensureAllCattleLoaded}
+							buildings={safeBuildings}
 						/>
 						<PremiumButton
 							ref={notificationTriggerRef}
