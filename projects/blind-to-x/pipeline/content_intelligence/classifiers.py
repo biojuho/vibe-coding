@@ -77,15 +77,16 @@ def classify_hook_type(title: str, content: str, emotion_axis: str) -> str:
 def recommend_draft_type(hook_type: str, emotion_axis: str) -> str:
     if hook_type == "분석형":
         return "분석형"
-    if hook_type == "정보형":
-        return "정보전달형"
-    if hook_type == "논쟁형" or emotion_axis in {"분노", "경악"}:
-        return "논쟁형"
-    # T-AB034: AI 전환 분석 → 분석형 초안, 고용불안 → 공감형
+    # T-AB048: 신규 감정축을 정보형·논쟁형보다 먼저 체크 — 논쟁형 hook이더라도
+    # AI_전환 감정은 분석형 초안이 맞고, 고용불안은 공감형이 맞음 (T-AB034 의도)
     if emotion_axis == "AI_전환":
         return "분석형"
     if emotion_axis == "고용불안":
         return "공감형"
+    if hook_type == "정보형":
+        return "정보전달형"
+    if hook_type == "논쟁형" or emotion_axis in {"분노", "경악"}:
+        return "논쟁형"
     if hook_type == "한줄팩폭형":
         return "공감형" if emotion_axis in {"공감", "허탈", "현타"} else "논쟁형"
     return "공감형"

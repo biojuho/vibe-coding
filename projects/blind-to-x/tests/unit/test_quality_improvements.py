@@ -805,6 +805,53 @@ class TestRecommendDraftType(unittest.TestCase):
         """T-AB034: AI_전환 감정은 hook_type보다 우선순위가 높음."""
         self.assertEqual(self._rdt("한줄팩폭형", "AI_전환"), "분석형")
 
+    # ── T-AB048: 논쟁형·정보형 hook이더라도 신규 감정축이 우선 ──
+    def test_AI_전환_overrides_논쟁형_hook(self):
+        """T-AB048: 논쟁형 hook + AI_전환 감정 → 분석형 (이전엔 논쟁형 반환 버그)."""
+        self.assertEqual(self._rdt("논쟁형", "AI_전환"), "분석형")
+
+    def test_AI_전환_overrides_정보형_hook(self):
+        """T-AB048: 정보형 hook + AI_전환 감정 → 분석형 (이전엔 정보전달형 반환 버그)."""
+        self.assertEqual(self._rdt("정보형", "AI_전환"), "분석형")
+
+    def test_고용불안_overrides_논쟁형_hook(self):
+        """T-AB048: 논쟁형 hook + 고용불안 감정 → 공감형 (이전엔 논쟁형 반환 버그)."""
+        self.assertEqual(self._rdt("논쟁형", "고용불안"), "공감형")
+
+    def test_분석형_hook_always_wins(self):
+        """분석형 hook은 어류 감정축이더라도 분석형 초안 유지."""
+        self.assertEqual(self._rdt("분석형", "AI_전환"), "분석형")
+        self.assertEqual(self._rdt("분석형", "고용불안"), "분석형")
+
+
+# T-AB049: _candidate_publishability_score 빈 publishable 밪 문제
+# ────────────────────────────────────────────────────────────────────────────────
+
+
+class TestCandidatePublishabilityScore(unittest.TestCase):
+    """T-AB049: 빈 publishable 비드래프트 → 0.0 (이전엔 10.0으로 Best-of-N 점수 인플레이션)"""
+
+    def _make_generator(self):
+        from pipeline.draft_generator import TweetDraftGenerator as DraftGenerator
+
+        gen = DraftGenerator.__new__(DraftGenerator)
+        gen.config = {}
+        return gen
+
+    def test_empty_drafts_returns_zero(self):
+        """T-AB049: 빈 drafts_dict → publishability_score 0.0 (before: 10.0)."""
+        gen = self._make_generator()
+        score, breakdown = gen._candidate_publishability_score({}, None, None)
+        self.assertEqual(score, 0.0, f"Expected 0.0, got {score}")
+        self.assertEqual(breakdown["publishability_score"], 0.0)
+
+    def test_non_publishable_key_returns_zero(self):
+        """publishable key(트위터 등)에 해당안하는 키만 있으면 0.0."""
+        gen = self._make_generator()
+        drafts = {"_internal": "어제 팀장이 구조조정 발표했다.", "creator_take": "천천히"}
+        score, breakdown = gen._candidate_publishability_score(drafts, None, None)
+        self.assertEqual(score, 0.0)
+
 
 if __name__ == "__main__":
     unittest.main()

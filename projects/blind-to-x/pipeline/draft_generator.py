@@ -493,8 +493,10 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
             if not requested or platform.lower() in requested
         ]
         if not publishable:
-            return 10.0, {
-                "publishability_score": 10.0,
+            # T-AB049: 0.0 (not 10.0) — empty publishable list means no usable content;
+            # 10.0 would artificially inflate Best-of-N combined score by quality_weight*10
+            return 0.0, {
+                "publishability_score": 0.0,
                 "quality_failures": 0.0,
                 "quality_warnings": 0.0,
                 "max_semantic_similarity": 0.0,

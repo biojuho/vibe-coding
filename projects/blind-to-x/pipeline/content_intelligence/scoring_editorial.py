@@ -108,7 +108,7 @@ def _build_editorial_keyword_sets(topic_rule: dict[str, Any]) -> _EditorialKeywo
     return _EditorialKeywordSets(
         workplace=tuple(topic_rule.get("workplace_keywords", [])) or _DEFAULT_WORKPLACE_KEYWORDS,
         comparison=_COMPARISON_KEYWORDS,
-        scene=tuple(topic_rule.get("must_have_anchors", [])) + _DEFAULT_SCENE_KEYWORDS,
+        scene=tuple(topic_rule.get("must_have_anchors") or []) + _DEFAULT_SCENE_KEYWORDS,
         rage=tuple(topic_rule.get("rage_bait_patterns", [])) or _DEFAULT_RAGE_PATTERNS,
         dull=tuple(topic_rule.get("dull_angle_patterns", [])) or _DEFAULT_DULL_PATTERNS,
     )
