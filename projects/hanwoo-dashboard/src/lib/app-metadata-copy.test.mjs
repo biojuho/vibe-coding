@@ -98,6 +98,25 @@ test("root layout includes skip-to-main-content link for keyboard accessibility"
 	assert.match(loginSource, /id="main-content"/);
 });
 
+test("home page and admin diagnostics page have metadata", () => {
+	const homeSource = readProjectFile("src/app/page.js");
+	const adminSource = readProjectFile("src/app/admin/diagnostics/page.js");
+
+	assert.match(homeSource, /export const metadata = \{/);
+	assert.match(homeSource, /대시보드 · Joolife 한우/);
+	assert.match(adminSource, /export const metadata = \{/);
+	assert.match(adminSource, /진단 · Joolife 한우 관리자/);
+});
+
+test("AIChatWidget non-premium close button has aria-label for screen readers", () => {
+	const source = readProjectFile("src/components/widgets/AIChatWidget.js");
+
+	// The upsell panel's "닫기" button must have a label distinguishing it from the subscription CTA
+	assert.match(source, /aria-label="AI 농장 비서 닫기"/);
+	// Main header close button also has label (verify at least one title)
+	assert.match(source, /title="AI 농장 비서 닫기"/);
+});
+
 test("committed service worker fallback stays build-agnostic", () => {
 	const serviceWorkerSource = readProjectFile("public/sw.js");
 

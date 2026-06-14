@@ -422,6 +422,8 @@ export default function AIChatWidget({ isPremium = true } = {}) {
 				<button
 					type="button"
 					onClick={() => setIsOpen(false)}
+					aria-label="AI 농장 비서 닫기"
+					title="AI 농장 비서 닫기"
 					style={{
 						background: "none",
 						border: "none",

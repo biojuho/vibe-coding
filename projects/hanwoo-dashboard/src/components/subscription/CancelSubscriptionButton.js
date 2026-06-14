@@ -79,6 +79,8 @@ export default function CancelSubscriptionButton() {
 					type="button"
 					onClick={() => setConfirming(false)}
 					disabled={isPending}
+					aria-label="구독 해지 취소"
+					title="구독 해지 취소"
 					style={{
 						padding: "8px 16px",
 						background: "var(--color-surface-elevated)",
