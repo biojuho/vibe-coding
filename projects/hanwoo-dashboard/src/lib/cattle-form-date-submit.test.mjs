@@ -39,3 +39,14 @@ test("cattle form submit date conversion avoids raw invalid Date toISOString cal
 		/new Date\(values\.purchaseDate\)\.toISOString\(\)/,
 	);
 });
+
+test("cattle form OCGK lookup gates birthDate with typeof string check (HW-CF001)", () => {
+	const source = readSource("components/forms/CattleForm.js");
+	// Must check typeof before calling .replace() on API response birthDate
+	assert.match(
+		source,
+		/typeof data\.birthDate === "string" && data\.birthDate/,
+	);
+	// Must NOT call .replace() with only a truthiness check
+	assert.doesNotMatch(source, /if \(data\.birthDate\) \{\s*const raw = data\.birthDate\.replace/s);
+});

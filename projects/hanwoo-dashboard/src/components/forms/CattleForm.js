@@ -198,7 +198,7 @@ export default function CattleForm({
 			if (res.success && res.data) {
 				const data = res.data;
 
-				if (data.birthDate) {
+				if (typeof data.birthDate === "string" && data.birthDate) {
 					const raw = data.birthDate.replace(/[-/]/g, "");
 					if (raw.length === 8) {
 						setValue(
