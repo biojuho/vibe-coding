@@ -294,3 +294,38 @@ def test_구조조정_topic_gets_high_trend_score(monkeypatch):
         f"구조조정 should score >=85 (HIGH_TREND), got {dims['trend_relevance_score']}"
     )
     assert dims["viral_potential_score"] == 78.0  # 고용불안 viral score
+
+
+# ── _freshness_score exception-path coverage ──────────────────────────────────
+
+
+class TestFreshnessScore:
+    """Covers the debug-logged exception fallback path in _freshness_score."""
+
+    def setup_method(self):
+        from pipeline.content_intelligence.scoring_6d import _freshness_score
+
+        self._fn = _freshness_score
+
+    def test_no_scraped_at_returns_default(self):
+        assert self._fn({}) == 50.0
+
+    def test_malformed_iso_string_returns_default(self):
+        # Triggers the except clause — new debug logging path.
+        assert self._fn({"scraped_at": "not-a-date-at-all"}) == 50.0
+
+    def test_none_value_treated_as_missing(self):
+        assert self._fn({"scraped_at": None}) == 50.0
+
+    def test_recent_unix_timestamp_gives_high_score(self):
+        import time
+
+        result = self._fn({"scraped_at": time.time()})
+        assert result > 90.0
+
+    def test_old_unix_timestamp_gives_low_score(self):
+        import time
+
+        # 7 days ago → exp(-168/24) ≈ 0.0009 * 100 ≈ < 1 → clamped to min 5.0
+        result = self._fn({"scraped_at": time.time() - 7 * 24 * 3600})
+        assert result < 10.0
