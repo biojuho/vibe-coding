@@ -317,6 +317,12 @@ test("payments/prepare rejects amount not matching PREMIUM_SUBSCRIPTION price (p
 	assert.match(paymentPrepare, /status: 400/);
 });
 
+test("payments/prepare success response carries Cache-Control: no-store to prevent orderId caching", () => {
+	// The prepare response includes orderId (derived from customerKey + timestamp).
+	// Caching it could allow a stale orderId to be replayed — no-store forces re-fetch.
+	assert.match(paymentPrepare, /"Cache-Control":\s*"no-store"/);
+});
+
 test("payments/confirm applies per-user rate limiting with 429 response", () => {
 	assert.match(paymentConfirm, /checkRateLimit/);
 	assert.match(paymentConfirm, /payment-confirm:/);

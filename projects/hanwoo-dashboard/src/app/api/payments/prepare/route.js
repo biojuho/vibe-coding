@@ -75,14 +75,17 @@ export async function POST(req) {
 			);
 		}
 
-		return NextResponse.json({
-			success: true,
-			orderId: buildOrderId(customerKey),
-			orderName: body?.orderName || PREMIUM_SUBSCRIPTION.displayName,
-			customerName: body?.customerName || session.user.name || "Joolife 사용자",
-			customerEmail: body?.customerEmail || null,
-			amount,
-		});
+		return NextResponse.json(
+			{
+				success: true,
+				orderId: buildOrderId(customerKey),
+				orderName: body?.orderName || PREMIUM_SUBSCRIPTION.displayName,
+				customerName: body?.customerName || session.user.name || "Joolife 사용자",
+				customerEmail: body?.customerEmail || null,
+				amount,
+			},
+			{ headers: { "Cache-Control": "no-store" } },
+		);
 	} catch (error) {
 		if (isAuthenticationError(error)) {
 			return NextResponse.json(
