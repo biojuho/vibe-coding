@@ -124,3 +124,10 @@ test("sales pagination normalizes malformed page item payloads", () => {
 		/setItems\(\(prev\) => \[\.\.\.prev, \.\.\.newItems\]\)/,
 	);
 });
+
+test("SalesTab add-sale form toggle button declares aria-expanded for screen readers", () => {
+	const source = readSource("components/tabs/SalesTab.js");
+
+	// The toggle button discloses an inline add-sale form (WCAG 4.1.2 State)
+	assert.match(source, /aria-expanded=\{isAdding\}/);
+});

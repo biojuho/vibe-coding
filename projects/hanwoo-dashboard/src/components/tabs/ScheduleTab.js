@@ -326,6 +326,7 @@ export default function ScheduleTab(options = {}) {
 					onClick={toggleAddForm}
 					disabled={isSaving}
 					aria-busy={isSaving}
+					aria-expanded={isAdding}
 					aria-label={addFormButtonLabel}
 					title={addFormButtonLabel}
 					className="clay-pressable inline-flex min-h-11 items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-[color:var(--color-text)]"

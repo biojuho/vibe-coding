@@ -647,7 +647,7 @@ test("inventory create form waits for async saves before re-enabling submit", ()
 	);
 	assert.match(
 		source,
-		/onClick=\{toggleAddForm\}\s+disabled=\{isSaving\}\s+aria-busy=\{isSaving\}\s+aria-label=\{addFormButtonLabel\}\s+title=\{addFormButtonLabel\}/,
+		/onClick=\{toggleAddForm\}\s+disabled=\{isSaving\}\s+aria-busy=\{isSaving\}\s+aria-expanded=\{isAdding\}\s+aria-label=\{addFormButtonLabel\}\s+title=\{addFormButtonLabel\}/,
 	);
 	assert.match(
 		source,

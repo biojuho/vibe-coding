@@ -1848,7 +1848,7 @@ test("sales form waits for async saves before re-enabling actions", () => {
 	assert.doesNotMatch(source, /"\+매출 등록"/);
 	assert.match(
 		source,
-		/onClick=\{toggleAddForm\}\s+disabled=\{isSaving\}\s+aria-busy=\{isSaving\}\s+aria-label=\{addFormButtonLabel\}\s+title=\{addFormButtonLabel\}/,
+		/onClick=\{toggleAddForm\}\s+disabled=\{isSaving\}\s+aria-busy=\{isSaving\}\s+aria-expanded=\{isAdding\}\s+aria-label=\{addFormButtonLabel\}\s+title=\{addFormButtonLabel\}/,
 	);
 	assert.match(
 		source,

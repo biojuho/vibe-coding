@@ -177,7 +177,7 @@ test("schedule form waits for async saves before re-enabling actions", () => {
 	assert.doesNotMatch(scheduleSource, /"새 일정"/);
 	assert.match(
 		scheduleSource,
-		/onClick=\{toggleAddForm\}\s+disabled=\{isSaving\}\s+aria-busy=\{isSaving\}\s+aria-label=\{addFormButtonLabel\}\s+title=\{addFormButtonLabel\}/,
+		/onClick=\{toggleAddForm\}\s+disabled=\{isSaving\}\s+aria-busy=\{isSaving\}\s+aria-expanded=\{isAdding\}\s+aria-label=\{addFormButtonLabel\}\s+title=\{addFormButtonLabel\}/,
 	);
 	assert.match(
 		scheduleSource,
@@ -354,4 +354,13 @@ test("schedule tab normalizes malformed event payloads before rendering", () => 
 	);
 	assert.doesNotMatch(scheduleSource, /events\.filter\(\(event\) => \{/);
 	assert.match(scheduleSource, /return safeEvents\s+\.filter/);
+});
+
+test("InventoryTab and ScheduleTab add-form toggle buttons declare aria-expanded for screen readers", () => {
+	const inventorySource = readSource("components/tabs/InventoryTab.js");
+	const scheduleSource = readSource("components/tabs/ScheduleTab.js");
+
+	// Both tabs have a toggle button that discloses an inline add form (WCAG 4.1.2 State)
+	assert.match(inventorySource, /aria-expanded=\{isAdding\}/);
+	assert.match(scheduleSource, /aria-expanded=\{isAdding\}/);
 });
