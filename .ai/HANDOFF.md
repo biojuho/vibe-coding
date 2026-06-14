@@ -6,6 +6,13 @@
 
 | Field | Value |
 |---|---|
+| Date | 2026-06-15 |
+| Tool | Claude Code (Sonnet 4.6) |
+| Work | **Multi-project quality sweep — 8 commits**: (1) BTX-DG001/002: 4× bare `except Exception: pass` → `logger.debug` in `draft_generator.py` + 2 regression tests; (2) GC-001: guard empty `response.candidates` in `google_client.generate_image` + test; (3) BTX-SC001: jobplanet HTTP 500 guard + fmkorea/ppomppu debug logging + JP-001 test; (4) HW-C01: CalvingTab `getPregnancyDateTime` null guard (`new Date(null)=epoch` bug) + 3 tests; (5) HW-TF01: `estimateDailyFeedConsumptionKg` clamp `lookbackDays≤0` to 30 + shorts sync.py logger; (6) BTX-SB001: `style_bandit.get_arm_stats` alpha+beta==0 ZeroDivisionError guard + test; (7) SM-OBS001: 3× `except pass` → debug log in edge_tts_client/broll_overlay/visual_mixin; (8) BTX-OBS002: KOTE classifier + scoring_6d weight-load fallback debug logging. |
+| Next Priorities | (a) **user action required**: `git push origin main` (many commits ahead); (b) Continue quality sweep: remaining `except Exception: pass` in `blind-to-x/pipeline/cost_db.py`, `dedup.py`, `draft_cache.py`; (c) hanwoo-dashboard CalvingTab/ScheduleTab sort patterns checked — focus shifts to `NotificationModal` and `DashboardClient` service layer; (d) T-251 Supabase DB password reset still user-owned blocker |
+
+| Field | Value |
+|---|---|
 | Date | 2026-06-14 |
 | Tool | Claude Code (Sonnet 4.6) |
 | Work | **hanwoo-dashboard product quality uplift (3rd session)**: (1) ScheduleTab: "← 오늘로" conditional nav button appears when user is on a different month; (2) InventoryTab: `useMemo` lowStockCount + "부족 경고 N건" summary chip above item list; (3) Subscription page: 6-feature benefits grid (AI insight/profitability/market price/Excel/alerts/sync) above payment widget for conversion. Commits: e8052c93, f2922569. Tests: 542/542 green. Lint clean. |
