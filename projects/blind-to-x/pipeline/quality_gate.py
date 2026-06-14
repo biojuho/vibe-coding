@@ -115,6 +115,7 @@ class QualityGate:
         self._check_forbidden(draft_text, result)
         self._check_repetition(draft_text, result)
         self._check_bland_creator_take(draft_text, result)
+        self._check_readability(draft_text, result)
         self._check_semantic_similarity(draft_text, platform, result)
         if source_content:
             self._check_source_fidelity(draft_text, source_content, result)
@@ -255,6 +256,23 @@ class QualityGate:
         elif hit_count >= warn_threshold:
             result.warnings.append(
                 f"copy_overlap_partial: 원문과 연속 {min_run}자 이상 일치 {hit_count}곳 — paraphrase 보완 권장"
+            )
+
+    def _check_readability(self, text: str, result: GateResult) -> None:
+        """가독성 게이트 (T-AB029): readability 점수를 metrics에 기록, 극히 낮을 때만 warning.
+
+        실패(failures)가 아닌 warning만 추가 — 가독성 문제는 발행 차단 대상 아님.
+        readability_score < 40 → warning "low_readability"
+        """
+        from pipeline.readability import calculate_readability
+
+        rd = calculate_readability(text)
+        result.metrics["readability_score"] = rd["readability_score"]
+        result.metrics["sentence_diversity"] = rd.get("sentence_diversity", 0.0)
+        if rd["readability_score"] < 40:
+            result.warnings.append(
+                f"low_readability: score={rd['readability_score']:.0f} "
+                f"(avg_len={rd['avg_sentence_length']:.0f}, passive={rd['passive_ratio']:.2f})"
             )
 
     def _check_bland_creator_take(self, text: str, result: GateResult) -> None:

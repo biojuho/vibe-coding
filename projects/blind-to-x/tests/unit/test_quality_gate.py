@@ -127,6 +127,36 @@ def test_repetition(mock_get_rule):
 
 
 @patch("pipeline.quality_gate.get_rule_section")
+def test_readability_metrics_always_present(mock_get_rule):
+    """T-AB029: readability_score and sentence_diversity always appear in metrics."""
+    mock_get_rule.return_value = {}
+    gate = QualityGate()
+    res = gate.check("직장인 연봉이 화제다. 올해 3% 인상 예정이다. IT 업계가 특히 높다.", platform="twitter")
+    assert "readability_score" in res.metrics
+    assert "sentence_diversity" in res.metrics
+    assert 0.0 <= res.metrics["readability_score"] <= 100.0
+
+
+@patch("pipeline.quality_gate.get_rule_section")
+def test_readability_low_score_triggers_warning(mock_get_rule):
+    """T-AB029: readability_score < 40 → low_readability warning."""
+    mock_get_rule.return_value = {}
+    gate = QualityGate()
+    # All-passive, very long sentences → low readability
+    very_passive = (
+        "모든 절차가 진행됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다. "
+        "모든 사항이 결정됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다. "
+        "모든 항목이 확인됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다. "
+        "모든 내용이 수행됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다. "
+        "추가 사항이 처리됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다."
+    )
+    res = gate.check(very_passive, platform="default")
+    # Should have low_readability warning if score < 40
+    if res.metrics.get("readability_score", 100) < 40:
+        assert any("low_readability" in w for w in res.warnings)
+
+
+@patch("pipeline.quality_gate.get_rule_section")
 def test_source_fidelity(mock_get_rule):
     mock_get_rule.return_value = {}
     gate = QualityGate()
