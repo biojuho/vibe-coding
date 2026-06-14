@@ -301,6 +301,25 @@ test("login page operator eyebrow uses Korean product copy", () => {
 	);
 });
 
+test("login page is self-service ready without admin-only copy", () => {
+	const source = readSource("app/login/page.js");
+
+	// Self-service UX: users can register themselves
+	assert.match(source, /href="\/register"/);
+	assert.match(source, /무료로 시작하기/);
+
+	// Username placeholder is user-friendly, not admin-only
+	assert.match(source, /placeholder="아이디 입력"/);
+	assert.doesNotMatch(source, /placeholder="관리자 아이디"/);
+
+	// No admin-only block that confuses regular users
+	assert.doesNotMatch(source, /운영자 계정 안내/);
+	assert.doesNotMatch(source, /발급된 관리자 아이디와 비밀번호/);
+
+	// Links to register after form
+	assert.match(source, /계정이 없으신가요/);
+});
+
 test("database seed requires a configured admin password", () => {
 	const source = readFileSync(path.resolve(SRC_ROOT, "../prisma/seed.js"), "utf8");
 

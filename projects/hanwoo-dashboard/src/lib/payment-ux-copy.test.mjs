@@ -677,3 +677,18 @@ test("payment API routes avoid English fallback copy in user responses", () => {
 	);
 	assert.doesNotMatch(authGuard, /Authentication required/);
 });
+
+test("subscription cancel success banner is shown to non-active users", () => {
+	const source = readSource("app/subscription/page.js");
+
+	// Cancellation banner must show when status is NOT ACTIVE (since cancelSubscription sets INACTIVE)
+	assert.match(
+		source,
+		/cancelStatus === ["']success["'] && subscriptionStatus\.status !== ["']ACTIVE["']/,
+	);
+	// Must surface the cancellation message to the user
+	assert.match(source, /구독이 해지되었습니다/);
+	assert.match(source, /이미 결제된 기간은 환불되지 않습니다/);
+	// Must use role="status" for accessibility
+	assert.match(source, /role="status"/);
+});

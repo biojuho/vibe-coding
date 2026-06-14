@@ -195,6 +195,25 @@ export default async function SubscriptionPage({ searchParams }) {
 				))}
 			</div>
 
+			{cancelStatus === "success" && subscriptionStatus.status !== "ACTIVE" && (
+				<p
+					role="status"
+					aria-live="polite"
+					style={{
+						marginBottom: "16px",
+						padding: "12px 16px",
+						background: "color-mix(in srgb, var(--color-danger) 10%, transparent)",
+						border: "1px solid color-mix(in srgb, var(--color-danger) 30%, transparent)",
+						borderRadius: "14px",
+						fontSize: "13px",
+						fontWeight: 600,
+						color: "var(--color-danger)",
+					}}
+				>
+					구독이 해지되었습니다. 이미 결제된 기간은 환불되지 않습니다.
+				</p>
+			)}
+
 			{subscriptionStatus.status === "ACTIVE" ? (
 				<ActiveSubscriptionView
 					daysLeft={subscriptionStatus.daysLeft}
