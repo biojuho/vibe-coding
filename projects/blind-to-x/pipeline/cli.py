@@ -696,8 +696,8 @@ async def run_main():
 
     try:
         config_mgr = ConfigManager(args.config)
-    except Exception:
-        logger.warning("Could not load %s. Using empty config.", args.config)
+    except Exception as exc:
+        logger.warning("Could not load %s. Using empty config. (%s)", args.config, exc)
         config_mgr = ConfigManager("nonexistent")
         config_mgr.config = {}
 
