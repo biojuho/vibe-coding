@@ -64,6 +64,7 @@ test("API_SPEC documents every App Router API route", () => {
 		"/api/ai/chat",
 		"/api/ai/insight",
 		"/api/auth/[...nextauth]",
+		"/api/auth/change-password",
 		"/api/auth/register",
 		"/api/dashboard/cattle",
 		"/api/dashboard/sales",

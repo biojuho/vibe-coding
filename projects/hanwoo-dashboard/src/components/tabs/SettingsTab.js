@@ -149,6 +149,12 @@ export default function SettingsTab(options = {}) {
 	const [isSavingBuilding, setIsSavingBuilding] = useState(false);
 	const [deletingBuildingId, setDeletingBuildingId] = useState(null);
 	const [deadLetterItems, setDeadLetterItems] = useState([]);
+	const [pwCurrent, setPwCurrent] = useState("");
+	const [pwNew, setPwNew] = useState("");
+	const [pwConfirm, setPwConfirm] = useState("");
+	const [pwError, setPwError] = useState("");
+	const [pwSuccess, setPwSuccess] = useState(false);
+	const [isSavingPw, setIsSavingPw] = useState(false);
 	const isMountedRef = useRef(false);
 	const buildingFormRef = useRef(null);
 	const buildingNameInputRef = useRef(null);
@@ -386,6 +392,37 @@ export default function SettingsTab(options = {}) {
 	const handleClearDeadLetter = () => {
 		clearDeadLetterQueue();
 		setDeadLetterItems([]);
+	};
+
+	const handleChangePassword = async (e) => {
+		e.preventDefault();
+		setPwError("");
+		setPwSuccess(false);
+		if (pwNew !== pwConfirm) {
+			setPwError("새 비밀번호가 일치하지 않습니다.");
+			return;
+		}
+		setIsSavingPw(true);
+		try {
+			const res = await fetch("/api/auth/change-password", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ currentPassword: pwCurrent, newPassword: pwNew }),
+			});
+			const data = await res.json();
+			if (!res.ok) {
+				setPwError(data.error || "비밀번호 변경에 실패했습니다.");
+				return;
+			}
+			setPwSuccess(true);
+			setPwCurrent("");
+			setPwNew("");
+			setPwConfirm("");
+		} catch {
+			setPwError("네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+		} finally {
+			if (isMountedRef.current) setIsSavingPw(false);
+		}
 	};
 
 	const isDark = theme === "dark";
@@ -1068,6 +1105,70 @@ export default function SettingsTab(options = {}) {
 					</div>
 				</div>
 			) : null}
+
+			{/* 비밀번호 변경 */}
+			<div
+				style={{
+					background: "var(--color-bg-card)",
+					padding: "18px 20px",
+					borderRadius: "20px",
+					border: "1px solid var(--color-surface-stroke)",
+					marginTop: "20px",
+				}}
+			>
+				<div style={{ fontWeight: 700, fontSize: "14px", color: "var(--color-text)", marginBottom: "14px" }}>
+					비밀번호 변경
+				</div>
+				<form onSubmit={handleChangePassword} noValidate style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+					<PremiumInput
+						id="pw-current"
+						type="password"
+						placeholder="현재 비밀번호"
+						value={pwCurrent}
+						onChange={(e) => { setPwCurrent(e.target.value); setPwError(""); setPwSuccess(false); }}
+						aria-label="현재 비밀번호"
+						autoComplete="current-password"
+					/>
+					<PremiumInput
+						id="pw-new"
+						type="password"
+						placeholder="새 비밀번호 (8자 이상)"
+						value={pwNew}
+						onChange={(e) => { setPwNew(e.target.value); setPwError(""); setPwSuccess(false); }}
+						aria-label="새 비밀번호"
+						autoComplete="new-password"
+					/>
+					<PremiumInput
+						id="pw-confirm"
+						type="password"
+						placeholder="새 비밀번호 확인"
+						value={pwConfirm}
+						onChange={(e) => { setPwConfirm(e.target.value); setPwError(""); setPwSuccess(false); }}
+						aria-label="새 비밀번호 확인"
+						autoComplete="new-password"
+					/>
+					{pwError && (
+						<div role="alert" style={{ fontSize: "12px", color: "var(--color-danger)", fontWeight: 600 }}>
+							{pwError}
+						</div>
+					)}
+					{pwSuccess && (
+						<div role="status" style={{ fontSize: "12px", color: "#16a34a", fontWeight: 600 }}>
+							비밀번호가 변경되었습니다.
+						</div>
+					)}
+					<PremiumButton
+						type="submit"
+						variant="secondary"
+						size="sm"
+						disabled={isSavingPw || !pwCurrent || !pwNew || !pwConfirm}
+						aria-busy={isSavingPw}
+						className="self-end"
+					>
+						{isSavingPw ? "변경 중..." : "비밀번호 변경"}
+					</PremiumButton>
+				</form>
+			</div>
 
 			{/* 로그아웃 */}
 			<div
