@@ -156,11 +156,12 @@ export default function LandingPage() {
 				<p
 					style={{
 						marginTop: "12px",
-						fontSize: "12px",
+						fontSize: "13px",
 						color: "var(--color-text-secondary)",
+						fontWeight: 600,
 					}}
 				>
-					월 9,900원 · 언제든 해지 가능
+					14일 무료 체험 · 이후 월 9,900원 · 언제든 해지 가능
 				</p>
 			</section>
 
@@ -252,9 +253,23 @@ export default function LandingPage() {
 				>
 					9,900원
 				</div>
-				<p style={{ color: "var(--color-text-secondary)", marginBottom: "24px" }}>
+				<p style={{ color: "var(--color-text-secondary)", marginBottom: "8px" }}>
 					/ 월 · 모든 기능 포함 · 언제든 해지 가능
 				</p>
+				<div
+					style={{
+						display: "inline-block",
+						background: "color-mix(in srgb, var(--color-success) 12%, transparent)",
+						color: "var(--color-success)",
+						borderRadius: "100px",
+						padding: "5px 14px",
+						fontSize: "13px",
+						fontWeight: 700,
+						marginBottom: "20px",
+					}}
+				>
+					✓ 14일 무료 체험 시작 · 카드 등록 불필요
+				</div>
 				<Link
 					href="/register"
 					style={{
