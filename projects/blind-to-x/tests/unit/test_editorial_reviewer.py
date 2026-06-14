@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
+from unittest.mock import AsyncMock
+
 from pipeline.editorial_reviewer import _REWRITE_THRESHOLD, EditorialReviewer
 
 
@@ -128,3 +131,72 @@ class TestBuildReviewPrompt:
             post_data={"content_profile": {"topic_cluster": "경제"}},
         )
         assert "경제" in prompt
+
+
+# BTX-ER001 — _reviewer_node handles float score strings from LLM
+class TestReviewerNodeFloatScores:
+    """LLM sometimes returns "7.5" or 7.5 instead of integer scores (BTX-ER001)."""
+
+    def _make_reviewer_with_llm(self, fake_result: dict):
+        reviewer = _make_reviewer()
+        reviewer._call_llm = AsyncMock(return_value=fake_result)
+        return reviewer
+
+    def _run(self, coro):
+        return asyncio.get_event_loop().run_until_complete(coro)
+
+    def test_float_string_scores_do_not_raise(self):
+        """'7.5' score strings must not raise ValueError from int()."""
+        reviewer = self._make_reviewer_with_llm(
+            {
+                "scores": {
+                    "accuracy": "7.5",
+                    "relevance": "8.0",
+                    "originality": "6.5",
+                    "clarity": "9",
+                    "engagement": "7.5",
+                },
+                "suggestions": [],
+                "rewritten": "rewritten text",
+            }
+        )
+        state = {
+            "platform": "twitter",
+            "draft_text": "test draft",
+            "post_data": {},
+            "avg_score": 0.0,
+            "iteration": 0,
+            "max_iterations": 3,
+            "rewritten_candidate": "",
+        }
+        result = self._run(reviewer._reviewer_node(state))
+        assert "avg_score" in result
+        assert isinstance(result["avg_score"], float)
+
+    def test_float_scores_clamped_to_1_10(self):
+        """Scores outside [1, 10] must be clamped even with float values."""
+        reviewer = self._make_reviewer_with_llm(
+            {
+                "scores": {
+                    "accuracy": 11.5,  # over max
+                    "relevance": -0.5,  # under min
+                    "originality": 5.0,
+                    "clarity": 5.0,
+                    "engagement": 5.0,
+                },
+                "suggestions": [],
+                "rewritten": "text",
+            }
+        )
+        state = {
+            "platform": "twitter",
+            "draft_text": "draft",
+            "post_data": {},
+            "avg_score": 0.0,
+            "iteration": 0,
+            "max_iterations": 3,
+            "rewritten_candidate": "",
+        }
+        result = self._run(reviewer._reviewer_node(state))
+        # avg_score should be (10 + 1 + 5 + 5 + 5) / 5 = 5.2
+        assert 1.0 <= result["avg_score"] <= 10.0

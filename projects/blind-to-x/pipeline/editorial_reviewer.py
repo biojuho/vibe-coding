@@ -284,7 +284,7 @@ class EditorialReviewer:
         # 기존 5축은 항상 평가.
         for key in _BASE_REVIEW_AXES:
             val = scores.get(key, 5)
-            scores[key] = max(1, min(10, int(val)))
+            scores[key] = max(1, min(10, int(float(val))))
 
         # Phase 2: 댓글 트리거 4축은 twitter/threads 에서만 평가.
         comment_trigger_avg = 0.0
@@ -292,7 +292,7 @@ class EditorialReviewer:
             for key in _COMMENT_TRIGGER_AXES:
                 # LLM 이 미응답한 축은 5(중립) 로 보정 — 리라이트 폭주 방지.
                 val = scores.get(key, 5)
-                scores[key] = max(1, min(10, int(val)))
+                scores[key] = max(1, min(10, int(float(val))))
             comment_trigger_avg = sum(scores[k] for k in _COMMENT_TRIGGER_AXES) / len(_COMMENT_TRIGGER_AXES)
 
         suggestions = result.get("suggestions", [])
