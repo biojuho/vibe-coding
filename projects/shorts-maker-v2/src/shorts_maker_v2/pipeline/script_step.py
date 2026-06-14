@@ -172,6 +172,8 @@ class ScriptStep(ScriptPromptsMixin, ScriptReviewMixin):
         language: str = "ko-KR",
         tts_speed: float = 1.0,
     ) -> tuple[str, list[ScenePlan]]:
+        if payload is None:
+            raise ValueError("LLM returned None payload — no valid JSON script was generated.")
         data = payload if isinstance(payload, dict) else cls._extract_json(payload)
         title = str(data.get("title", "Untitled Shorts")).strip() or "Untitled Shorts"
         raw_scenes = data.get("scenes", [])
@@ -192,8 +194,8 @@ class ScriptStep(ScriptPromptsMixin, ScriptReviewMixin):
                 or raw_scene.get("image_prompt")
                 or ""
             ).strip()
-            if not narration or not visual_prompt:
-                raise ValueError(f"Scene #{idx} is missing narration or visual prompt.")
+            if not narration or len(narration) < 5 or not visual_prompt:
+                raise ValueError(f"Scene #{idx} narration too short ({len(narration)} chars) or missing visual prompt.")
             # GPT estimated_seconds는 실제 TTS 속도와 괴리가 크므로 항상 자체 추정 사용
             target_sec = cls.estimate_narration_duration_sec(
                 narration,

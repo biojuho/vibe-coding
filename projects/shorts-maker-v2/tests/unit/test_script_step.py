@@ -202,11 +202,11 @@ def test_run_retries_when_first_script_is_too_short() -> None:
         "title": "Short Draft",
         "scenes": [
             {
-                "narration_ko": "짧아.",
+                "narration_ko": "짧습니다.",  # 5 chars — passes min-length guard; TTS still short
                 "visual_prompt_en": "Scene one",
             },
             {
-                "narration_ko": "짧음.",
+                "narration_ko": "짧습니다.",  # 5 chars — same trick for scene 2
                 "visual_prompt_en": "Scene two",
             },
         ],
@@ -708,3 +708,53 @@ class TestPersonaKeywordsQuality:
         """Health channel should include disease/prevention terms, not generic '효과'."""
         health_kw = set(ScriptPromptsMixin._PERSONA_KEYWORDS["health"])
         assert health_kw & {"질병", "예방", "의학"}, "health needs at least one of: 질병, 예방, 의학"
+
+
+class TestParseScriptPayloadGuards:
+    """Regression tests for None payload and short-narration guards."""
+
+    def _two_scene_payload(self) -> dict:
+        return {
+            "title": "테스트 숏츠",
+            "scenes": [
+                {
+                    "narration_ko": "이것은 후크 나레이션입니다 충분히 깁니다.",
+                    "visual_prompt_en": "cinematic wide shot of a city",
+                    "structure_role": "hook",
+                },
+                {
+                    "narration_ko": "이것은 본문 나레이션입니다 충분히 길어야 합니다.",
+                    "visual_prompt_en": "close-up of a person thinking",
+                    "structure_role": "body",
+                },
+            ],
+        }
+
+    def test_none_payload_raises_value_error(self) -> None:
+        with pytest.raises(ValueError, match="None payload"):
+            ScriptStep.parse_script_payload(None, scene_count=2, target_duration_sec=(20, 40))
+
+    def test_valid_payload_parses_without_error(self) -> None:
+        title, scenes = ScriptStep.parse_script_payload(
+            self._two_scene_payload(), scene_count=2, target_duration_sec=(20, 40)
+        )
+        assert title == "테스트 숏츠"
+        assert len(scenes) == 2
+
+    def test_short_narration_raises(self) -> None:
+        payload = self._two_scene_payload()
+        payload["scenes"][0]["narration_ko"] = "짧"  # 1 char — below min 5
+        with pytest.raises(ValueError, match="narration too short"):
+            ScriptStep.parse_script_payload(payload, scene_count=2, target_duration_sec=(20, 40))
+
+    def test_four_char_narration_raises(self) -> None:
+        payload = self._two_scene_payload()
+        payload["scenes"][1]["narration_ko"] = "안녕하"  # 3 chars — below min 5
+        with pytest.raises(ValueError, match="narration too short"):
+            ScriptStep.parse_script_payload(payload, scene_count=2, target_duration_sec=(20, 40))
+
+    def test_five_char_narration_passes(self) -> None:
+        payload = self._two_scene_payload()
+        payload["scenes"][0]["narration_ko"] = "안녕하세요"  # exactly 5 chars — OK
+        title, scenes = ScriptStep.parse_script_payload(payload, scene_count=2, target_duration_sec=(20, 40))
+        assert len(scenes) == 2
