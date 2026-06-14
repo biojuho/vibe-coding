@@ -418,6 +418,21 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
             audio = audio.subclipped(0, duration_sec)
         return base.with_audio(audio)
 
+    def _attach_audio(
+        self,
+        base,
+        asset: SceneAsset,
+        *,
+        duration_sec: float,
+        audio_clips_to_close: list[Any] | None,
+    ):
+        return self._attach_scene_audio(
+            base,
+            asset=asset,
+            duration_sec=duration_sec,
+            audio_clips_to_close=audio_clips_to_close,
+        )
+
     def _compose_static_caption(
         self,
         base,
