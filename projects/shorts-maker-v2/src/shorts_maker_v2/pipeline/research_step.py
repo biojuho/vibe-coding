@@ -175,7 +175,8 @@ class ResearchStep:
 
         # grounding metadata에서 소스 추출
         sources = data.get("sources", [])
-        grounding_meta = getattr(response.candidates[0], "grounding_metadata", None)
+        candidates = getattr(response, "candidates", None) or []
+        grounding_meta = getattr(candidates[0], "grounding_metadata", None) if candidates else None
         if grounding_meta and hasattr(grounding_meta, "grounding_chunks"):
             for chunk in grounding_meta.grounding_chunks or []:
                 web = getattr(chunk, "web", None)

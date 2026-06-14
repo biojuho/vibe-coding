@@ -174,6 +174,40 @@ def test_run_parallel_handles_scene_failure(tmp_path) -> None:
     assert any("RuntimeError" in f.get("code", "") for f in failures)
 
 
+def test_parallel_image_error_propagates(tmp_path) -> None:
+    """T-SV001: 병렬 경로(parallelize_provider_io=True)에서 이미지 오류가 re-raise됨."""
+    step = _make_media_step()
+    scene = _make_scene_plans(1)[0]
+    audio_dir = tmp_path / "audio"
+    image_dir = tmp_path / "images"
+    video_dir = tmp_path / "videos"
+    audio_dir.mkdir()
+    image_dir.mkdir()
+    video_dir.mkdir()
+
+    fake_audio = audio_dir / "scene_01.mp3"
+    fake_audio.write_bytes(b"\x00" * 100)
+
+    cost_guard = _make_cost_guard()
+
+    with (
+        patch.object(MediaStep, "_read_audio_duration", return_value=5.0),
+        patch.object(MediaStep, "_generate_audio", return_value=fake_audio),
+        patch.object(MediaStep, "_generate_best_image", side_effect=RuntimeError("Image API error")),
+    ):
+        import pytest
+
+        with pytest.raises(RuntimeError, match="Image API error"):
+            step._process_one_scene(
+                scene,
+                audio_dir,
+                image_dir,
+                video_dir,
+                cost_guard,
+                parallelize_provider_io=True,
+            )
+
+
 def test_cost_guard_thread_safety() -> None:
     """여러 스레드에서 CostGuard에 동시 접근해도 정확한 합계 유지."""
     guard = _make_cost_guard()

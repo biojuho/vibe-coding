@@ -270,7 +270,12 @@ class MediaStep(MediaAudioMixin, MediaVisualMixin, MediaFallbackMixin):
                     raise
 
             # 이미지 결과 수집
-            visual_path_str, visual_type, img_failures = _image_future.result()
+            try:
+                visual_path_str, visual_type, img_failures = _image_future.result()
+            except Exception as exc:
+                failures.append({"step": "image", "code": type(exc).__name__, "message": str(exc)})
+                self._log(logger, "error", "image_failed", scene_id=scene.scene_id, error=str(exc))
+                raise
         else:
             try:
                 audio_path = _get_audio()

@@ -1177,7 +1177,7 @@ class PipelineOrchestrator:
             gate4_report = QCStep.gate4_final(
                 manifest=manifest,
                 output_path=str(output_path),
-                target_duration=target_dur if "target_dur" in dir() else (40, 50),
+                target_duration=target_dur,
                 stub_mode=_is_stub,
             )
             manifest.qc_result = {
