@@ -328,7 +328,7 @@ class TestRunIntegration:
     _CLEAN_CTA = "지금 당장 물 한 컵을 마셔보세요."  # 금지어 없음 (15자)
     _BAD_CTA = "구독 부탁드려요!"  # 금지어 포함 (8자)
 
-    def _make_payload(self, cta_narration: str, hook: str = "멈춰") -> dict:
+    def _make_payload(self, cta_narration: str, hook: str = "잠깐만요!") -> dict:
         return {
             "title": "Test Video",
             "scenes": [
@@ -500,3 +500,83 @@ class TestTruncateToFit:
         scenes = [self._scene("나레이션" * 30, sec=15.0, sid=sid) for sid in (1, 2, 3)]
         result = step._truncate_to_fit(scenes, max_total_sec=5.0, language="ko-KR", tts_speed=1.05)
         assert [s.scene_id for s in result] == [1, 2, 3]
+
+
+# ── 6. Script review: empty review dict guard ─────────────────────────────────
+
+
+class TestScriptReviewEmptyGuard:
+    """When the LLM returns {} for review, the original script must not be
+    replaced by a fabricated-weakness retry.
+
+    Before the fix, an empty review dict caused all required score keys to
+    default to 0, triggering a retry with "Weak dimensions: ALL" — which
+    could corrupt a perfectly good script.
+    """
+
+    _GOOD_PAYLOAD = {
+        "title": "검증된 제목",
+        "scenes": [
+            {
+                "narration_ko": "AI가 세상을 바꾸고 있다.",
+                "visual_prompt_en": "dramatic AI visualization",
+                "structure_role": "hook",
+            },
+            {
+                "narration_ko": "마지막으로 기억하세요.",
+                "visual_prompt_en": "calm ending",
+                "structure_role": "cta",
+            },
+        ],
+    }
+
+    def _make_config_with_review(self):
+        return SimpleNamespace(
+            providers=SimpleNamespace(
+                llm="openai",
+                llm_model="gpt-4o-mini",
+                tts_speed=1.05,
+                thinking_level="low",
+                thinking_level_review="high",
+                embedding_model="gemini-embedding-2-preview",
+            ),
+            project=SimpleNamespace(
+                default_scene_count=2,
+                language="ko-KR",
+                script_review_enabled=True,  # review enabled
+                script_review_min_score=6,
+                structure_presets={},
+            ),
+            video=SimpleNamespace(
+                target_duration_sec=(8, 14),
+            ),
+        )
+
+    def test_empty_review_dict_preserves_original_script(self):
+        """Empty {} review must not trigger a corrupting retry.
+
+        LLM call sequence:
+          1–3. Script generation (max_generation_attempts=3) → GOOD payload each time
+          4.   Script review → {} (LLM parse failure)
+          (No 5th retry call expected — the guard must skip review-based retry)
+        """
+        # max_generation_attempts = 3 tries before picking best; review is call #4
+        good = self._GOOD_PAYLOAD
+        responses = [good, good, good, {}]
+        router = FakeLLMRouter(responses)
+        step = ScriptStep(
+            config=self._make_config_with_review(),
+            llm_router=router,
+            channel_key="ai_tech",
+        )
+        title, scenes, _, _ = step.run("AI 기술")
+
+        # Original script is preserved
+        assert title == "검증된 제목"
+        hook_scenes = [s for s in scenes if s.structure_role == "hook"]
+        assert hook_scenes
+        assert "AI" in hook_scenes[0].narration_ko
+
+        # All 4 responses were consumed (3 gen + 1 review).
+        # A spurious 5th retry would raise AssertionError("No more fake responses").
+        assert len(router._responses) == 0

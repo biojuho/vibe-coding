@@ -427,6 +427,10 @@ class ScriptStep(ScriptPromptsMixin, ScriptReviewMixin):
             title_out, scenes_out = best_result
             try:
                 review = self._review_script(title_out, scenes_out)
+                # If LLM review returned no score keys, skip review-based retry:
+                # triggering a retry with "Weak dimensions: ALL" would corrupt a
+                # perfectly good script with a fabricated quality problem.
+                has_scores = any(k in review for k in required_keys)
                 scores = {k: review.get(k, 0) for k in required_keys}
                 scores_str = " ".join(f"{k}={scores[k]}" for k in required_keys)
                 logger.info(
@@ -437,9 +441,14 @@ class ScriptStep(ScriptPromptsMixin, ScriptReviewMixin):
                     review.get("feedback", ""),
                 )
 
+                if not has_scores:
+                    logger.warning("[ScriptReview] LLM returned no score keys — skipping review gate")
+                    # fall through without retry; original best_result is preserved
+
                 # ── no_reliable_source 감지 (2차: 리뷰 단계) ────────────
+                # Only trigger verifiability guard when review actually produced scores.
                 verifiability = int(float(review.get("verifiability_score", 10)))
-                if verifiability < 4:
+                if has_scores and verifiability < 4:
                     logger.warning(
                         "[TopicUnsuitable] verifiability_score=%d < 4 → 자료 부족 주제",
                         verifiability,
@@ -449,7 +458,7 @@ class ScriptStep(ScriptPromptsMixin, ScriptReviewMixin):
                         f"(4 미만) — 검증 가능한 자료 부족: {review.get('feedback', '')}"
                     )
 
-                if not self._passes_review(review, effective_min_score):
+                if has_scores and not self._passes_review(review, effective_min_score):
                     # 채널 특화 피드백을 추가해 1회 재생성 시도
                     feedback = review.get("feedback", "")
                     # 미달 점수 키 구체적 안내
