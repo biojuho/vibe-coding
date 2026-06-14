@@ -369,3 +369,54 @@ class TestFullPipeline:
         bad_router = _make_mock_router({"wrong_key": "no data"})
         with pytest.raises(ValueError, match="해원"):
             generate_shorts_pipeline("이중항체 기술", bad_router)
+
+
+class TestParseChannelHelpers:
+    """_parse_channel_chars / _parse_channel_duration: pure function coverage."""
+
+    def setup_method(self):
+        from shorts_maker_v2.pipeline.persona_pipeline import (
+            _parse_channel_chars,
+            _parse_channel_duration,
+        )
+
+        self._chars = _parse_channel_chars
+        self._dur = _parse_channel_duration
+
+    # ── _parse_channel_chars ──────────────────────────────────────────────────
+
+    def test_chars_returns_default_when_no_match(self):
+        assert self._chars("no target info here") == "245-275"
+
+    def test_chars_parses_hyphen_range(self):
+        ctx = 'target_chars: "380-420"'
+        assert self._chars(ctx) == "380-420"
+
+    def test_chars_parses_en_dash_range(self):
+        ctx = "target_chars: 380–420"
+        assert self._chars(ctx) == "380–420"
+
+    def test_chars_parses_without_quotes(self):
+        ctx = "target_chars: 300-350"
+        assert self._chars(ctx) == "300-350"
+
+    def test_chars_empty_string_returns_default(self):
+        assert self._chars("") == "245-275"
+
+    # ── _parse_channel_duration ───────────────────────────────────────────────
+
+    def test_dur_returns_default_when_no_match(self):
+        assert self._dur("no duration here") == 45
+
+    def test_dur_parses_integer_value(self):
+        ctx = "target_duration_sec: 40"
+        assert self._dur(ctx) == 40
+
+    def test_dur_does_not_parse_quoted_value(self):
+        # regex r"target_duration_sec[:\s]+(\d+)" won't match quoted form "50"
+        # because the quote precedes the digits — falls back to default 45
+        ctx = 'target_duration_sec: "50"'
+        assert self._dur(ctx) == 45
+
+    def test_dur_empty_string_returns_default(self):
+        assert self._dur("") == 45

@@ -137,3 +137,47 @@ def test_make_series_id() -> None:
     sid = SeriesEngine._make_series_id("AI가 바꾸는 미래")
     assert sid.startswith("series_")
     assert " " not in sid
+
+
+class TestScanManifests:
+    """_scan_manifests: corrupt JSON은 스킵, success 매니페스트만 반환."""
+
+    def test_returns_empty_when_no_output_dir(self) -> None:
+        engine = SeriesEngine()
+        assert engine._scan_manifests() == []
+
+    def test_returns_empty_when_dir_missing(self, tmp_path) -> None:
+        engine = SeriesEngine(output_dir=tmp_path / "missing")
+        assert engine._scan_manifests() == []
+
+    def test_skips_non_success_manifests(self, tmp_path) -> None:
+        (tmp_path / "ep1_manifest.json").write_text('{"status": "degraded", "topic": "AI"}', encoding="utf-8")
+        engine = SeriesEngine(output_dir=tmp_path)
+        assert engine._scan_manifests() == []
+
+    def test_returns_success_manifest(self, tmp_path) -> None:
+        (tmp_path / "ep1_manifest.json").write_text('{"status": "success", "topic": "AI 미래"}', encoding="utf-8")
+        engine = SeriesEngine(output_dir=tmp_path)
+        results = engine._scan_manifests()
+        assert len(results) == 1
+        assert results[0]["topic"] == "AI 미래"
+        assert results[0]["views"] == 0
+
+    def test_skips_corrupt_json_without_raising(self, tmp_path) -> None:
+        (tmp_path / "bad_manifest.json").write_text("not-valid-json{{{", encoding="utf-8")
+        (tmp_path / "good_manifest.json").write_text('{"status": "success", "topic": "우주"}', encoding="utf-8")
+        engine = SeriesEngine(output_dir=tmp_path)
+        results = engine._scan_manifests()
+        assert len(results) == 1
+        assert results[0]["topic"] == "우주"
+
+    def test_multiple_success_manifests(self, tmp_path) -> None:
+        for i, topic in enumerate(["AI", "역사", "심리학"]):
+            (tmp_path / f"ep{i}_manifest.json").write_text(
+                f'{{"status": "success", "topic": "{topic}"}}', encoding="utf-8"
+            )
+        engine = SeriesEngine(output_dir=tmp_path)
+        results = engine._scan_manifests()
+        assert len(results) == 3
+        topics = {r["topic"] for r in results}
+        assert topics == {"AI", "역사", "심리학"}
