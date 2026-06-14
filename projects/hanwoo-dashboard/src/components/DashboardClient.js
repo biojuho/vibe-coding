@@ -2375,7 +2375,7 @@ export default function DashboardClient(options = {}) {
 					onCloseFieldMode={() => setIsFieldMode(false)}
 				/>
 			) : (
-				<div className="dashboard-content-shell max-w-[600px] mx-auto p-4 relative">
+				<main className="dashboard-content-shell max-w-[600px] mx-auto p-4 relative" id="main-content">
 					<InitialDataStatusBanner
 						status={initialDataLoadStatus}
 						onRetry={handleRefreshInitialData}
@@ -2440,7 +2440,7 @@ export default function DashboardClient(options = {}) {
 						</div>
 					)}
 					{renderContent()}
-				</div>
+				</main>
 			)}
 			{!isFieldMode && (
 				<TabBar activeTab={activeTab} onTabChange={handleTabChange} />

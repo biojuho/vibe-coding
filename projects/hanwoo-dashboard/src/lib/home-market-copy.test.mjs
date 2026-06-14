@@ -2130,3 +2130,15 @@ test("subscription page has metadata title", () => {
 	assert.match(source, /구독 관리 · Joolife 한우/);
 	assert.match(source, /export const metadata = /);
 });
+
+test("dashboard client uses main landmark for primary content area", () => {
+	const source = readSource("components/DashboardClient.js");
+
+	// main element with semantic ID for skip-link targeting
+	assert.match(source, /<main className="dashboard-content-shell[^"]*" id="main-content">/);
+	assert.match(source, /<\/main>/);
+	// footer is a sibling to main (outside the main scrollable area)
+	assert.match(source, /<footer className="footer-glass/);
+	// No top-level div replacing the main landmark (the content-shell was converted)
+	assert.doesNotMatch(source, /<div className="dashboard-content-shell max-\[600px\]/);
+});
