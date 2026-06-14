@@ -480,6 +480,7 @@ export default function CalvingTab(options = {}) {
 										aria-label={`${cow.name} 분만 처리 열기`}
 										title={`${cow.name} 분만 처리 열기`}
 										className="clay-pressable w-full rounded-[18px] px-4 py-3 text-sm font-semibold text-[color:var(--color-text-secondary)]"
+										aria-expanded={isSelected}
 									>
 										분만 처리 열기
 									</button>

@@ -219,3 +219,11 @@ test("calving tab normalizes malformed cattle and building payloads before rende
 		/buildings\.find\(\(row\) => row\.id === cow\.buildingId\)/,
 	);
 });
+
+test("CalvingTab form-trigger button declares aria-expanded so screen readers announce inline form state", () => {
+	const source = readSource("components/tabs/CalvingTab.js");
+
+	// The "분만 처리 시작" button toggles an inline form; aria-expanded lets
+	// screen readers announce whether the form is open (WCAG 4.1.2 State)
+	assert.match(source, /aria-expanded=\{isSelected\}/);
+});
