@@ -48,6 +48,9 @@ function normalizeCattleActionRows(rows) {
 		: [];
 }
 
+// Hard cap: a farm with >2000 head is exceptional; the paginated API route handles larger lists
+const CATTLE_LIST_LIMIT = 2000;
+
 export async function getCattleList() {
 	await requireAuthenticatedSession();
 	try {
@@ -55,6 +58,7 @@ export async function getCattleList() {
 			await prisma.cattle.findMany({
 				where: { isArchived: false },
 				orderBy: { updatedAt: "desc" },
+				take: CATTLE_LIST_LIMIT,
 			}),
 		);
 		return cattle;
@@ -71,6 +75,7 @@ export async function getArchivedCattle() {
 			await prisma.cattle.findMany({
 				where: { isArchived: true },
 				orderBy: { archivedAt: "desc" },
+				take: CATTLE_LIST_LIMIT,
 			}),
 		);
 	} catch (error) {

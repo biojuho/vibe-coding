@@ -28,12 +28,16 @@ function normalizeSalesActionRows(rows) {
 		: [];
 }
 
+// Server Action used by form dropdowns — cap avoids full-table scan on large farms
+const SALES_RECORD_LIMIT = 5000;
+
 export async function getSalesRecords() {
 	await requireAuthenticatedSession();
 	try {
 		const sales = normalizeSalesActionRows(
 			await prisma.salesRecord.findMany({
 				orderBy: { saleDate: "desc" },
+				take: SALES_RECORD_LIMIT,
 			}),
 		);
 		return sales;

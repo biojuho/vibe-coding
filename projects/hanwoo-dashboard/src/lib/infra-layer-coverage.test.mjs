@@ -308,3 +308,23 @@ test("payments/confirm applies per-user rate limiting with 429 response", () => 
 	assert.match(paymentConfirm, /status: 429/);
 	assert.match(paymentConfirm, /Retry-After/);
 });
+
+// ── actions/cattle.js and actions/sales.js ────────────────────────────────────
+
+const cattleActions = readSource("lib/actions/cattle.js");
+const salesActions = readSource("lib/actions/sales.js");
+
+test("getCattleList has a hard CATTLE_LIST_LIMIT cap to prevent full-table scan", () => {
+	assert.match(cattleActions, /CATTLE_LIST_LIMIT = 2000/);
+	assert.match(cattleActions, /take: CATTLE_LIST_LIMIT/);
+});
+
+test("getArchivedCattle also applies CATTLE_LIST_LIMIT cap", () => {
+	const takeCount = (cattleActions.match(/take: CATTLE_LIST_LIMIT/g) || []).length;
+	assert.ok(takeCount >= 2, "Expected ≥2 uses of CATTLE_LIST_LIMIT take cap");
+});
+
+test("getSalesRecords has a SALES_RECORD_LIMIT cap to prevent full-table scan", () => {
+	assert.match(salesActions, /SALES_RECORD_LIMIT = 5000/);
+	assert.match(salesActions, /take: SALES_RECORD_LIMIT/);
+});
