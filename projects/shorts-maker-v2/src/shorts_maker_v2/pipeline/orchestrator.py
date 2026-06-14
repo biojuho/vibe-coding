@@ -672,12 +672,14 @@ class PipelineOrchestrator:
                 )
                 # SMV2-CV002: CTA 금지어 위반을 degraded_steps 로 표면화
                 for cv in cta_violations:
-                    degraded_steps.append({
-                        "step": "script_cta_guard",
-                        "code": "CTAViolation",
-                        "scene_id": cv["scene_id"],
-                        "message": f"CTA 금지어 위반 (scene {cv['scene_id']}, {cv['role']}): {cv['words']}",
-                    })
+                    degraded_steps.append(
+                        {
+                            "step": "script_cta_guard",
+                            "code": "CTAViolation",
+                            "scene_id": cv["scene_id"],
+                            "message": f"CTA 금지어 위반 (scene {cv['scene_id']}, {cv['role']}): {cv['words']}",
+                        }
+                    )
                 step_timings["script"] = round(time.perf_counter() - _t0, 2)
                 manifest.title = title
                 manifest.scene_count = len(scene_plans)

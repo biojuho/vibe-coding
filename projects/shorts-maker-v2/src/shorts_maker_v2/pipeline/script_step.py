@@ -501,11 +501,13 @@ class ScriptStep(ScriptPromptsMixin, ScriptReviewMixin):
                     ending_scene.structure_role,
                     ", ".join(repr(v) for v in violations),
                 )
-                all_cta_violations.append({
-                    "scene_id": str(ending_scene.scene_id),
-                    "role": ending_scene.structure_role,
-                    "words": ", ".join(violations),
-                })
+                all_cta_violations.append(
+                    {
+                        "scene_id": str(ending_scene.scene_id),
+                        "role": ending_scene.structure_role,
+                        "words": ", ".join(violations),
+                    }
+                )
 
         # ── 페르소나 매칭 스코어 ─────────────────────────────────────────────
         if self.channel_key:
