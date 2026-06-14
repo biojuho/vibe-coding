@@ -318,6 +318,7 @@ export default function AIInsightWidget(options = {}) {
 					</p>
 				) : null}
 				<ul
+					role="list"
 					className="flex flex-col gap-2"
 					aria-label="AI 인사이트 목록"
 					aria-busy={isLoading}

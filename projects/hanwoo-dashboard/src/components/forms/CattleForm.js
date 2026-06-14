@@ -653,6 +653,7 @@ export default function CattleForm({
 								type="number"
 								className="input"
 								style={inputStyle}
+								aria-required="false"
 								aria-invalid={Boolean(errors.weight)}
 								aria-describedby={
 									errors.weight ? "cattle-weight-error" : undefined
@@ -687,6 +688,7 @@ export default function CattleForm({
 									className="input"
 									style={inputStyle}
 									placeholder="예: 3500000"
+									aria-required="false"
 									aria-invalid={Boolean(errors.purchasePrice)}
 									aria-describedby={
 										errors.purchasePrice
@@ -715,6 +717,7 @@ export default function CattleForm({
 									type="date"
 									className="input"
 									style={inputStyle}
+									aria-required="false"
 									aria-invalid={Boolean(errors.purchaseDate)}
 									aria-describedby={
 										errors.purchaseDate
@@ -775,6 +778,7 @@ export default function CattleForm({
 											minHeight: "44px",
 											padding: "10px 12px",
 										}}
+										aria-required="false"
 										aria-invalid={Boolean(errors.geneticInfo?.father)}
 										aria-describedby={
 											errors.geneticInfo?.father
@@ -805,6 +809,7 @@ export default function CattleForm({
 											minHeight: "44px",
 											padding: "10px 12px",
 										}}
+										aria-required="false"
 										aria-invalid={Boolean(errors.geneticInfo?.mother)}
 										aria-describedby={
 											errors.geneticInfo?.mother
@@ -834,6 +839,7 @@ export default function CattleForm({
 								id="cattle-memo"
 								className="input"
 								style={{ ...inputStyle, height: "90px", resize: "none" }}
+								aria-required="false"
 								aria-invalid={Boolean(errors.memo)}
 								aria-describedby={errors.memo ? "cattle-memo-error" : undefined}
 								{...register("memo")}

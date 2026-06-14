@@ -75,7 +75,7 @@ export default function TermsPage() {
 						</p>
 					))}
 					{section.list?.length ? (
-						<ul className="m-0 grid gap-2 pl-5 text-sm leading-7 text-[color:var(--color-text-secondary)]">
+						<ul role="list" className="m-0 grid gap-2 pl-5 text-sm leading-7 text-[color:var(--color-text-secondary)]">
 							{section.list.map((item) => (
 								<li key={item}>{item}</li>
 							))}

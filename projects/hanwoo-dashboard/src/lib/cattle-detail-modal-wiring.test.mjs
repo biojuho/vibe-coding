@@ -875,3 +875,48 @@ test("CattleForm marks all 7 required inputs with aria-required for screen reade
 		assert.ok(ariaRequiredIdx !== -1 && ariaRequiredIdx < ariaInvalidIdx, `aria-required missing or after aria-invalid for ${fieldId}`);
 	}
 });
+
+test("CattleDetailModal breeding date input is marked aria-required for screen readers", () => {
+	const source = readSource("components/forms/CattleDetailModal.js");
+	// WCAG 4.1.2: breeding-record-date is required to save a breeding event
+	const idIdx = source.indexOf('id="breeding-record-date"');
+	const ariaRequiredIdx = source.indexOf('aria-required="true"', idIdx);
+	const ariaInvalidIdx = source.indexOf("aria-invalid=", idIdx);
+	assert.ok(idIdx !== -1, 'input id="breeding-record-date" not found');
+	assert.ok(ariaRequiredIdx !== -1 && ariaRequiredIdx < ariaInvalidIdx, "aria-required missing or out of order for breeding-record-date");
+});
+
+test("CattleForm marks all 6 optional fields with aria-required=false so screen readers announce optionality", () => {
+	const source = readSource("components/forms/CattleForm.js");
+	// WCAG 4.1.2: optional fields with aria-invalid must also declare required=false
+	const optionalFields = [
+		"cattle-weight",
+		"cattle-purchase-price",
+		"cattle-purchase-date",
+		"cattle-genetic-father",
+		"cattle-genetic-mother",
+		"cattle-memo",
+	];
+	for (const fieldId of optionalFields) {
+		const idIdx = source.indexOf(`id="${fieldId}"`);
+		assert.ok(idIdx !== -1, `Field id="${fieldId}" not found`);
+		const ariaRequiredFalseIdx = source.indexOf('aria-required="false"', idIdx);
+		const ariaInvalidIdx = source.indexOf("aria-invalid=", idIdx);
+		assert.ok(
+			ariaRequiredFalseIdx !== -1 && ariaRequiredFalseIdx < ariaInvalidIdx,
+			`aria-required="false" missing or after aria-invalid for optional field ${fieldId}`,
+		);
+	}
+});
+
+test("terms page lists have role=list for Safari VoiceOver compatibility", () => {
+	const termsSrc = readSource("app/terms/page.js");
+	const privacySrc = readSource("app/privacy/page.js");
+	assert.match(termsSrc, /<ul role="list"/);
+	assert.match(privacySrc, /<ul role="list"/);
+});
+
+test("AIInsightWidget insight list has role=list for Safari VoiceOver compatibility", () => {
+	const source = readSource("components/widgets/AIInsightWidget.js");
+	assert.match(source, /role="list"[\s\S]{0,50}aria-label="AI 인사이트 목록"/);
+});

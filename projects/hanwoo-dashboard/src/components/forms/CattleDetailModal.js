@@ -676,7 +676,8 @@ export default function CattleDetailModal({
 												setBreedingDate(event.target.value);
 												setBreedingError("");
 											}}
-											aria-invalid={Boolean(breedingError)}
+											aria-required="true"
+								aria-invalid={Boolean(breedingError)}
 											aria-describedby={
 												breedingError ? breedingDateErrorId : undefined
 											}
