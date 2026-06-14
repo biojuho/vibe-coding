@@ -24,7 +24,7 @@ export default function RouteError(options = {}) {
 	}, [error]);
 
 	return (
-		<main className="login-shell">
+		<main className="login-shell" id="main-content">
 			<section
 				className="login-card status-card"
 				aria-labelledby="route-error-title"

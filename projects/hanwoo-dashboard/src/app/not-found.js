@@ -7,7 +7,7 @@ export const metadata = {
 
 export default function NotFound() {
 	return (
-		<main className="login-shell">
+		<main className="login-shell" id="main-content">
 			<section
 				className="login-card status-card"
 				aria-labelledby="not-found-title"

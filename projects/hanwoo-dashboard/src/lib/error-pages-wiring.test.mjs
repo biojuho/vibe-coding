@@ -551,6 +551,16 @@ test("auth proxy preserves request origin in protected-route callback urls", () 
 	assert.doesNotMatch(source, /authorized\(\{ auth \}\) \{\s+return !!auth\?\.user;/);
 });
 
+test("error page shells have id=main-content for skip-link targeting", () => {
+	const notFound = readSource("app/not-found.js");
+	const error = readSource("app/error.js");
+
+	assert.match(notFound, /id="main-content"/);
+	assert.match(error, /id="main-content"/);
+	assert.doesNotMatch(notFound, /<main className="login-shell">/);
+	assert.doesNotMatch(error, /<main className="login-shell">/);
+});
+
 test("register page has password visibility toggles and real-time mismatch feedback", () => {
 	const source = readSource("app/register/page.js");
 
