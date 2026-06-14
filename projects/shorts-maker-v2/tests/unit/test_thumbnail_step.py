@@ -545,3 +545,42 @@ def test_http_download_raises_for_http_error(tmp_path: Path) -> None:
         _http_download("https://example.com/thumb.png", output_path)
 
     assert not output_path.exists()
+
+
+# ─── _export_design edge cases ──────────────────────────────────────────────
+
+
+def test_export_design_empty_urls_raises_runtime_error() -> None:
+    """T-TH001: Canva export가 빈 urls 반환 시 KeyError 대신 RuntimeError."""
+    from shorts_maker_v2.pipeline.thumbnail_step import _export_design
+
+    post_resp = MagicMock()
+    post_resp.raise_for_status = MagicMock()
+    post_resp.json.return_value = {"job": {"id": "export-123"}}
+
+    poll_resp = MagicMock()
+    poll_resp.raise_for_status = MagicMock()
+    poll_resp.json.return_value = {"status": "success", "urls": []}
+
+    with (
+        patch("shorts_maker_v2.pipeline.thumbnail_step.requests.post", return_value=post_resp),
+        patch("shorts_maker_v2.pipeline.thumbnail_step._poll", return_value={"status": "success", "urls": []}),
+        pytest.raises(RuntimeError, match="no URLs"),
+    ):
+        _export_design("design-abc", "tok-xyz")
+
+
+def test_export_design_missing_urls_key_raises_runtime_error() -> None:
+    """T-TH001: Canva export가 urls 키 없이 반환 시 RuntimeError."""
+    from shorts_maker_v2.pipeline.thumbnail_step import _export_design
+
+    post_resp = MagicMock()
+    post_resp.raise_for_status = MagicMock()
+    post_resp.json.return_value = {"job": {"id": "export-456"}}
+
+    with (
+        patch("shorts_maker_v2.pipeline.thumbnail_step.requests.post", return_value=post_resp),
+        patch("shorts_maker_v2.pipeline.thumbnail_step._poll", return_value={"status": "success"}),
+        pytest.raises(RuntimeError, match="no URLs"),
+    ):
+        _export_design("design-abc", "tok-xyz")

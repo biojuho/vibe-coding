@@ -166,7 +166,10 @@ def _export_design(design_id: str, token: str) -> str:
     resp.raise_for_status()
     export_id = resp.json()["job"]["id"]
     job = _poll(f"{API_BASE}/exports/{export_id}", token)
-    return job["urls"][0]
+    urls = job.get("urls") or []
+    if not urls:
+        raise RuntimeError(f"Canva export succeeded but returned no URLs: {job}")
+    return urls[0]
 
 
 def _http_download(url: str, output_path: Path) -> Path:
