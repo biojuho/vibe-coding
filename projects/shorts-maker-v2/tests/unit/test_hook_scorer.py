@@ -191,3 +191,25 @@ class TestScoreHook:
         for entity in entities:
             result = score_hook(f"{entity}의 충격적인 발표")
             assert result.specificity_score > 0.0, f"Entity '{entity}' should boost specificity"
+
+    def test_hook_score_to_dict_all_keys_present(self):
+        """HookScore.to_dict() should return all 7 expected fields."""
+        result = score_hook("충격: 3일 만에 전 세계가 달라졌다")
+        d = result.to_dict()
+        expected_keys = {
+            "brevity_score",
+            "punch_score",
+            "curiosity_score",
+            "specificity_score",
+            "hook_strength",
+            "passed",
+            "feedback",
+        }
+        assert set(d.keys()) == expected_keys
+
+    def test_hook_score_to_dict_values_in_range(self):
+        """HookScore.to_dict() 수치 필드는 0.0-1.0 범위여야 한다."""
+        result = score_hook("이것은 테스트 Hook입니다")
+        d = result.to_dict()
+        for key in ("brevity_score", "punch_score", "curiosity_score", "specificity_score", "hook_strength"):
+            assert 0.0 <= d[key] <= 1.0, f"{key} out of range: {d[key]}"
