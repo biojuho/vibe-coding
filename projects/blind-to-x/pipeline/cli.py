@@ -272,7 +272,7 @@ def _mark_source_preflight_cli_overrides(args, argv: list[str] | None = None):
     supplied_dests = {
         dest for dest, flags in _SOURCE_PREFLIGHT_FLAGS.items() if any(flag in supplied_flags for flag in flags)
     }
-    setattr(args, "_source_preflight_cli_overrides", supplied_dests)
+    args._source_preflight_cli_overrides = supplied_dests
     return args
 
 
@@ -547,7 +547,7 @@ def _apply_recommended_source_fallback(args, report: dict) -> str | None:
         )
         return None
 
-    setattr(args, "source", recommended_source)
+    args.source = recommended_source
     logger.info("Continuing with source preflight recommended source: %s", recommended_source)
     return recommended_source
 
@@ -655,7 +655,7 @@ async def run_source_preflight_command(config_mgr, args) -> int | None:
 
     options = _resolve_source_preflight_options(config_mgr, args)
     if options["use_recommended_source"]:
-        setattr(args, "source_preflight_use_recommended", True)
+        args.source_preflight_use_recommended = True
     if getattr(args, "source_preflight_print_options", False):
         summary = _source_preflight_option_summary(sources, args, options)
         print(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True))

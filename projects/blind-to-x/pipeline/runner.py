@@ -64,13 +64,8 @@ async def handle_single_commands(args, config_mgr, notifier, notion_uploader, tw
         )
 
         print(format_review_queue_report(report))
-        setattr(
-            args,
-            "_single_command_exit_code",
-            exit_code_for_review_queue_report(
-                report,
-                fail_on_warning=getattr(args, "review_queue_report_fail_on_warning", False),
-            ),
+        args._single_command_exit_code = exit_code_for_review_queue_report(
+            report, fail_on_warning=getattr(args, "review_queue_report_fail_on_warning", False)
         )
         return True
 
