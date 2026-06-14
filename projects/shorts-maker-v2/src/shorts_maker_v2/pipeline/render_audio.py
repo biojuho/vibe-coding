@@ -138,6 +138,8 @@ class RenderAudioMixin:
         텍스트 무드에 맞는 BGM 파일 선택.
         파일명에 무드 키워드가 있으면 우선 선택, 없으면 랜덤 폴백.
         """
+        if not bgm_files:
+            raise ValueError("bgm_files must not be empty")
         mood = self._classify_mood(text)
         mood_keys = self._BGM_MOOD_NAMES.get(mood, [])
         matched = [f for f in bgm_files if any(k in f.stem.lower() for k in mood_keys)]

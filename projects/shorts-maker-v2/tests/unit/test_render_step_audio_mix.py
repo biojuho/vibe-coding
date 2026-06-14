@@ -68,6 +68,15 @@ def test_pick_bgm_fallback_random(tmp_path: Path) -> None:
     assert result in bgm_files
 
 
+def test_pick_bgm_by_mood_empty_list_raises_value_error() -> None:
+    """T-RA001: 빈 bgm_files 전달 시 ValueError (random.choice 전 조기 실패)."""
+    import pytest
+
+    step = _make_render_step()
+    with pytest.raises(ValueError, match="empty"):
+        step._pick_bgm_by_mood([], "아무 텍스트")
+
+
 # ─── BGM 수집 테스트 ──────────────────────────────────────────────────────
 
 
