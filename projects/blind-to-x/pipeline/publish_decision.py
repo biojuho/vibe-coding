@@ -23,6 +23,10 @@ _FORBIDDEN_TONE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("~의 감각", re.compile(r"\S+의 감각")),
     ("~한 벽이 됩니다", re.compile(r"\S+한 벽이 됩니다")),
     ("~의 민낯", re.compile(r"\S+의 민낯")),
+    # 인플루언서 슬랭 — draft_prompts 금지 어휘와 동기화
+    ("끝판왕", re.compile(r"끝판왕")),
+    ("기절할 뻔", re.compile(r"기절할\s*뻔")),
+    ("~만이 살 길", re.compile(r"\S+만이 살 길")),
 )
 
 

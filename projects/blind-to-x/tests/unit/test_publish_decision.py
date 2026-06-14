@@ -1,3 +1,5 @@
+import pytest
+
 from pipeline.publish_decision import DROP, HOLD, PUBLISH, decide_publish
 
 RESEARCH = {
@@ -71,6 +73,26 @@ def test_forbidden_ai_tone_is_hard_hold_with_zero_ceiling():
         GOOD_DRAFT + " 이것이 조직의 민낯입니다.",
     )
 
+    assert decision.action == HOLD
+    assert decision.quality_ceiling == 0.0
+    assert "forbidden_tone" in decision.reasons
+
+
+@pytest.mark.parametrize(
+    "bad_phrase",
+    [
+        "이 시대의 끝판왕이라 할 만합니다.",
+        "취재 현장에서 기절할 뻔 했습니다.",
+        "이것만이 살 길입니다.",
+    ],
+)
+def test_influencer_slang_forbidden_tones_are_blocked(bad_phrase):
+    decision = decide_publish(
+        {"twitter": 100},
+        {"twitter": {"passed": True}},
+        RESEARCH,
+        GOOD_DRAFT + " " + bad_phrase,
+    )
     assert decision.action == HOLD
     assert decision.quality_ceiling == 0.0
     assert "forbidden_tone" in decision.reasons
