@@ -30,6 +30,10 @@ _FORBIDDEN_TONE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     # prompts.yaml 금지 목록에 있으나 기존 목록에 없던 과장 반응 어휘
     ("어처구니없어서", re.compile(r"어처구니없어서")),
     ("어질어질", re.compile(r"어질어질")),
+    # editorial.yaml influencer_vocab 동기화 — 순수 은어, 합법적 맥락 없음
+    ("팩폭", re.compile(r"팩폭")),
+    ("현실 자각 타임", re.compile(r"현실\s*자각\s*타임")),
+    ("정신 차리고 봐", re.compile(r"정신\s*차리고\s*봐")),
 )
 
 

@@ -87,6 +87,10 @@ def test_forbidden_ai_tone_is_hard_hold_with_zero_ceiling():
         # prompts.yaml 동기화 추가분 (T-AB007)
         "정말 어처구니없어서 말이 안 나왔습니다.",
         "그 발표를 듣고 어질어질했습니다.",
+        # editorial.yaml 동기화 추가분 (T-AB009)
+        "이건 완전 팩폭이에요.",
+        "잠깐, 현실 자각 타임 가져봅시다.",
+        "정신 차리고 봐, 이게 현실이야.",
     ],
 )
 def test_influencer_slang_forbidden_tones_are_blocked(bad_phrase):
