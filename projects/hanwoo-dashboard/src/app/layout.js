@@ -5,7 +5,7 @@ import {
 	Noto_Serif_KR,
 } from "next/font/google";
 import { Suspense } from "react";
-import { FeedbackProvider } from "@/components/feedback/FeedbackProvider";
+import Providers from "@/components/Providers";
 
 const notoSansKr = Noto_Sans_KR({
 	weight: ["400", "500", "700"],
@@ -77,9 +77,9 @@ export default function RootLayout(options = {}) {
 			<body
 				className={`${notoSansKr.variable} ${notoSerifKr.variable} ${cormorantGaramond.variable}`}
 			>
-				<FeedbackProvider>
+				<Providers>
 					<Suspense>{children}</Suspense>
-				</FeedbackProvider>
+				</Providers>
 			</body>
 		</html>
 	);
