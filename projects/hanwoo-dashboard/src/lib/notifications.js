@@ -14,7 +14,14 @@ function normalizeNotificationCattle(cattle) {
 	return Array.isArray(cattle) ? cattle.filter(isNotificationCattleRow) : [];
 }
 
-export function buildNotifications(cattle = []) {
+function isLowStock(item) {
+	if (!item || typeof item !== "object" || Array.isArray(item)) return false;
+	const qty = Number(item.quantity);
+	const thr = Number(item.threshold);
+	return Number.isFinite(qty) && Number.isFinite(thr) && thr > 0 && qty <= thr;
+}
+
+export function buildNotifications(cattle = [], inventory = []) {
 	const notifications = [];
 	const safeCattle = normalizeNotificationCattle(cattle);
 
@@ -67,6 +74,27 @@ export function buildNotifications(cattle = []) {
 			});
 		}
 	});
+
+	// Inventory low-stock alerts
+	if (Array.isArray(inventory)) {
+		inventory.filter(isLowStock).forEach((item) => {
+			const name = typeof item.name === "string" ? item.name.trim() : "재고 항목";
+			const qty = Number(item.quantity);
+			const thr = Number(item.threshold);
+			const isCritical = qty === 0;
+			notifications.push({
+				id: `inventory-${item.id ?? name}`,
+				type: "alert",
+				level: isCritical ? "critical" : "warning",
+				title: isCritical ? "재고 소진" : "재고 부족",
+				message: isCritical
+					? `${name} 재고가 소진되었습니다. 즉시 보충이 필요합니다.`
+					: `${name} 재고가 ${qty}${item.unit ?? ""}로 기준(${thr}${item.unit ?? ""})에 미달합니다.`,
+				inventoryId: item.id,
+				inventoryName: name,
+			});
+		});
+	}
 
 	notifications.sort((a, b) => {
 		if (a.level === "critical" && b.level !== "critical") return -1;

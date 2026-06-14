@@ -49,12 +49,13 @@ export async function getNotifications() {
 	}
 
 	try {
-		const cattle = normalizeNotificationActionCattleRows(
-			await prisma.cattle.findMany({
-				where: { isArchived: false },
-			}),
-		);
-		const notifications = buildNotifications(cattle);
+		const [cattleRows, inventoryRows] = await Promise.all([
+			prisma.cattle.findMany({ where: { isArchived: false } }),
+			prisma.inventoryItem.findMany(),
+		]);
+		const cattle = normalizeNotificationActionCattleRows(cattleRows);
+		const inventory = Array.isArray(inventoryRows) ? inventoryRows : [];
+		const notifications = buildNotifications(cattle, inventory);
 
 		// Persist for future cache hits
 		try {
