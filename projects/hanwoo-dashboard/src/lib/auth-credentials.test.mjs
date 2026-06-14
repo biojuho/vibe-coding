@@ -90,3 +90,28 @@ test("authorizeCredentials tolerates malformed dependency input", async () => {
 
 	assert.equal(result, null);
 });
+
+test("authorizeCredentials runs dummy bcrypt.compare when user is not found to equalize timing", async () => {
+	// Without a dummy compare, unknown-username requests skip bcrypt (~1ms) while
+	// valid-username/wrong-password requests run bcrypt (~100ms) — leaking usernames.
+	let compareCalledForUnknownUser = false;
+	const result = await authorizeCredentials(
+		{ username: "admin", password: "secret" },
+		{
+			loadPrisma: async () => ({
+				user: {
+					findUnique: async () => null, // user not found
+				},
+			}),
+			loadBcrypt: async () => ({
+				compare: async () => {
+					compareCalledForUnknownUser = true;
+					return false;
+				},
+			}),
+		},
+	);
+
+	assert.equal(result, null);
+	assert.equal(compareCalledForUnknownUser, true, "bcrypt.compare must run even for unknown users to prevent username enumeration via timing");
+});

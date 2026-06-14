@@ -692,6 +692,18 @@ test("updateInventoryQuantity validates quantity before DB update", () => {
 	assert.match(inventoryAction, /validation\.success/);
 });
 
+// ── auth-credentials: timing equalization ────────────────────────────────────
+
+const authCredentials = readSource("lib/auth-credentials.mjs");
+
+test("authorizeCredentials uses TIMING_DUMMY_HASH to prevent username enumeration via timing side-channel", () => {
+	// Without a dummy bcrypt.compare on user-not-found, login response time leaks
+	// valid usernames (~1ms unknown vs ~100ms wrong-password). OWASP Auth Cheat Sheet.
+	assert.match(authCredentials, /TIMING_DUMMY_HASH/);
+	assert.match(authCredentials, /bcrypt\.compare\(password, TIMING_DUMMY_HASH\)/);
+	assert.match(authCredentials, /Dummy compare equalizes timing|dummy compare/i);
+});
+
 // ── actions/farm-settings.js ──────────────────────────────────────────────────
 
 const farmSettingsAction = readSource("lib/actions/farm-settings.js");
