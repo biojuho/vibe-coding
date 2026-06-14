@@ -579,3 +579,14 @@ def test_run_skips_review_errors_and_returns_best_result() -> None:
 
     assert title == "Stable draft"
     assert len(scenes) == 2
+
+
+@pytest.mark.parametrize(
+    "forbidden_opener",
+    ["오늘은", "오늘의", "이번에는", "이번엔", "여러분", "우리는", "우리가", "안녕하세요"],
+)
+def test_hook_rules_ko_contains_all_forbidden_openers(forbidden_opener: str) -> None:
+    """YAML과 script_prompts.py의 금지 오프너 목록이 동기화돼 있는지 확인."""
+    default_copy = ScriptPromptsMixin._PROMPT_COPY
+    ko_rules = default_copy.get("hook_rules_ko", "")
+    assert forbidden_opener in ko_rules, f"'{forbidden_opener}' not found in hook_rules_ko"
