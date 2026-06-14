@@ -433,6 +433,34 @@ def test_passes_review_checks_all_required_keys_for_channel_specific_review() ->
     assert step._passes_review(review, 7) is False
 
 
+def test_passes_review_handles_float_scores_from_llm() -> None:
+    """SMV2-SR001: LLM sometimes returns 7.5 or '8.5' instead of integer scores."""
+    step = ScriptStep(
+        config=make_config(script_review_min_score=7),
+        llm_router=FakeOpenAIClient([]),
+        channel_key="ai_tech",
+    )
+
+    # float values like 7.5 should pass int(float()) without ValueError
+    review_float = {
+        "hook_score": 7.5,
+        "flow_score": 8.0,
+        "cta_score": 7.5,
+        "verifiability_score": 8.5,
+        "spelling_score": 7.5,
+        "data_score": 7.0,
+    }
+    assert step._passes_review(review_float, 7) is True
+
+    # string float values like "8.5" should also work
+    review_str_float = {k: str(v) for k, v in review_float.items()}
+    assert step._passes_review(review_str_float, 7) is True
+
+    # "6.9" should fail min_score=7
+    review_str_float["data_score"] = "6.9"
+    assert step._passes_review(review_str_float, 7) is False
+
+
 def test_truncate_to_fit_shortens_long_scenes_and_preserves_roles() -> None:
     step = ScriptStep(config=make_config(), llm_router=FakeOpenAIClient([]))
     long_text = " ".join(f"word{i}" for i in range(80))
