@@ -109,7 +109,12 @@ export default function CattleDetailModal({
 				const nextHistory = Array.isArray(res) ? res : res?.data;
 				setHistory(Array.isArray(nextHistory) ? nextHistory : []);
 			})
-			.catch(() => {
+			.catch((err) => {
+				console.warn(
+					"CattleDetailModal: getCattleHistory failed for cattle",
+					cattle?.id,
+					err,
+				);
 				// API 실패 시 빈 이력으로 안전하게 폴백 — white screen 방지
 				if (!cancelled) setHistory([]);
 			});
