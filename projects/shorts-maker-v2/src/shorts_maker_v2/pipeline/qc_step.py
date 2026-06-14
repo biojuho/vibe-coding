@@ -148,11 +148,19 @@ class QCStep:
         "지금 누르세요",
         "눌러주세요",
         "꼭 보세요",
+        # ko-KR locale YAML 동기화
+        "벨",
+        "잊지 마",
+        "잊지마",
+        # en-US locale YAML 동기화
         "subscribe",
         "like",
         "comment",
         "follow",
         "share",
+        "bell",
+        "smash that",
+        "don't forget to",
     )
 
     @staticmethod
