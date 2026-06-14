@@ -498,6 +498,8 @@ export default function DashboardClient(options = {}) {
 	const movingCattleIdRef = useRef(null);
 	const notificationTriggerRef = useRef(null);
 	const notificationReturnFocusRef = useRef(null);
+	const addCattleReturnFocusRef = useRef(null);
+	const detailModalReturnFocusRef = useRef(null);
 	const {
 		items: pagedCattleItems,
 		setItems: setPagedCattleItems,
@@ -548,6 +550,15 @@ export default function DashboardClient(options = {}) {
 
 		window.requestAnimationFrame(() => focusElementSafely(returnTarget));
 	}, [setShowNotifications]);
+
+	const handleSelectCow = useCallback(
+		(cow) => {
+			detailModalReturnFocusRef.current =
+				typeof document !== "undefined" ? document.activeElement : null;
+			setSelectedCow(cow);
+		},
+		[setSelectedCow],
+	);
 
 	// Full registries remain optional and are loaded only when a view truly needs them.
 	const cattleList = useMemo(
@@ -1207,6 +1218,9 @@ export default function DashboardClient(options = {}) {
 			enqueue("createCattle", [newCattle]);
 			prependCattleRecord(newCattle);
 			setShowAddModal(false);
+			window.requestAnimationFrame(() =>
+				focusElementSafely(addCattleReturnFocusRef.current),
+			);
 			showWarning(offlineTitle, offlineDescription);
 			return true;
 		}
@@ -1220,6 +1234,9 @@ export default function DashboardClient(options = {}) {
 				}
 				prependCattleRecord(savedCattle);
 				setShowAddModal(false);
+				window.requestAnimationFrame(() =>
+					focusElementSafely(addCattleReturnFocusRef.current),
+				);
 				void refreshDashboardReadModels();
 				if (!skipSuccessFeedback) {
 					showSuccess(successTitle, successDescription);
@@ -1321,6 +1338,9 @@ export default function DashboardClient(options = {}) {
 				}
 				removeCattleRecord(id);
 				setSelectedCow(null);
+				window.requestAnimationFrame(() =>
+					focusElementSafely(detailModalReturnFocusRef.current),
+				);
 				void refreshDashboardReadModels();
 				showSuccess("개체를 보관 처리했습니다.");
 				return true;
@@ -2075,7 +2095,11 @@ export default function DashboardClient(options = {}) {
 						</PremiumButton>
 						<PremiumButton
 							size="icon"
-							onClick={() => setShowAddModal(true)}
+							onClick={() => {
+								addCattleReturnFocusRef.current =
+									typeof document !== "undefined" ? document.activeElement : null;
+								setShowAddModal(true);
+							}}
 							aria-label="개체 등록 열기"
 							title="개체 등록 열기"
 							className="shadow-[var(--shadow-button-primary)]"
@@ -2324,7 +2348,7 @@ export default function DashboardClient(options = {}) {
 							cattleList={cattleList}
 							buildingId={selectedBuildingId}
 							penId={selectedPenId}
-							onSelect={setSelectedCow}
+							onSelect={handleSelectCow}
 						/>
 					</div>
 				)}
@@ -2371,7 +2395,7 @@ export default function DashboardClient(options = {}) {
 					ensureAllCattleLoaded={
 						shouldSkipFieldModeCattlePreload ? null : ensureAllCattleLoaded
 					}
-					onSelect={setSelectedCow}
+					onSelect={handleSelectCow}
 					onCloseFieldMode={() => setIsFieldMode(false)}
 				/>
 			) : (
@@ -2459,7 +2483,12 @@ export default function DashboardClient(options = {}) {
 				<CattleForm
 					buildings={safeBuildings}
 					onSubmit={handleAddCattle}
-					onCancel={() => setShowAddModal(false)}
+					onCancel={() => {
+						setShowAddModal(false);
+						window.requestAnimationFrame(() =>
+							focusElementSafely(addCattleReturnFocusRef.current),
+						);
+					}}
 				/>
 			)}
 
@@ -2477,7 +2506,12 @@ export default function DashboardClient(options = {}) {
 					cattle={selectedCow}
 					buildings={safeBuildings}
 					isDeleting={deletingCattleId === selectedCow.id}
-					onClose={() => setSelectedCow(null)}
+					onClose={() => {
+						setSelectedCow(null);
+						window.requestAnimationFrame(() =>
+							focusElementSafely(detailModalReturnFocusRef.current),
+						);
+					}}
 					onEdit={() => setIsEditing(true)}
 					onDelete={() => handleDeleteCattle(selectedCow.id)}
 					onUpdate={handleUpdateCattle}

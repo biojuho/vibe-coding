@@ -2167,3 +2167,22 @@ test("register page uses main landmark as page shell and submit has aria-busy", 
 	assert.match(source, /const passwordMismatch = /);
 	assert.match(source, /aria-invalid=\{passwordMismatch\}/);
 });
+
+test("DashboardClient restores focus to trigger after add-cattle and detail modal close", () => {
+	const source = readSource("components/DashboardClient.js");
+
+	// Refs for focus restoration
+	assert.match(source, /addCattleReturnFocusRef = useRef\(null\)/);
+	assert.match(source, /detailModalReturnFocusRef = useRef\(null\)/);
+
+	// handleSelectCow captures active element before opening detail modal
+	assert.match(source, /const handleSelectCow = useCallback/);
+	assert.match(source, /detailModalReturnFocusRef\.current[\s\S]{0,60}document\.activeElement/);
+
+	// Add cattle button captures active element before opening form
+	assert.match(source, /addCattleReturnFocusRef\.current[\s\S]{0,60}document\.activeElement/);
+
+	// Close handlers restore focus via requestAnimationFrame
+	assert.match(source, /focusElementSafely\(addCattleReturnFocusRef\.current\)/);
+	assert.match(source, /focusElementSafely\(detailModalReturnFocusRef\.current\)/);
+});
