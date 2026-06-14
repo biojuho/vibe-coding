@@ -147,3 +147,74 @@ test("subscription-queries fetches most recent subscription record using orderBy
 	assert.match(subQ, /orderBy: \{ createdAt: ["']desc["'] \}/);
 	assert.match(subQ, /findFirst/);
 });
+
+// ── redis.js ──────────────────────────────────────────────────────────────────
+
+const redis = readSource("lib/redis.js");
+
+test("redis exports all 6 public APIs", () => {
+	const apis = [
+		"isRedisConfigured",
+		"getRedisKeyPrefix",
+		"createRedisClient",
+		"getRedisClient",
+		"ensureRedisConnection",
+		"closeRedisClients",
+	];
+	for (const api of apis) {
+		assert.ok(redis.includes(api), `Missing export: ${api}`);
+	}
+});
+
+test("redis uses hd as default key prefix when REDIS_KEY_PREFIX env is absent", () => {
+	assert.match(redis, /DEFAULT_REDIS_KEY_PREFIX = ["']hd["']/);
+	assert.match(redis, /process\.env\.REDIS_KEY_PREFIX \?\? DEFAULT_REDIS_KEY_PREFIX/);
+});
+
+test("redis has 4 roles: cache/producer use eager-fail, worker/events use offline queue", () => {
+	assert.match(redis, /REDIS_ROLE_OPTIONS/);
+	// cache and producer: quick-fail (maxRetriesPerRequest: 1, enableOfflineQueue: false)
+	assert.match(redis, /maxRetriesPerRequest: 1/);
+	assert.match(redis, /enableOfflineQueue: false/);
+	// worker and events: resilient (maxRetriesPerRequest: null, enableOfflineQueue: true)
+	assert.match(redis, /maxRetriesPerRequest: null/);
+	assert.match(redis, /enableOfflineQueue: true/);
+});
+
+test("redis reads URL from REDIS_URL with fallback to BULLMQ_REDIS_URL", () => {
+	assert.match(redis, /process\.env\.REDIS_URL \?\? process\.env\.BULLMQ_REDIS_URL \?\? null/);
+});
+
+test("redis retry strategy caps backoff at 20 seconds", () => {
+	assert.match(redis, /createRetryStrategy/);
+	assert.match(redis, /Math\.min\(attempt \* 1000, 20000\)/);
+});
+
+test("redis createRedisClient uses lazyConnect to defer connection until first use", () => {
+	assert.match(redis, /lazyConnect: true/);
+	assert.match(redis, /retryStrategy: createRetryStrategy/);
+});
+
+test("redis uses global singleton pattern for cache and producer roles", () => {
+	assert.match(redis, /__hanwooRedisCache/);
+	assert.match(redis, /__hanwooRedisProducer/);
+	assert.match(redis, /globalForRedis\[singletonKey\]/);
+});
+
+test("redis worker and events roles are not singletonized (new client per call)", () => {
+	// getSingletonKey returns null for non-cached roles → createRedisClient called fresh
+	assert.match(redis, /getSingletonKey\(role\)/);
+	assert.match(redis, /if \(!singletonKey\)/);
+	assert.match(redis, /return createRedisClient\(role\)/);
+});
+
+test("redis closeRedisClients quits all singleton clients and removes them from global", () => {
+	assert.match(redis, /closeRedisClients/);
+	assert.match(redis, /await client\.quit\(\)/);
+	assert.match(redis, /delete globalForRedis\[singletonKey\]/);
+});
+
+test("redis isRedisConfigured returns false when REDIS_URL is absent", () => {
+	assert.match(redis, /export function isRedisConfigured\(\)/);
+	assert.match(redis, /Boolean\(getRedisUrl\(\)\)/);
+});
