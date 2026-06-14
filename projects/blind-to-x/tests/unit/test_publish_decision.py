@@ -84,6 +84,9 @@ def test_forbidden_ai_tone_is_hard_hold_with_zero_ceiling():
         "이 시대의 끝판왕이라 할 만합니다.",
         "취재 현장에서 기절할 뻔 했습니다.",
         "이것만이 살 길입니다.",
+        # prompts.yaml 동기화 추가분 (T-AB007)
+        "정말 어처구니없어서 말이 안 나왔습니다.",
+        "그 발표를 듣고 어질어질했습니다.",
     ],
 )
 def test_influencer_slang_forbidden_tones_are_blocked(bad_phrase):
