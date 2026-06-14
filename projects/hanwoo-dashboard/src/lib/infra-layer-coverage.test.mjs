@@ -491,17 +491,23 @@ test("dashboard/sales route returns 400 on DashboardQueryValidationError for bad
 
 const registerRoute = readSource("app/api/auth/register/route.js");
 const changePasswordRoute = readSource("app/api/auth/change-password/route.js");
+const authValidation = readSource("lib/auth-validation.mjs");
 
-test("register route enforces MAX_PASSWORD_LENGTH=72 to prevent bcrypt DoS via long passwords", () => {
-	assert.match(registerRoute, /const MAX_PASSWORD_LENGTH = 72/);
-	assert.match(registerRoute, /password\.length > MAX_PASSWORD_LENGTH/);
-	assert.match(registerRoute, /최대.*MAX_PASSWORD_LENGTH.*자까지 입력할 수 있습니다/);
+test("auth-validation module enforces MAX_PASSWORD_LENGTH=72 to prevent bcrypt DoS via long passwords", () => {
+	// MAX_PASSWORD_LENGTH is now shared between register and change-password routes
+	assert.match(authValidation, /export const MAX_PASSWORD_LENGTH = 72/);
+	assert.match(authValidation, /password\.length > MAX_PASSWORD_LENGTH/);
+	assert.match(authValidation, /최대.*MAX_PASSWORD_LENGTH.*자까지 입력할 수 있습니다/);
 });
 
-test("change-password route enforces MAX_PASSWORD_LENGTH=72 to prevent bcrypt DoS", () => {
-	assert.match(changePasswordRoute, /const MAX_PASSWORD_LENGTH = 72/);
-	assert.match(changePasswordRoute, /newPassword\.length > MAX_PASSWORD_LENGTH/);
-	assert.match(changePasswordRoute, /최대.*MAX_PASSWORD_LENGTH.*자까지 입력할 수 있습니다/);
+test("register route imports validateRegistrationPayload from auth-validation (not duplicating logic)", () => {
+	assert.match(registerRoute, /validateRegistrationPayload/);
+	assert.match(registerRoute, /auth-validation/);
+});
+
+test("change-password route imports validateChangePasswordPayload from auth-validation (not duplicating logic)", () => {
+	assert.match(changePasswordRoute, /validateChangePasswordPayload/);
+	assert.match(changePasswordRoute, /auth-validation/);
 });
 
 // ── Auth routes: rate limiting ────────────────────────────────────────────────
