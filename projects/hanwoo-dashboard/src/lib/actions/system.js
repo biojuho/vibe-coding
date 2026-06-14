@@ -84,7 +84,7 @@ export async function getRawData(modelName) {
 		});
 		return { success: true, data: normalizeRawDataActionRows(data) };
 	} catch (error) {
-		if (error.message === UNSUPPORTED_DATA_TYPE_MESSAGE) {
+		if (error?.message === UNSUPPORTED_DATA_TYPE_MESSAGE) {
 			return { success: false, message: UNSUPPORTED_DATA_TYPE_MESSAGE };
 		}
 
