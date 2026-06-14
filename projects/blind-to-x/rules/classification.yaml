@@ -338,6 +338,24 @@ emotion_rules:
   - 곧
   - 기다
   - 두근
+# T-AB034: 2026 AI 전환 불안 및 고용불안 감정축 추가
+- label: AI_전환
+  keywords:
+  - vibe코딩
+  - AI 코딩
+  - 커서 AI
+  - 코파일럿
+  - 주니어 대체
+  - AI 대체
+  - 자동화
+  - AI 시대
+- label: 고용불안
+  keywords:
+  - 구조조정
+  - 정리해고
+  - 권고사직
+  - 희망퇴직
+  - 고용불안
 audience_rules:
 - label: 초년생
   keywords:

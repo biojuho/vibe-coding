@@ -81,6 +81,11 @@ def recommend_draft_type(hook_type: str, emotion_axis: str) -> str:
         return "정보전달형"
     if hook_type == "논쟁형" or emotion_axis in {"분노", "경악"}:
         return "논쟁형"
+    # T-AB034: AI 전환 분석 → 분석형 초안, 고용불안 → 공감형
+    if emotion_axis == "AI_전환":
+        return "분석형"
+    if emotion_axis == "고용불안":
+        return "공감형"
     if hook_type == "한줄팩폭형":
         return "공감형" if emotion_axis in {"공감", "허탈", "현타"} else "논쟁형"
     return "공감형"
