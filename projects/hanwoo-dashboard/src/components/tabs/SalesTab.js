@@ -152,10 +152,11 @@ export default function SalesTab(options = {}) {
 					hasExpenseData,
 				};
 			})
-			.sort(
-				(first, second) =>
-					getSaleDateTime(second.saleDate) - getSaleDateTime(first.saleDate),
-			);
+			.sort((first, second) => {
+				const diff =
+					getSaleDateTime(second.saleDate) - getSaleDateTime(first.saleDate);
+				return Number.isNaN(diff) ? 0 : diff;
+			});
 	}, [safeSaleRecords, safeCattleList, safeExpenseRecords]);
 
 	const safeTotalSales = useMemo(
@@ -325,6 +326,7 @@ export default function SalesTab(options = {}) {
 					onClick={toggleAddForm}
 					disabled={isSaving}
 					aria-busy={isSaving}
+					aria-expanded={isAdding}
 					aria-label={addFormButtonLabel}
 					title={addFormButtonLabel}
 					className="min-h-11 text-[13px] text-green-400 border-green-500/50 hover:bg-green-500/10 px-4 py-2 rounded-lg font-bold"
