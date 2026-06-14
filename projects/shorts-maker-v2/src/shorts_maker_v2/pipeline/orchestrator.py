@@ -513,9 +513,23 @@ class PipelineOrchestrator:
             if resume_job_id and checkpoint_path.exists():
                 jlog.info("loading_checkpoint", path=str(checkpoint_path))
                 cp_data = json.loads(checkpoint_path.read_text(encoding="utf-8"))
-                title = cp_data["title"]
-                hook_pattern = cp_data["hook_pattern"]
-                scene_plans = [ScenePlan(**sp) for sp in cp_data["scene_plans"]]
+                _cp_title = cp_data.get("title")
+                _cp_hook = cp_data.get("hook_pattern")
+                _cp_scenes = cp_data.get("scene_plans")
+                if not (_cp_title and _cp_hook and _cp_scenes):
+                    _missing = [
+                        k
+                        for k, v in {"title": _cp_title, "hook_pattern": _cp_hook, "scene_plans": _cp_scenes}.items()
+                        if not v
+                    ]
+                    jlog.warning("checkpoint_schema_mismatch", path=str(checkpoint_path), missing=_missing)
+                    raise ValueError(
+                        f"Checkpoint schema mismatch — missing fields: {_missing}. "
+                        "Delete checkpoint.json to start fresh."
+                    )
+                title = _cp_title
+                hook_pattern = _cp_hook
+                scene_plans = [ScenePlan(**sp) for sp in _cp_scenes]
                 manifest.title = title
                 manifest.scene_count = len(scene_plans)
                 manifest.hook_pattern = hook_pattern
