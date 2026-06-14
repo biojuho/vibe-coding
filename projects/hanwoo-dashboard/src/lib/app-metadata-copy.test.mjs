@@ -193,6 +193,18 @@ test("globals.css has print styles that hide chrome and preserve content", () =>
 	assert.match(cssSource, /break-inside: avoid/);
 });
 
+test("root layout includes JSON-LD SoftwareApplication schema for SEO rich results", () => {
+	const layoutSource = readProjectFile("src/app/layout.js");
+
+	// JSON-LD structured data enables Google rich results for SaaS apps
+	assert.match(layoutSource, /application\/ld\+json/);
+	assert.match(layoutSource, /SoftwareApplication/);
+	assert.match(layoutSource, /BusinessApplication/);
+	assert.match(layoutSource, /hanwoo\.joolife\.com/);
+	assert.match(layoutSource, /dangerouslySetInnerHTML/);
+	assert.match(layoutSource, /SCHEMA_ORG_APP/);
+});
+
 test("committed service worker fallback stays build-agnostic", () => {
 	const serviceWorkerSource = readProjectFile("public/sw.js");
 

@@ -71,11 +71,35 @@ function normalizeRootLayoutOptions(options) {
 		: {};
 }
 
+const SCHEMA_ORG_APP = {
+	"@context": "https://schema.org",
+	"@type": "SoftwareApplication",
+	name: "Joolife 한우 농장 관리",
+	applicationCategory: "BusinessApplication",
+	operatingSystem: "Web Browser",
+	inLanguage: "ko-KR",
+	url: "https://hanwoo.joolife.com",
+	description:
+		"한우 농장의 개체, 번식, 출하, 재고, 일정을 한곳에서 관리하는 운영 대시보드",
+	offers: {
+		"@type": "Offer",
+		price: "0",
+		priceCurrency: "KRW",
+		description: "14일 무료 체험",
+	},
+};
+
 export default function RootLayout(options = {}) {
 	const { children } = normalizeRootLayoutOptions(options);
 
 	return (
 		<html lang="ko" data-scroll-behavior="smooth" suppressHydrationWarning>
+			<head>
+				<script
+					type="application/ld+json"
+					dangerouslySetInnerHTML={{ __html: JSON.stringify(SCHEMA_ORG_APP) }}
+				/>
+			</head>
 			<body
 				className={`${notoSansKr.variable} ${notoSerifKr.variable} ${cormorantGaramond.variable}`}
 			>
