@@ -155,3 +155,48 @@ class TestReadabilityEdgeCases:
         text = "됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다됩니다 " * 5
         result = calculate_readability(text)
         assert 0.0 <= result["readability_score"] <= 100.0
+
+
+class TestSentenceDiversity:
+    """T-AB028: 문장 다양성 (sentence_diversity) 필드 검증."""
+
+    def test_diversity_field_present(self):
+        """calculate_readability()가 sentence_diversity 필드를 반환해야 한다."""
+        result = calculate_readability("직장인들의 연봉 이야기다. 올해 3% 인상 예정이다. IT 업계 특히 높다.")
+        assert "sentence_diversity" in result
+
+    def test_uniform_sentences_penalized(self):
+        """모든 문장 길이가 거의 동일하면 10점 감점 (CV < 0.15)."""
+        # 5문장, 모두 정확히 20자 → CV ≈ 0 → 감점
+        uniform = ("가" * 18 + "입니다. ") * 5
+        result = calculate_readability(uniform)
+        assert result["sentence_count"] >= 3
+        assert result["sentence_diversity"] < 0.15
+        # optimal 문장 길이라도 다양성 부족 → 100점 미만
+        assert result["readability_score"] <= 90
+
+    def test_varied_sentences_no_diversity_penalty(self):
+        """문장 길이가 다양하면 다양성 감점 없음 (CV >= 0.15)."""
+        # 짧은 문장 + 긴 문장 혼재
+        varied = (
+            "응! "  # 2자 — 최소 5자 미만, filtered out
+            "직장인 연봉 이야기다. "  # ~12자
+            "올해 평균 3.5% 인상이 예상되며 특히 IT·금융 업계가 높은 인상률을 기록할 것으로 보인다. "  # ~50자
+            "전문가들은 긍정적이라고 평가한다. "  # ~18자
+            "단, 물가 상승도 감안해야 한다."  # ~16자
+        )
+        result = calculate_readability(varied)
+        if result["sentence_count"] >= 3:
+            assert result["sentence_diversity"] >= 0.15
+
+    def test_diversity_zero_for_fewer_than_3_sentences(self):
+        """3문장 미만이면 sentence_diversity = 0.0 (계산 불가)."""
+        two_sentences = "직장인 연봉이 화제다. 특히 IT 업계가 높다."
+        result = calculate_readability(two_sentences)
+        if result["sentence_count"] < 3:
+            assert result["sentence_diversity"] == 0.0
+
+    def test_empty_text_diversity_zero(self):
+        """빈 텍스트는 sentence_diversity = 0.0."""
+        result = calculate_readability("")
+        assert result.get("sentence_diversity", 0.0) == 0.0

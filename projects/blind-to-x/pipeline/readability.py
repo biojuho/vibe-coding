@@ -61,6 +61,14 @@ def calculate_readability(text: str) -> dict[str, float]:
     passive_count = sum(1 for s in sentences if passive_patterns.search(s))
     passive_ratio = passive_count / sentence_count
 
+    # 문장 다양성: 길이 변동 계수 (Coefficient of Variation = std / mean)
+    if sentence_count >= 3 and avg_length > 0:
+        variance = sum((ln - avg_length) ** 2 for ln in lengths) / sentence_count
+        std_len = variance**0.5
+        sentence_diversity = round(std_len / avg_length, 3)
+    else:
+        sentence_diversity = 0.0
+
     # ── 점수 계산 (100점 만점) ─────────────────────────────────────
     score = 100.0
 
@@ -82,7 +90,12 @@ def calculate_readability(text: str) -> dict[str, float]:
     elif passive_ratio > 0.3:
         score -= 8
 
-    # 3. 문장 수가 너무 적으면 감점 (twitter 제외 — 1~2문장은 허용)
+    # 3. 문장 다양성 감점 (3문장 이상일 때만 적용)
+    # CV < 0.15: 모든 문장이 거의 같은 길이 → 단조로운 리듬 → -10
+    if sentence_count >= 3 and sentence_diversity < 0.15:
+        score -= 10
+
+    # 4. 문장 수가 너무 적으면 감점 (twitter 제외 — 1~2문장은 허용)
     if sentence_count == 1 and len(text) > 200:
         score -= 15  # 긴 텍스트인데 문장이 하나 = 구두점 없음
 
@@ -92,5 +105,6 @@ def calculate_readability(text: str) -> dict[str, float]:
         "avg_sentence_length": round(avg_length, 1),
         "passive_ratio": round(passive_ratio, 3),
         "sentence_count": sentence_count,
+        "sentence_diversity": sentence_diversity,
         "readability_score": round(score, 1),
     }
