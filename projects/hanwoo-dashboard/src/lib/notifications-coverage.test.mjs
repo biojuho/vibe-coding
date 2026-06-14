@@ -110,3 +110,21 @@ test("notifications: normalizeNotificationCattle guards non-array input", () => 
 test("notifications: inventory block guards Array.isArray", () => {
 	assert.match(src, /Array\.isArray\(inventory\)/);
 });
+
+// ── Null guards: missing name / tagNumber ─────────────────────────────────────
+
+test("notifications: estrus message null-guards cow.name with ?? 이름 없음", () => {
+	assert.match(src, /cow\.name \?\? "이름 없음"/);
+});
+
+test("notifications: estrus message null-guards cow.tagNumber with ?? 번호 없음", () => {
+	assert.match(src, /cow\.tagNumber \?\? "번호 없음"/);
+});
+
+test("notifications: cattleName field null-coalesces to null when name is absent", () => {
+	assert.match(src, /cattleName: cow\.name \?\? null/);
+});
+
+test("notifications: tagNumber field null-coalesces to null when tagNumber is absent", () => {
+	assert.match(src, /tagNumber: cow\.tagNumber \?\? null/);
+});

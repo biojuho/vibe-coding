@@ -26,7 +26,8 @@ const CALVING_ALERT_WINDOW = 14;
 const DAY_MS = 86400000;
 
 function toValidDate(value) {
-	const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
+	const date =
+		value instanceof Date ? new Date(value.getTime()) : new Date(value);
 	return Number.isNaN(date.getTime()) ? null : date;
 }
 
@@ -106,11 +107,11 @@ function buildNotifications(cattle = [], inventory = [], now = new Date()) {
 				type: "estrus",
 				level: daysLeft <= 1 ? "critical" : "warning",
 				title: daysLeft === 0 ? "오늘 발정 예정" : "발정 임박",
-				message: `${cow.name} (${cow.tagNumber}) 발정 예정일이 ${daysLeft}일 남았습니다.`,
+				message: `${cow.name ?? "이름 없음"} (${cow.tagNumber ?? "번호 없음"}) 발정 예정일이 ${daysLeft}일 남았습니다.`,
 				daysLeft,
 				cattleId: cow.id,
-				cattleName: cow.name,
-				tagNumber: cow.tagNumber,
+				cattleName: cow.name ?? null,
+				tagNumber: cow.tagNumber ?? null,
 				buildingId: cow.buildingId,
 				penNumber: cow.penNumber,
 				...timing,
@@ -130,11 +131,11 @@ function buildNotifications(cattle = [], inventory = [], now = new Date()) {
 				type: "calving",
 				level: daysLeft <= 3 ? "critical" : "warning",
 				title: daysLeft === 0 ? "오늘 분만 예정" : "분만 임박",
-				message: `${cow.name} (${cow.tagNumber}) 분만 예정일이 ${daysLeft}일 남았습니다.`,
+				message: `${cow.name ?? "이름 없음"} (${cow.tagNumber ?? "번호 없음"}) 분만 예정일이 ${daysLeft}일 남았습니다.`,
 				daysLeft,
 				cattleId: cow.id,
-				cattleName: cow.name,
-				tagNumber: cow.tagNumber,
+				cattleName: cow.name ?? null,
+				tagNumber: cow.tagNumber ?? null,
 				buildingId: cow.buildingId,
 				penNumber: cow.penNumber,
 				...timing,
@@ -144,7 +145,8 @@ function buildNotifications(cattle = [], inventory = [], now = new Date()) {
 
 	if (Array.isArray(inventory)) {
 		inventory.filter(isLowStock).forEach((item) => {
-			const name = typeof item.name === "string" ? item.name.trim() : "재고 항목";
+			const name =
+				typeof item.name === "string" ? item.name.trim() : "재고 항목";
 			const qty = Number(item.quantity);
 			const thr = Number(item.threshold);
 			const isCritical = qty === 0;
@@ -221,7 +223,15 @@ test("production notifications.js: sort puts critical before warning", () => {
 test("buildNotifications emits estrus alert for 번식우 within ESTRUS_ALERT_WINDOW", () => {
 	const lastEstrus = lastEstrusForDaysLeft(2, NOW);
 	const notifications = buildNotifications(
-		[{ id: "c1", name: "복순이", tagNumber: "001", status: "번식우", lastEstrus }],
+		[
+			{
+				id: "c1",
+				name: "복순이",
+				tagNumber: "001",
+				status: "번식우",
+				lastEstrus,
+			},
+		],
 		[],
 		NOW,
 	);
@@ -233,7 +243,15 @@ test("buildNotifications emits estrus alert for 번식우 within ESTRUS_ALERT_WI
 test("buildNotifications emits estrus alert for 육성우 within ESTRUS_ALERT_WINDOW", () => {
 	const lastEstrus = lastEstrusForDaysLeft(2, NOW);
 	const notifications = buildNotifications(
-		[{ id: "c2", name: "순자", tagNumber: "002", status: "육성우", lastEstrus }],
+		[
+			{
+				id: "c2",
+				name: "순자",
+				tagNumber: "002",
+				status: "육성우",
+				lastEstrus,
+			},
+		],
 		[],
 		NOW,
 	);
@@ -244,7 +262,15 @@ test("buildNotifications emits estrus alert for 육성우 within ESTRUS_ALERT_WI
 test("buildNotifications does NOT emit estrus alert for 임신우", () => {
 	const lastEstrus = lastEstrusForDaysLeft(2, NOW);
 	const notifications = buildNotifications(
-		[{ id: "c3", name: "영이", tagNumber: "003", status: "임신우", lastEstrus }],
+		[
+			{
+				id: "c3",
+				name: "영이",
+				tagNumber: "003",
+				status: "임신우",
+				lastEstrus,
+			},
+		],
 		[],
 		NOW,
 	);
@@ -255,7 +281,15 @@ test("buildNotifications does NOT emit estrus alert for 임신우", () => {
 test("buildNotifications does NOT emit estrus alert for 송아지", () => {
 	const lastEstrus = lastEstrusForDaysLeft(2, NOW);
 	const notifications = buildNotifications(
-		[{ id: "c4", name: "아기", tagNumber: "004", status: "송아지", lastEstrus }],
+		[
+			{
+				id: "c4",
+				name: "아기",
+				tagNumber: "004",
+				status: "송아지",
+				lastEstrus,
+			},
+		],
 		[],
 		NOW,
 	);
@@ -265,7 +299,15 @@ test("buildNotifications does NOT emit estrus alert for 송아지", () => {
 test("buildNotifications: estrus level is critical when daysLeft <= 1", () => {
 	const lastEstrus = lastEstrusForDaysLeft(1, NOW);
 	const notifications = buildNotifications(
-		[{ id: "c5", name: "복순이", tagNumber: "005", status: "번식우", lastEstrus }],
+		[
+			{
+				id: "c5",
+				name: "복순이",
+				tagNumber: "005",
+				status: "번식우",
+				lastEstrus,
+			},
+		],
 		[],
 		NOW,
 	);
@@ -278,13 +320,25 @@ test("buildNotifications: estrus level is warning when daysLeft is 2 or 3", () =
 	for (const daysLeft of [2, 3]) {
 		const lastEstrus = lastEstrusForDaysLeft(daysLeft, NOW);
 		const notifications = buildNotifications(
-			[{ id: "c6", name: "복순이", tagNumber: "006", status: "번식우", lastEstrus }],
+			[
+				{
+					id: "c6",
+					name: "복순이",
+					tagNumber: "006",
+					status: "번식우",
+					lastEstrus,
+				},
+			],
 			[],
 			NOW,
 		);
 		const n = notifications.find((x) => x.type === "estrus");
 		assert.ok(n, `expected estrus notification for daysLeft=${daysLeft}`);
-		assert.equal(n.level, "warning", `expected warning for daysLeft=${daysLeft}`);
+		assert.equal(
+			n.level,
+			"warning",
+			`expected warning for daysLeft=${daysLeft}`,
+		);
 	}
 });
 
@@ -292,7 +346,15 @@ test("buildNotifications: no estrus alert when outside window (> 3 days)", () =>
 	// 10 days left — outside the 3-day alert window
 	const lastEstrus = lastEstrusForDaysLeft(10, NOW);
 	const notifications = buildNotifications(
-		[{ id: "c7", name: "복순이", tagNumber: "007", status: "번식우", lastEstrus }],
+		[
+			{
+				id: "c7",
+				name: "복순이",
+				tagNumber: "007",
+				status: "번식우",
+				lastEstrus,
+			},
+		],
 		[],
 		NOW,
 	);
@@ -304,7 +366,15 @@ test("buildNotifications: no estrus alert when outside window (> 3 days)", () =>
 test("buildNotifications emits calving alert for 임신우 within CALVING_ALERT_WINDOW (14 days)", () => {
 	const pregnancyDate = pregnancyForCalvingInDays(7, NOW);
 	const notifications = buildNotifications(
-		[{ id: "p1", name: "영자", tagNumber: "P001", status: "임신우", pregnancyDate }],
+		[
+			{
+				id: "p1",
+				name: "영자",
+				tagNumber: "P001",
+				status: "임신우",
+				pregnancyDate,
+			},
+		],
 		[],
 		NOW,
 	);
@@ -316,7 +386,15 @@ test("buildNotifications emits calving alert for 임신우 within CALVING_ALERT_
 test("buildNotifications does NOT emit calving alert for 번식우", () => {
 	const pregnancyDate = pregnancyForCalvingInDays(7, NOW);
 	const notifications = buildNotifications(
-		[{ id: "p2", name: "복순이", tagNumber: "P002", status: "번식우", pregnancyDate }],
+		[
+			{
+				id: "p2",
+				name: "복순이",
+				tagNumber: "P002",
+				status: "번식우",
+				pregnancyDate,
+			},
+		],
 		[],
 		NOW,
 	);
@@ -326,7 +404,15 @@ test("buildNotifications does NOT emit calving alert for 번식우", () => {
 test("buildNotifications: calving level is critical when daysLeft <= 3", () => {
 	const pregnancyDate = pregnancyForCalvingInDays(2, NOW);
 	const notifications = buildNotifications(
-		[{ id: "p3", name: "영자", tagNumber: "P003", status: "임신우", pregnancyDate }],
+		[
+			{
+				id: "p3",
+				name: "영자",
+				tagNumber: "P003",
+				status: "임신우",
+				pregnancyDate,
+			},
+		],
 		[],
 		NOW,
 	);
@@ -339,20 +425,40 @@ test("buildNotifications: calving level is warning when daysLeft is 4-14", () =>
 	for (const daysLeft of [4, 10, 14]) {
 		const pregnancyDate = pregnancyForCalvingInDays(daysLeft, NOW);
 		const notifications = buildNotifications(
-			[{ id: "p4", name: "영자", tagNumber: "P004", status: "임신우", pregnancyDate }],
+			[
+				{
+					id: "p4",
+					name: "영자",
+					tagNumber: "P004",
+					status: "임신우",
+					pregnancyDate,
+				},
+			],
 			[],
 			NOW,
 		);
 		const n = notifications.find((x) => x.type === "calving");
 		assert.ok(n, `expected calving notification for daysLeft=${daysLeft}`);
-		assert.equal(n.level, "warning", `expected warning for daysLeft=${daysLeft}`);
+		assert.equal(
+			n.level,
+			"warning",
+			`expected warning for daysLeft=${daysLeft}`,
+		);
 	}
 });
 
 test("buildNotifications: no calving alert when calving > 14 days away", () => {
 	const pregnancyDate = pregnancyForCalvingInDays(20, NOW);
 	const notifications = buildNotifications(
-		[{ id: "p5", name: "영자", tagNumber: "P005", status: "임신우", pregnancyDate }],
+		[
+			{
+				id: "p5",
+				name: "영자",
+				tagNumber: "P005",
+				status: "임신우",
+				pregnancyDate,
+			},
+		],
 		[],
 		NOW,
 	);
@@ -412,7 +518,7 @@ test("buildNotifications uses 재고 항목 fallback when inventory name is miss
 
 test("buildNotifications sorts critical before warning", () => {
 	const pregnancyDate = pregnancyForCalvingInDays(2, NOW); // critical calving
-	const lastEstrus = lastEstrusForDaysLeft(2, NOW);        // warning estrus
+	const lastEstrus = lastEstrusForDaysLeft(2, NOW); // warning estrus
 
 	const notifications = buildNotifications(
 		[
@@ -439,8 +545,12 @@ test("buildNotifications sorts critical before warning", () => {
 	const criticals = notifications.filter((n) => n.level === "critical");
 	const warnings = notifications.filter((n) => n.level === "warning");
 	if (criticals.length > 0 && warnings.length > 0) {
-		const lastCriticalIdx = Math.max(...criticals.map((n) => notifications.indexOf(n)));
-		const firstWarningIdx = Math.min(...warnings.map((n) => notifications.indexOf(n)));
+		const lastCriticalIdx = Math.max(
+			...criticals.map((n) => notifications.indexOf(n)),
+		);
+		const firstWarningIdx = Math.min(
+			...warnings.map((n) => notifications.indexOf(n)),
+		);
 		assert.ok(
 			lastCriticalIdx < firstWarningIdx,
 			`critical (${lastCriticalIdx}) should come before warning (${firstWarningIdx})`,
@@ -470,7 +580,15 @@ test("buildNotifications ignores malformed cattle rows (string, null, array)", (
 
 test("buildNotifications ignores cattle without lastEstrus for estrus alerts", () => {
 	const notifications = buildNotifications(
-		[{ id: "c8", name: "복순이", tagNumber: "008", status: "번식우", lastEstrus: null }],
+		[
+			{
+				id: "c8",
+				name: "복순이",
+				tagNumber: "008",
+				status: "번식우",
+				lastEstrus: null,
+			},
+		],
 		[],
 		NOW,
 	);
@@ -479,9 +597,119 @@ test("buildNotifications ignores cattle without lastEstrus for estrus alerts", (
 
 test("buildNotifications ignores cattle without pregnancyDate for calving alerts", () => {
 	const notifications = buildNotifications(
-		[{ id: "p6", name: "영자", tagNumber: "P006", status: "임신우", pregnancyDate: null }],
+		[
+			{
+				id: "p6",
+				name: "영자",
+				tagNumber: "P006",
+				status: "임신우",
+				pregnancyDate: null,
+			},
+		],
 		[],
 		NOW,
 	);
 	assert.equal(notifications.filter((n) => n.type === "calving").length, 0);
+});
+
+// ── Null guards: missing name / tagNumber ─────────────────────────────────────
+
+test("production notifications.js: estrus message uses ?? 이름 없음 fallback", () => {
+	assert.match(src, /cow\.name \?\? "이름 없음"/);
+});
+
+test("production notifications.js: estrus message uses ?? 번호 없음 fallback", () => {
+	assert.match(src, /cow\.tagNumber \?\? "번호 없음"/);
+});
+
+test("production notifications.js: cattleName uses cow.name ?? null", () => {
+	assert.match(src, /cattleName: cow\.name \?\? null/);
+});
+
+test("production notifications.js: tagNumber field uses cow.tagNumber ?? null", () => {
+	assert.match(src, /tagNumber: cow\.tagNumber \?\? null/);
+});
+
+test("buildNotifications estrus message shows 이름 없음 for cow with no name", () => {
+	const lastEstrus = lastEstrusForDaysLeft(2, NOW);
+	const notifications = buildNotifications(
+		[
+			{
+				id: "n1",
+				name: undefined,
+				tagNumber: "T001",
+				status: "번식우",
+				lastEstrus,
+			},
+		],
+		[],
+		NOW,
+	);
+	assert.equal(notifications.length, 1);
+	assert.ok(
+		notifications[0].message.includes("이름 없음"),
+		`expected 이름 없음 in message: ${notifications[0].message}`,
+	);
+});
+
+test("buildNotifications estrus message shows 번호 없음 for cow with no tagNumber", () => {
+	const lastEstrus = lastEstrusForDaysLeft(2, NOW);
+	const notifications = buildNotifications(
+		[
+			{
+				id: "n2",
+				name: "복순이",
+				tagNumber: null,
+				status: "번식우",
+				lastEstrus,
+			},
+		],
+		[],
+		NOW,
+	);
+	assert.equal(notifications.length, 1);
+	assert.ok(
+		notifications[0].message.includes("번호 없음"),
+		`expected 번호 없음 in message: ${notifications[0].message}`,
+	);
+});
+
+test("buildNotifications estrus cattleName is null when cow.name is undefined", () => {
+	const lastEstrus = lastEstrusForDaysLeft(2, NOW);
+	const notifications = buildNotifications(
+		[
+			{
+				id: "n3",
+				name: undefined,
+				tagNumber: "T003",
+				status: "번식우",
+				lastEstrus,
+			},
+		],
+		[],
+		NOW,
+	);
+	assert.equal(notifications[0].cattleName, null);
+});
+
+test("buildNotifications calving message shows 이름 없음 for cow with no name", () => {
+	const pregnancyDate = pregnancyForCalvingInDays(5, NOW);
+	const notifications = buildNotifications(
+		[
+			{
+				id: "n4",
+				name: null,
+				tagNumber: "T004",
+				status: "임신우",
+				pregnancyDate,
+			},
+		],
+		[],
+		NOW,
+	);
+	assert.equal(notifications.length, 1);
+	assert.ok(
+		notifications[0].message.includes("이름 없음"),
+		`expected 이름 없음 in message: ${notifications[0].message}`,
+	);
 });

@@ -32,7 +32,10 @@ test("notification modal exposes dialog semantics with a visible title label", (
 	const source = readSource("components/ui/NotificationModal.js");
 
 	assert.match(source, /role="dialog"/);
-	assert.match(source, /export default function NotificationModal\(options = \{\}\)/);
+	assert.match(
+		source,
+		/export default function NotificationModal\(options = \{\}\)/,
+	);
 	assert.match(
 		source,
 		/function normalizeNotificationModalOptions\(options\) \{/,
@@ -50,7 +53,10 @@ test("notification modal exposes dialog semantics with a visible title label", (
 	assert.match(source, /aria-labelledby="notification-modal-title"/);
 	assert.match(source, /id="notification-modal-title"/);
 	assert.match(source, /알림 센터/);
-	assert.doesNotMatch(source, /export default function NotificationModal\(\{\s+id,/);
+	assert.doesNotMatch(
+		source,
+		/export default function NotificationModal\(\{\s+id,/,
+	);
 });
 
 test("notification modal remains above the fixed mobile tab bar", () => {
@@ -90,7 +96,10 @@ test("notification modal can be dismissed with Escape from the dialog surface", 
 	assert.match(source, /const handleDialogKeyDown = \(event\) => \{/);
 	assert.match(source, /event\.key === ["']Escape["']/);
 	assert.match(source, /event\.stopPropagation\(\);/);
-	assert.match(source, /if \(isTestingSMS\) \{\s+return;\s+\}\s+handleClose\(\);/);
+	assert.match(
+		source,
+		/if \(isTestingSMS\) \{\s+return;\s+\}\s+handleClose\(\);/,
+	);
 	assert.match(source, /onKeyDown=\{handleDialogKeyDown\}/);
 	assert.match(source, /tabIndex=\{-1\}/);
 });
@@ -99,7 +108,10 @@ test("notification modal decorative status icons are hidden from assistive tech"
 	const source = readSource("components/ui/NotificationModal.js");
 
 	assert.match(source, /className="animate-bounce"\s+aria-hidden="true"/);
-	assert.match(source, /<div\s+aria-hidden="true"\s+style=\{\{\s*fontSize:\s*["']40px["']/);
+	assert.match(
+		source,
+		/<div\s+aria-hidden="true"\s+style=\{\{\s*fontSize:\s*["']40px["']/,
+	);
 	assert.match(source, /className="animate-pulse"\s+aria-hidden="true"/);
 });
 
@@ -235,7 +247,10 @@ test("notification modal SMS test action waits for async sends before re-enablin
 		/onClick=\{\(\) => \{\s+if \(!isTestingSMS\) \{\s+handleClose\(\);\s+\}\s+\}\}/,
 	);
 	assert.match(source, /onClick=\{handleClose\}/);
-	assert.match(source, /cursor: isTestingSMS \? ["']wait["'] : ["']pointer["']/);
+	assert.match(
+		source,
+		/cursor: isTestingSMS \? ["']wait["'] : ["']pointer["']/,
+	);
 });
 
 test("notification modal normalizes malformed notification payloads before rendering", () => {
@@ -286,10 +301,7 @@ test("notification modal visible copy is readable Korean product copy", () => {
 		source,
 		/const notificationTimeFallback = ["']알림 시간 확인 불가["'];/,
 	);
-	assert.match(
-		source,
-		/\{notification\.time \|\| notificationTimeFallback\}/,
-	);
+	assert.match(source, /\{notification\.time \|\| notificationTimeFallback\}/);
 	assert.doesNotMatch(source, /\{notification\.time \|\| ["']-["']\}/);
 
 	assert.equal(dashboardSource.includes("테스트 문자를 발송했습니다."), true);
@@ -311,4 +323,23 @@ test("NotificationModal notification list uses role=list/listitem for screen rea
 	assert.match(source, /role="list"/);
 	assert.match(source, /aria-label="알림 목록"/);
 	assert.match(source, /role="listitem"/);
+});
+
+test("NotificationModal shows error status instead of silent success when onTestSMS is not a function", () => {
+	const source = readSource("components/ui/NotificationModal.js");
+	assert.match(source, /if \(typeof onTestSMS !== "function"\)/);
+	assert.match(
+		source,
+		/setSmsTestStatusVariant\("error"\);\s+setSmsTestStatus\("문자 알림 테스트 기능이 연결되지 않았습니다\."\)/,
+	);
+	assert.doesNotMatch(source, /await Promise\.resolve\(onTestSMS\?\.\(\)\)/);
+});
+
+test("NotificationModal catch block logs error to console.error with label", () => {
+	const source = readSource("components/ui/NotificationModal.js");
+	assert.match(
+		source,
+		/console\.error\(["']NotificationModal: SMS test send failed["'], err\)/,
+	);
+	assert.doesNotMatch(source, /catch \(err\) \{\s+if \(isMountedRef/);
 });
