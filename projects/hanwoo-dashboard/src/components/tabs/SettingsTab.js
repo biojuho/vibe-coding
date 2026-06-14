@@ -1,7 +1,8 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { MapPin, Settings } from "lucide-react";
+import { LogOut, MapPin, Settings } from "lucide-react";
+import { signOut } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useAppFeedback } from "@/components/feedback/FeedbackProvider";
@@ -1067,6 +1068,40 @@ export default function SettingsTab(options = {}) {
 					</div>
 				</div>
 			) : null}
+
+			{/* 로그아웃 */}
+			<div
+				style={{
+					background: "var(--color-bg-card)",
+					padding: "18px 20px",
+					borderRadius: "20px",
+					border: "1px solid var(--color-surface-stroke)",
+					marginTop: "20px",
+					display: "flex",
+					justifyContent: "space-between",
+					alignItems: "center",
+				}}
+			>
+				<div>
+					<div style={{ fontWeight: 700, fontSize: "14px", color: "var(--color-text)" }}>
+						로그아웃
+					</div>
+					<div style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginTop: "2px" }}>
+						현재 기기에서 로그인 세션을 종료합니다.
+					</div>
+				</div>
+				<PremiumButton
+					variant="outline"
+					size="sm"
+					onClick={() => signOut({ callbackUrl: "/" })}
+					aria-label="로그아웃"
+					title="로그아웃"
+					className="gap-1.5"
+				>
+					<LogOut size={14} aria-hidden="true" />
+					로그아웃
+				</PremiumButton>
+			</div>
 		</div>
 	);
 }
