@@ -145,8 +145,8 @@ class DraftProvidersMixin:
             req = urllib.request.Request(health_url, method="GET")
             with urllib.request.urlopen(req, timeout=2) as resp:
                 return resp.status == 200
-        except Exception:
-            logger.debug("Ollama not available at %s — disabled as fallback.", health_url)
+        except Exception as exc:
+            logger.debug("Ollama not available at %s — disabled as fallback. (%s)", health_url, exc)
             return False
 
     def _enabled_providers(self) -> list[str]:

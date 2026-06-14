@@ -57,8 +57,8 @@ def _resolve_timezone(config: Any) -> ZoneInfo:
         tz_name = str(config.get("schedule.timezone", tz_name) or tz_name)
     try:
         return ZoneInfo(tz_name)
-    except Exception:
-        logger.warning("Unknown timezone '%s'; falling back to Asia/Seoul", tz_name)
+    except Exception as exc:
+        logger.warning("Unknown timezone '%s'; falling back to Asia/Seoul (%s)", tz_name, exc)
         return ZoneInfo("Asia/Seoul")
 
 

@@ -116,8 +116,8 @@ class ExpressDraftPipeline:
                 self._perf_adapter.get_insight(source=source),
                 timeout=3.0,  # 인사이트 조회는 최대 3초만 허용 (SLA 보호)
             )
-        except Exception:
-            logger.debug("ExpressDraft: 성과 인사이트 조회 실패 (무시) — source=%s", source)
+        except Exception as exc:
+            logger.debug("ExpressDraft: 성과 인사이트 조회 실패 (무시) — source=%s (%s)", source, exc)
             from pipeline.performance_prompt_adapter import PerformanceInsight
 
             perf_insight = PerformanceInsight(source=source)
