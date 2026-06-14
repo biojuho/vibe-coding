@@ -563,3 +563,37 @@ def test_reviewer_memory_moves_to_anthropic_system_prompt():
     assert "원문에 없는 숫자를 만들지 말 것" in prompt
     assert "원문에 없는 숫자를 만들지 말 것" in prompt.anthropic_system_prompt
     assert "원문에 없는 숫자를 만들지 말 것" not in prompt.anthropic_user_prompt
+
+
+def test_cache_generated_drafts_logs_debug_on_failure(caplog, monkeypatch):
+    """BTX-DG001: cache write 실패 시 silent pass 대신 debug 로그를 남긴다."""
+    import logging
+
+    generator = TweetDraftGenerator(_build_config())
+
+    def _raise(*_args, **_kwargs):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(generator.draft_cache, "set", _raise)
+    with caplog.at_level(logging.DEBUG, logger="pipeline.draft_generator"):
+        generator._cache_generated_drafts("key-x", {"_provider_used": "anthropic"}, None)
+
+    assert any("disk full" in r.message for r in caplog.records), "Expected debug log for cache failure"
+
+
+def test_get_available_providers_logs_debug_on_cost_db_failure(caplog, monkeypatch):
+    """BTX-DG002: cost_db.get_skipped_providers 실패 시 silent pass 대신 debug 로그를 남긴다."""
+    import logging
+
+    generator = TweetDraftGenerator(_build_config())
+
+    def _bad_import():
+        raise RuntimeError("db unavailable")
+
+    monkeypatch.setattr("pipeline.cost_db.get_cost_db", _bad_import, raising=False)
+
+    with caplog.at_level(logging.DEBUG, logger="pipeline.draft_generator"):
+        providers = generator._available_providers_after_recent_failures()
+
+    assert isinstance(providers, list)
+    assert any("cost_db" in r.message or "non-critical" in r.message for r in caplog.records)

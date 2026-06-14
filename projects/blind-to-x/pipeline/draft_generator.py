@@ -245,8 +245,8 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
     ) -> None:
         try:
             self.draft_cache.set(cache_key, drafts_dict, image_prompt, provider=drafts_dict.get("_provider_used", ""))
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Draft cache write failed (non-critical): %s", exc)
 
     @staticmethod
     def _generation_failure(
@@ -278,8 +278,8 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
                 providers = [p for p in providers if p not in skipped]
                 if len(providers) < before:
                     logger.info("Skipping providers with recent failures: %s", skipped)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("cost_db skipped-providers query failed (non-critical): %s", exc)
         return providers
 
     def _best_of_n_for_request(self, quality_feedback: list[dict[str, Any]] | None) -> int:
@@ -342,8 +342,8 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
                         from pipeline.cost_db import get_cost_db
 
                         get_cost_db().record_provider_success(provider)
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug("cost_db record_provider_success failed (non-critical): %s", exc)
 
                     return drafts_dict, image_prompt
                 except Exception as exc:
@@ -373,8 +373,8 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
                             if _cdb:
                                 skip_h = _cdb.get_circuit_skip_hours(provider)
                                 _cdb.record_provider_failure(provider, skip_hours=skip_h)
-                        except Exception:
-                            pass
+                        except Exception as exc:
+                            logger.debug("cost_db record_provider_failure failed (non-critical): %s", exc)
                     wait_seconds = min(2**attempt, 10)
                     logger.warning(
                         "Draft candidate generation failed via %s (%s/%s, category=%s, retryable=%s): %s",
