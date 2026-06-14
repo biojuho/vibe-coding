@@ -229,7 +229,7 @@ export function PenCard(options = {}) {
 					비어있음
 				</div>
 			) : (
-				<div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+				<div role="list" aria-label="칸 배치 개체 목록" style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
 					{visibleCattle.map((c, idx) => {
 						const sc = STATUS_COLORS[c.status] || { dot: "#888" };
 						const al = c.lastEstrus && isEstrusAlert(c.lastEstrus);
@@ -238,7 +238,9 @@ export function PenCard(options = {}) {
 							: `${c.name} 칸 배치됨`;
 						return (
 							<div
+								role="listitem"
 								key={c.id}
+								aria-label={penCowPreviewLabel}
 								title={penCowPreviewLabel}
 								className="animate-scaleIn"
 								style={{

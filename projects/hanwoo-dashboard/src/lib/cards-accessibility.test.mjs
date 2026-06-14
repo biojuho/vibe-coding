@@ -220,3 +220,11 @@ test("native card buttons keep card visual reset styles", () => {
 		/\.cattle-row \{[\s\S]*?width: 100%;[\s\S]*?font: inherit;[\s\S]*?text-align: left;/,
 	);
 });
+
+test("PenCard cattle dots use role=list/listitem and aria-label for screen reader navigation", () => {
+	const source = readSource("components/ui/cards.js");
+	assert.match(source, /role="list"/);
+	assert.match(source, /aria-label="칸 배치 개체 목록"/);
+	assert.match(source, /role="listitem"/);
+	assert.match(source, /aria-label=\{penCowPreviewLabel\}/);
+});
