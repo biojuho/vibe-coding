@@ -2068,7 +2068,7 @@ body {
 
 .login-legal-links a:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary-custom) 20%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary-custom) 50%, transparent);
 }
 
 .login-legal-separator {
@@ -2744,9 +2744,32 @@ body {
    ============================================ */
 
 @media print {
+  /* Hide navigation and interactive chrome */
   .tab-bar,
   .btn,
-  .modal-overlay {
+  .modal-overlay,
+  .skip-to-main,
+  .quick-action-panel {
     display: none !important;
+  }
+
+  /* Reset shell chrome to plain white page */
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  .clay-shell,
+  .clay-page-card,
+  .clay-page-section {
+    background: white !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Avoid page breaks inside data cards */
+  .clay-page-section,
+  .clay-stat-chip {
+    break-inside: avoid;
   }
 }

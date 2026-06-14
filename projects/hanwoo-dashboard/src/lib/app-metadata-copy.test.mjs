@@ -158,6 +158,20 @@ test("globals.css respects prefers-reduced-motion for accessibility", () => {
 	assert.match(cssSource, /scroll-behavior: auto !important/);
 });
 
+test("globals.css has print styles that hide chrome and preserve content", () => {
+	const cssSource = readProjectFile("src/app/globals.css");
+
+	// Navigation and interactive chrome must not print
+	assert.match(cssSource, /@media print/);
+	assert.match(cssSource, /\.tab-bar[\s\S]{0,100}display: none !important/);
+	assert.match(cssSource, /\.skip-to-main[\s\S]{0,100}display: none !important/);
+	assert.match(cssSource, /\.quick-action-panel[\s\S]{0,100}display: none !important/);
+
+	// Content surfaces reset to white for print
+	assert.match(cssSource, /body\s*\{[\s\S]{0,100}background: white !important/);
+	assert.match(cssSource, /break-inside: avoid/);
+});
+
 test("committed service worker fallback stays build-agnostic", () => {
 	const serviceWorkerSource = readProjectFile("public/sw.js");
 

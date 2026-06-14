@@ -201,6 +201,8 @@ export default function CalvingTab(options = {}) {
 
 			{(pregnantCows.length > 0 || thisYearCalvingCount > 0) && (
 				<div
+					aria-live="polite"
+					aria-label="분만 현황 요약"
 					style={{
 						display: "flex",
 						flexWrap: "wrap",

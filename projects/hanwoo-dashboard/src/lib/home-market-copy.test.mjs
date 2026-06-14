@@ -2221,3 +2221,12 @@ test("FieldModeView exposes id=main-content so skip link works in field mode too
 	// Field mode wrapper must have id so "본문으로 건너뛰기" skip link lands here
 	assert.match(source, /id="main-content"/);
 });
+
+test("CalvingTab stat chips container is aria-live so counts update for screen readers", () => {
+	const source = readSource("components/tabs/CalvingTab.js");
+
+	// After saving a calving record the pregnancy/alert counts update dynamically;
+	// the live region announces the change without the user having to navigate back
+	assert.match(source, /aria-live="polite"/);
+	assert.match(source, /aria-label="분만 현황 요약"/);
+});
