@@ -600,3 +600,32 @@ test("register page password inputs have maxLength=72 to prevent bcrypt DoS via 
 	const matches = [...source.matchAll(/maxLength=\{72\}/g)];
 	assert.ok(matches.length >= 2, `Expected at least 2 maxLength={72} on register password inputs, found ${matches.length}`);
 });
+
+test("subscription error page is a client component with accessible structure and safe reset guard", () => {
+	const source = readSource("app/subscription/error.js");
+
+	// Must be a client component — Next.js error.js boundaries require it
+	assert.match(source, /["']use client["']/);
+
+	// Section is labelled so screen readers announce the page purpose
+	assert.match(source, /aria-labelledby=["']subscription-error-title["']/);
+	assert.match(source, /id=["']subscription-error-title["']/);
+
+	// main has id=main-content so skip-link works
+	assert.match(source, /id=["']main-content["']/);
+
+	// normalizeReset guard prevents crash when reset prop is absent/non-function
+	assert.match(source, /normalizeReset/);
+	assert.match(source, /typeof reset === ["']function["']/);
+
+	// Retry button calls safeReset so crashes if reset is missing are prevented
+	assert.match(source, /onClick=\{.*safeReset/);
+
+	// Navigation back to dashboard uses next/link (authenticated context — SPA ok)
+	assert.match(source, /import Link from ["']next\/link["']/);
+	assert.match(source, /href=["']\/["']/);
+
+	// Error is logged for observability
+	assert.match(source, /console\.error/);
+	assert.match(source, /useEffect/);
+});

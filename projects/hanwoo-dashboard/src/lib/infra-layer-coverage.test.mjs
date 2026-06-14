@@ -401,3 +401,23 @@ test("change-password route enforces MAX_PASSWORD_LENGTH=72 to prevent bcrypt Do
 	assert.match(changePasswordRoute, /최대.*MAX_PASSWORD_LENGTH.*자까지 입력할 수 있습니다/);
 });
 
+// ── Dashboard API: per-user rate limiting ─────────────────────────────────────
+
+test("dashboard/cattle route applies per-user rate limiting to prevent abuse", () => {
+	assert.match(cattleRoute, /checkRateLimit/);
+	assert.match(cattleRoute, /dashboard-cattle.*session\.user\.id/);
+	assert.match(cattleRoute, /status: 429/);
+});
+
+test("dashboard/sales route applies per-user rate limiting to prevent abuse", () => {
+	assert.match(salesRoute, /checkRateLimit/);
+	assert.match(salesRoute, /dashboard-sales.*session\.user\.id/);
+	assert.match(salesRoute, /status: 429/);
+});
+
+test("dashboard/summary route applies per-user rate limiting to prevent abuse", () => {
+	assert.match(summaryRoute, /checkRateLimit/);
+	assert.match(summaryRoute, /dashboard-summary.*session\.user\.id/);
+	assert.match(summaryRoute, /status: 429/);
+});
+
