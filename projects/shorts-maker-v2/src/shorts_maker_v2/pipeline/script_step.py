@@ -211,9 +211,6 @@ class ScriptStep(ScriptPromptsMixin, ScriptReviewMixin):
             else:
                 structure_role = "body"
             # ── Hook narration 길이 트림 (자막 픽셀 넘침 방지) ───────────────
-            # T-AB024/T-AB026: hook_scorer.py 40-55자 tier(brevity=0.30) 추가로
-            # cap을 55로 상향. 정보 밀집형 한국어 Hook이 40자에서 잘려 의미 손실되는
-            # 문제 해소. (이전 40: brevity_score ≤40=0.4, >40=0.2 기준이었음)
             _hook_narration_max_chars = 55
             if structure_role == "hook" and len(narration) > _hook_narration_max_chars:
                 logger.warning(

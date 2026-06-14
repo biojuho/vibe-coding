@@ -143,12 +143,20 @@ export default function AIInsightWidget(options = {}) {
 
 	useEffect(() => {
 		if (!isPremium) {
-			setInsights(buildHeuristicInsights(stableSummary));
-			setSource("heuristic");
-			setIsLoading(false);
-			setReason("규칙 기반 인사이트입니다. 프리미엄 구독 시 AI 인사이트로 전환됩니다.");
-			setCacheMeta(null);
-			return;
+			let cancelled = false;
+			deferAIInsightTask(() => {
+				if (cancelled) {
+					return;
+				}
+				setInsights(buildHeuristicInsights(stableSummary));
+				setSource("heuristic");
+				setIsLoading(false);
+				setReason("규칙 기반 인사이트입니다. 프리미엄 구독 시 AI 인사이트로 전환됩니다.");
+				setCacheMeta(null);
+			});
+			return () => {
+				cancelled = true;
+			};
 		}
 
 		const controller = new AbortController();

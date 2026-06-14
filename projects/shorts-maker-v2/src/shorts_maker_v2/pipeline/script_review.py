@@ -371,7 +371,9 @@ class ScriptReviewMixin:
             return 0.5  # 알 수 없는 채널은 중립
         all_text = " ".join(s.narration_ko for s in scenes)
         hit_count = sum(1 for kw in keywords if kw in all_text)
-        return round(hit_count / len(keywords), 3)
+        if hit_count == 0:
+            return 0.0
+        return min(1.0, round((hit_count + 0.5) / len(keywords), 3))
 
     def _truncate_to_fit(
         self,
