@@ -90,3 +90,36 @@ test("FailContent wrapped in Suspense with loading fallback", () => {
 	assert.match(source, /PAYMENT_FAILURE_LOADING_MESSAGE/);
 	assert.match(source, /결제 실패 정보를 불러오는 중입니다/);
 });
+
+test("FailContent root element is <main> with id=main-content for skip-link", () => {
+	const source = readSource("app/subscription/fail/page.js");
+	// Must use <main> not <div> for landmark semantics
+	assert.match(source, /<main/);
+	assert.match(source, /id=["']main-content["']/);
+});
+
+test("subscription/fail error.js is a client component with accessible structure and safe reset guard", () => {
+	const source = readSource("app/subscription/fail/error.js");
+
+	assert.match(source, /["']use client["']/);
+	assert.match(source, /aria-labelledby=["']subscription-fail-error-title["']/);
+	assert.match(source, /id=["']subscription-fail-error-title["']/);
+	assert.match(source, /id=["']main-content["']/);
+	assert.match(source, /normalizeReset/);
+	assert.match(source, /typeof reset === ["']function["']/);
+	assert.match(source, /onClick=\{.*safeReset/);
+	assert.match(source, /console\.error/);
+});
+
+test("subscription/success error.js is a client component with accessible structure and safe reset guard", () => {
+	const source = readSource("app/subscription/success/error.js");
+
+	assert.match(source, /["']use client["']/);
+	assert.match(source, /aria-labelledby=["']subscription-success-error-title["']/);
+	assert.match(source, /id=["']subscription-success-error-title["']/);
+	assert.match(source, /id=["']main-content["']/);
+	assert.match(source, /normalizeReset/);
+	assert.match(source, /typeof reset === ["']function["']/);
+	assert.match(source, /onClick=\{.*safeReset/);
+	assert.match(source, /console\.error/);
+});

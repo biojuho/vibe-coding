@@ -73,7 +73,8 @@ function FailContent() {
 	};
 
 	return (
-		<div
+		<main
+			id="main-content"
 			style={{
 				padding: "56px 24px",
 				textAlign: "center",
@@ -158,7 +159,7 @@ function FailContent() {
 			>
 				{isRetrying ? "이동 중입니다..." : "다시 시도하기"}
 			</button>
-		</div>
+		</main>
 	);
 }
 
