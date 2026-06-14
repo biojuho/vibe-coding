@@ -100,7 +100,15 @@ async function streamChat(options = {}) {
 		});
 
 		if (!res.ok) {
-			const body = await res.json().catch(() => ({}));
+			const body = await res.json().catch((err) => {
+				console.warn(
+					"AIChatWidget: failed to parse error response body (status",
+					res.status,
+					")",
+					err,
+				);
+				return {};
+			});
 			handleError(
 				(typeof body.error === "string" && body.error.trim()) ||
 					(typeof body.message === "string" && body.message.trim()) ||
@@ -422,11 +430,27 @@ export default function AIChatWidget({ isPremium = true } = {}) {
 				}}
 			>
 				<div style={{ fontSize: "36px", marginBottom: "12px" }}>🤖</div>
-				<p style={{ fontSize: "14px", fontWeight: 700, marginBottom: "8px", color: "var(--color-text)" }}>
+				<p
+					style={{
+						fontSize: "14px",
+						fontWeight: 700,
+						marginBottom: "8px",
+						color: "var(--color-text)",
+					}}
+				>
 					AI 농장 비서
 				</p>
-				<p style={{ fontSize: "13px", color: "var(--color-text-secondary)", marginBottom: "16px", lineHeight: 1.5 }}>
-					발정, 사양, 급여, 시세 등 궁금한 점을<br />24시간 답변해 드립니다.
+				<p
+					style={{
+						fontSize: "13px",
+						color: "var(--color-text-secondary)",
+						marginBottom: "16px",
+						lineHeight: 1.5,
+					}}
+				>
+					발정, 사양, 급여, 시세 등 궁금한 점을
+					<br />
+					24시간 답변해 드립니다.
 				</p>
 				<a
 					href="/subscription"

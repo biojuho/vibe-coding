@@ -124,14 +124,26 @@ export async function getProfitabilityEstimates() {
 					select: { date: true, category: true, amount: true },
 				})
 				.then(normalizeProfitabilityServiceRows)
-				.catch(() => []),
+				.catch((err) => {
+					console.warn(
+						"profitability-service: feed expense query failed, falling back to defaults:",
+						err,
+					);
+					return [];
+				}),
 			prisma.salesRecord
 				.findMany({
 					where: { saleDate: { gte: salesWindowStart } },
 					select: { cattleId: true, saleDate: true },
 				})
 				.then(normalizeProfitabilityServiceRows)
-				.catch(() => []),
+				.catch((err) => {
+					console.warn(
+						"profitability-service: sales record query failed, falling back to defaults:",
+						err,
+					);
+					return [];
+				}),
 		]);
 
 		const soldCattleIds = recentSales
@@ -149,7 +161,13 @@ export async function getProfitabilityEstimates() {
 								weight: true,
 							},
 						})
-						.catch(() => []),
+						.catch((err) => {
+							console.warn(
+								"profitability-service: sold cattle lookup failed, skipping ADG adjustment:",
+								err,
+							);
+							return [];
+						}),
 				)
 			: [];
 
@@ -190,9 +208,7 @@ export async function getProfitabilityEstimates() {
 				// against "FEMALE" never matched, so cows were always priced as
 				// bulls. Match the actual stored value.
 				const currentKgPrice =
-					cattle.gender === "암"
-						? priceData.cow.grade1
-						: priceData.bull.grade1;
+					cattle.gender === "암" ? priceData.cow.grade1 : priceData.bull.grade1;
 
 				const currentWeight = toFiniteNumber(cattle.weight);
 				const currentRevenue = currentWeight * currentKgPrice;

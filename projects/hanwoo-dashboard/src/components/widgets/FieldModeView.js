@@ -207,7 +207,12 @@ export default function FieldModeView(options = {}) {
 		// 1. Fetch all cattle registry in the background to enable global search
 		if (handleEnsureAllCattleLoaded) {
 			handleEnsureAllCattleLoaded({ silent: true })
-				.catch(() => {})
+				.catch((err) => {
+					console.warn(
+						"FieldModeView: background cattle registry load failed (global search may be incomplete)",
+						err,
+					);
+				})
 				.finally(() => {
 					if (!cancelled) {
 						setLoadingAllCattle(false);
