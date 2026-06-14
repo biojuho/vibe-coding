@@ -13,8 +13,18 @@ import sys
 from collections import defaultdict
 
 from pipeline.image_ab_tester import ImageABTester
+from pipeline.style_bandit import get_style_bandit
 
 logger = logging.getLogger(__name__)
+
+# Reward mapping from Notion performance_grade → bandit reward scalar
+_GRADE_TO_REWARD: dict[str, float] = {
+    "S": 1.0,
+    "A": 1.0,
+    "B": 0.7,
+    "C": 0.5,
+    "D": 0.2,
+}
 
 # Cache file in data directory
 CACHE_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "tuned_image_styles.json")
@@ -71,6 +81,48 @@ class ABFeedbackLoop:
 
         return manual_winners
 
+    def _update_style_bandit(self, records: list[dict]) -> None:
+        """Feed per-record engagement rewards back into the Thompson Sampling bandit.
+
+        Called once per feedback loop run. Only records with a known draft style
+        and topic cluster contribute to bandit learning. Reward is derived from
+        the Notion performance_grade field; missing grade falls back to views-only
+        heuristic.
+        """
+        try:
+            bandit = get_style_bandit()
+        except Exception as exc:
+            logger.warning("StyleBandit unavailable, skipping reward update: %s", exc)
+            return
+        updated = 0
+        for record in records:
+            topic = record.get("topic_cluster") or ""
+            style = record.get("chosen_draft_type") or record.get("recommended_draft_type") or ""
+            if not topic or not style:
+                continue
+
+            grade = str(record.get("performance_grade") or "").strip().upper()
+            if grade in _GRADE_TO_REWARD:
+                reward = _GRADE_TO_REWARD[grade]
+            else:
+                # Fallback: derive reward from raw views (normalised to [0, 1])
+                views = float(record.get("views") or 0)
+                if views <= 0:
+                    reward = 0.3  # generated but no observed engagement yet
+                elif views >= 1000:
+                    reward = 1.0
+                else:
+                    reward = min(0.9, 0.3 + (views / 1000) * 0.6)
+
+            try:
+                bandit.update(topic, style, reward)
+                updated += 1
+            except Exception as exc:
+                logger.debug("StyleBandit.update skipped for %s/%s: %s", topic, style, exc)
+
+        if updated:
+            logger.info("StyleBandit: updated %d arms from engagement records.", updated)
+
     async def run_feedback_loop(self, days: int = 14) -> dict[str, dict[str, str]]:
         """Fetch recent records, analyze A/B performance, and save tuned styles.
 
@@ -112,6 +164,11 @@ class ABFeedbackLoop:
             stats["likes"] += float(r.get("likes", 0) or 0)
             stats["retweets"] += float(r.get("retweets", 0) or 0)
             stats["count"] += 1.0
+
+        # ── Style Bandit reward update ────────────────────────────────────────
+        # Feed per-record engagement back into Thompson Sampling so select_style()
+        # learns which draft style wins per topic cluster from real published data.
+        self._update_style_bandit(records)
 
         tuned_styles = self.load_tuned_styles()
         updates_made = 0

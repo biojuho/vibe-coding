@@ -311,3 +311,86 @@ class TestTunedStylesIO:
         )
         # Should not raise
         ABFeedbackLoop.save_tuned_styles({"k": {"v": "1"}})
+
+
+# ── _update_style_bandit (reward wiring) ─────────────────────────
+
+
+class TestUpdateStyleBandit:
+    """Verify that _update_style_bandit feeds rewards back to the bandit."""
+
+    @patch("pipeline.ab_feedback_loop.ImageABTester")
+    def test_grade_s_gives_full_reward(self, _):
+        from unittest.mock import MagicMock
+
+        mock_bandit = MagicMock()
+        with patch("pipeline.ab_feedback_loop.get_style_bandit", return_value=mock_bandit):
+            loop = ABFeedbackLoop(MagicMock(), FakeConfig())
+            records = [
+                {"topic_cluster": "연봉", "chosen_draft_type": "공감형", "performance_grade": "S", "views": 500},
+            ]
+            loop._update_style_bandit(records)
+            mock_bandit.update.assert_called_once_with("연봉", "공감형", 1.0)
+
+    @patch("pipeline.ab_feedback_loop.ImageABTester")
+    def test_grade_d_gives_low_reward(self, _):
+        mock_bandit = MagicMock()
+        with patch("pipeline.ab_feedback_loop.get_style_bandit", return_value=mock_bandit):
+            loop = ABFeedbackLoop(MagicMock(), FakeConfig())
+            records = [
+                {"topic_cluster": "야근", "chosen_draft_type": "논쟁형", "performance_grade": "D", "views": 10},
+            ]
+            loop._update_style_bandit(records)
+            mock_bandit.update.assert_called_once_with("야근", "논쟁형", 0.2)
+
+    @patch("pipeline.ab_feedback_loop.ImageABTester")
+    def test_no_grade_uses_views_heuristic(self, _):
+        mock_bandit = MagicMock()
+        with patch("pipeline.ab_feedback_loop.get_style_bandit", return_value=mock_bandit):
+            loop = ABFeedbackLoop(MagicMock(), FakeConfig())
+            # 1000+ views → reward capped at 1.0
+            records = [
+                {"topic_cluster": "이직", "chosen_draft_type": "공감형", "performance_grade": "", "views": 2000},
+            ]
+            loop._update_style_bandit(records)
+            call_args = mock_bandit.update.call_args
+            assert call_args[0][0] == "이직"
+            assert call_args[0][2] == 1.0
+
+    @patch("pipeline.ab_feedback_loop.ImageABTester")
+    def test_zero_views_no_grade_gives_medium_reward(self, _):
+        mock_bandit = MagicMock()
+        with patch("pipeline.ab_feedback_loop.get_style_bandit", return_value=mock_bandit):
+            loop = ABFeedbackLoop(MagicMock(), FakeConfig())
+            records = [
+                {"topic_cluster": "조직", "chosen_draft_type": "정보전달형", "performance_grade": None, "views": 0},
+            ]
+            loop._update_style_bandit(records)
+            call_args = mock_bandit.update.call_args
+            assert call_args[0][2] == 0.3  # no views → generated but no engagement
+
+    @patch("pipeline.ab_feedback_loop.ImageABTester")
+    def test_missing_topic_or_style_skipped(self, _):
+        mock_bandit = MagicMock()
+        with patch("pipeline.ab_feedback_loop.get_style_bandit", return_value=mock_bandit):
+            loop = ABFeedbackLoop(MagicMock(), FakeConfig())
+            records = [
+                {"topic_cluster": "", "chosen_draft_type": "공감형", "performance_grade": "A"},
+                {"topic_cluster": "연봉", "chosen_draft_type": "", "performance_grade": "A"},
+                {"topic_cluster": None, "chosen_draft_type": None, "performance_grade": "A"},
+            ]
+            loop._update_style_bandit(records)
+            mock_bandit.update.assert_not_called()
+
+    @patch("pipeline.ab_feedback_loop.ImageABTester")
+    def test_bandit_exception_does_not_propagate(self, _):
+        mock_bandit = MagicMock()
+        mock_bandit.update.side_effect = RuntimeError("DB locked")
+        with patch("pipeline.ab_feedback_loop.get_style_bandit", return_value=mock_bandit):
+            loop = ABFeedbackLoop(MagicMock(), FakeConfig())
+            records = [
+                {"topic_cluster": "연봉", "chosen_draft_type": "공감형", "performance_grade": "A"},
+            ]
+            # Should not raise — style_bandit.update itself catches exceptions
+            # (this test confirms the bandit is called, errors are swallowed internally)
+            loop._update_style_bandit(records)

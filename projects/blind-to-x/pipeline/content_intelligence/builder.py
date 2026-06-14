@@ -88,7 +88,10 @@ def _classify_post(post_data: dict[str, Any]) -> _ClassifiedPost:
     emotion_axis = classify_emotion_axis(title, content)
     audience_fit = classify_audience_fit(title, content)
     hook_type = classify_hook_type(title, content, emotion_axis)
-    recommended_draft_type = recommend_draft_type(hook_type, emotion_axis)
+    rule_draft_type = recommend_draft_type(hook_type, emotion_axis)
+    # Use Thompson Sampling bandit when it has ≥5 trials for this topic cluster;
+    # otherwise fall back to the deterministic rule-based recommendation.
+    recommended_draft_type = _bandit_recommend_draft_type(topic_cluster, rule_draft_type)
     return _ClassifiedPost(
         title=title,
         content=content,
@@ -98,6 +101,34 @@ def _classify_post(post_data: dict[str, Any]) -> _ClassifiedPost:
         hook_type=hook_type,
         recommended_draft_type=recommended_draft_type,
     )
+
+
+_BANDIT_MIN_TRIALS = 5  # warm-up threshold before overriding rule-based selection
+
+
+def _bandit_recommend_draft_type(topic_cluster: str, rule_based_type: str) -> str:
+    """Return style_bandit selection when the arm has warmed up, else rule-based."""
+    try:
+        from pipeline.style_bandit import get_style_bandit
+
+        bandit = get_style_bandit()
+        stats = bandit.get_arm_stats(topic_cluster)
+        total_trials = sum(s["total_trials"] for s in stats)
+        if total_trials >= _BANDIT_MIN_TRIALS:
+            styles = [s["draft_style"] for s in stats] or None
+            selected = bandit.select_style(topic_cluster, styles)
+            if selected != rule_based_type:
+                logger.debug(
+                    "StyleBandit[%s]: overriding rule '%s' → '%s' (trials=%d)",
+                    topic_cluster,
+                    rule_based_type,
+                    selected,
+                    total_trials,
+                )
+            return selected
+    except Exception as exc:
+        logger.debug("StyleBandit unavailable, using rule-based: %s", exc)
+    return rule_based_type
 
 
 def _apply_llm_viral_boost(
