@@ -315,7 +315,7 @@ def _extract_page_info(page: dict[str, Any]) -> dict[str, Any]:
         return [item.get("name", "") for item in items]
 
     title = ""
-    for prop_name, prop_data in props.items():
+    for _, prop_data in props.items():
         if prop_data.get("type") == "title":
             title = _get_text(prop_data)
             break

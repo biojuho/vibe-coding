@@ -902,7 +902,7 @@ class DraftQualityGate:
         total_score = 0
         count = 0
 
-        for platform, result in results.items():
+        for _, result in results.items():
             lines.append(result.summary())
             if not result.passed:
                 all_passed = False

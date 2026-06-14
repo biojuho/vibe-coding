@@ -202,7 +202,7 @@ class SentimentTracker:
         matched: dict[str, int] = {}
 
         seen: set[str] = set()
-        for emotion, keywords in EMOTION_LEXICON.items():
+        for _, keywords in EMOTION_LEXICON.items():
             for kw in keywords:
                 kw_lower = kw.lower()
                 if kw in seen or kw_lower in seen:

@@ -502,7 +502,7 @@ class RegulationChecker:
         lines = ["━" * 40, "📋 플랫폼 규제 준수 검증 리포트", "━" * 40]
 
         all_passed = True
-        for platform, report in reports.items():
+        for _, report in reports.items():
             lines.append(report.to_text())
             lines.append("")
             if not report.passed:

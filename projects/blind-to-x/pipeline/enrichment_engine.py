@@ -205,7 +205,7 @@ Provide:
 
         # [FIX-1] 실패한 토픽을 명시적으로 로깅 — 디버깅 블랙홀 제거
         output: Dict[str, EnrichedContext] = {}
-        for topic, res in zip(viral_topics, results):
+        for topic, res in zip(viral_topics, results, strict=True):
             if isinstance(res, EnrichedContext):
                 output[topic] = res
             elif isinstance(res, Exception):

@@ -245,7 +245,7 @@ def _pearson(x: list[float], y: list[float]) -> float:
         return 0.0
     mx = sum(x) / n
     my = sum(y) / n
-    cov = sum((xi - mx) * (yi - my) for xi, yi in zip(x, y))
+    cov = sum((xi - mx) * (yi - my) for xi, yi in zip(x, y, strict=True))
     sx = math.sqrt(sum((xi - mx) ** 2 for xi in x)) or 1e-10
     sy = math.sqrt(sum((yi - my) ** 2 for yi in y)) or 1e-10
     return cov / (sx * sy)

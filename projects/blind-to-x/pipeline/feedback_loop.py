@@ -48,7 +48,7 @@ class FeedbackLoop:
             return 0.0
         mean_x = sum(xs) / n
         mean_y = sum(ys) / n
-        num = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys))
+        num = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys, strict=True))
         den_x = math.sqrt(sum((x - mean_x) ** 2 for x in xs))
         den_y = math.sqrt(sum((y - mean_y) ** 2 for y in ys))
         if den_x < 1e-9 or den_y < 1e-9:

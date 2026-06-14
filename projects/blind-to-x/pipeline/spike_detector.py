@@ -239,7 +239,7 @@ class SpikeDetector:
         # 2. RSS / 외부 API 수집 (config.yaml 활용)
         try:
             feeds = self.config.get("escalation.rss_feeds", [])
-            for feed in feeds:
+            for _ in feeds:
                 # 여기서 aiohttp 또는 httpx로 비동기 피드 파싱
                 # 본 POC에서는 생략.
                 pass

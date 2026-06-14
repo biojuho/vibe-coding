@@ -105,7 +105,7 @@ _embed_cache = _EmbeddingCache()
 
 def _cosine_similarity(v1: list[float], v2: list[float]) -> float:
     """Cosine similarity between two dense vectors."""
-    dot = sum(a * b for a, b in zip(v1, v2))
+    dot = sum(a * b for a, b in zip(v1, v2, strict=True))
     mag1 = math.sqrt(sum(a * a for a in v1))
     mag2 = math.sqrt(sum(b * b for b in v2))
     if mag1 == 0 or mag2 == 0:

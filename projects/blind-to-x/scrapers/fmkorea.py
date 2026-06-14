@@ -17,7 +17,7 @@ from scrapers.base import BaseScraper, FeedCandidate
 logger = logging.getLogger(__name__)
 
 
-class _FMKoreaScrapeFailure(Exception):
+class _FMKoreaScrapeFailure(Exception):  # noqa: N818
     def __init__(self, message: str, *, reason: str, stage: str = "post_fetch"):
         super().__init__(message)
         self.reason = reason

@@ -236,7 +236,7 @@ class PerformanceTracker:
             stats["top_topics"][topic]["total_score"] += rec.engagement_score
 
         # 플랫폼별 평균 계산 + 토픽 정렬
-        for p, stats in platform_stats.items():
+        for _, stats in platform_stats.items():
             stats["avg_engagement"] = round(stats["total_engagement"] / stats["count"], 2)
             # 토픽별 평균으로 정렬
             sorted_topics = sorted(
