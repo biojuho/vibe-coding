@@ -234,3 +234,63 @@ class TestBanditRecommendDraftType:
         with patch("pipeline.style_bandit.get_style_bandit", return_value=mock_bandit):
             result = _bandit_recommend_draft_type("연봉", "공감형")
         assert result == "공감형"
+
+
+# ── T-AB046: AI 트렌드 / 구조조정 trend_relevance_score 검증 ────────────────
+
+
+def test_ai_trend_topic_gets_high_trend_score(monkeypatch):
+    """T-AB046: 'AI 트렌드' topic label이 HIGH_TREND_TOPICS에 포함돼 85점 이상 받아야 함.
+
+    이전엔 label mismatch로 기본값 50.0을 받았음.
+    """
+    from pipeline.content_intelligence import scoring_6d
+
+    monkeypatch.setattr(scoring_6d, "get_season_boost", lambda _topic: 0.0)
+    monkeypatch.setattr(scoring_6d, "get_source_hint", lambda _source: {"quality_boost": 1.0})
+
+    post_data = {
+        "title": "AI 도구로 주니어 대체 현실화",
+        "content": "vibe코딩으로 신입 TO가 사라지고 있습니다.",
+        "likes": 50,
+        "comments": 8,
+    }
+
+    _, dims = calculate_6d_score(
+        post_data,
+        topic_cluster="AI 트렌드",
+        hook_type="공감형",
+        emotion_axis="AI_전환",
+        audience_fit="이직준비층",
+    )
+    assert dims["trend_relevance_score"] >= 85.0, (
+        f"AI 트렌드 should score >=85 (HIGH_TREND), got {dims['trend_relevance_score']}"
+    )
+    assert dims["viral_potential_score"] == 82.0  # AI_전환 viral score
+
+
+def test_구조조정_topic_gets_high_trend_score(monkeypatch):
+    """T-AB046: '구조조정' topic label이 HIGH_TREND_TOPICS에 포함돼 85점 이상 받아야 함."""
+    from pipeline.content_intelligence import scoring_6d
+
+    monkeypatch.setattr(scoring_6d, "get_season_boost", lambda _topic: 0.0)
+    monkeypatch.setattr(scoring_6d, "get_source_hint", lambda _source: {"quality_boost": 1.0})
+
+    post_data = {
+        "title": "정리해고 통보 받았습니다",
+        "content": "구조조정 대상으로 권고사직 통보를 받았어요.",
+        "likes": 200,
+        "comments": 45,
+    }
+
+    _, dims = calculate_6d_score(
+        post_data,
+        topic_cluster="구조조정",
+        hook_type="공감형",
+        emotion_axis="고용불안",
+        audience_fit="전직장인",
+    )
+    assert dims["trend_relevance_score"] >= 85.0, (
+        f"구조조정 should score >=85 (HIGH_TREND), got {dims['trend_relevance_score']}"
+    )
+    assert dims["viral_potential_score"] == 78.0  # 고용불안 viral score

@@ -31,7 +31,9 @@ HOOK_TYPE_SCORES = {
     "통찰형": 82.0,
 }
 # T-AB036: 2026 블라인드 핵심 트렌드 업데이트 (AI 전환 이슈 반영)
-HIGH_TREND_TOPICS = {"연봉", "이직", "회사문화", "상사", "구조조정", "AI 대체", "자동화"}
+# T-AB046: AI 트렌드 topic label 추가 — classification.yaml label=AI 트렌드가
+#   HIGH_TREND_TOPICS에 없으면 _trend_relevance_score가 50.0 기본값 반환
+HIGH_TREND_TOPICS = {"연봉", "이직", "회사문화", "상사", "구조조정", "AI 대체", "자동화", "AI 트렌드"}
 MEDIUM_TREND_TOPICS = {"복지", "재테크", "직장개그", "부동산", "IT", "AI 도구", "ChatGPT", "프롬프트"}
 AUDIENCE_SCORES = {
     "전직장인": 85.0,
