@@ -209,7 +209,12 @@ export default function CattleDetailModal({
 		if (typeof cattle.weightHistory === "string") {
 			try {
 				return JSON.parse(cattle.weightHistory);
-			} catch {
+			} catch (err) {
+				console.warn(
+					"CattleDetailModal: corrupted weightHistory JSON for cattle",
+					cattle.id,
+					err,
+				);
 				return [];
 			}
 		}
@@ -606,7 +611,8 @@ export default function CattleDetailModal({
 										gap: "8px",
 									}}
 								>
-									<CalendarCheck2 size={16} aria-hidden="true" /> {estrusButtonText}
+									<CalendarCheck2 size={16} aria-hidden="true" />{" "}
+									{estrusButtonText}
 								</button>
 								<button
 									type="button"
@@ -629,7 +635,8 @@ export default function CattleDetailModal({
 										gap: "8px",
 									}}
 								>
-									<CheckCircle2 size={16} aria-hidden="true" /> {pregnancyButtonText}
+									<CheckCircle2 size={16} aria-hidden="true" />{" "}
+									{pregnancyButtonText}
 								</button>
 							</div>
 							{activeBreedingAction ? (
@@ -677,7 +684,7 @@ export default function CattleDetailModal({
 												setBreedingError("");
 											}}
 											aria-required="true"
-								aria-invalid={Boolean(breedingError)}
+											aria-invalid={Boolean(breedingError)}
 											aria-describedby={
 												breedingError ? breedingDateErrorId : undefined
 											}
@@ -809,7 +816,7 @@ export default function CattleDetailModal({
 							<SectionTitle icon="📜" title="이력 타임라인" />
 							<div
 								role="list"
-							style={{ display: "flex", flexDirection: "column", gap: "0" }}
+								style={{ display: "flex", flexDirection: "column", gap: "0" }}
 							>
 								{history.map((h, idx) => (
 									<div
@@ -835,10 +842,7 @@ export default function CattleDetailModal({
 											/>
 										)}
 										{/* Icon — elevated with subtle shadow */}
-										<div
-											aria-hidden="true"
-											style={TIMELINE_ICON_STYLE}
-										>
+										<div aria-hidden="true" style={TIMELINE_ICON_STYLE}>
 											{HISTORY_ICONS[h.eventType] || "📌"}
 										</div>
 										{/* Content */}

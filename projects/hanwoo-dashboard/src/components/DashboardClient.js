@@ -289,7 +289,9 @@ function normalizeDashboardNotifications(notifications) {
 
 function normalizeDashboardClientOptions(options) {
 	const safeOptions =
-		options && typeof options === "object" && !Array.isArray(options) ? options : {};
+		options && typeof options === "object" && !Array.isArray(options)
+			? options
+			: {};
 
 	return {
 		initialCattlePage: safeOptions.initialCattlePage,
@@ -314,7 +316,9 @@ function normalizeDashboardClientOptions(options) {
 
 function normalizeFullListLoadOptions(options) {
 	const safeOptions =
-		options && typeof options === "object" && !Array.isArray(options) ? options : {};
+		options && typeof options === "object" && !Array.isArray(options)
+			? options
+			: {};
 
 	return {
 		silent: safeOptions.silent === true,
@@ -323,7 +327,9 @@ function normalizeFullListLoadOptions(options) {
 
 function InitialDataStatusBanner(options = {}) {
 	const safeOptions =
-		options && typeof options === "object" && !Array.isArray(options) ? options : {};
+		options && typeof options === "object" && !Array.isArray(options)
+			? options
+			: {};
 	const status = normalizeDashboardInitialDataLoadStatus(safeOptions.status);
 	const handleRetry =
 		typeof safeOptions.onRetry === "function" ? safeOptions.onRetry : () => {};
@@ -350,7 +356,9 @@ function InitialDataStatusBanner(options = {}) {
 					aria-hidden="true"
 				/>
 				<div className="min-w-0">
-					<p className="m-0 font-bold">일부 농장 데이터가 비어 있는 상태입니다</p>
+					<p className="m-0 font-bold">
+						일부 농장 데이터가 비어 있는 상태입니다
+					</p>
 					<p className="m-0 mt-1 leading-relaxed text-amber-900/80 dark:text-amber-100/80">
 						{status.message}
 						{affectedSections ? (
@@ -373,7 +381,9 @@ function InitialDataStatusBanner(options = {}) {
 
 function normalizeDashboardHelperOptions(options) {
 	const safeOptions =
-		options && typeof options === "object" && !Array.isArray(options) ? options : {};
+		options && typeof options === "object" && !Array.isArray(options)
+			? options
+			: {};
 
 	return {
 		items: safeOptions.items ?? [],
@@ -388,19 +398,29 @@ function normalizeDashboardHelperOptions(options) {
 				? safeOptions.onNavigate
 				: () => {},
 		onAction:
-			typeof safeOptions.onAction === "function" ? safeOptions.onAction : () => {},
+			typeof safeOptions.onAction === "function"
+				? safeOptions.onAction
+				: () => {},
 		progress: safeOptions.progress ?? null,
 		buildingId: safeOptions.buildingId,
 		penId: safeOptions.penId,
 		onSelect:
-			typeof safeOptions.onSelect === "function" ? safeOptions.onSelect : () => {},
+			typeof safeOptions.onSelect === "function"
+				? safeOptions.onSelect
+				: () => {},
 		onCreateEvent: safeOptions.onCreateEvent,
 	};
 }
 
 function normalizeDashboardHelperItems(items) {
 	return Array.isArray(items)
-		? items.filter((item) => item && typeof item === "object" && !Array.isArray(item) && item.id != null)
+		? items.filter(
+				(item) =>
+					item &&
+					typeof item === "object" &&
+					!Array.isArray(item) &&
+					item.id != null,
+			)
 		: [];
 }
 
@@ -434,8 +454,7 @@ export default function DashboardClient(options = {}) {
 		initialDataLoadStatus.failedSections.includes("cattle");
 	const isInitialSalesDataDegraded =
 		initialDataLoadStatus.failedSections.includes("sales");
-	const shouldSkipFieldModeCattlePreload =
-		isInitialCattleDataDegraded;
+	const shouldSkipFieldModeCattlePreload = isInitialCattleDataDegraded;
 	const handleRefreshInitialData = useCallback(() => {
 		playTactileClick();
 		router.refresh();
@@ -583,7 +602,8 @@ export default function DashboardClient(options = {}) {
 	const readJsonSafely = useCallback(async (response) => {
 		try {
 			return await response.json();
-		} catch {
+		} catch (err) {
+			console.warn("readJsonSafely: failed to parse JSON response", err);
 			return null;
 		}
 	}, []);
@@ -1012,7 +1032,12 @@ export default function DashboardClient(options = {}) {
 			if (cancelled) {
 				return;
 			}
-			if (fetchWeatherFromCoords(position?.coords?.latitude, position?.coords?.longitude)) {
+			if (
+				fetchWeatherFromCoords(
+					position?.coords?.latitude,
+					position?.coords?.longitude,
+				)
+			) {
 				return;
 			}
 
@@ -1025,7 +1050,9 @@ export default function DashboardClient(options = {}) {
 			farmSettings.longitude !== null &&
 			farmSettings.longitude !== undefined
 		) {
-			if (!fetchWeatherFromCoords(farmSettings.latitude, farmSettings.longitude)) {
+			if (
+				!fetchWeatherFromCoords(farmSettings.latitude, farmSettings.longitude)
+			) {
 				fetchFallbackWeather();
 			}
 		} else if (typeof navigator !== "undefined" && "geolocation" in navigator) {
@@ -1069,7 +1096,9 @@ export default function DashboardClient(options = {}) {
 					descriptionParts.push(`${synced}건이 서버에 반영되었습니다.`);
 				}
 				if (transientFailed > 0) {
-					descriptionParts.push(`${transientFailed}건은 잠시 후 다시 시도됩니다.`);
+					descriptionParts.push(
+						`${transientFailed}건은 잠시 후 다시 시도됩니다.`,
+					);
 				}
 				if (deadLettered > 0) {
 					descriptionParts.push(
@@ -1079,11 +1108,12 @@ export default function DashboardClient(options = {}) {
 
 				const hasProblem = transientFailed > 0 || deadLettered > 0;
 				notify({
-					title: deadLettered > 0
-						? "오프라인 작업 일부가 보류되었습니다."
-						: transientFailed > 0
-							? "오프라인 작업을 일부 동기화했습니다."
-							: "오프라인 작업 동기화가 완료되었습니다.",
+					title:
+						deadLettered > 0
+							? "오프라인 작업 일부가 보류되었습니다."
+							: transientFailed > 0
+								? "오프라인 작업을 일부 동기화했습니다."
+								: "오프라인 작업 동기화가 완료되었습니다.",
 					description: descriptionParts.join(" "),
 					variant: hasProblem ? "warning" : "success",
 				});
@@ -1177,7 +1207,13 @@ export default function DashboardClient(options = {}) {
 				});
 			}
 		},
-		[preloadForTab, setShowAddModal, setSelectedBuildingId, setSelectedPenId, setQuickActionIntent],
+		[
+			preloadForTab,
+			setShowAddModal,
+			setSelectedBuildingId,
+			setSelectedPenId,
+			setQuickActionIntent,
+		],
 	);
 
 	const handleSelectBuilding = useCallback(
@@ -1215,7 +1251,10 @@ export default function DashboardClient(options = {}) {
 		} catch (error) {
 			console.error("Failed to update farm settings:", error);
 			if (dashboardMountedRef.current) {
-				showError("농장 정보를 저장하지 못했습니다.", unexpectedActionErrorDescription);
+				showError(
+					"농장 정보를 저장하지 못했습니다.",
+					unexpectedActionErrorDescription,
+				);
 			}
 			return false;
 		}
@@ -1398,7 +1437,10 @@ export default function DashboardClient(options = {}) {
 		} catch (error) {
 			console.error("Failed to add inventory item:", error);
 			if (dashboardMountedRef.current) {
-				showError("재고 항목을 추가하지 못했습니다.", unexpectedActionErrorDescription);
+				showError(
+					"재고 항목을 추가하지 못했습니다.",
+					unexpectedActionErrorDescription,
+				);
 			}
 			return false;
 		}
@@ -1425,7 +1467,10 @@ export default function DashboardClient(options = {}) {
 		} catch (error) {
 			console.error("Failed to update inventory quantity:", error);
 			if (dashboardMountedRef.current) {
-				showError("재고 수량을 수정하지 못했습니다.", unexpectedActionErrorDescription);
+				showError(
+					"재고 수량을 수정하지 못했습니다.",
+					unexpectedActionErrorDescription,
+				);
 			}
 			return false;
 		}
@@ -1450,7 +1495,10 @@ export default function DashboardClient(options = {}) {
 		} catch (error) {
 			console.error("Failed to create event:", error);
 			if (dashboardMountedRef.current) {
-				showError("일정을 등록하지 못했습니다.", unexpectedActionErrorDescription);
+				showError(
+					"일정을 등록하지 못했습니다.",
+					unexpectedActionErrorDescription,
+				);
 			}
 			return false;
 		}
@@ -1481,7 +1529,10 @@ export default function DashboardClient(options = {}) {
 		} catch (error) {
 			console.error("Failed to toggle event:", error);
 			if (dashboardMountedRef.current) {
-				showError("일정 상태를 변경하지 못했습니다.", unexpectedActionErrorDescription);
+				showError(
+					"일정 상태를 변경하지 못했습니다.",
+					unexpectedActionErrorDescription,
+				);
 			}
 			return false;
 		}
@@ -1516,7 +1567,10 @@ export default function DashboardClient(options = {}) {
 		} catch (error) {
 			console.error("Failed to create sale:", error);
 			if (dashboardMountedRef.current) {
-				showError("판매 기록을 등록하지 못했습니다.", unexpectedActionErrorDescription);
+				showError(
+					"판매 기록을 등록하지 못했습니다.",
+					unexpectedActionErrorDescription,
+				);
 			}
 			return false;
 		}
@@ -1552,7 +1606,10 @@ export default function DashboardClient(options = {}) {
 		} catch (error) {
 			console.error("Failed to record feed:", error);
 			if (dashboardMountedRef.current) {
-				showError("급여 기록을 저장하지 못했습니다.", unexpectedActionErrorDescription);
+				showError(
+					"급여 기록을 저장하지 못했습니다.",
+					unexpectedActionErrorDescription,
+				);
 			}
 			return false;
 		}
@@ -1577,7 +1634,10 @@ export default function DashboardClient(options = {}) {
 		} catch (error) {
 			console.error("Failed to create building:", error);
 			if (dashboardMountedRef.current) {
-				showError("축사 정보를 추가하지 못했습니다.", unexpectedActionErrorDescription);
+				showError(
+					"축사 정보를 추가하지 못했습니다.",
+					unexpectedActionErrorDescription,
+				);
 			}
 			return false;
 		}
@@ -1606,7 +1666,10 @@ export default function DashboardClient(options = {}) {
 		} catch (error) {
 			console.error("Failed to delete building:", error);
 			if (dashboardMountedRef.current) {
-				showError("축사를 삭제하지 못했습니다.", unexpectedActionErrorDescription);
+				showError(
+					"축사를 삭제하지 못했습니다.",
+					unexpectedActionErrorDescription,
+				);
 			}
 			return false;
 		}
@@ -1701,7 +1764,10 @@ export default function DashboardClient(options = {}) {
 		} catch (error) {
 			console.error("Failed to record calving:", error);
 			if (dashboardMountedRef.current) {
-				showError("분만 처리를 완료하지 못했습니다.", unexpectedActionErrorDescription);
+				showError(
+					"분만 처리를 완료하지 못했습니다.",
+					unexpectedActionErrorDescription,
+				);
 			}
 			return false;
 		}
@@ -2114,7 +2180,9 @@ export default function DashboardClient(options = {}) {
 							size="icon"
 							onClick={() => {
 								addCattleReturnFocusRef.current =
-									typeof document !== "undefined" ? document.activeElement : null;
+									typeof document !== "undefined"
+										? document.activeElement
+										: null;
 								setShowAddModal(true);
 							}}
 							aria-label="개체 등록 열기"
@@ -2416,7 +2484,10 @@ export default function DashboardClient(options = {}) {
 					onCloseFieldMode={() => setIsFieldMode(false)}
 				/>
 			) : (
-				<main className="dashboard-content-shell max-w-[600px] mx-auto p-4 relative" id="main-content">
+				<main
+					className="dashboard-content-shell max-w-[600px] mx-auto p-4 relative"
+					id="main-content"
+				>
 					<InitialDataStatusBanner
 						status={initialDataLoadStatus}
 						onRetry={handleRefreshInitialData}
@@ -2431,7 +2502,9 @@ export default function DashboardClient(options = {}) {
 								border: "1px solid rgba(255,255,255,0.2)",
 							}}
 						>
-							<span style={{ fontSize: "18px", lineHeight: 1, flexShrink: 0 }}>🎉</span>
+							<span style={{ fontSize: "18px", lineHeight: 1, flexShrink: 0 }}>
+								🎉
+							</span>
 							무료 체험판 사용 중
 							{subscriptionStatus.daysLeft != null && (
 								<Badge
@@ -2441,7 +2514,9 @@ export default function DashboardClient(options = {}) {
 									{subscriptionStatus.daysLeft}일 남음
 								</Badge>
 							)}
-							<span className="ml-auto text-xs font-normal opacity-90">프리미엄 업그레이드 →</span>
+							<span className="ml-auto text-xs font-normal opacity-90">
+								프리미엄 업그레이드 →
+							</span>
 						</a>
 					)}
 					{subscriptionStatus?.status === "INACTIVE" && (
@@ -2454,9 +2529,14 @@ export default function DashboardClient(options = {}) {
 								border: "1px solid rgba(255,255,255,0.2)",
 							}}
 						>
-							<span style={{ fontSize: "18px", lineHeight: 1, flexShrink: 0 }}>⭐</span>
-							월 9,900원으로 AI 인사이트·수익성 분석·엑셀 내보내기를 사용해 보세요
-							<span className="ml-auto text-xs font-normal opacity-90">구독하기 →</span>
+							<span style={{ fontSize: "18px", lineHeight: 1, flexShrink: 0 }}>
+								⭐
+							</span>
+							월 9,900원으로 AI 인사이트·수익성 분석·엑셀 내보내기를 사용해
+							보세요
+							<span className="ml-auto text-xs font-normal opacity-90">
+								구독하기 →
+							</span>
 						</a>
 					)}
 					{!isOnline && (
@@ -2596,7 +2676,8 @@ function TodayFocusPanel(options = {}) {
 	const { items, onOpenNotifications, onNavigate, onAction } =
 		normalizeDashboardHelperOptions(options);
 	const visibleItems = normalizeDashboardHelperItems(items);
-	const handleNavigate = typeof onNavigate === "function" ? onNavigate : () => {};
+	const handleNavigate =
+		typeof onNavigate === "function" ? onNavigate : () => {};
 	const handleAction = typeof onAction === "function" ? onAction : () => {};
 	const handleOpenNotifications =
 		typeof onOpenNotifications === "function" ? onOpenNotifications : () => {};
@@ -2636,12 +2717,14 @@ function TodayFocusPanel(options = {}) {
 						오늘 바로 볼 일
 					</h2>
 				</div>
-				<div className="today-focus-count">
-					{visibleItems.length}개
-				</div>
+				<div className="today-focus-count">{visibleItems.length}개</div>
 			</div>
 
-			<div role="region" aria-label="오늘의 집중 항목" className="today-focus-grid">
+			<div
+				role="region"
+				aria-label="오늘의 집중 항목"
+				className="today-focus-grid"
+			>
 				{visibleItems.map((item) => {
 					const Icon = FOCUS_ICON_BY_TYPE[item.type] || ClipboardList;
 					const focusItemLabel = `${item.title} - ${item.detail} (${item.meta})`;
@@ -2730,10 +2813,12 @@ const SETUP_ICON_BY_ID = {
 };
 
 function SetupProgressPanel(options = {}) {
-	const { progress, onNavigate, onAction } = normalizeDashboardHelperOptions(options);
+	const { progress, onNavigate, onAction } =
+		normalizeDashboardHelperOptions(options);
 	const safeProgress = {
 		percent: progress && typeof progress === "object" ? progress.percent : 0,
-		completed: progress && typeof progress === "object" ? progress.completed : 0,
+		completed:
+			progress && typeof progress === "object" ? progress.completed : 0,
 		total: progress && typeof progress === "object" ? progress.total : 0,
 		items: progress && typeof progress === "object" ? progress.items : [],
 	};
@@ -2805,7 +2890,11 @@ function SetupProgressPanel(options = {}) {
 				<span style={{ width: `${progressPercent}%` }} />
 			</div>
 
-			<div role="region" aria-label="초기 설정 진행 현황" className="setup-progress-list">
+			<div
+				role="region"
+				aria-label="초기 설정 진행 현황"
+				className="setup-progress-list"
+			>
 				{progressItems.map((item) => {
 					const Icon = SETUP_ICON_BY_ID[item.id] || ClipboardList;
 					const setupItemLabel = `${item.title} ${item.done ? "완료됨" : "미완료"}, ${item.detail}`;

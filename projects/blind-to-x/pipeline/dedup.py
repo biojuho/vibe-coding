@@ -139,8 +139,6 @@ def _get_gemini_embedding(text: str) -> list[float] | None:
         logger.debug("Gemini embedding failed (Jaccard fallback): %s", exc)
         return None
 
-    return None
-
 
 def semantic_similarity(title_a: str, title_b: str) -> float:
     """Semantic similarity via Gemini embedding (falls back to Jaccard on error)."""
