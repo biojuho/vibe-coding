@@ -72,7 +72,8 @@ def _freshness_score(post_data: dict[str, Any]) -> float:
             ts = _dt.datetime.fromisoformat(str(scraped_at))
             age_hours = (_dt.datetime.now() - ts.replace(tzinfo=None)).total_seconds() / 3600
         return max(5.0, 100.0 * math.exp(-age_hours / 24.0))
-    except Exception:
+    except Exception as exc:
+        logger.debug("freshness_score: failed to parse scraped_at=%r: %s", scraped_at, exc)
         return freshness
 
 

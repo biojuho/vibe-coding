@@ -17,25 +17,29 @@ try:
     from pipeline.sentiment_tracker import get_sentiment_tracker
 
     sentiment_tracker = get_sentiment_tracker()
-except Exception:
+except Exception as _exc:
+    logger.debug("sentiment_tracker unavailable (optional): %s", _exc)
     sentiment_tracker = None
 
 _viral_filter_instance: object | None = None
 try:
     from pipeline.viral_filter import ViralFilter as _ViralFilterCls
-except Exception:
+except Exception as _exc:
+    logger.debug("ViralFilter unavailable (optional): %s", _exc)
     _ViralFilterCls = None  # type: ignore[assignment]
 
 try:
     from pipeline.regulation_checker import RegulationChecker
 
     regulation_checker: RegulationChecker | None = RegulationChecker()
-except Exception:
+except Exception as _exc:
+    logger.debug("regulation_checker unavailable (optional): %s", _exc)
     regulation_checker = None
 
 try:
     from pipeline.notebooklm_enricher import enrich_post_with_assets as notebooklm_enricher
-except Exception:
+except Exception as _exc:
+    logger.debug("notebooklm_enricher unavailable (optional): %s", _exc)
     notebooklm_enricher = None  # type: ignore[assignment]
 
 
