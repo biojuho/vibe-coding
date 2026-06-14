@@ -148,7 +148,7 @@ async def test_process_fetch_timeout_sets_failure_reason():
         # timeout이 1 이하로 설정된 경우 (이 테스트에서는 fetch timeout) 타임아웃 발생시킴
         if timeout is not None and timeout <= 1:
             coro.close()
-            raise _asyncio.TimeoutError()
+            raise TimeoutError()
         return await _original_wait_for(coro, timeout=timeout)
 
     with (
@@ -187,7 +187,7 @@ async def test_process_timeout_marks_running_stage_failed():
         # timeout이 1 이하이면 전체 pipeline 타임아웃으로 간주
         if timeout is not None and timeout <= 1:
             coro.close()
-            raise _asyncio.TimeoutError()
+            raise TimeoutError()
         return await _original_wait_for(coro, timeout=timeout)
 
     with (

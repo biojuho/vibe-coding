@@ -24,7 +24,8 @@ import asyncio
 import logging
 import os
 from dataclasses import dataclass
-from typing import Any, Callable, Coroutine, Protocol, TypeVar
+from typing import Any, Protocol, TypeVar
+from collections.abc import Callable, Coroutine
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T")
@@ -221,7 +222,7 @@ class CeleryTaskQueue:
                     _poll_results(),
                     timeout=self._task_timeout + 5,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning(
                     "Celery result polling timed out after %ds for %d tasks; "
                     "revoking outstanding tasks and marking the batch failed.",

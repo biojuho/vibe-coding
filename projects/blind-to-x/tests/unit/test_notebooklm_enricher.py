@@ -50,9 +50,9 @@ async def test_enrich_timeout():
         try:
             if timeout is not None and timeout <= 1:
                 coro.close()
-                raise asyncio.TimeoutError()
+                raise TimeoutError()
             return await _original_wait_for(coro, timeout=timeout)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             raise
 
     with patch("pipeline.notebooklm_enricher.asyncio.wait_for", side_effect=_patched_wait_for):

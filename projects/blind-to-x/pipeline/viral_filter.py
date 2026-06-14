@@ -83,7 +83,7 @@ class ViralFilter:
                 self._score_with_llm(title, content, source, likes, comments),
                 timeout=self._timeout,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("Viral scoring timed out after %ds", self._timeout)
             return self._default_pass()
         except Exception as exc:

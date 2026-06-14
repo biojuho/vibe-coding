@@ -153,7 +153,7 @@ class ExpressDraftPipeline:
                 "있음" if perf_insight.has_data else "없음",
             )
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             result.error = f"타임아웃 ({self._timeout}초 초과)"
             result.generation_time_sec = round(time.time() - start, 2)
             logger.warning("ExpressDraft: 타임아웃 — %s", title[:40])
@@ -172,7 +172,7 @@ class ExpressDraftPipeline:
         source: str,
         velocity_score: float,
         enriched: EnrichedContext | None = None,
-        perf_insight: "PerformanceInsight | None" = None,
+        perf_insight: PerformanceInsight | None = None,
     ) -> str:
         """급행 사용자 프롬프트 구성.
 

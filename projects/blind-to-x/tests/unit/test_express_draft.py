@@ -67,9 +67,9 @@ class TestExpressDraftPipeline:
                 # 타임아웃 1초 이하 설정 시 즉시 TimeoutError
                 if timeout is not None and timeout <= 1:
                     coro.close()  # 코루틴 정리
-                    raise asyncio.TimeoutError()
+                    raise TimeoutError()
                 return await _original_wait_for(coro, timeout=timeout)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 raise
 
         with patch("pipeline.express_draft.asyncio.wait_for", side_effect=_patched_wait_for):

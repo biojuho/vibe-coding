@@ -8,7 +8,6 @@ Blind-to-X Dynamic Context Enrichment Engine (Phase 7 Scale-up)
 import asyncio
 import logging
 import os
-from typing import Dict, List, Optional
 
 import httpx
 from pydantic import BaseModel, Field
@@ -26,7 +25,7 @@ class EnrichedContext(BaseModel):
 
     original_topic: str = Field(..., description="원본 바이럴 트렌드 주제")
     deep_insights: str = Field(..., description="Perplexity를 통해 분석된 심층 인사이트 요약")
-    global_references: List[str] = Field(
+    global_references: list[str] = Field(
         default_factory=list, description="Exa 검색을 통해 얻은 인용 가능한 URL/출처 목록"
     )
     sentiment_angle: str = Field(..., description="현재 트렌드의 주요 여론 및 감정 (작성 앵글 추천용)")
@@ -50,8 +49,8 @@ class EnrichedContext(BaseModel):
 class ContextEnrichmentEngine:
     def __init__(
         self,
-        exa_api_key: Optional[str] = None,
-        perplexity_api_key: Optional[str] = None,
+        exa_api_key: str | None = None,
+        perplexity_api_key: str | None = None,
         max_concurrency: int = 4,
     ):
         self.exa_api_key = exa_api_key or os.getenv("EXA_API_KEY")
@@ -70,7 +69,7 @@ class ContextEnrichmentEngine:
             sentiment_angle=_FALLBACK_SENTIMENT,
         )
 
-    async def _fetch_exa_references(self, client: httpx.AsyncClient, topic: str) -> List[Dict]:
+    async def _fetch_exa_references(self, client: httpx.AsyncClient, topic: str) -> list[dict]:
         """[내부] Exa API를 호출하여 고품질 레퍼런스 URL 및 스니펫을 검색합니다."""
         if not self.exa_api_key:
             logger.warning("EXA_API_KEY가 설정되지 않아 Exa 검색을 스킵합니다.")
@@ -90,7 +89,7 @@ class ContextEnrichmentEngine:
             logger.error("Exa API 검색 중 오류 발생: %s", e)
             return []
 
-    async def _fetch_perplexity_synthesis(self, client: httpx.AsyncClient, topic: str, references: List[Dict]) -> str:
+    async def _fetch_perplexity_synthesis(self, client: httpx.AsyncClient, topic: str, references: list[dict]) -> str:
         """[내부] Perplexity API에 검색된 레퍼런스를 던져 심도 있는 전문가 수준의 인사이트를 합성합니다."""
         if not self.perplexity_api_key:
             logger.warning("PERPLEXITY_API_KEY 미설정 — Fallback Mode.")
@@ -149,8 +148,8 @@ Provide:
     async def process_topic(
         self,
         viral_topic: str,
-        _client: Optional[httpx.AsyncClient] = None,
-    ) -> Optional[EnrichedContext]:
+        _client: httpx.AsyncClient | None = None,
+    ) -> EnrichedContext | None:
         """
         [Public API]
         단일 트렌드 토픽을 입력받아 데이터를 보강시킨 후 반환합니다.
@@ -159,7 +158,7 @@ Provide:
         if not self.exa_api_key and not self.perplexity_api_key:
             return self._no_key_fallback_context(viral_topic)
 
-        async def _run(client: httpx.AsyncClient) -> Optional[EnrichedContext]:
+        async def _run(client: httpx.AsyncClient) -> EnrichedContext | None:
             try:
                 references = await self._fetch_exa_references(client, viral_topic)
                 insights = await self._fetch_perplexity_synthesis(client, viral_topic, references)
@@ -186,7 +185,7 @@ Provide:
         async with httpx.AsyncClient(timeout=self.timeout, limits=self._limits) as client:
             return await _run(client)
 
-    async def batch_process(self, viral_topics: List[str]) -> Dict[str, EnrichedContext]:
+    async def batch_process(self, viral_topics: list[str]) -> dict[str, EnrichedContext]:
         """다수의 큐 항목을 병렬로 보강하여 파이프라인 병목(Bottleneck) 현상을 없앱니다."""
         if not self.exa_api_key and not self.perplexity_api_key:
             return {topic: self._no_key_fallback_context(topic) for topic in viral_topics}
@@ -204,7 +203,7 @@ Provide:
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # [FIX-1] 실패한 토픽을 명시적으로 로깅 — 디버깅 블랙홀 제거
-        output: Dict[str, EnrichedContext] = {}
+        output: dict[str, EnrichedContext] = {}
         for topic, res in zip(viral_topics, results, strict=True):
             if isinstance(res, EnrichedContext):
                 output[topic] = res

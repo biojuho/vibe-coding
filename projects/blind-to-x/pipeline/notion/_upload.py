@@ -6,7 +6,7 @@ Mixin: NotionUploadMixin — upload(), update_page_properties() 및 헬퍼.
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timezone
+from datetime import date, datetime, UTC
 from typing import Any
 
 from config import (
@@ -105,7 +105,7 @@ class NotionUploadMixin:
     @staticmethod
     def _build_date_property_payload(value: Any) -> dict[str, Any]:
         if value == "now":
-            iso_value = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
+            iso_value = datetime.now(UTC).replace(tzinfo=None).isoformat()
         elif isinstance(value, datetime):
             iso_value = value.isoformat()
         elif isinstance(value, date):

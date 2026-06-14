@@ -6,7 +6,7 @@ from blind_scraper import BlindScraper
 
 
 async def main():
-    with open("config.yaml", "r", encoding="utf-8") as f:
+    with open("config.yaml", encoding="utf-8") as f:
         config = yaml.safe_load(f)
     scraper = BlindScraper(config)
     # "인테리어 공사 중인데" - Known public post

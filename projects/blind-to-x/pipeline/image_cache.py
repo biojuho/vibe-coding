@@ -23,7 +23,7 @@ import logging
 import sqlite3
 import threading
 from contextlib import contextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -82,10 +82,10 @@ class ImageCache:
             """)
 
     def _now_iso(self) -> str:
-        return datetime.now(timezone.utc).isoformat()
+        return datetime.now(UTC).isoformat()
 
     def _expires_iso(self) -> str:
-        return (datetime.now(timezone.utc) + timedelta(hours=self.ttl_hours)).isoformat()
+        return (datetime.now(UTC) + timedelta(hours=self.ttl_hours)).isoformat()
 
     # ── Public API ───────────────────────────────────────────────────
 

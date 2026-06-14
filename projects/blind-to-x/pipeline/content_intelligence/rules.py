@@ -119,7 +119,7 @@ def get_time_context() -> dict[str, str]:
     import datetime as _dt
 
     try:
-        kst_hour = (_dt.datetime.now(_dt.timezone.utc).hour + 9) % 24
+        kst_hour = (_dt.datetime.now(_dt.UTC).hour + 9) % 24
     except Exception:
         import time as _time
 
@@ -199,7 +199,7 @@ def get_season_boost(topic_cluster: str, month: int | None = None) -> float:
         import datetime as _dt
 
         try:
-            month = _dt.datetime.now(_dt.timezone.utc).month
+            month = _dt.datetime.now(_dt.UTC).month
         except Exception:
             import time as _time
 

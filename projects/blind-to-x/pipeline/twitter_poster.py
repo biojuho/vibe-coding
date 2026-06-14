@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import os
-from typing import Optional
 
 import tweepy
 
@@ -56,9 +55,9 @@ class TwitterPoster:
     async def post_tweet(
         self,
         text: str,
-        image_path: Optional[str] = None,
+        image_path: str | None = None,
         max_retries: int = 3,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Tweet을 발행합니다. 429 Rate Limit 시 exponential backoff 재시도."""
         if not self.enabled:
             logger.info("Twitter posting is disabled in config or not properly initialized.")

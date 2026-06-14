@@ -6,7 +6,7 @@ import asyncio
 import logging
 import uuid
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from config import (
     ERROR_DUPLICATE_CONTENT,
@@ -97,10 +97,10 @@ class PipelineServices:
 
     scraper: Any
     image_uploader: Any
-    image_generator: Optional[Any] = None
-    draft_generator: Optional[Any] = None
-    notion_uploader: Optional[Any] = None
-    twitter_poster: Optional[Any] = None
+    image_generator: Any | None = None
+    draft_generator: Any | None = None
+    notion_uploader: Any | None = None
+    twitter_poster: Any | None = None
 
 
 async def process_single_post(
@@ -118,7 +118,7 @@ async def process_single_post(
     feed_mode=None,
     review_only=False,
     post_data_hint=None,
-    services: Optional[PipelineServices] = None,
+    services: PipelineServices | None = None,
     daily_queue_floor: DailyQueueFloorState | None = None,
 ):
     # 하위 호환성 및 명시적 의존성 묶음 적용
@@ -143,7 +143,7 @@ async def process_single_post(
                 run_fetch_stage(ctx, scraper, source_name, feed_mode),
                 timeout=fetch_timeout_seconds,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             ctx.result["error"] = f"Fetch stage timed out after {fetch_timeout_seconds}s"
             ctx.result["error_code"] = ERROR_SCRAPE_FAILED
             ctx.result["failure_stage"] = "post_fetch"
@@ -185,7 +185,7 @@ async def process_single_post(
 
     try:
         await asyncio.wait_for(_run_pipeline(), timeout=process_timeout_seconds)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         running_stage = _current_running_stage(ctx)
         result["error"] = f"Process timed out after {process_timeout_seconds}s"
         result["error_code"] = "PROCESS_TIMEOUT"

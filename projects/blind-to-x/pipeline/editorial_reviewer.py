@@ -150,7 +150,7 @@ class EditorialResult:
 class _FallbackEditorialGraph:
     """LangGraph 미설치 환경용 최소 editorial loop."""
 
-    def __init__(self, owner: "EditorialReviewer") -> None:
+    def __init__(self, owner: EditorialReviewer) -> None:
         self.owner = owner
 
     async def ainvoke(self, initial_state: EditorialState) -> EditorialState:

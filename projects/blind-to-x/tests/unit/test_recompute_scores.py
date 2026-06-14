@@ -53,7 +53,7 @@ class _FakeFeedbackLoop:
 
 
 class _FakeNotionUploader:
-    instances: list["_FakeNotionUploader"] = []
+    instances: list[_FakeNotionUploader] = []
 
     def __init__(self, config_mgr):
         self.config_mgr = config_mgr

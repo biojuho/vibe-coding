@@ -202,7 +202,7 @@ class TestPostTweet:
         async def timeout_on_first(*_args, **_kwargs):
             nonlocal call_count
             call_count += 1
-            raise asyncio.TimeoutError
+            raise TimeoutError
 
         with patch("asyncio.wait_for", side_effect=timeout_on_first):
             result = await poster.post_tweet("hello", image_path="/tmp/img.png")

@@ -11,7 +11,7 @@ import re
 import sys
 from collections import Counter
 from dataclasses import asdict, dataclass, replace
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin, urlsplit, urlunsplit
@@ -226,7 +226,7 @@ def parse_targets(sources: list[str] | None, custom_urls: list[str] | None) -> l
 def build_report(results: list[ProbeResult], *, viewport: str = "desktop") -> dict[str, Any]:
     summary = _build_summary(results, viewport=viewport)
     return {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "summary": summary,
         "results": [_result_to_dict(result) for result in results],
     }
@@ -762,7 +762,7 @@ def _failure_report_payload(result: ProbeResult) -> dict[str, Any]:
     data["failure_report"] = {
         "schema_version": 1,
         "tool": "source_browser_probe",
-        "captured_at": datetime.now(timezone.utc).isoformat(),
+        "captured_at": datetime.now(UTC).isoformat(),
     }
     data["operator"] = {
         "action_required": bool(data.get("operator_action_required")),

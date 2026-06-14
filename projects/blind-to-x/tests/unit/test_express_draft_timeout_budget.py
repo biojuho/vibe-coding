@@ -30,9 +30,9 @@ async def test_generate_timeout_includes_enrichment_budget():
         try:
             if timeout is not None and timeout <= 1:
                 coro.close()
-                raise asyncio.TimeoutError()
+                raise TimeoutError()
             return await _original_wait_for(coro, timeout=timeout)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             raise
 
     with patch("pipeline.express_draft.asyncio.wait_for", side_effect=_patched_wait_for):

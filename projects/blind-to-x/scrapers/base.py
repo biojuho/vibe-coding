@@ -6,7 +6,7 @@ import os
 import re
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, UTC
 
 from curl_cffi.requests import AsyncSession
 
@@ -371,7 +371,7 @@ class BaseScraper:
                 timeout=float(timeout_seconds),
             )
             return True
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("Screenshot timed out after %ds (path=%s)", timeout_seconds, path)
             return False
         except Exception as exc:
@@ -665,9 +665,9 @@ class BaseScraper:
         """Delete screenshots older than retention_days (0 = disabled)."""
         if self.retention_days <= 0:
             return
-        from datetime import timedelta, timezone
+        from datetime import timedelta
 
-        cutoff = (datetime.now(timezone.utc) - timedelta(days=self.retention_days)).timestamp()
+        cutoff = (datetime.now(UTC) - timedelta(days=self.retention_days)).timestamp()
         removed = 0
         for fname in os.listdir(self.screenshot_dir):
             fpath = os.path.join(self.screenshot_dir, fname)

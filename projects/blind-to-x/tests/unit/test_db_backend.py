@@ -11,7 +11,7 @@ from pipeline import db_backend
 
 
 class FakeScript:
-    def __init__(self, client: "FakeRedisClient"):
+    def __init__(self, client: FakeRedisClient):
         self._client = client
 
     def __call__(self, *, keys, args):

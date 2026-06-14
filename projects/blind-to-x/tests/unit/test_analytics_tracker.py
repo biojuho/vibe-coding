@@ -134,7 +134,7 @@ class TestKstTimeSlot:
     def test_morning(self, monkeypatch):
         import datetime as dt
 
-        fake_now = dt.datetime(2026, 3, 31, 0, 0, tzinfo=dt.timezone.utc)  # UTC 0 → KST 9
+        fake_now = dt.datetime(2026, 3, 31, 0, 0, tzinfo=dt.UTC)  # UTC 0 → KST 9
         monkeypatch.setattr(
             "datetime.datetime",
             type(
@@ -153,7 +153,7 @@ class TestKstTimeSlot:
     def test_midnight(self, monkeypatch):
         import datetime as dt
 
-        fake_now = dt.datetime(2026, 3, 31, 16, 0, tzinfo=dt.timezone.utc)  # UTC 16 → KST 1
+        fake_now = dt.datetime(2026, 3, 31, 16, 0, tzinfo=dt.UTC)  # UTC 16 → KST 1
         monkeypatch.setattr(
             "datetime.datetime",
             type(

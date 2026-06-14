@@ -221,7 +221,7 @@ class Crawl4AIExtractor:
                 data = self._parse_extracted(extracted)
                 return self._build_post_from_data(data)
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("Crawl4AI extraction timed out after %ds for %s", self._timeout, url)
             return None
         except Exception as exc:
@@ -287,7 +287,7 @@ class Crawl4AIExtractor:
             data = self._parse_extracted(text)
             return self._build_post_from_data(data, method="crawl4ai_llm_html")
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("LLM HTML extraction timed out after %ds for %s", self._timeout, url)
             return None
         except Exception as exc:
@@ -354,7 +354,7 @@ class Crawl4AIExtractor:
                     if p.get("url")
                 ]
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("Crawl4AI feed extraction timed out for %s", feed_url)
             return []
         except Exception as exc:

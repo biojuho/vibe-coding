@@ -135,7 +135,7 @@ class TestTakeScreenshot:
         # asyncio.wait_for를 직접 모킹하여 TimeoutError 발생
         async def _raise_timeout(coro, *, timeout=None):
             coro.close()
-            raise asyncio.TimeoutError()
+            raise TimeoutError()
 
         with patch("scrapers.base.asyncio.wait_for", side_effect=_raise_timeout):
             result = await scraper._take_screenshot(fake_page, path, timeout_seconds=1)

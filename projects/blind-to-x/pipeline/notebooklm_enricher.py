@@ -25,6 +25,7 @@ import os
 import pathlib
 import time
 from dataclasses import dataclass, field
+from datetime import UTC
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +115,7 @@ async def enrich_post_with_assets(
             timeout=_timeout,
         )
         assets = result
-    except asyncio.TimeoutError:
+    except TimeoutError:
         assets.errors.append(f"타임아웃 ({_timeout}초 초과)")
         logger.warning("[NLM Enricher] '%s' — 타임아웃", topic[:40])
     except Exception as exc:
@@ -182,9 +183,9 @@ def _gdrive_extract(assets: NotebookLMAssets) -> NotebookLMAssets:
 
     try:
         # 최근 24시간 이내 새 파일 감지
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
 
-        since_iso = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+        since_iso = (datetime.now(UTC) - timedelta(hours=24)).isoformat()
 
         files = mod.list_new_files_since(
             folder_id=folder_id,

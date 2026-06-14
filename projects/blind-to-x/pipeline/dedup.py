@@ -287,7 +287,7 @@ async def find_similar_in_notion(
     return matches
 
 
-def _build_minhash(tokens: set[str], num_perm: int = 128) -> "MinHash | None":
+def _build_minhash(tokens: set[str], num_perm: int = 128) -> MinHash | None:
     """토큰 집합으로부터 MinHash 객체를 생성. datasketch 미설치 시 None."""
     if not _HAS_DATASKETCH or not tokens:
         return None

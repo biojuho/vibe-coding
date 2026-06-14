@@ -1,4 +1,3 @@
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -247,7 +246,7 @@ async def test_scrape_post_screenshot_timeout_classified(mock_fetch, scraper):
     page_mock.wait_for_selector = AsyncMock()
 
     main_container_mock = AsyncMock()
-    main_container_mock.screenshot = AsyncMock(side_effect=asyncio.TimeoutError())
+    main_container_mock.screenshot = AsyncMock(side_effect=TimeoutError())
 
     title_el = AsyncMock()
     title_el.inner_text.return_value = "오버워치 플레이 영상"

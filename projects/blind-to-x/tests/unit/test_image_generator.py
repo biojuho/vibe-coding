@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -396,7 +395,7 @@ class TestGenerateGemini:
         gen._gemini_client = MagicMock()
 
         async def _slow_thread(*_a, **_kw):
-            raise asyncio.TimeoutError()
+            raise TimeoutError()
 
         monkeypatch.setattr("pipeline.image_generator.asyncio.to_thread", _slow_thread)
         fake_types = MagicMock()

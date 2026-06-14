@@ -19,7 +19,7 @@ import asyncio
 import logging
 import os
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -258,7 +258,7 @@ async def _query_published_pages(
       - 성과 등급 이 비어 있음
       - 생성일 이 최근 window_hours 이내
     """
-    cutoff = (datetime.now(tz=timezone.utc) - timedelta(hours=window_hours)).isoformat()
+    cutoff = (datetime.now(tz=UTC) - timedelta(hours=window_hours)).isoformat()
 
     filter_payload = {
         "and": [

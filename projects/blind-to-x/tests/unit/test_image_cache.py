@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 import sys
 from contextlib import contextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -39,7 +39,7 @@ def test_image_cache_evicts_missing_local_files_and_expired_rows(tmp_path) -> No
     assert cache.stats()["total"] == 0
 
     expired_key = _cache_key("career", "expired")
-    past = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+    past = (datetime.now(UTC) - timedelta(hours=2)).isoformat()
     with cache._conn() as conn:
         conn.execute(
             """

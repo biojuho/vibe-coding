@@ -245,7 +245,7 @@ class ABFeedbackLoop:
     def load_tuned_styles() -> dict[str, dict[str, str]]:
         if os.path.exists(CACHE_FILE):
             try:
-                with open(CACHE_FILE, "r", encoding="utf-8") as f:
+                with open(CACHE_FILE, encoding="utf-8") as f:
                     return json.load(f)
             except Exception as e:
                 logger.warning(f"Could not load tuned styles: {e}")

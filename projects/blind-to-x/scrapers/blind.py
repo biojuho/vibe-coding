@@ -330,7 +330,7 @@ class BlindScraper(BaseScraper):
         await asyncio.sleep(0.5)
         try:
             await asyncio.wait_for(main_container.screenshot(path=filepath), timeout=30)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error("Screenshot timed out after 30s")
             raise
         logger.info(f"Saved screenshot: {filepath}")
@@ -677,7 +677,7 @@ class BlindScraper(BaseScraper):
 
             try:
                 filepath = await self._save_post_screenshot(page, main_container, title)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 failure_reason = "screenshot_timeout"
                 raise
 

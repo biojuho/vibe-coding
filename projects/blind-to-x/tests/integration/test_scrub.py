@@ -5,7 +5,7 @@ from playwright.async_api import async_playwright
 
 
 async def main():
-    with open("raw2.html", "r", encoding="utf-8") as f:
+    with open("raw2.html", encoding="utf-8") as f:
         html_content = f.read()
 
     # Scrub ALL scripts!

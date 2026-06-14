@@ -30,7 +30,7 @@ from playwright_stealth import Stealth  # noqa: E402
 class _PooledPage:
     """Transparent proxy for a Playwright page that releases the slot on close()."""
 
-    def __init__(self, page: Any, pool: "BrowserContextPool", ctx: Any):
+    def __init__(self, page: Any, pool: BrowserContextPool, ctx: Any):
         self._page = page
         self._pool = pool
         self._ctx = ctx  # the specific context this page belongs to

@@ -229,7 +229,7 @@ class ConfigManager:
 
     def _load_config(self):
         try:
-            with open(self.config_path, "r", encoding="utf-8") as f:
+            with open(self.config_path, encoding="utf-8") as f:
                 return yaml.safe_load(f) or {}
         except FileNotFoundError:
             logger.warning(f"Config file {self.config_path} not found. Falling back to environment variables.")

@@ -1,6 +1,6 @@
 from bs4 import BeautifulSoup
 
-with open("raw.html", "r", encoding="utf-8") as f:
+with open("raw.html", encoding="utf-8") as f:
     html = f.read()
 
 soup = BeautifulSoup(html, "html.parser")

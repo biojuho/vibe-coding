@@ -445,7 +445,7 @@ class FMKoreaScraper(BaseScraper):
                 main_container.screenshot(path=filepath),
                 timeout=30,
             )
-        except asyncio.TimeoutError as exc:
+        except TimeoutError as exc:
             logger.error(f"Screenshot timed out for {url}")
             raise _FMKoreaScrapeFailure(
                 str(exc),

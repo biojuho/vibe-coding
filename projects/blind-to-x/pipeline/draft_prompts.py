@@ -207,7 +207,7 @@ class DraftPrompt(str):
         *,
         anthropic_system_prompt: str = "",
         anthropic_user_prompt: str = "",
-    ) -> "DraftPrompt":
+    ) -> DraftPrompt:
         obj = str.__new__(cls, value)
         obj.anthropic_system_prompt = anthropic_system_prompt
         obj.anthropic_user_prompt = anthropic_user_prompt
@@ -865,7 +865,7 @@ class DraftPromptsMixin:
     def _example_selection_sort_key(seed: str, example: dict[str, Any]) -> tuple[str, str]:
         """Return deterministic sort key for seeded example selection."""
         text = str(example.get("text", "")).strip()
-        return (hashlib.sha256(f"{seed}|{text}".encode("utf-8")).hexdigest(), text)
+        return (hashlib.sha256(f"{seed}|{text}".encode()).hexdigest(), text)
 
     @staticmethod
     def _example_selection_offset(seed: str, ordered_count: int) -> int:

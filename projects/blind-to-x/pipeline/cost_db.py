@@ -15,7 +15,7 @@ import logging
 import sqlite3
 import threading
 from contextlib import contextmanager
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, UTC
 from pathlib import Path
 from typing import Any
 
@@ -439,7 +439,7 @@ class CostDatabase:
 
     def record_provider_failure(self, provider: str, skip_hours: float = 24.0) -> None:
         """비복구 불가 에러 발생 시 provider 실패 이력 기록 + skip_until 설정."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         now_iso = now.isoformat()
         skip_iso = (now + timedelta(hours=skip_hours)).isoformat()
         try:
@@ -460,9 +460,8 @@ class CostDatabase:
         """현재 skip_until이 아직 유효한 provider 집합 반환."""
         try:
             from datetime import datetime as _dt
-            from datetime import timezone as _tz
 
-            now_iso = _dt.now(_tz.utc).isoformat()
+            now_iso = _dt.now(UTC).isoformat()
             with self._conn() as conn:
                 rows = conn.execute(
                     "SELECT provider FROM provider_failures WHERE skip_until > ?",
@@ -951,11 +950,11 @@ class CostDatabase:
 
 # ── 모듈 레벨 싱글톤 (Phase 2-E) ──────────────────────────────────────
 
-_db_singleton: "CostDatabase | None" = None
+_db_singleton: CostDatabase | None = None
 _db_singleton_lock = threading.Lock()
 
 
-def get_cost_db(db_path: "str | Path | None" = None) -> "CostDatabase":
+def get_cost_db(db_path: str | Path | None = None) -> CostDatabase:
     """모듈 레벨 CostDatabase 싱글톤 반환 (thread-safe 지연 초기화).
 
     동일 프로세스에서 매번 CostDatabase()를 생성하는 대신 이 함수를 사용하세요.

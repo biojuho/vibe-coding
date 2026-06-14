@@ -8,7 +8,7 @@ async def main():
     url = "https://www.teamblind.com/kr/post/%EB%82%B4-%ED%8F%B0-%EA%B5%AC%ED%98%95%EC%9D%B4%EB%9D%BC-%EB%94%94%EC%9E%90%EC%9D%B8%EA%B0%9C%EB%B0%A4%ED%8B%B0-%EC%BC%80%EC%9D%B4%EC%8A%A4%EB%B0%96%EC%97%90-2qutvg77"
     cookies = {}
     try:
-        with open(".auth/state.json", "r") as f:
+        with open(".auth/state.json") as f:
             state = json.load(f)
             for cookie in state.get("cookies", []):
                 cookies[cookie["name"]] = cookie["value"]

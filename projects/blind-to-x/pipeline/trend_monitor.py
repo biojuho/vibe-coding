@@ -188,7 +188,7 @@ class TrendMonitor:
                 loop.run_in_executor(self._executor, self._fetch_google_trends_sync),
                 timeout=30,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("Google Trends 조회 타임아웃 (30초)")
             return {}
         except Exception as exc:

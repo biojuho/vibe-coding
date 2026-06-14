@@ -127,7 +127,7 @@ async def test_celery_task_queue_times_out_stalled_groups_without_local_replay(
 
     async def fake_wait_for(awaitable, timeout):
         awaitable.close()
-        raise asyncio.TimeoutError
+        raise TimeoutError
 
     monkeypatch.setattr(task_queue.asyncio, "wait_for", fake_wait_for)
 

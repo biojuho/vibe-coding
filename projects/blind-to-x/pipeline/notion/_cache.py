@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from config import ERROR_NOTION_DUPLICATE_CHECK_FAILED
@@ -79,7 +79,7 @@ class NotionCacheMixin:
         if self._url_cache_ready:
             # TTL 만료 시 재적재 (기본 30분)
             if self._url_cache_loaded_at is not None:
-                age = (datetime.now(timezone.utc) - self._url_cache_loaded_at).total_seconds()
+                age = (datetime.now(UTC) - self._url_cache_loaded_at).total_seconds()
                 if age > self._url_cache_ttl_seconds:
                     logger.info("Notion URL 캐시 TTL 만료 (%.0fs). 재적재 시작.", age)
                     self._url_cache_ready = False
@@ -107,7 +107,7 @@ class NotionCacheMixin:
                 if canonical:
                     self._url_cache.add(canonical)
             self._url_cache_ready = True
-            self._url_cache_loaded_at = datetime.now(timezone.utc)
+            self._url_cache_loaded_at = datetime.now(UTC)
             logger.info(
                 "Notion URL 캐시 적재 완료: %d건 (lookback=%d일)",
                 len(self._url_cache),
