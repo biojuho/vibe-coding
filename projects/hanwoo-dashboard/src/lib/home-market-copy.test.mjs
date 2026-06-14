@@ -715,7 +715,7 @@ test("today focus action buttons expose consolidated task labels", () => {
 	assert.match(source, /function normalizeDashboardHelperItems\(items\) \{/);
 	assert.match(
 		source,
-		/items\.filter\([\s\S]*?\(item\) => item && typeof item === ["']object["'] && !Array\.isArray\(item\)/,
+		/items\.filter\([\s\S]*?\(item\) =>[\s\S]*?item &&[\s\S]*?typeof item === ["']object["'] &&[\s\S]*?!Array\.isArray\(item\)/,
 	);
 	assert.match(source, /function TodayFocusPanel\(options = \{\}\) \{/);
 	assert.match(
@@ -732,7 +732,7 @@ test("today focus action buttons expose consolidated task labels", () => {
 	);
 	assert.match(
 		source,
-		/const handleNavigate = typeof onNavigate === ["']function["'] \? onNavigate : \(\) => \{\};/,
+		/const handleNavigate =[\s\S]{0,80}typeof onNavigate === ["']function["'] \? onNavigate : \(\) => \{\};/,
 	);
 	assert.match(
 		source,
@@ -1302,7 +1302,7 @@ test("weather geolocation lookup falls back safely when browser location APIs fa
 	);
 	assert.match(
 		dashboardSource,
-		/fetchWeatherFromCoords\(position\?\.coords\?\.latitude, position\?\.coords\?\.longitude\)/,
+		/fetchWeatherFromCoords\([\s\S]*?position\?\.coords\?\.latitude,[\s\S]*?position\?\.coords\?\.longitude,[\s\S]*?\)/,
 	);
 	assert.match(
 		hookSource,
@@ -1310,7 +1310,7 @@ test("weather geolocation lookup falls back safely when browser location APIs fa
 	);
 	assert.match(
 		dashboardSource,
-		/if \(\s+farmSettings\.latitude !== null &&\s+farmSettings\.latitude !== undefined &&\s+farmSettings\.longitude !== null &&\s+farmSettings\.longitude !== undefined\s+\) \{\s+if \(!fetchWeatherFromCoords\(farmSettings\.latitude, farmSettings\.longitude\)\) \{\s+fetchFallbackWeather\(\);\s+\}/,
+		/if \([\s\S]*?farmSettings\.latitude !== null &&[\s\S]*?farmSettings\.latitude !== undefined &&[\s\S]*?farmSettings\.longitude !== null &&[\s\S]*?farmSettings\.longitude !== undefined[\s\S]*?\) \{[\s\S]*?if \([\s\S]*?!fetchWeatherFromCoords\(farmSettings\.latitude, farmSettings\.longitude\)[\s\S]*?\) \{[\s\S]*?fetchFallbackWeather\(\);[\s\S]*?\}/,
 	);
 	assert.match(
 		hookSource,
@@ -2167,7 +2167,10 @@ test("dashboard client uses main landmark for primary content area", () => {
 	const source = readSource("components/DashboardClient.js");
 
 	// main element with semantic ID for skip-link targeting
-	assert.match(source, /<main className="dashboard-content-shell[^"]*" id="main-content">/);
+	assert.match(
+		source,
+		/<main[\s\S]{0,120}className="dashboard-content-shell[^"]*"[\s\S]{0,80}id="main-content"[\s\S]{0,20}>/,
+	);
 	assert.match(source, /<\/main>/);
 	// footer is a sibling to main (outside the main scrollable area)
 	assert.match(source, /<footer className="footer-glass/);

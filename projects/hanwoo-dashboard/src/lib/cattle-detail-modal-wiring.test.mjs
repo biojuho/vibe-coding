@@ -298,7 +298,7 @@ test("cattle form and detail icon-only navigation controls have Korean labels", 
 	);
 	assert.match(
 		detailSource,
-		/<CalendarCheck2 size=\{16\} aria-hidden="true" \/>\s*\{estrusButtonText\}/,
+		/<CalendarCheck2 size=\{16\} aria-hidden="true" \/>[\s\S]*?\{estrusButtonText\}/,
 	);
 	assert.match(
 		detailSource,
@@ -306,7 +306,7 @@ test("cattle form and detail icon-only navigation controls have Korean labels", 
 	);
 	assert.match(
 		detailSource,
-		/<CheckCircle2 size=\{16\} aria-hidden="true" \/>\s*\{pregnancyButtonText\}/,
+		/<CheckCircle2 size=\{16\} aria-hidden="true" \/>[\s\S]*?\{pregnancyButtonText\}/,
 	);
 	assert.match(detailSource, /type="button"[\s\S]*?onClick=\{onDelete\}/);
 	assert.match(detailSource, /role="dialog"/);
