@@ -515,3 +515,43 @@ test("dashboard list-queries applies MAX_LIMIT cap in both cattle and sales pars
 	assert.ok(parseLimitCount >= 2, `Expected parseLimit used ≥2 times, found ${parseLimitCount}`);
 });
 
+// ── AI routes: per-user rate limiting ────────────────────────────────────────
+
+test("AI insight route applies per-user rate limiting (20 req/hr) to prevent Gemini quota exhaustion", () => {
+	// Premium subscribers could exhaust the Gemini quota without rate limiting
+	assert.match(insightRoute, /checkRateLimit/);
+	assert.match(insightRoute, /ai-insight.*session\.user\.id|ai-insight.*userId/);
+	assert.match(insightRoute, /maxRequests: 20/);
+	assert.match(insightRoute, /windowMs: 3600000/);
+	assert.match(insightRoute, /status: 429/);
+	assert.match(insightRoute, /Retry-After/);
+});
+
+test("AI chat route applies per-user rate limiting (30 req/hr) to prevent Gemini quota exhaustion", () => {
+	// Chat is more interactive than insights so gets a slightly higher limit
+	assert.match(chatRoute, /checkRateLimit/);
+	assert.match(chatRoute, /ai-chat.*session\.user\.id|ai-chat.*userId/);
+	assert.match(chatRoute, /maxRequests: 30/);
+	assert.match(chatRoute, /windowMs: 3600000/);
+	assert.match(chatRoute, /status: 429/);
+	assert.match(chatRoute, /Retry-After/);
+});
+
+// ── Expense action: atomic transaction ───────────────────────────────────────
+
+const expenseAction = readSource("lib/actions/expense.js");
+
+test("createExpenseRecord uses atomic Prisma transaction to prevent duplicate expense on outbox failure", () => {
+	// Without the transaction, an outbox write failure after expenseRecord.create
+	// returns a false failure, and the client retry creates a duplicate expense
+	assert.match(expenseAction, /prisma\.\$transaction/);
+	assert.match(expenseAction, /expenseRecord\.create/);
+	assert.match(expenseAction, /createOutboxEvent/);
+});
+
+test("createExpenseRecord validates expense input before DB write", () => {
+	assert.match(expenseAction, /validateExpenseRecordInput/);
+	assert.match(expenseAction, /validation\.success/);
+	assert.match(expenseAction, /success: false/);
+});
+
