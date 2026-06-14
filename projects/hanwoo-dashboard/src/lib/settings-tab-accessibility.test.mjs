@@ -762,3 +762,10 @@ test("SettingsTab building add form toggle button declares aria-expanded so scre
 	// The "축사 등록" button discloses an inline form (WCAG 4.1.2 State)
 	assert.match(source, /aria-expanded=\{isAdding\}/);
 });
+
+test("SettingsTab dead-letter items list uses role=list/listitem for screen reader navigation", () => {
+	const source = readSource("components/tabs/SettingsTab.js");
+	assert.match(source, /role="list"/);
+	assert.match(source, /aria-label="동기화 실패 항목 목록"/);
+	assert.match(source, /role="listitem"/);
+});

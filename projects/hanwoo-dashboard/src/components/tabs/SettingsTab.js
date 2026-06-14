@@ -1074,10 +1074,11 @@ export default function SettingsTab(options = {}) {
 							전체 삭제
 						</PremiumButton>
 					</div>
-					<div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+					<div role="list" aria-label="동기화 실패 항목 목록" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
 						{deadLetterItems.map((item, idx) => (
 							<div
 								key={item.id ?? idx}
+								role="listitem"
 								style={{
 									background: "var(--color-bg)",
 									padding: "10px 14px",
