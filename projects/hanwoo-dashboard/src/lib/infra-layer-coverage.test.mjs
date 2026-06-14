@@ -365,3 +365,22 @@ test("Subscription model has composite userId+status index for AI/subscription q
 test("ExpenseRecord model has buildingId+date index for per-barn expense aggregation", () => {
 	assert.match(schema, /@@index\(\[buildingId, date\]\)/);
 });
+
+// ── Dashboard API: Cache-Control private, no-store ────────────────────────────
+
+const cattleRoute = readSource("app/api/dashboard/cattle/route.js");
+const salesRoute = readSource("app/api/dashboard/sales/route.js");
+const summaryRoute = readSource("app/api/dashboard/summary/route.js");
+
+test("dashboard/cattle route sets Cache-Control private, no-store on user data", () => {
+	assert.match(cattleRoute, /Cache-Control.*private.*no-store|private.*no-store.*Cache-Control/);
+});
+
+test("dashboard/sales route sets Cache-Control private, no-store on user data", () => {
+	assert.match(salesRoute, /Cache-Control.*private.*no-store|private.*no-store.*Cache-Control/);
+});
+
+test("dashboard/summary route sets Cache-Control private, no-store on user data", () => {
+	assert.match(summaryRoute, /Cache-Control.*private.*no-store|private.*no-store.*Cache-Control/);
+});
+

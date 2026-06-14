@@ -73,11 +73,10 @@ export async function GET(request) {
 					ageSeconds: 0,
 				};
 
-		return NextResponse.json({
-			success: true,
-			data,
-			meta,
-		});
+		return NextResponse.json(
+			{ success: true, data, meta },
+			{ headers: { "Cache-Control": "private, no-store" } },
+		);
 	} catch (error) {
 		if (isAuthenticationError(error)) {
 			return NextResponse.json(

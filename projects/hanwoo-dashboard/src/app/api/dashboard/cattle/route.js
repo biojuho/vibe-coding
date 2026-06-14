@@ -30,10 +30,10 @@ export async function GET(request) {
 			bypassCache: query.fresh,
 		});
 
-		return NextResponse.json({
-			success: true,
-			data,
-		});
+		return NextResponse.json(
+			{ success: true, data },
+			{ headers: { "Cache-Control": "private, no-store" } },
+		);
 	} catch (error) {
 		if (isAuthenticationError(error)) {
 			return NextResponse.json(
