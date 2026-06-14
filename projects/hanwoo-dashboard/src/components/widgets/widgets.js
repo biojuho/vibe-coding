@@ -39,8 +39,22 @@ export function TabBar(options = {}) {
 		{ id: "schedule", label: "일정", icon: CalendarDays },
 		{ id: "settings", label: "설정", icon: Settings },
 	];
+	const handleTabListKeyDown = (event) => {
+		const allTabButtons = [...event.currentTarget.querySelectorAll('[role="tab"]')];
+		const currentIdx = allTabButtons.indexOf(event.target);
+		if (currentIdx === -1) return;
+		let nextIdx = null;
+		if (event.key === "ArrowRight" || event.key === "ArrowDown") nextIdx = (currentIdx + 1) % tabs.length;
+		else if (event.key === "ArrowLeft" || event.key === "ArrowUp") nextIdx = (currentIdx - 1 + tabs.length) % tabs.length;
+		else if (event.key === "Home") nextIdx = 0;
+		else if (event.key === "End") nextIdx = tabs.length - 1;
+		if (nextIdx === null) return;
+		event.preventDefault();
+		handleTabChange(tabs[nextIdx].id);
+		allTabButtons[nextIdx]?.focus();
+	};
 	return (
-		<nav className="tab-bar" aria-label="대시보드 메뉴">
+		<nav role="tablist" className="tab-bar" aria-label="대시보드 메뉴" onKeyDown={handleTabListKeyDown}>
 			{tabs.map((t) => {
 				const isActive = activeTab === t.id;
 				const Icon = t.icon;
@@ -51,7 +65,9 @@ export function TabBar(options = {}) {
 						type="button"
 						onClick={() => handleTabChange(t.id)}
 						className={`tab-item ${isActive ? "active" : ""}`}
-						aria-current={isActive ? "page" : undefined}
+						role="tab"
+						aria-selected={isActive}
+						tabIndex={isActive ? 0 : -1}
 						aria-label={tabActionLabel}
 						title={tabActionLabel}
 						style={{

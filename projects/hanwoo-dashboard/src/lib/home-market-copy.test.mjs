@@ -1380,13 +1380,22 @@ test("tab navigation buttons expose Korean action labels and selected state", ()
 		/const handleTabChange =\s*typeof onTabChange === "function" \? onTabChange : \(\) => \{\};/,
 	);
 
-	assert.match(source, /<nav className="tab-bar" aria-label="대시보드 메뉴">/);
+	// Tab nav must use tablist + tab pattern (WCAG 4.1.2) for keyboard nav and screen readers
+	assert.match(source, /role="tablist"/);
+	assert.match(source, /<nav role="tablist" className="tab-bar" aria-label=/);
+	assert.match(source, /role="tab"/);
+	assert.match(source, /aria-selected=\{isActive\}/);
+	assert.match(source, /tabIndex=\{isActive \? 0 : -1\}/);
+	// Arrow key keyboard navigation handler (WCAG 2.1.1)
+	assert.match(source, /handleTabListKeyDown/);
+	assert.match(source, /ArrowRight/);
+	assert.match(source, /ArrowLeft/);
 	assert.match(
 		source,
 		/const tabActionLabel = `\$\{t\.label\} 탭 열기\$\{isActive \? ", 현재 선택됨" : ""\}`;/,
 	);
 	assert.match(source, /onClick=\{\(\) => handleTabChange\(t\.id\)\}/);
-	assert.match(source, /aria-current=\{isActive \? "page" : undefined\}/);
+	assert.doesNotMatch(source, /aria-current=\{isActive \? "page" : undefined\}/);
 	assert.match(source, /aria-label=\{tabActionLabel\}/);
 	assert.match(source, /title=\{tabActionLabel\}/);
 	assert.doesNotMatch(source, /export function TabBar\(\{ activeTab, onTabChange \}\)/);
@@ -2246,4 +2255,13 @@ test("CalvingTab stat chips container is aria-live so counts update for screen r
 	// the live region announces the change without the user having to navigate back
 	assert.match(source, /aria-live="polite"/);
 	assert.match(source, /aria-label="분만 현황 요약"/);
+});
+
+test("AlertBanners title spans have heading role so screen readers can navigate by heading", () => {
+	const source = readSource("components/widgets/AlertBanners.js");
+
+	// Styled <span> elements used as headings need explicit role=heading + aria-level
+	// so assistive technology includes them in the heading outline (WCAG 1.3.1)
+	assert.match(source, /role="heading"/);
+	assert.match(source, /aria-level=\{2\}/);
 });
