@@ -279,3 +279,38 @@ async def test_fetch_post_detail_rejects_500_status(mock_new_page, scraper):
 
     with pytest.raises(_JobplanetScrapeFailure, match="http_500"):
         await scraper._fetch_post_detail(page_mock, post_id=9999)
+
+
+@pytest.mark.asyncio
+async def test_fetch_post_detail_network_error(scraper):
+    """BTX-JP001: page.goto() 예외는 _JobplanetScrapeFailure(reason='network_error')로 포장돼야 함."""
+    from scrapers.jobplanet import _JobplanetScrapeFailure
+
+    page_mock = AsyncMock()
+    page_mock.goto.side_effect = ConnectionError("Connection refused")
+
+    with pytest.raises(_JobplanetScrapeFailure) as exc_info:
+        await scraper._fetch_post_detail(page_mock, post_id=1234)
+
+    assert exc_info.value.reason == "network_error"
+    assert "1234" in str(exc_info.value)
+
+
+def test_resolve_post_title_returns_title_when_present(scraper):
+    """_resolve_post_title: 명시적 title이 있으면 그대로 반환."""
+    result = scraper._resolve_post_title({"title": "테스트 제목", "content": "긴 본문 내용"})
+    assert result == "테스트 제목"
+
+
+def test_resolve_post_title_falls_back_to_first_content_line(scraper):
+    """_resolve_post_title: title 없으면 content 첫 줄을 50자로 트림."""
+    long_line = "A" * 60
+    result = scraper._resolve_post_title({"title": "", "content": f"{long_line}\n두 번째 줄"})
+    assert result.endswith("...")
+    assert len(result) == 50
+
+
+def test_resolve_post_title_empty_content_returns_fallback(scraper):
+    """_resolve_post_title: title·content 모두 없으면 '제목 없음' 반환."""
+    result = scraper._resolve_post_title({"title": "", "content": ""})
+    assert result == "제목 없음"
