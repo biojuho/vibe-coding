@@ -979,88 +979,94 @@ export default function SettingsTab(options = {}) {
 					);
 				})}
 			</div>
-		</div>
 
-		{deadLetterItems.length > 0 ? (
-			<div
-				style={{
-					marginTop: "28px",
-					background: "var(--color-bg-card)",
-					padding: "18px 20px",
-					borderRadius: "16px",
-					border: "1px solid var(--color-danger)",
-					boxShadow: "var(--shadow-sm)",
-				}}
-			>
+			{deadLetterItems.length > 0 ? (
 				<div
 					style={{
-						display: "flex",
-						justifyContent: "space-between",
-						alignItems: "center",
-						marginBottom: "12px",
+						marginTop: "28px",
+						background: "var(--color-bg-card)",
+						padding: "18px 20px",
+						borderRadius: "16px",
+						border: "1px solid var(--color-danger)",
+						boxShadow: "var(--shadow-sm)",
 					}}
 				>
-					<div>
-						<div
-							style={{
-								fontSize: "14px",
-								fontWeight: 700,
-								color: "var(--color-danger)",
-								marginBottom: "2px",
-							}}
-						>
-							동기화 실패 항목 ({deadLetterItems.length}건)
-						</div>
-						<div style={{ fontSize: "11px", color: "var(--color-text-muted)" }}>
-							자동 재시도가 중단된 오프라인 요청입니다.
-						</div>
-					</div>
-					<PremiumButton
-						variant="outline"
-						size="sm"
-						onClick={handleClearDeadLetter}
-						aria-label="동기화 실패 항목 전체 삭제"
-						title="동기화 실패 항목 전체 삭제"
-						className="text-xs text-red-500 border-red-500/50 hover:bg-red-500/10 px-3 py-1.5 rounded-lg"
+					<div
+						style={{
+							display: "flex",
+							justifyContent: "space-between",
+							alignItems: "center",
+							marginBottom: "12px",
+						}}
 					>
-						전체 삭제
-					</PremiumButton>
-				</div>
-				<div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-					{deadLetterItems.map((item, idx) => (
-						<div
-							key={item.id ?? idx}
-							style={{
-								background: "var(--color-bg)",
-								padding: "10px 14px",
-								borderRadius: "10px",
-								border: "1px solid var(--color-border)",
-								fontSize: "12px",
-								color: "var(--color-text-muted)",
-								display: "flex",
-								justifyContent: "space-between",
-								alignItems: "center",
-								gap: "8px",
-							}}
-						>
-							<span style={{ fontFamily: "var(--font-mono, monospace)", fontWeight: 600 }}>
-								{item.action ?? "알 수 없는 작업"}
-							</span>
-							{item.deadLetteredAt ? (
-								<span>
-									{new Date(item.deadLetteredAt).toLocaleString("ko-KR", {
-										month: "2-digit",
-										day: "2-digit",
-										hour: "2-digit",
-										minute: "2-digit",
-									})}
-								</span>
-							) : null}
+						<div>
+							<div
+								style={{
+									fontSize: "14px",
+									fontWeight: 700,
+									color: "var(--color-danger)",
+									marginBottom: "2px",
+								}}
+							>
+								동기화 실패 항목 ({deadLetterItems.length}건)
+							</div>
+							<div
+								style={{ fontSize: "11px", color: "var(--color-text-muted)" }}
+							>
+								자동 재시도가 중단된 오프라인 요청입니다.
+							</div>
 						</div>
-					))}
+						<PremiumButton
+							variant="outline"
+							size="sm"
+							onClick={handleClearDeadLetter}
+							aria-label="동기화 실패 항목 전체 삭제"
+							title="동기화 실패 항목 전체 삭제"
+							className="text-xs text-red-500 border-red-500/50 hover:bg-red-500/10 px-3 py-1.5 rounded-lg"
+						>
+							전체 삭제
+						</PremiumButton>
+					</div>
+					<div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+						{deadLetterItems.map((item, idx) => (
+							<div
+								key={item.id ?? idx}
+								style={{
+									background: "var(--color-bg)",
+									padding: "10px 14px",
+									borderRadius: "10px",
+									border: "1px solid var(--color-border)",
+									fontSize: "12px",
+									color: "var(--color-text-muted)",
+									display: "flex",
+									justifyContent: "space-between",
+									alignItems: "center",
+									gap: "8px",
+								}}
+							>
+								<span
+									style={{
+										fontFamily: "var(--font-mono, monospace)",
+										fontWeight: 600,
+									}}
+								>
+									{item.action ?? "알 수 없는 작업"}
+								</span>
+								{item.deadLetteredAt ? (
+									<span>
+										{new Date(item.deadLetteredAt).toLocaleString("ko-KR", {
+											month: "2-digit",
+											day: "2-digit",
+											hour: "2-digit",
+											minute: "2-digit",
+										})}
+									</span>
+								) : null}
+							</div>
+						))}
+					</div>
 				</div>
-			</div>
-		) : null}
-	</div>
+			) : null}
+		</div>
 	);
 }
