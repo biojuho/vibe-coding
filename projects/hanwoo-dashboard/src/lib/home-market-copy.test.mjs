@@ -2124,11 +2124,14 @@ test("landing page uses semantic HTML landmarks for accessibility", () => {
 	assert.match(source, /14일 무료 체험/);
 });
 
-test("subscription page has metadata title", () => {
+test("subscription page has metadata title and main landmark", () => {
 	const source = readSource("app/subscription/page.js");
 
 	assert.match(source, /구독 관리 · Joolife 한우/);
 	assert.match(source, /export const metadata = /);
+	assert.match(source, /id="main-content"/);
+	assert.match(source, /<main\b/);
+	assert.match(source, /<\/main>/);
 });
 
 test("dashboard client uses main landmark for primary content area", () => {

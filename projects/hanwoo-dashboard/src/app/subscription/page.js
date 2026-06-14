@@ -128,7 +128,8 @@ export default async function SubscriptionPage({ searchParams }) {
 	];
 
 	return (
-		<div
+		<main
+			id="main-content"
 			style={{
 				maxWidth: "640px",
 				margin: "0 auto",
@@ -243,6 +244,6 @@ export default async function SubscriptionPage({ searchParams }) {
 					customerName={customerName}
 				/>
 			)}
-		</div>
+		</main>
 	);
 }
