@@ -149,3 +149,51 @@ test("buildCattleCsvRows ignores malformed collection payloads", () => {
 	assert.equal(headerOnlyCsv.split("\n").length, 1);
 	assert.doesNotMatch(headerOnlyCsv, /not-an-array/);
 });
+
+test("buildCattleCsvRows starts with UTF-8 BOM for Excel encoding compatibility", () => {
+	const csv = buildCattleCsvRows([]);
+	// First char of output must be the BOM (U+FEFF)
+	assert.equal(csv.charCodeAt(0), 0xfeff, "CSV must start with BOM U+FEFF");
+});
+
+test("buildCattleCsvRows resolves building name via buildingName field when name is absent", () => {
+	// Prisma may return a different field name depending on the include alias
+	const csv = buildCattleCsvRows(
+		[
+			{
+				id: "cow-7",
+				name: "임마",
+				tagNumber: "410007777777",
+				birthDate: null,
+				gender: "암",
+				status: "사육중",
+				buildingId: "barn-alias",
+				penNumber: "G-1",
+				memo: "",
+			},
+		],
+		[{ id: "barn-alias", buildingName: "별관 축사" }],
+	);
+
+	assert.match(csv, /별관 축사/);
+	assert.doesNotMatch(csv, /barn-alias/);
+});
+
+test("buildCattleCsvRows normalizes memo newlines to single space", () => {
+	const csv = buildCattleCsvRows([
+		{
+			id: "cow-8",
+			name: "메모우",
+			tagNumber: "410008888888",
+			birthDate: null,
+			gender: "수",
+			status: "사육중",
+			buildingId: "barn-8",
+			penNumber: "H-1",
+			memo: "1행\n2행\t3행",
+		},
+	]);
+
+	assert.match(csv, /1행 2행 3행/);
+	assert.doesNotMatch(csv, /\n.*1행.*\n/); // no raw newline in the memo cell
+});
