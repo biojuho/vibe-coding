@@ -713,3 +713,45 @@ test("deleteAccount server action anonymizes subscription and deletes user", () 
 	const actions = readSource("lib/actions.js");
 	assert.match(actions, /deleteAccount/);
 });
+
+test("settings change-password form has Eye/EyeOff toggles and real-time mismatch", () => {
+	const source = readSource("components/tabs/SettingsTab.js");
+
+	// Eye/EyeOff imported
+	assert.match(source, /Eye,\s*EyeOff[\s\S]*?from ["']lucide-react["']/);
+
+	// Show/hide state for all three fields
+	assert.match(source, /const \[showPwCurrent, setShowPwCurrent\] = useState\(false\)/);
+	assert.match(source, /const \[showPwNew, setShowPwNew\] = useState\(false\)/);
+	assert.match(source, /const \[showPwConfirm, setShowPwConfirm\] = useState\(false\)/);
+
+	// Real-time mismatch computed state
+	assert.match(source, /const pwNewMismatch = pwConfirm\.length > 0 && pwNew !== pwConfirm/);
+
+	// Dynamic type for each field
+	assert.match(source, /type=\{showPwCurrent \? ["']text["'] : ["']password["']\}/);
+	assert.match(source, /type=\{showPwNew \? ["']text["'] : ["']password["']\}/);
+	assert.match(source, /type=\{showPwConfirm \? ["']text["'] : ["']password["']\}/);
+
+	// aria-invalid on confirm field
+	assert.match(source, /aria-invalid=\{pwNewMismatch\}/);
+
+	// Mismatch warning shown inline
+	assert.match(source, /새 비밀번호가 일치하지 않습니다/);
+
+	// Submit disabled when mismatch
+	assert.match(source, /disabled=\{isSavingPw \|\| !pwCurrent \|\| !pwNew \|\| !pwConfirm \|\| pwNewMismatch\}/);
+
+	// Toggle buttons with aria-pressed
+	assert.match(source, /aria-pressed=\{showPwCurrent\}/);
+	assert.match(source, /aria-pressed=\{showPwNew\}/);
+	assert.match(source, /aria-pressed=\{showPwConfirm\}/);
+
+	// Korean aria-labels for all toggles
+	assert.match(source, /현재 비밀번호 숨기기/);
+	assert.match(source, /현재 비밀번호 보기/);
+	assert.match(source, /새 비밀번호 숨기기/);
+	assert.match(source, /새 비밀번호 보기/);
+	assert.match(source, /새 비밀번호 확인 숨기기/);
+	assert.match(source, /새 비밀번호 확인 보기/);
+});

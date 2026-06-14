@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { LogOut, MapPin, Settings, Trash2 } from "lucide-react";
+import { Eye, EyeOff, LogOut, MapPin, Settings, Trash2 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -157,6 +157,10 @@ export default function SettingsTab(options = {}) {
 	const [pwError, setPwError] = useState("");
 	const [pwSuccess, setPwSuccess] = useState(false);
 	const [isSavingPw, setIsSavingPw] = useState(false);
+	const [showPwCurrent, setShowPwCurrent] = useState(false);
+	const [showPwNew, setShowPwNew] = useState(false);
+	const [showPwConfirm, setShowPwConfirm] = useState(false);
+	const pwNewMismatch = pwConfirm.length > 0 && pwNew !== pwConfirm;
 	const { data: currentSession } = useSession();
 	const currentUsername = currentSession?.user?.name || "";
 	const isMountedRef = useRef(false);
@@ -1124,33 +1128,78 @@ export default function SettingsTab(options = {}) {
 					비밀번호 변경
 				</div>
 				<form onSubmit={handleChangePassword} noValidate style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-					<PremiumInput
-						id="pw-current"
-						type="password"
-						placeholder="현재 비밀번호"
-						value={pwCurrent}
-						onChange={(e) => { setPwCurrent(e.target.value); setPwError(""); setPwSuccess(false); }}
-						aria-label="현재 비밀번호"
-						autoComplete="current-password"
-					/>
-					<PremiumInput
-						id="pw-new"
-						type="password"
-						placeholder="새 비밀번호 (8자 이상)"
-						value={pwNew}
-						onChange={(e) => { setPwNew(e.target.value); setPwError(""); setPwSuccess(false); }}
-						aria-label="새 비밀번호"
-						autoComplete="new-password"
-					/>
-					<PremiumInput
-						id="pw-confirm"
-						type="password"
-						placeholder="새 비밀번호 확인"
-						value={pwConfirm}
-						onChange={(e) => { setPwConfirm(e.target.value); setPwError(""); setPwSuccess(false); }}
-						aria-label="새 비밀번호 확인"
-						autoComplete="new-password"
-					/>
+					<div style={{ position: "relative" }}>
+						<PremiumInput
+							id="pw-current"
+							type={showPwCurrent ? "text" : "password"}
+							placeholder="현재 비밀번호"
+							value={pwCurrent}
+							onChange={(e) => { setPwCurrent(e.target.value); setPwError(""); setPwSuccess(false); }}
+							aria-label="현재 비밀번호"
+							autoComplete="current-password"
+							style={{ paddingRight: "44px" }}
+						/>
+						<button
+							type="button"
+							onClick={() => setShowPwCurrent((v) => !v)}
+							aria-pressed={showPwCurrent}
+							aria-label={showPwCurrent ? "현재 비밀번호 숨기기" : "현재 비밀번호 보기"}
+							title={showPwCurrent ? "현재 비밀번호 숨기기" : "현재 비밀번호 보기"}
+							style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", padding: "4px", display: "flex", alignItems: "center" }}
+						>
+							{showPwCurrent ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+						</button>
+					</div>
+					<div style={{ position: "relative" }}>
+						<PremiumInput
+							id="pw-new"
+							type={showPwNew ? "text" : "password"}
+							placeholder="새 비밀번호 (8자 이상)"
+							value={pwNew}
+							onChange={(e) => { setPwNew(e.target.value); setPwError(""); setPwSuccess(false); }}
+							aria-label="새 비밀번호"
+							autoComplete="new-password"
+							style={{ paddingRight: "44px" }}
+						/>
+						<button
+							type="button"
+							onClick={() => setShowPwNew((v) => !v)}
+							aria-pressed={showPwNew}
+							aria-label={showPwNew ? "새 비밀번호 숨기기" : "새 비밀번호 보기"}
+							title={showPwNew ? "새 비밀번호 숨기기" : "새 비밀번호 보기"}
+							style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", padding: "4px", display: "flex", alignItems: "center" }}
+						>
+							{showPwNew ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+						</button>
+					</div>
+					<div style={{ position: "relative" }}>
+						<PremiumInput
+							id="pw-confirm"
+							type={showPwConfirm ? "text" : "password"}
+							placeholder="새 비밀번호 확인"
+							value={pwConfirm}
+							onChange={(e) => { setPwConfirm(e.target.value); setPwError(""); setPwSuccess(false); }}
+							aria-label="새 비밀번호 확인"
+							autoComplete="new-password"
+							aria-invalid={pwNewMismatch}
+							style={{ paddingRight: "44px", borderColor: pwNewMismatch ? "var(--color-danger)" : undefined }}
+						/>
+						<button
+							type="button"
+							onClick={() => setShowPwConfirm((v) => !v)}
+							aria-pressed={showPwConfirm}
+							aria-label={showPwConfirm ? "새 비밀번호 확인 숨기기" : "새 비밀번호 확인 보기"}
+							title={showPwConfirm ? "새 비밀번호 확인 숨기기" : "새 비밀번호 확인 보기"}
+							style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", padding: "4px", display: "flex", alignItems: "center" }}
+						>
+							{showPwConfirm ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+						</button>
+					</div>
+					{pwNewMismatch && (
+						<p style={{ fontSize: "12px", color: "var(--color-danger)", fontWeight: 600, marginTop: "-4px" }}>
+							새 비밀번호가 일치하지 않습니다.
+						</p>
+					)}
 					{pwError && (
 						<div role="alert" style={{ fontSize: "12px", color: "var(--color-danger)", fontWeight: 600 }}>
 							{pwError}
@@ -1165,7 +1214,7 @@ export default function SettingsTab(options = {}) {
 						type="submit"
 						variant="secondary"
 						size="sm"
-						disabled={isSavingPw || !pwCurrent || !pwNew || !pwConfirm}
+						disabled={isSavingPw || !pwCurrent || !pwNew || !pwConfirm || pwNewMismatch}
 						aria-busy={isSavingPw}
 						className="self-end"
 					>
