@@ -476,6 +476,27 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Skip-to-main navigation link for keyboard/screen-reader users (WCAG 2.4.1) */
+.skip-to-main {
+  position: absolute;
+  top: -48px;
+  left: 16px;
+  z-index: 10000;
+  padding: 8px 20px;
+  background: var(--color-primary-custom);
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  border-radius: 0 0 12px 12px;
+  text-decoration: none;
+  transition: top 0.15s ease;
+  outline-offset: 2px;
+}
+
+.skip-to-main:focus {
+  top: 0;
+}
+
 /* ============================================
    Animations
    ============================================ */

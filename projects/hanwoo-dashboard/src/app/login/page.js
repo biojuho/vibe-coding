@@ -157,7 +157,7 @@ export default function LoginPage() {
 	};
 
 	return (
-		<main className="login-shell">
+		<main className="login-shell" id="main-content">
 			<section id="login" className="login-card" aria-labelledby="login-title">
 				<div className="login-brand">
 					<div className="login-mark" aria-hidden="true">

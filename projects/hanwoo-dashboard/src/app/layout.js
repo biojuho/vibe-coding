@@ -77,6 +77,9 @@ export default function RootLayout(options = {}) {
 			<body
 				className={`${notoSansKr.variable} ${notoSerifKr.variable} ${cormorantGaramond.variable}`}
 			>
+				<a href="#main-content" className="skip-to-main">
+					본문으로 건너뛰기
+				</a>
 				<Providers>
 					<Suspense>{children}</Suspense>
 				</Providers>

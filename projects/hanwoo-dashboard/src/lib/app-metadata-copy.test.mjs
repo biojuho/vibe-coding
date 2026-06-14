@@ -79,6 +79,25 @@ test("public-facing pages have distinct Korean page titles for SEO", () => {
 	assert.match(registerLayout, /export default function RegisterLayout/);
 });
 
+test("root layout includes skip-to-main-content link for keyboard accessibility", () => {
+	const layoutSource = readProjectFile("src/app/layout.js");
+	const cssSource = readProjectFile("src/app/globals.css");
+
+	// Skip link targets main-content ID
+	assert.match(layoutSource, /href="#main-content"/);
+	assert.match(layoutSource, /className="skip-to-main"/);
+	assert.match(layoutSource, /본문으로 건너뛰기/);
+
+	// CSS hides and reveals on focus (WCAG 2.4.1)
+	assert.match(cssSource, /\.skip-to-main\s*\{/);
+	assert.match(cssSource, /\.skip-to-main:focus\s*\{/);
+	assert.match(cssSource, /top:\s*0/);
+
+	// Login page exposes id="main-content" for the skip link target
+	const loginSource = readProjectFile("src/app/login/page.js");
+	assert.match(loginSource, /id="main-content"/);
+});
+
 test("committed service worker fallback stays build-agnostic", () => {
 	const serviceWorkerSource = readProjectFile("public/sw.js");
 

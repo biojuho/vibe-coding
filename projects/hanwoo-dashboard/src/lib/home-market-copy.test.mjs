@@ -2111,7 +2111,7 @@ test("landing page uses semantic HTML landmarks for accessibility", () => {
 
 	// Proper landmark roles
 	assert.match(source, /role="banner"/);
-	assert.match(source, /<main>/);
+	assert.match(source, /<main id="main-content">/);
 	assert.match(source, /<\/main>/);
 	assert.match(source, /<footer/);
 	assert.match(source, /<header/);
@@ -2147,7 +2147,7 @@ test("register page uses main landmark as page shell and submit has aria-busy", 
 	const source = readSource("app/register/page.js");
 
 	// Outer container is a <main> landmark, not a bare <div>
-	assert.match(source, /<main\s+style=\{/);
+	assert.match(source, /<main[\s\S]{0,60}id="main-content"/);
 	assert.match(source, /<\/main>/);
 	assert.doesNotMatch(source, /return \(\s+<div\s+style=\{\{[\s\S]*?minHeight: ["']100dvh["']/);
 
