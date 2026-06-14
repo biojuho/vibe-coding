@@ -289,3 +289,60 @@ async def test_string_false_disables_cross_source_dedup():
         "https://dcinside.com/a",
     ]
     assert stats["cross_source_dedup_count"] == 0
+
+
+@pytest.mark.asyncio
+async def test_nan_score_from_editorial_fit_does_not_crash_sort():
+    """NaN/Inf from evaluate_candidate_editorial_fit must not corrupt the sort.
+
+    When a provider returns float('nan') as score, the fix clamps it to 0.0
+    so the sort key is always finite and comparable.
+    """
+    config = MagicMock()
+    config_dict = {
+        "scrape_limit": 5,
+        "feed_filter.fetch_multiplier": 1,
+        "feed_filter.min_engagement_score": 0.0,
+        "feed_filter.min_pre_editorial_score": 35.0,
+        "feed_filter.title_blacklist": [],
+        "schedule.enabled": True,
+        "dedup.cross_source_enabled": False,
+        "scrape_limits_per_source": {},
+    }
+    config.get.side_effect = lambda key, default=None: config_dict.get(key, default)
+
+    scraper = AsyncMock()
+    scraper.get_feed_candidates.return_value = [
+        MockCandidate("정상 점수 기사", "https://example.com/ok", score=10.0),
+        MockCandidate("NaN 점수 기사", "https://example.com/nan", score=10.0),
+    ]
+
+    call_count = 0
+
+    def editorial_with_nan(**kwargs):
+        nonlocal call_count
+        call_count += 1
+        # Second call returns NaN score — simulates malformed LLM response
+        score = float("nan") if call_count == 2 else 80.0
+        return {
+            "score": score,
+            "reason_labels": [],
+            "dimensions": {},
+            "topic_cluster": "기타",
+            "empathy_anchor": "",
+            "spinoff_angle": "",
+        }
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr("pipeline.feed_collector.evaluate_candidate_editorial_fit", editorial_with_nan)
+        # Must not raise (before fix, NaN in sort key caused undefined behaviour)
+        items, stats = await collect_feed_items(
+            config,
+            Namespace(urls=None, popular=False, trending=True, limit=5),
+            {"test": scraper},
+        )
+
+    # ok item passes (score 80 ≥ 35); nan item gets clamped to 0 → filtered (0 < 35)
+    assert len(items) == 1
+    assert items[0]["url"] == "https://example.com/ok"
+    assert stats["editorial_skips"] == 1

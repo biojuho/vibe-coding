@@ -6,6 +6,7 @@ Extracted from main.py to keep the orchestration layer thin.
 from __future__ import annotations
 
 import logging
+import math
 
 from config import as_bool as _as_bool
 from pipeline.content_intelligence import evaluate_candidate_editorial_fit
@@ -125,7 +126,8 @@ async def collect_feed_items(
                 source=source_name,
                 content="",
             )
-            pre_editorial_score = float(editorial_fit.get("score", 0.0) or 0.0)
+            _raw_score = float(editorial_fit.get("score", 0.0) or 0.0)
+            pre_editorial_score = _raw_score if math.isfinite(_raw_score) else 0.0
             # Title-only pre-screening: ignore hard_reject (designed for
             # title+content) and use a lower threshold.  Full editorial
             # scoring runs again after scraping with the actual content.
@@ -135,7 +137,10 @@ async def collect_feed_items(
                     source_name,
                     (candidate.title or "")[:60],
                     pre_editorial_score,
-                    ", ".join(editorial_fit.get("hard_reject_reasons") or editorial_fit.get("reason_labels") or []),
+                    ", ".join(
+                        str(r)
+                        for r in (editorial_fit.get("hard_reject_reasons") or editorial_fit.get("reason_labels") or [])
+                    ),
                 )
                 editorial_skips += 1
                 continue
