@@ -1368,43 +1368,59 @@ export default function DashboardClient(options = {}) {
 	};
 
 	const handleCreateEvent = async (data) => {
-		const res = await createScheduleEvent(data);
-		if (!res.success) {
+		try {
+			const res = await createScheduleEvent(data);
+			if (!res.success) {
+				if (dashboardMountedRef.current) {
+					showError("일정을 등록하지 못했습니다.", res.message);
+				}
+				return false;
+			}
+
+			if (!dashboardMountedRef.current) {
+				return true;
+			}
+			setScheduleEvents((prev) => sortByDateAsc([res.data, ...prev], "date"));
+			showSuccess("일정을 등록했습니다.");
+			return true;
+		} catch (error) {
+			console.error("Failed to create event:", error);
 			if (dashboardMountedRef.current) {
-				showError("일정을 등록하지 못했습니다.", res.message);
+				showError("일정을 등록하지 못했습니다.", unexpectedActionErrorDescription);
 			}
 			return false;
 		}
-
-		if (!dashboardMountedRef.current) {
-			return true;
-		}
-		setScheduleEvents((prev) => sortByDateAsc([res.data, ...prev], "date"));
-		showSuccess("일정을 등록했습니다.");
-		return true;
 	};
 
 	const handleToggleEvent = async (id, isCompleted) => {
-		const res = await toggleEventCompletion(id, isCompleted);
-		if (!res.success) {
+		try {
+			const res = await toggleEventCompletion(id, isCompleted);
+			if (!res.success) {
+				if (dashboardMountedRef.current) {
+					showError("일정 상태를 변경하지 못했습니다.", res.message);
+				}
+				return false;
+			}
+
+			if (!dashboardMountedRef.current) {
+				return true;
+			}
+			setScheduleEvents((prev) =>
+				prev.map((event) => (event.id === res.data.id ? res.data : event)),
+			);
+			showSuccess(
+				isCompleted
+					? "일정을 완료 처리했습니다."
+					: "일정을 다시 진행 중으로 변경했습니다.",
+			);
+			return true;
+		} catch (error) {
+			console.error("Failed to toggle event:", error);
 			if (dashboardMountedRef.current) {
-				showError("일정 상태를 변경하지 못했습니다.", res.message);
+				showError("일정 상태를 변경하지 못했습니다.", unexpectedActionErrorDescription);
 			}
 			return false;
 		}
-
-		if (!dashboardMountedRef.current) {
-			return true;
-		}
-		setScheduleEvents((prev) =>
-			prev.map((event) => (event.id === res.data.id ? res.data : event)),
-		);
-		showSuccess(
-			isCompleted
-				? "일정을 완료 처리했습니다."
-				: "일정을 다시 진행 중으로 변경했습니다.",
-		);
-		return true;
 	};
 
 	const handleCreateSale = async (data) => {
@@ -1417,21 +1433,29 @@ export default function DashboardClient(options = {}) {
 			return true;
 		}
 
-		const res = await createSalesRecord(data);
-		if (!res.success) {
+		try {
+			const res = await createSalesRecord(data);
+			if (!res.success) {
+				if (dashboardMountedRef.current) {
+					showError("판매 기록을 등록하지 못했습니다.", res.message);
+				}
+				return false;
+			}
+
+			if (!dashboardMountedRef.current) {
+				return true;
+			}
+			prependSaleRecord(res.data);
+			void refreshDashboardReadModels();
+			showSuccess("판매 기록이 등록되었습니다.");
+			return true;
+		} catch (error) {
+			console.error("Failed to create sale:", error);
 			if (dashboardMountedRef.current) {
-				showError("판매 기록을 등록하지 못했습니다.", res.message);
+				showError("판매 기록을 등록하지 못했습니다.", unexpectedActionErrorDescription);
 			}
 			return false;
 		}
-
-		if (!dashboardMountedRef.current) {
-			return true;
-		}
-		prependSaleRecord(res.data);
-		void refreshDashboardReadModels();
-		showSuccess("판매 기록이 등록되었습니다.");
-		return true;
 	};
 
 	const handleRecordFeed = async (data) => {
@@ -1444,22 +1468,30 @@ export default function DashboardClient(options = {}) {
 			return true;
 		}
 
-		const res = await recordFeed(data);
-		if (!res.success) {
+		try {
+			const res = await recordFeed(data);
+			if (!res.success) {
+				if (dashboardMountedRef.current) {
+					showError("급여 기록을 저장하지 못했습니다.", res.message);
+				}
+				return false;
+			}
+
+			if (!dashboardMountedRef.current) {
+				return true;
+			}
+			setFeedHistory((prev) =>
+				sortByDateDesc([res.data, ...prev], "date").slice(0, 20),
+			);
+			showSuccess("급여 기록이 완료되었습니다.");
+			return true;
+		} catch (error) {
+			console.error("Failed to record feed:", error);
 			if (dashboardMountedRef.current) {
-				showError("급여 기록을 저장하지 못했습니다.", res.message);
+				showError("급여 기록을 저장하지 못했습니다.", unexpectedActionErrorDescription);
 			}
 			return false;
 		}
-
-		if (!dashboardMountedRef.current) {
-			return true;
-		}
-		setFeedHistory((prev) =>
-			sortByDateDesc([res.data, ...prev], "date").slice(0, 20),
-		);
-		showSuccess("급여 기록이 완료되었습니다.");
-		return true;
 	};
 
 	const handleCreateBuilding = async (data) => {

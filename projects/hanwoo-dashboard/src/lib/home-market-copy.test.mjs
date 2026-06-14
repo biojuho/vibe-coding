@@ -419,11 +419,11 @@ test("dashboard schedule mutation completions ignore stale unmounted state", () 
 	assert.match(source, /const dashboardMountedRef = useRef\(false\);/);
 	assert.match(
 		source,
-		/const handleCreateEvent = async \(data\) => \{\s+const res = await createScheduleEvent\(data\);\s+if \(!res\.success\) \{\s+if \(dashboardMountedRef\.current\) \{\s+showError\("[^"]+", res\.message\);\s+\}\s+return false;\s+\}\s+if \(!dashboardMountedRef\.current\) \{\s+return true;\s+\}\s+setScheduleEvents\(\(prev\) => sortByDateAsc\(\[res\.data, \.\.\.prev\], "date"\)\);/,
+		/const handleCreateEvent = async \(data\) => \{\s+(?:try \{\s+)?const res = await createScheduleEvent\(data\);\s+if \(!res\.success\) \{\s+if \(dashboardMountedRef\.current\) \{\s+showError\("[^"]+", res\.message\);\s+\}\s+return false;\s+\}\s+if \(!dashboardMountedRef\.current\) \{\s+return true;\s+\}\s+setScheduleEvents\(\(prev\) => sortByDateAsc\(\[res\.data, \.\.\.prev\], "date"\)\);/,
 	);
 	assert.match(
 		source,
-		/const handleToggleEvent = async \(id, isCompleted\) => \{\s+const res = await toggleEventCompletion\(id, isCompleted\);\s+if \(!res\.success\) \{\s+if \(dashboardMountedRef\.current\) \{\s+showError\("[^"]+", res\.message\);\s+\}\s+return false;\s+\}\s+if \(!dashboardMountedRef\.current\) \{\s+return true;\s+\}\s+setScheduleEvents\(\(prev\) =>/,
+		/const handleToggleEvent = async \(id, isCompleted\) => \{\s+(?:try \{\s+)?const res = await toggleEventCompletion\(id, isCompleted\);\s+if \(!res\.success\) \{\s+if \(dashboardMountedRef\.current\) \{\s+showError\("[^"]+", res\.message\);\s+\}\s+return false;\s+\}\s+if \(!dashboardMountedRef\.current\) \{\s+return true;\s+\}\s+setScheduleEvents\(\(prev\) =>/,
 	);
 	assert.doesNotMatch(
 		source,

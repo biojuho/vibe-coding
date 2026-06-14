@@ -713,7 +713,7 @@ export default function SalesTab(options = {}) {
 												color: "var(--color-text-muted)",
 											}}
 										>
-											{record.auctionLocation || record.purchaser}
+											{record.purchaser}
 										</div>
 									</div>
 								</div>
