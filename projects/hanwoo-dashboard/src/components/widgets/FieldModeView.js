@@ -62,7 +62,9 @@ function normalizeStoredChecklist(value) {
 
 	const savedById = new Map(
 		value
-			.filter((item) => item && typeof item === "object" && !Array.isArray(item))
+			.filter(
+				(item) => item && typeof item === "object" && !Array.isArray(item),
+			)
 			.map((item) => [item.id, item]),
 	);
 
@@ -78,7 +80,12 @@ function readStoredChecklist(todayKey) {
 		if (saved) {
 			return normalizeStoredChecklist(JSON.parse(saved));
 		}
-	} catch {}
+	} catch (err) {
+		console.warn(
+			"FieldModeView: failed to read checklist from localStorage",
+			err,
+		);
+	}
 
 	return createFreshChecklist();
 }
@@ -86,7 +93,12 @@ function readStoredChecklist(todayKey) {
 function writeStoredChecklist(todayKey, checklist) {
 	try {
 		localStorage.setItem(todayKey, JSON.stringify(checklist));
-	} catch {}
+	} catch (err) {
+		console.warn(
+			"FieldModeView: failed to persist checklist to localStorage",
+			err,
+		);
+	}
 }
 
 function scheduleFieldModeTimer(callback, delay) {
@@ -209,7 +221,9 @@ export default function FieldModeView(options = {}) {
 			let saved = null;
 			try {
 				saved = localStorage.getItem(todayKey);
-			} catch {}
+			} catch (err) {
+				console.warn("FieldModeView: localStorage.getItem failed", err);
+			}
 			if (!saved) {
 				// Clean up old checklist keys safely without index shifting
 				try {
@@ -223,9 +237,20 @@ export default function FieldModeView(options = {}) {
 					keysToRemove.forEach((key) => {
 						try {
 							localStorage.removeItem(key);
-						} catch {}
+						} catch (err) {
+							console.warn(
+								"FieldModeView: localStorage.removeItem failed for key",
+								key,
+								err,
+							);
+						}
 					});
-				} catch {}
+				} catch (err) {
+					console.warn(
+						"FieldModeView: failed to enumerate localStorage keys",
+						err,
+					);
+				}
 
 				const fresh = createFreshChecklist();
 				writeStoredChecklist(todayKey, fresh);
@@ -296,22 +321,16 @@ export default function FieldModeView(options = {}) {
 		};
 
 		createFirework(width / 2, height * 0.85);
-		const t1 = scheduleFieldModeTimer(
-			() => {
-				if (!cancelled) {
-					createFirework(width * 0.25, height * 0.6);
-				}
-			},
-			250,
-		);
-		const t2 = scheduleFieldModeTimer(
-			() => {
-				if (!cancelled) {
-					createFirework(width * 0.75, height * 0.6);
-				}
-			},
-			400,
-		);
+		const t1 = scheduleFieldModeTimer(() => {
+			if (!cancelled) {
+				createFirework(width * 0.25, height * 0.6);
+			}
+		}, 250);
+		const t2 = scheduleFieldModeTimer(() => {
+			if (!cancelled) {
+				createFirework(width * 0.75, height * 0.6);
+			}
+		}, 400);
 
 		let animationId = null;
 		let frameFailureTimer = null;
@@ -689,7 +708,9 @@ export default function FieldModeView(options = {}) {
 													<span>{cow.weight}kg</span>
 													<span>·</span>
 													<span>
-														{cow.buildingId ? `${cow.buildingId}동` : "축사 미지정"}{" "}
+														{cow.buildingId
+															? `${cow.buildingId}동`
+															: "축사 미지정"}{" "}
 														{cow.penNumber ? `${cow.penNumber}번 칸` : ""}
 													</span>
 												</div>
@@ -770,47 +791,50 @@ export default function FieldModeView(options = {}) {
 							{checklist.map((item) => {
 								const checklistItemLabel = `${item.title} ${item.checked ? "완료됨" : "미완료"} - 점검 완료 상태 변경`;
 								return (
-								<button
-									key={item.id}
-									type="button"
-									onClick={() => handleToggleCheck(item.id)}
-									aria-pressed={item.checked}
-									aria-label={checklistItemLabel}
-									title={checklistItemLabel}
-									className={`w-full text-left p-4.5 rounded-2xl border transition-all flex items-center justify-between gap-4 cursor-pointer group ${
-										item.checked
-											? "bg-amber-500/10 border-amber-500/40 shadow-inner"
-											: "bg-white/5 border-white/5 hover:border-amber-500/20"
-									}`}
-								>
-									<div className="flex items-center gap-3.5 flex-1 min-w-0">
-										<span className="text-xl flex-shrink-0" aria-hidden="true">
-											{item.icon}
-										</span>
-										<div className="min-w-0">
-											<h4
-												className={`text-[13px] font-bold tracking-tight leading-normal ${item.checked ? "text-amber-400 line-through opacity-65" : "text-foreground"}`}
-											>
-												{item.title}
-											</h4>
-											<p className="text-[11px] text-amber-500/60 mt-0.5 leading-relaxed truncate group-hover:text-amber-500/80 transition-colors">
-												{item.detail}
-											</p>
-										</div>
-									</div>
-									<div
-										className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+									<button
+										key={item.id}
+										type="button"
+										onClick={() => handleToggleCheck(item.id)}
+										aria-pressed={item.checked}
+										aria-label={checklistItemLabel}
+										title={checklistItemLabel}
+										className={`w-full text-left p-4.5 rounded-2xl border transition-all flex items-center justify-between gap-4 cursor-pointer group ${
 											item.checked
-												? "bg-amber-500 border-amber-500 text-black font-black"
-												: "border-amber-500/30"
+												? "bg-amber-500/10 border-amber-500/40 shadow-inner"
+												: "bg-white/5 border-white/5 hover:border-amber-500/20"
 										}`}
-										aria-hidden="true"
 									>
-										{item.checked ? (
-											<CheckCircle2 size={14} strokeWidth={3.5} />
-										) : null}
-									</div>
-								</button>
+										<div className="flex items-center gap-3.5 flex-1 min-w-0">
+											<span
+												className="text-xl flex-shrink-0"
+												aria-hidden="true"
+											>
+												{item.icon}
+											</span>
+											<div className="min-w-0">
+												<h4
+													className={`text-[13px] font-bold tracking-tight leading-normal ${item.checked ? "text-amber-400 line-through opacity-65" : "text-foreground"}`}
+												>
+													{item.title}
+												</h4>
+												<p className="text-[11px] text-amber-500/60 mt-0.5 leading-relaxed truncate group-hover:text-amber-500/80 transition-colors">
+													{item.detail}
+												</p>
+											</div>
+										</div>
+										<div
+											className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+												item.checked
+													? "bg-amber-500 border-amber-500 text-black font-black"
+													: "border-amber-500/30"
+											}`}
+											aria-hidden="true"
+										>
+											{item.checked ? (
+												<CheckCircle2 size={14} strokeWidth={3.5} />
+											) : null}
+										</div>
+									</button>
 								);
 							})}
 						</div>
