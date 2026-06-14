@@ -2229,6 +2229,16 @@ test("ScheduleTab calendar today cell has aria-current=date for screen readers",
 	assert.match(source, /aria-current=\{isToday \? "date" : undefined\}/);
 });
 
+test("NotificationWidget section is labelled and items have list semantics", () => {
+	const source = readSource("components/widgets/NotificationWidget.js");
+
+	// Section must be labelled so it appears as a region landmark to screen readers
+	assert.match(source, /aria-label="우선 확인 알림"/);
+	// Notification items must be in a list so screen reader announces item count
+	assert.match(source, /role="list"/);
+	assert.match(source, /role="listitem"/);
+});
+
 test("CalvingTab stat chips container is aria-live so counts update for screen readers", () => {
 	const source = readSource("components/tabs/CalvingTab.js");
 

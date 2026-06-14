@@ -80,18 +80,19 @@ export default function NotificationWidget(options = {}) {
 	if (visibleNotifications.length === 0) return null;
 
 	return (
-		<section className="animate-fadeInDown mb-6">
+		<section className="animate-fadeInDown mb-6" aria-label="우선 확인 알림">
 			<div className="mb-3 flex items-center gap-3">
 				<div className="clay-page-eyebrow">우선 확인 알림</div>
 				<div className="clay-stat-chip">{visibleNotifications.length}건</div>
 			</div>
 
-			<div className="grid gap-3">
+			<div className="grid gap-3" role="list">
 				{visibleNotifications.map((note) => {
 					const style = TYPE_STYLES[note.type] || TYPE_STYLES.default;
 
 					return (
 						<div
+							role="listitem"
 							key={note.id}
 							className="rounded-[24px] border p-4 transition-[transform,box-shadow,border-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)]"
 							style={{
