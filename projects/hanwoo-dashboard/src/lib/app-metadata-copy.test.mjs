@@ -158,6 +158,18 @@ test("globals.css respects prefers-reduced-motion for accessibility", () => {
 	assert.match(cssSource, /scroll-behavior: auto !important/);
 });
 
+test("security headers allow geolocation for weather widget but block microphone", () => {
+	const configSource = readProjectFile("next.config.mjs");
+
+	// camera=(self) allows ear-tag scanner; geolocation=(self) allows weather auto-detect
+	assert.match(configSource, /camera=\(self\)/);
+	assert.match(configSource, /geolocation=\(self\)/);
+	// microphone must stay blocked — no feature uses it
+	assert.match(configSource, /microphone=\(\)/);
+	// geolocation=() (blocked) must not appear — would break weather widget
+	assert.doesNotMatch(configSource, /geolocation=\(\)/);
+});
+
 test("globals.css has print styles that hide chrome and preserve content", () => {
 	const cssSource = readProjectFile("src/app/globals.css");
 
