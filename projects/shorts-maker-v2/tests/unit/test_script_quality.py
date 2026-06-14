@@ -117,16 +117,16 @@ class TestTrimHookToLimit:
     # `로마는 하루아침에 무너지지 않았다 — 그 진짜 이유` 같은 의미 있는 hook 이
     # `로마는 하루아침에 무너` 14자로 잘려 의미가 깨졌다.
 
-    def test_default_limit_is_40(self):
-        """Default limit 은 40 (이전 15 에서 상향, hook_scorer 의 0.4점 임계)."""
-        narration = "x" * 41
+    def test_default_limit_is_55(self):
+        """Default limit 은 55 (T-AB026: 정보 밀집형 hook 보존)."""
+        narration = "x" * 56
         result = ScriptStep._trim_hook_to_limit(narration)
-        assert len(result) <= 40
+        assert len(result) <= 55
 
     def test_38char_korean_hook_preserved(self):
-        """38자 한국어 hook 은 default limit=40 이내라 그대로 유지."""
+        """38자 한국어 hook 은 default limit=55 이내라 그대로 유지."""
         narration = "로마는 하루아침에 무너지지 않았다 그 진짜 이유는"  # 24자
-        # 24자 < 40 → 변형 없음
+        # 24자 < 55 → 변형 없음
         assert ScriptStep._trim_hook_to_limit(narration) == narration
 
     def test_word_boundary_preferred_when_close(self):
@@ -243,17 +243,16 @@ class TestScorePersonaMatch:
 
 class TestParseScriptPayloadHookTrim:
     def test_long_hook_trimmed_in_parse(self):
-        """parse_script_payload 에서 40자 초과 Hook 이 자동 트림된다.
+        """parse_script_payload 에서 55자 초과 Hook 이 자동 트림된다.
 
-        Phase 1 #5 에서 hard cap 을 15→40 으로 상향했음(hook_scorer 의
-        brevity_score 0.4 임계와 정합). 30자짜리 hook 은 그대로 유지된다.
+        T-AB026 에서 hard cap 을 40→55 로 상향했음. 정보 밀집형 hook 은 보존한다.
         """
-        # 새 한도(40) 초과를 명시적으로 보장하기 위해 60자 이상으로 잡는다.
+        # 새 한도(55) 초과를 명시적으로 보장하기 위해 60자 이상으로 잡는다.
         long_hook = (
             "이것은매우긴후크문장으로마흔자를훨씬넘어가서반드시잘리는내용입니다그래야합니다"
             "추가로더많은단어를덧붙여서절대로한도안에들지않게만든다"
         )  # 65+ 자
-        assert len(long_hook) > 40  # 테스트 데이터 자체 검증
+        assert len(long_hook) > 55  # 테스트 데이터 자체 검증
         payload = {
             "title": "Hook Trim Test",
             "scenes": [
@@ -277,8 +276,8 @@ class TestParseScriptPayloadHookTrim:
             tts_speed=1.05,
         )
         hook_scene = next(s for s in scenes if s.structure_role == "hook")
-        assert len(hook_scene.narration_ko) <= 40, (
-            f"Hook should be trimmed to <=40 chars but got {len(hook_scene.narration_ko)}"
+        assert len(hook_scene.narration_ko) <= 55, (
+            f"Hook should be trimmed to <=55 chars but got {len(hook_scene.narration_ko)}"
         )
         # 그리고 실제로 트림이 일어났는지(원본보다 짧아졌는지) 검증
         assert len(hook_scene.narration_ko) < len(long_hook)
@@ -409,9 +408,9 @@ class TestRunIntegration:
         assert score == 0.5
 
     def test_hook_trimmed_in_run_output(self):
-        """run() 결과에서 Hook 씬의 narration 이 40자 이하임을 확인한다.
+        """run() 결과에서 Hook 씬의 narration 이 55자 이하임을 확인한다.
 
-        Phase 1 #5: hard cap 15→40 으로 상향. 40+ 자 hook 만 트림된다.
+        T-AB026: hard cap 40→55 로 상향. 55+ 자 hook 만 트림된다.
         """
         long_hook = "정말 충격적인 사실 하나를 지금 바로 들려드릴게요 그러니 끝까지 보세요 부탁드립니다"
         cta = self._CLEAN_CTA
@@ -421,7 +420,75 @@ class TestRunIntegration:
         hook_scenes = [s for s in scenes if s.structure_role == "hook"]
         assert hook_scenes, "Hook scene should exist"
         for hook in hook_scenes:
-            assert len(hook.narration_ko) <= 40, (
-                f"Hook should be <=40 chars but got {len(hook.narration_ko)}: '{hook.narration_ko}'"
+            assert len(hook.narration_ko) <= 55, (
+                f"Hook should be <=55 chars but got {len(hook.narration_ko)}: '{hook.narration_ko}'"
             )
             assert len(hook.narration_ko) < len(long_hook)
+
+
+# ── T-AB032: _truncate_to_fit ─────────────────────────────────────────────────
+
+
+def make_step(**kwargs) -> ScriptStep:
+    config = make_config(**kwargs)
+    return ScriptStep(config=config, llm_router=FakeLLMRouter([]), channel_key="ai_tech")
+
+
+class TestTruncateToFit:
+    """_truncate_to_fit: 총 길이 초과 시 씬별 비례 트림."""
+
+    def _step(self) -> ScriptStep:
+        return make_step(duration_range=(38, 52), tts_speed=1.05)
+
+    def _scene(self, narration: str, sec: float = 10.0, sid: int = 1) -> ScenePlan:
+        return ScenePlan(
+            scene_id=sid,
+            narration_ko=narration,
+            visual_prompt_en="visual",
+            target_sec=sec,
+            structure_role="body",
+        )
+
+    def test_no_truncation_when_within_limit(self):
+        """총 시간이 한도 이하면 씬이 변경되지 않아야 한다."""
+        step = self._step()
+        scene = self._scene("짧은 나레이션.", sec=2.0)
+        result = step._truncate_to_fit([scene], max_total_sec=60.0, language="ko-KR", tts_speed=1.05)
+        assert result[0].narration_ko == "짧은 나레이션."
+
+    def test_truncation_shortens_long_narration(self):
+        """총 시간 초과 시 나레이션이 짧아져야 한다."""
+        step = self._step()
+        long_narration = "가" * 300
+        scene = self._scene(long_narration, sec=60.0)
+        result = step._truncate_to_fit([scene], max_total_sec=5.0, language="ko-KR", tts_speed=1.05)
+        assert len(result[0].narration_ko) < len(long_narration)
+
+    def test_truncated_narration_ends_with_ellipsis(self):
+        """자른 나레이션은 '...'로 끝나야 한다."""
+        step = self._step()
+        scene = self._scene("가" * 200, sec=40.0)
+        result = step._truncate_to_fit([scene], max_total_sec=3.0, language="ko-KR", tts_speed=1.05)
+        assert result[0].narration_ko.endswith("...")
+
+    def test_minimum_narration_length_preserved(self):
+        """잘린 나레이션은 최소 10자 이상이어야 한다 (또는 원본이 10자 미만이면 원본)."""
+        step = self._step()
+        short_narration = "짧게"  # 2자
+        scene = self._scene(short_narration, sec=30.0)
+        result = step._truncate_to_fit([scene], max_total_sec=1.0, language="ko-KR", tts_speed=1.05)
+        assert len(result[0].narration_ko) <= len(short_narration) + 3  # at most original + ellipsis
+
+    def test_scene_count_preserved(self):
+        """씬 수는 변경되지 않아야 한다."""
+        step = self._step()
+        scenes = [self._scene("나레이션" * 50, sec=20.0, sid=i) for i in range(1, 4)]
+        result = step._truncate_to_fit(scenes, max_total_sec=10.0, language="ko-KR", tts_speed=1.05)
+        assert len(result) == 3
+
+    def test_scene_ids_preserved(self):
+        """씬 ID는 잘라내기 후에도 보존되어야 한다."""
+        step = self._step()
+        scenes = [self._scene("나레이션" * 30, sec=15.0, sid=sid) for sid in (1, 2, 3)]
+        result = step._truncate_to_fit(scenes, max_total_sec=5.0, language="ko-KR", tts_speed=1.05)
+        assert [s.scene_id for s in result] == [1, 2, 3]
