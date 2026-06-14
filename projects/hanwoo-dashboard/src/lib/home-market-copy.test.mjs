@@ -2301,3 +2301,12 @@ test("LandingPage features grid uses role=list/listitem for screen reader naviga
 	assert.match(source, /aria-label="핵심 기능 목록"/);
 	assert.match(source, /role="listitem"/);
 });
+
+test("DashboardClient home tab action grids use role=region with Korean accessible names", () => {
+	const source = readSource("components/DashboardClient.js");
+	// WCAG 1.3.1: action grids must be identifiable as named regions
+	assert.match(source, /role="region"/);
+	assert.match(source, /aria-label="오늘의 집중 항목"/);
+	assert.match(source, /aria-label="빠른 실행"/);
+	assert.match(source, /aria-label="초기 설정 진행 현황"/);
+});

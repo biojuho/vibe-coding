@@ -2641,7 +2641,7 @@ function TodayFocusPanel(options = {}) {
 				</div>
 			</div>
 
-			<div className="today-focus-grid">
+			<div role="region" aria-label="오늘의 집중 항목" className="today-focus-grid">
 				{visibleItems.map((item) => {
 					const Icon = FOCUS_ICON_BY_TYPE[item.type] || ClipboardList;
 					const focusItemLabel = `${item.title} - ${item.detail} (${item.meta})`;
@@ -2692,7 +2692,7 @@ function QuickActionPanel(options = {}) {
 				<span className="quick-action-hint">1탭 시작</span>
 			</div>
 
-			<div className="quick-action-grid">
+			<div role="region" aria-label="빠른 실행" className="quick-action-grid">
 				{visibleActions.map((action) => {
 					const Icon = action.icon;
 					const quickActionLabel = `${action.label} - ${action.detail}`;
@@ -2805,7 +2805,7 @@ function SetupProgressPanel(options = {}) {
 				<span style={{ width: `${progressPercent}%` }} />
 			</div>
 
-			<div className="setup-progress-list">
+			<div role="region" aria-label="초기 설정 진행 현황" className="setup-progress-list">
 				{progressItems.map((item) => {
 					const Icon = SETUP_ICON_BY_ID[item.id] || ClipboardList;
 					const setupItemLabel = `${item.title} ${item.done ? "완료됨" : "미완료"}, ${item.detail}`;

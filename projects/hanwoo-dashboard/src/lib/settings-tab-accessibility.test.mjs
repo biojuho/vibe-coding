@@ -784,3 +784,23 @@ test("settings tab normalizes penCount to number type (HW-ST01)", () => {
 		/Number\.isFinite\(Number\(building\.penCount\)\)\s*\n\s*\? building\.penCount/,
 	);
 });
+
+test("SettingsTab normalizes malformed options before destructuring", () => {
+	const source = readSource("components/tabs/SettingsTab.js");
+	// normalizeSettingsTabOptions guards against non-object/array inputs
+	assert.match(
+		source,
+		/function normalizeSettingsTabOptions\(options\)/,
+	);
+	assert.match(
+		source,
+		/options && typeof options === "object" && !Array\.isArray\(options\)/,
+	);
+	assert.match(
+		source,
+		/= normalizeSettingsTabOptions\(options\)/,
+	);
+	// downstream normalizers for widget registry and visibility also guard arrays
+	assert.match(source, /function normalizeSettingsWidgetRegistry\(widgets\)/);
+	assert.match(source, /Array\.isArray\(widgets\)/);
+});
