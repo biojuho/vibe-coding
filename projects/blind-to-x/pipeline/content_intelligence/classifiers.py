@@ -30,8 +30,8 @@ def classify_emotion_axis(title: str, content: str) -> str:
                 profile.valence,
             )
             return profile.emotion_axis
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("KOTE emotion classifier failed, using keyword fallback: %s", exc)
     # 키워드 기반 폴백
     return _match_first(f"{title} {content}", get_emotion_rules(), "공감")
 

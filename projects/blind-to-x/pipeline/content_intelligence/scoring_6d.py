@@ -128,8 +128,8 @@ def _load_6d_weights() -> dict[str, float]:
         calibrated = get_cost_db().load_calibrated_weights(max_age_days=7)
         if calibrated and all(k in calibrated for k in weights):
             return calibrated
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("load_calibrated_weights failed, using defaults (non-critical): %s", exc)
     return weights
 
 
