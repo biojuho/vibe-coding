@@ -364,3 +364,13 @@ test("InventoryTab and ScheduleTab add-form toggle buttons declare aria-expanded
 	assert.match(inventorySource, /aria-expanded=\{isAdding\}/);
 	assert.match(scheduleSource, /aria-expanded=\{isAdding\}/);
 });
+
+test("ScheduleTab calendar weekday headers use abbr elements with full Korean day names", () => {
+	const scheduleSource = readSource("components/tabs/ScheduleTab.js");
+
+	// abbr with title gives screen readers full weekday names while showing short labels visually
+	assert.match(scheduleSource, /<abbr title=\{full\}/);
+	assert.match(scheduleSource, /일요일/); // 일요일
+	assert.match(scheduleSource, /토요일/); // 토요일
+	assert.match(scheduleSource, /aria-label=\{full\}/);
+});

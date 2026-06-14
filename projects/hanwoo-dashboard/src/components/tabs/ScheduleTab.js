@@ -538,9 +538,9 @@ export default function ScheduleTab(options = {}) {
 			<div className="clay-page-section mb-5 px-1 py-3 sm:p-3">
 				<div className="-mx-1 overflow-x-auto px-1 pb-1">
 					<div className="mb-2 grid min-w-[314px] grid-cols-7 gap-px text-center sm:gap-2">
-						{["일", "월", "화", "수", "목", "금", "토"].map((label, index) => (
+						{[{ short: "일", full: "일요일" }, { short: "월", full: "월요일" }, { short: "화", full: "화요일" }, { short: "수", full: "수요일" }, { short: "목", full: "목요일" }, { short: "금", full: "금요일" }, { short: "토", full: "토요일" }].map(({ short, full }, index) => (
 							<div
-								key={label}
+								key={short}
 								className="text-[11px] font-semibold"
 								style={{
 									color:
@@ -548,8 +548,9 @@ export default function ScheduleTab(options = {}) {
 											? "var(--color-danger)"
 											: "var(--color-text-secondary)",
 								}}
+								aria-label={full}
 							>
-								{label}
+								<abbr title={full} style={{ textDecoration: "none" }}>{short}</abbr>
 							</div>
 						))}
 					</div>
