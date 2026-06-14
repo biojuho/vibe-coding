@@ -233,7 +233,7 @@ export default function CalvingTab(options = {}) {
 				</div>
 			)}
 
-			<div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+			<div role="list" aria-label="임신우 목록" style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
 				{pregnantCows.length === 0 ? (
 					<EmptyState
 						icon={ClipboardPlus}
@@ -254,6 +254,7 @@ export default function CalvingTab(options = {}) {
 						return (
 							<div
 								key={cow.id}
+								role="listitem"
 								className="rounded-[26px] border p-5"
 								style={{
 									background: alert

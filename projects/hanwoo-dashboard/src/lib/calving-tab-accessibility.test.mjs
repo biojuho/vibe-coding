@@ -227,3 +227,10 @@ test("CalvingTab form-trigger button declares aria-expanded so screen readers an
 	// screen readers announce whether the form is open (WCAG 4.1.2 State)
 	assert.match(source, /aria-expanded=\{isSelected\}/);
 });
+
+test("CalvingTab pregnant cow list uses role=list/listitem for screen reader navigation", () => {
+	const source = readSource("components/tabs/CalvingTab.js");
+	assert.match(source, /role="list"/);
+	assert.match(source, /aria-label="임신우 목록"/);
+	assert.match(source, /role="listitem"/);
+});
