@@ -581,6 +581,36 @@ test("AI chat route applies per-user rate limiting (30 req/hr) to prevent Gemini
 	assert.match(chatRoute, /Retry-After/);
 });
 
+// ── ai-chat-api.mjs: message limits ──────────────────────────────────────────
+
+const aiChatApi = readSource("lib/ai-chat-api.mjs");
+
+test("ai-chat-api enforces maxMessageLength=1000 to prevent prompt-injection via long inputs", () => {
+	// Very long messages can be used to push system instructions out of context or flood the model
+	assert.match(aiChatApi, /maxMessageLength: 1000/);
+	assert.match(aiChatApi, /message\.length > AI_CHAT_LIMITS\.maxMessageLength/);
+	// Error message references the constant so it stays in sync with the limit value
+	assert.match(aiChatApi, /AI_CHAT_LIMITS\.maxMessageLength.*자 이내로 입력해 주세요/);
+});
+
+test("ai-chat-api caps history at maxHistoryItems=20 to prevent context exhaustion", () => {
+	// Unlimited history lets a user fill the context window and push out the system instruction
+	assert.match(aiChatApi, /maxHistoryItems: 20/);
+	assert.match(aiChatApi, /AI_CHAT_LIMITS\.maxHistoryItems/);
+});
+
+test("ai-chat-api exports AiChatValidationError for typed error handling in routes", () => {
+	assert.match(aiChatApi, /export class AiChatValidationError extends Error/);
+	assert.match(aiChatApi, /this\.name = ["']AiChatValidationError["']/);
+});
+
+test("ai-chat-api fails fast with 500 when GEMINI_API_KEY is missing", () => {
+	// Without an API key the route would produce an unclear Gemini SDK error;
+	// the explicit guard surfaces a user-friendly error and prevents a confusing 400/200 with empty stream.
+	assert.match(aiChatApi, /if \(!apiKey\)/);
+	assert.match(aiChatApi, /AI 비서 설정이 완료되지 않았습니다/);
+});
+
 // ── Expense action: atomic transaction ───────────────────────────────────────
 
 const expenseAction = readSource("lib/actions/expense.js");
