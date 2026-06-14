@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import bcrypt from "bcrypt";
+import prisma from "@/lib/db";
+import { buildCustomerKey, addDays, TRIAL_DAYS } from "@/lib/subscription.js";
 import { checkRateLimit } from "@/lib/rate-limit.mjs";
 
 const MIN_USERNAME_LENGTH = 3;
@@ -61,9 +64,6 @@ export async function POST(request) {
 	const { username, password } = validated;
 
 	try {
-		const { default: prisma } = await import("@/lib/db");
-		const { default: bcrypt } = await import("bcrypt");
-
 		const existing = await prisma.user.findUnique({ where: { username } });
 		if (existing) {
 			return NextResponse.json(
@@ -71,8 +71,6 @@ export async function POST(request) {
 				{ status: 409 },
 			);
 		}
-
-		const { buildCustomerKey, addDays, TRIAL_DAYS } = await import("@/lib/subscription.js");
 
 		const hashedPassword = await bcrypt.hash(password, 12);
 		const user = await prisma.user.create({
