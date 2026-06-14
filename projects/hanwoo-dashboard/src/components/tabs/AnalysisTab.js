@@ -17,6 +17,18 @@ import {
 } from "recharts";
 import { formatMoney, toFiniteNumber } from "@/lib/utils";
 
+const GRADE_ORDER = ["1++", "1+", "1", "2", "3", "D"];
+const MARKET_GRADE_MAP = { "1++": "grade1pp", "1+": "grade1p", "1": "grade1" };
+
+function getMarketPriceForGrade(marketPrice, grade, gender) {
+	if (!marketPrice) return null;
+	const key = MARKET_GRADE_MAP[grade];
+	if (!key) return null;
+	const isBull = typeof gender === "string" && gender.includes("수");
+	const tier = isBull ? marketPrice.bull : marketPrice.cow;
+	return tier?.[key] ?? null;
+}
+
 const CATEGORY_CONFIG = {
 	feed: { name: "사료비", color: "var(--chart-clay-2)" },
 	medicine: { name: "약품/진료", color: "var(--chart-clay-4)" },
@@ -79,6 +91,7 @@ export default function AnalysisTab(options = {}) {
 		feedHistory = [],
 		cattleList = [],
 		expenseRecords = [],
+		marketPrice = null,
 	} = normalizeAnalysisTabOptions(options);
 	const safeSaleRecords = useMemo(
 		() => normalizeAnalysisItems(saleRecords),
@@ -156,6 +169,59 @@ export default function AnalysisTab(options = {}) {
 				.slice(0, 5),
 		[safeSaleRecords],
 	);
+
+	const cattleMap = useMemo(
+		() => new Map(safeCattleList.map((c) => [c.id, c])),
+		[safeCattleList],
+	);
+
+	const gradeStats = useMemo(() => {
+		const gradedSales = safeSaleRecords.filter((s) => s.grade);
+		if (gradedSales.length === 0) return [];
+
+		const counts = {};
+		gradedSales.forEach((s) => {
+			counts[s.grade] = (counts[s.grade] || 0) + 1;
+		});
+		const total = gradedSales.length;
+
+		return GRADE_ORDER.filter((g) => counts[g]).map((grade) => ({
+			grade,
+			count: counts[grade],
+			pct: Math.round((counts[grade] / total) * 100),
+		}));
+	}, [safeSaleRecords]);
+
+	const recentGradedSales = useMemo(() => {
+		return [...safeSaleRecords]
+			.filter((s) => s.grade && MARKET_GRADE_MAP[s.grade])
+			.sort((a, b) => new Date(b.saleDate) - new Date(a.saleDate))
+			.slice(0, 3)
+			.map((sale) => {
+				const cattle = cattleMap.get(sale.cattleId);
+				const weight = cattle?.weight;
+				const gender = cattle?.gender;
+				const pricePerKg =
+					weight > 0 ? Math.round(toFiniteNumber(sale.price) / weight) : null;
+				const marketPricePerKg = getMarketPriceForGrade(
+					marketPrice,
+					sale.grade,
+					gender,
+				);
+				return {
+					id: sale.id,
+					saleDate: sale.saleDate,
+					grade: sale.grade,
+					cattleName: sale.cattle?.name || cattle?.name,
+					price: sale.price,
+					weight,
+					pricePerKg,
+					marketPricePerKg,
+					diff:
+						pricePerKg && marketPricePerKg ? pricePerKg - marketPricePerKg : null,
+				};
+			});
+	}, [safeSaleRecords, cattleMap, marketPrice]);
 
 	const totalRevenue = monthlyData.reduce((sum, row) => sum + row.revenue, 0);
 	const totalCost = monthlyData.reduce((sum, row) => sum + row.cost, 0);
@@ -383,10 +449,10 @@ export default function AnalysisTab(options = {}) {
 										</div>
 										<div className="min-w-0">
 											<div className="truncate text-sm font-bold text-[color:var(--color-text)]">
-												{sale.cattleName || "개체명 미등록"}
+												{sale.cattle?.name || "개체명 미등록"}
 											</div>
 											<div className="truncate text-xs text-[color:var(--color-text-muted)]">
-												{sale.buyerName}
+												{sale.purchaser}
 											</div>
 										</div>
 									</div>
@@ -403,6 +469,122 @@ export default function AnalysisTab(options = {}) {
 					</div>
 				</section>
 			</div>
+
+			{(gradeStats.length > 0 || marketPrice) && (
+				<section className="clay-page-section mt-6 p-5 md:p-6">
+					<div className="mb-4 flex items-center justify-between gap-4">
+						<div>
+							<div className="clay-page-eyebrow mb-3">시세 비교</div>
+							<h2 className="text-xl font-bold text-[color:var(--color-text)]">
+								출하 단가 vs. 시장 시세
+							</h2>
+						</div>
+						{marketPrice?.date && (
+							<div className="text-right text-xs text-[color:var(--color-text-muted)]">
+								KAPE 기준 {marketPrice.date}
+							</div>
+						)}
+					</div>
+
+					<div className="grid gap-4 sm:grid-cols-2">
+						<div>
+							<div className="mb-3 text-xs font-semibold tracking-[0.08em] text-[color:var(--color-text-muted)]">
+								등급별 출하 비중
+							</div>
+							{gradeStats.length > 0 ? (
+								<div className="grid gap-2">
+									{gradeStats.map(({ grade, count, pct }) => (
+										<div
+											key={grade}
+											className="clay-inset flex items-center gap-3 rounded-[18px] px-4 py-3"
+										>
+											<div
+												className="flex h-8 w-12 items-center justify-center rounded-lg text-xs font-bold text-white"
+												style={{ background: "var(--color-primary-custom)" }}
+											>
+												{grade}
+											</div>
+											<div className="flex-1">
+												<div className="mb-1 h-1.5 overflow-hidden rounded-full bg-[color:var(--color-surface-border)]">
+													<div
+														className="h-full rounded-full"
+														style={{
+															width: ,
+															background: "var(--chart-clay-1)",
+														}}
+													/>
+												</div>
+											</div>
+											<div className="text-right text-sm font-bold tabular-nums text-[color:var(--color-text)]">{pct}%</div>
+											<div className="text-right text-xs text-[color:var(--color-text-muted)]">{count}건</div>
+										</div>
+									))}
+								</div>
+							) : (
+								<div className="clay-inset rounded-[24px] px-6 py-10 text-center text-sm text-[color:var(--color-text-muted)]">
+									등급 기록이 없습니다.
+								</div>
+							)}
+						</div>
+
+						<div>
+							<div className="mb-3 text-xs font-semibold tracking-[0.08em] text-[color:var(--color-text-muted)]">
+								최근 출하 단가 비교
+							</div>
+							{recentGradedSales.length > 0 ? (
+								<div className="grid gap-2">
+									{recentGradedSales.map((sale) => (
+										<div key={sale.id} className="clay-inset rounded-[18px] px-4 py-3">
+											<div className="mb-1 flex items-center justify-between gap-2">
+												<span className="text-sm font-bold text-[color:var(--color-text)]">{sale.cattleName || "미등록"}</span>
+												<span
+													className="rounded-full px-2 py-0.5 text-[11px] font-bold"
+													style={{
+														background: "color-mix(in srgb, var(--chart-clay-1) 16%, white 84%)",
+														color: "var(--chart-clay-1)",
+													}}
+												>
+													{sale.grade} 등급
+												</span>
+											</div>
+											{sale.pricePerKg && sale.marketPricePerKg ? (
+												<div className="flex items-end justify-between gap-2 text-xs">
+													<div>
+														<div className="text-[color:var(--color-text-muted)]">출하 단가</div>
+														<div className="text-base font-bold tabular-nums text-[color:var(--color-text)]">{formatMoney(sale.pricePerKg)}원/kg</div>
+													</div>
+													<div className="text-center">
+														<div className="text-sm font-bold" style={{ color: sale.diff > 0 ? "var(--chart-clay-1)" : "var(--chart-clay-2)" }}>
+															{sale.diff > 0 ? "+" : ""}{formatMoney(sale.diff)}원
+														</div>
+														<div className="text-[color:var(--color-text-muted)]">시세 대비</div>
+													</div>
+													<div className="text-right">
+														<div className="text-[color:var(--color-text-muted)]">KAPE 시세</div>
+														<div className="text-base font-bold tabular-nums text-[color:var(--color-text-muted)]">{formatMoney(sale.marketPricePerKg)}원/kg</div>
+													</div>
+												</div>
+											) : sale.pricePerKg ? (
+												<div className="text-xs text-[color:var(--color-text-muted)]">
+													출하 단가 {formatMoney(sale.pricePerKg)}원/kg{!marketPrice && " · 시세 데이터 없음"}
+												</div>
+											) : (
+												<div className="text-xs text-[color:var(--color-text-muted)]">
+													총 {formatMoney(sale.price)}원{!sale.weight && " · 체중 미등록 (kg당 단가 계산 불가)"}
+												</div>
+											)}
+										</div>
+									))}
+								</div>
+							) : (
+								<div className="clay-inset rounded-[24px] px-6 py-10 text-center text-sm text-[color:var(--color-text-muted)]">
+									{safeSaleRecords.length === 0 ? "출하 기록이 없습니다." : "1·1+·1++ 등급 출하 기록이 없습니다."}
+								</div>
+							)}
+						</div>
+					</div>
+				</section>
+			)}
 		</div>
 	);
 }

@@ -26,6 +26,34 @@ except ImportError:
     from moviepy.editor import VideoClip  # type: ignore
 
 
+def _rgb_array_to_rgba_image(array: np.ndarray) -> Image.Image:
+    return Image.fromarray(array).convert("RGBA")
+
+
+def _rgba_array_to_image(array: np.ndarray) -> Image.Image:
+    return Image.fromarray(array)
+
+
+def _font_search_dirs() -> tuple[Path, ...]:
+    return (Path("C:/Windows/Fonts"), Path(os.path.expanduser("~/AppData/Local/Microsoft/Windows/Fonts")))
+
+
+def _find_font_path(names: list[str], fallback: str = "malgun.ttf") -> str:
+    dirs = _font_search_dirs()
+    for directory in dirs:
+        for name in names:
+            if (directory / name).exists():
+                return str(directory / name)
+    for directory in dirs:
+        if (directory / fallback).exists():
+            return str(directory / fallback)
+    return ""
+
+
+def _load_font(path: str, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    return ImageFont.truetype(path, size) if path else ImageFont.load_default(size)
+
+
 class HistoryFactGenerator:
     """역사 반전 팩트 스토리텔링 쇼츠."""
 
@@ -100,31 +128,16 @@ class HistoryFactGenerator:
         ]
 
     def _load_fonts(self):
-        dirs = [Path("C:/Windows/Fonts"), Path(os.path.expanduser("~/AppData/Local/Microsoft/Windows/Fonts"))]
+        sb = _find_font_path(["NanumMyeongjoBold.ttf", "NanumGothicBold.ttf", "malgunbd.ttf"])
+        sr = _find_font_path(["NanumMyeongjo.ttf", "NanumGothic.ttf", "malgun.ttf"])
+        sa = _find_font_path(["NanumGothic.ttf", "malgun.ttf"])
 
-        def _f(ns, fb="malgun.ttf"):
-            for d in dirs:
-                for n in ns:
-                    if (d / n).exists():
-                        return str(d / n)
-            for d in dirs:
-                if (d / fb).exists():
-                    return str(d / fb)
-            return ""
-
-        sb = _f(["NanumMyeongjoBold.ttf", "NanumGothicBold.ttf", "malgunbd.ttf"])
-        sr = _f(["NanumMyeongjo.ttf", "NanumGothic.ttf", "malgun.ttf"])
-        sa = _f(["NanumGothic.ttf", "malgun.ttf"])
-
-        def _l(p, s):
-            return ImageFont.truetype(p, s) if p else ImageFont.load_default(s)
-
-        self.f_title = _l(sb, 56)  # 제목: 세리프 Bold
-        self.f_body = _l(sa, 34)  # 본문
-        self.f_big = _l(sb, 48)  # 반전 텍스트
-        self.f_era = _l(sr, 42)  # 연대/지역 (세리프)
-        self.f_small = _l(sa, 28)  # 캡션
-        self.f_badge = _l(sb, 24)  # 배지
+        self.f_title = _load_font(sb, 56)  # 제목: 세리프 Bold
+        self.f_body = _load_font(sa, 34)  # 본문
+        self.f_big = _load_font(sb, 48)  # 반전 텍스트
+        self.f_era = _load_font(sr, 42)  # 연대/지역 (세리프)
+        self.f_small = _load_font(sa, 28)  # 캡션
+        self.f_badge = _load_font(sb, 24)  # 배지
 
     def _load_bg(self, path):
         if path and Path(path).exists():
@@ -373,10 +386,10 @@ class HistoryFactGenerator:
             br = 0.30
 
         arr = (self._bg_img.astype(np.float32) * br).clip(0, 255).astype(np.uint8)
-        bg = Image.fromarray(arr, "RGB").convert("RGBA")
+        bg = _rgb_array_to_rgba_image(arr)
 
         # Vignette
-        vig = Image.fromarray(self._vignette, "RGBA")
+        vig = _rgba_array_to_image(self._vignette)
         bg = Image.alpha_composite(bg, vig)
 
         ov = Image.new("RGBA", (self.W, self.H), (0, 0, 0, 0))
@@ -465,29 +478,14 @@ class HistoryCountdownGenerator:
         self._bg_gradient = self._make_bg_gradient()
 
     def _load_fonts(self):
-        dirs = [Path("C:/Windows/Fonts"), Path(os.path.expanduser("~/AppData/Local/Microsoft/Windows/Fonts"))]
+        sb = _find_font_path(["NanumMyeongjoBold.ttf", "NanumGothicBold.ttf", "malgunbd.ttf"])
+        sa = _find_font_path(["NanumGothic.ttf", "malgun.ttf"])
 
-        def _f(ns, fb="malgun.ttf"):
-            for d in dirs:
-                for n in ns:
-                    if (d / n).exists():
-                        return str(d / n)
-            for d in dirs:
-                if (d / fb).exists():
-                    return str(d / fb)
-            return ""
-
-        sb = _f(["NanumMyeongjoBold.ttf", "NanumGothicBold.ttf", "malgunbd.ttf"])
-        sa = _f(["NanumGothic.ttf", "malgun.ttf"])
-
-        def _l(p, s):
-            return ImageFont.truetype(p, s) if p else ImageFont.load_default(s)
-
-        self.f_title = _l(sb, 52)
-        self.f_rank = _l(sb, 90)
-        self.f_name = _l(sb, 46)
-        self.f_body = _l(sa, 32)
-        self.f_small = _l(sa, 28)
+        self.f_title = _load_font(sb, 52)
+        self.f_rank = _load_font(sb, 90)
+        self.f_name = _load_font(sb, 46)
+        self.f_body = _load_font(sa, 32)
+        self.f_small = _load_font(sa, 28)
 
     @staticmethod
     def _wrap(text, font, mw):
@@ -595,7 +593,7 @@ class HistoryCountdownGenerator:
         draw.text(((self.W - cw) // 2, 800), self.cta, font=self.f_body, fill=(*self.GOLD, ca))
 
     def _render(self, t):
-        bg = Image.fromarray(self._bg_gradient).convert("RGBA")
+        bg = _rgb_array_to_rgba_image(self._bg_gradient)
         ov = Image.new("RGBA", (self.W, self.H), (0, 0, 0, 0))
         draw = ImageDraw.Draw(ov)
 

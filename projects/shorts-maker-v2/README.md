@@ -55,8 +55,8 @@ python execution/product_readiness_score.py --json
 Focused local verification from `projects/shorts-maker-v2`:
 
 ```powershell
-python -m pytest --no-cov tests/unit tests/integration -q --tb=short --maxfail=1
-python -m ruff check .
+.\.venv\Scripts\python.exe -m pytest --no-cov tests/unit tests/integration -q --tb=short --maxfail=1
+.\.venv\Scripts\python.exe -m ruff check .
 ```
 
 ## Documentation

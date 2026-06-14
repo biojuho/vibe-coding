@@ -92,11 +92,25 @@
 - `tests/unit/test_thumbnail_step.py`
 - `tests/unit/test_caption_pillow.py`
 
+## YouTube GenAI 공개 정책 (2026-06-12 조사)
+
+- **공개 의무**: YouTube는 "photorealistic" 콘텐츠에만 AI 사용 공개를 요구
+- **공개 불필요**: 애니메이션, 스케치, 일러스트 등 명백히 비현실적인 콘텐츠
+- **5개 채널 분석**: 모두 애니메이션 스타일 → 공개 의무 없음
+- **위험 요소**: YouTube가 C2PA 메타데이터 또는 자체 AI 감지로 자동 라벨 추가 가능
+- **단속**: 미공개 반복 시 라벨 수동 적용, 콘텐츠 삭제, YPP 정지 가능
+- **건강 채널 주의**: 민감한 주제(건강)는 영상에 눈에 띄는 라벨 표시 가능
+- **공개 방법**: YouTube Studio → 업로드 → 속성 → "AI 사용" → "예" 선택
+- **공개 혜택**: 공개해도 시청자 제한이나 수익 창출 자격에 영향 없음
+- **공식 문서**: https://support.google.com/youtube/answer/14328491
+
 ## Landmines
 
 - The worktree is very dirty at the monorepo level. Do not revert unrelated files.
 - `pytest-cov` is less reliable here than plain `coverage run` because duplicate root/project paths can confuse path mapping.
 - Duplicate project roots exist on this machine (`projects/shorts-maker-v2` and a legacy root-level copy). Run tests from `projects/shorts-maker-v2`.
+- On this Windows/Codex shell, bare `python` can resolve to the Hermes agent venv instead of this project's `.venv`; direct project checks should use `.\.venv\Scripts\python.exe -m ...`. The workspace `project_qc_runner.py` resolves the project `.venv` automatically.
+- Pillow 13 removes the deprecated `mode` parameter on `Image.fromarray(...)`; for generated tool renderers, let Pillow infer from array shape/dtype and keep warning-as-error coverage in `tests/unit/test_tool_pillow_deprecations.py`.
 - When `coverage report` shows a direct Windows file path as `0%`, use `coverage report -m --include="*module_name.py"` instead.
 - Thumbnail generation used to create fixed-name temp files in shared output directories; keep temp artifacts derived from the final output stem for repeatability.
 - `tests/legacy/__pycache__/` may still exist as an untracked cache directory, but archived V1 tests are no longer collected by default.

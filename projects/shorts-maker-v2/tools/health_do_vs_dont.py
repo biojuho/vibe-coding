@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 import math
-import os
 import random
 import warnings
 from pathlib import Path
@@ -17,7 +16,13 @@ from pathlib import Path
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="PIL")
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
+
+try:
+    from tools._rendering_helpers import find_font_path, load_font, rgba_array_to_image
+except ModuleNotFoundError:
+    from _rendering_helpers import find_font_path, load_font, rgba_array_to_image  # type: ignore
+
 
 try:
     from moviepy import VideoClip
@@ -90,32 +95,17 @@ class HealthDoVsDontGenerator:
         ]
 
     def _load_fonts(self):
-        dirs = [Path("C:/Windows/Fonts"), Path(os.path.expanduser("~/AppData/Local/Microsoft/Windows/Fonts"))]
+        sb = find_font_path(["NanumGothicBold.ttf", "malgunbd.ttf"])
+        sa = find_font_path(["NanumGothic.ttf", "malgun.ttf"])
 
-        def _f(ns, fb="malgun.ttf"):
-            for d in dirs:
-                for n in ns:
-                    if (d / n).exists():
-                        return str(d / n)
-            for d in dirs:
-                if (d / fb).exists():
-                    return str(d / fb)
-            return ""
-
-        sb = _f(["NanumGothicBold.ttf", "malgunbd.ttf"])
-        sa = _f(["NanumGothic.ttf", "malgun.ttf"])
-
-        def _l(p, s):
-            return ImageFont.truetype(p, s) if p else ImageFont.load_default(s)
-
-        self.f_title = _l(sb, 56)
-        self.f_label = _l(sb, 38)  # DO/DON'T label
-        self.f_body = _l(sa, 36)  # card text
-        self.f_vs = _l(sb, 32)  # VS badge
-        self.f_tag = _l(sb, 28)  # category tag
-        self.f_outro = _l(sb, 46)  # outro
-        self.f_small = _l(sa, 22)  # disclaimer
-        self.f_counter = _l(sb, 24)  # pair counter
+        self.f_title = load_font(sb, 56)
+        self.f_label = load_font(sb, 38)  # DO/DON'T label
+        self.f_body = load_font(sa, 36)  # card text
+        self.f_vs = load_font(sb, 32)  # VS badge
+        self.f_tag = load_font(sb, 28)  # category tag
+        self.f_outro = load_font(sb, 46)  # outro
+        self.f_small = load_font(sa, 22)  # disclaimer
+        self.f_counter = load_font(sb, 24)  # pair counter
 
     def _preprocess_text(self):
         tw = self.W - self.MG * 2 - 80
@@ -361,7 +351,7 @@ class HealthDoVsDontGenerator:
         bg = Image.new("RGBA", (self.W, self.H), (*self.BG, 255))
 
         # Hex pattern overlay
-        hex_ov = Image.fromarray(self._hex_pattern, "RGBA")
+        hex_ov = rgba_array_to_image(self._hex_pattern)
         bg = Image.alpha_composite(bg, hex_ov)
 
         ov = Image.new("RGBA", (self.W, self.H), (0, 0, 0, 0))

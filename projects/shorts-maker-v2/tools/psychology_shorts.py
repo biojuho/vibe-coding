@@ -25,6 +25,11 @@ warnings.filterwarnings("ignore", category=DeprecationWarning, module="PIL")
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
+
+def _rgba_array_to_image(array: np.ndarray) -> Image.Image:
+    return Image.fromarray(array)
+
+
 try:
     from moviepy import VideoClip
 except ImportError:
@@ -196,7 +201,7 @@ class PsychologyShortsGenerator:
             arr[y, :, 1] = int(self.BG_PURPLE[1] * (1 - r) + self.BG_BLACK[1] * r)
             arr[y, :, 2] = int(self.BG_PURPLE[2] * (1 - r) + self.BG_BLACK[2] * r)
             arr[y, :, 3] = 255
-        return Image.fromarray(arr, "RGBA")
+        return _rgba_array_to_image(arr)
 
     def _make_vignette(self) -> Image.Image:
         """방사형 비네팅 (모서리 어둡게) — numpy 벡터화."""
@@ -208,7 +213,7 @@ class PsychologyShortsGenerator:
         alpha = np.where(dist > 0.55, np.clip((dist - 0.55) / 0.45 * 180, 0, 255), 0).astype(np.uint8)
         arr = np.zeros((self.H, self.W, 4), dtype=np.uint8)
         arr[:, :, 3] = alpha
-        return Image.fromarray(arr, "RGBA")
+        return _rgba_array_to_image(arr)
 
     def _get_bg(self, brightness: float = 0.5, red_mix: float = 0.0) -> Image.Image:
         """밝기 + 빨간 톤 혼합 배경 생성."""
@@ -219,7 +224,7 @@ class PsychologyShortsGenerator:
             red_target = np.array(self.BG_RED, dtype=np.float32) * brightness
             red_arr = np.full_like(bg[:, :, :3], red_target, dtype=np.float32)
             bg[:, :, :3] = bg[:, :, :3] * (1 - red_mix) + red_arr * red_mix
-        return Image.fromarray(np.clip(bg, 0, 255).astype(np.uint8), "RGBA")
+        return _rgba_array_to_image(np.clip(bg, 0, 255).astype(np.uint8))
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     #  Text Utils

@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 import math
-import os
 import random
 import warnings
 from pathlib import Path
@@ -17,7 +16,23 @@ from pathlib import Path
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="PIL")
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
+
+try:
+    from tools._rendering_helpers import (
+        find_font_path,
+        load_font,
+        rgb_array_to_rgba_image,
+        rgba_array_to_image,
+    )
+except ModuleNotFoundError:
+    from _rendering_helpers import (  # type: ignore
+        find_font_path,
+        load_font,
+        rgb_array_to_rgba_image,
+        rgba_array_to_image,
+    )
+
 
 try:
     from moviepy import VideoClip
@@ -95,31 +110,16 @@ class HistoryMysteryGenerator:
         ]
 
     def _load_fonts(self):
-        dirs = [Path("C:/Windows/Fonts"), Path(os.path.expanduser("~/AppData/Local/Microsoft/Windows/Fonts"))]
+        se = find_font_path(["NanumMyeongjo.ttf", "NanumMyeongjoBold.ttf", "batang.ttc"])
+        sb = find_font_path(["NanumGothicBold.ttf", "malgunbd.ttf"])
+        sa = find_font_path(["NanumGothic.ttf", "malgun.ttf"])
 
-        def _f(ns, fb="malgun.ttf"):
-            for d in dirs:
-                for n in ns:
-                    if (d / n).exists():
-                        return str(d / n)
-            for d in dirs:
-                if (d / fb).exists():
-                    return str(d / fb)
-            return ""
-
-        se = _f(["NanumMyeongjo.ttf", "NanumMyeongjoBold.ttf", "batang.ttc"])
-        sb = _f(["NanumGothicBold.ttf", "malgunbd.ttf"])
-        sa = _f(["NanumGothic.ttf", "malgun.ttf"])
-
-        def _l(p, s):
-            return ImageFont.truetype(p, s) if p else ImageFont.load_default(s)
-
-        self.f_title = _l(se, 62)
-        self.f_hook = _l(sa, 40)
-        self.f_body = _l(sa, 36)
-        self.f_big = _l(sb, 54)
-        self.f_small = _l(sa, 30)
-        self.f_qmark = _l(sb, 72)
+        self.f_title = load_font(se, 62)
+        self.f_hook = load_font(sa, 40)
+        self.f_body = load_font(sa, 36)
+        self.f_big = load_font(sb, 54)
+        self.f_small = load_font(sa, 30)
+        self.f_qmark = load_font(sb, 72)
 
     def _load_bg(self, path):
         if path and Path(path).exists():
@@ -127,9 +127,9 @@ class HistoryMysteryGenerator:
             sc = max(self.W / img.width, self.H / img.height)
             nw, nh = int(img.width * sc), int(img.height * sc)
             img = img.resize((nw, nh), Image.LANCZOS)
-            l = (nw - self.W) // 2
+            left = (nw - self.W) // 2
             t = (nh - self.H) // 2
-            img = img.crop((l, t, l + self.W, t + self.H))
+            img = img.crop((left, t, left + self.W, t + self.H))
             # Apply sepia tint
             arr = np.array(img, dtype=np.float32)
             gray = 0.299 * arr[:, :, 0] + 0.587 * arr[:, :, 1] + 0.114 * arr[:, :, 2]
@@ -153,7 +153,7 @@ class HistoryMysteryGenerator:
         al = np.where(d > 0.4, np.clip((d - 0.4) / 0.6 * 220, 0, 220), 0).astype(np.uint8)
         a = np.zeros((self.H, self.W, 4), dtype=np.uint8)
         a[:, :, 3] = al
-        return Image.fromarray(a, "RGBA")
+        return rgba_array_to_image(a)
 
     # ── Helpers ──
     @staticmethod
@@ -223,13 +223,13 @@ class HistoryMysteryGenerator:
             zh, zw = int(h / zoom), int(w / zoom)
             cy = h // 2 + pan_y
             cx = w // 2
-            t, l = max(0, cy - zh // 2), max(0, cx - zw // 2)
-            crop = arr[t : t + zh, l : l + zw]
+            t, left = max(0, cy - zh // 2), max(0, cx - zw // 2)
+            crop = arr[t : t + zh, left : left + zw]
             if crop.shape[0] > 0 and crop.shape[1] > 0:
                 img = Image.fromarray(crop.astype(np.uint8)).resize((w, h), Image.LANCZOS)
                 arr = np.array(img, dtype=np.float32)
         arr *= brightness
-        return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGB").convert("RGBA")
+        return rgb_array_to_rgba_image(np.clip(arr, 0, 255).astype(np.uint8))
 
     # ── Phase renderers ──
     def _ph1(self, draw, t):

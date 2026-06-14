@@ -457,3 +457,351 @@ Extended `tests/unit/test_caption_pillow.py` so the recent static-caption qualit
 - `..\..\venv\Scripts\python.exe -m ruff check tests/unit/test_caption_pillow.py` -> clean
 
 ---
+
+## 2026-06-11 | Codex | autonomous debug loop phase 0 + Pillow deprecation fix (T-2362)
+
+### Work Summary
+- Ran phase-0 triage for known/reproducible bugs and anomalies in `projects/shorts-maker-v2`.
+- Fixed the only project-side reproducible warning-as-error failure: Pillow deprecates the `mode` argument to `Image.fromarray()`, and generated Shorts render helpers still passed `"RGB"` / `"RGBA"` explicitly.
+- Confirmed `tests/legacy/__pycache__/` is absent, so the old cleanup TODO no longer reproduces.
+- Investigated the remaining `google-genai` `_UnionGenericAlias` warning: both locked `1.69.0` and latest `2.8.0` reproduce it on Python 3.14, so no project-side root fix was applied.
+- Recorded the Windows/Codex bare-`python` venv mismatch in `.ai/CONTEXT.md`.
+
+### Changed Files
+- `tools/ai_tech_shorts.py`
+- `tools/psychology_quote.py`
+- `tests/unit/test_ai_tech_shorts.py`
+- `tests/unit/test_psychology_quote.py`
+- `.ai/CONTEXT.md`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- `.venv\Scripts\python.exe -m pytest tests/unit/test_ai_tech_shorts.py tests/unit/test_psychology_quote.py -q --tb=short --maxfail=1 -o addopts= -W error::DeprecationWarning --basetemp .tmp/pytest-pillow-warning-final` -> `18 passed`
+- `projects\shorts-maker-v2\.venv\Scripts\python.exe execution/project_qc_runner.py --project shorts-maker-v2 --json` from workspace root -> passed (`1640 passed, 12 skipped, 1 warning`; lint passed)
+- `.\.venv\Scripts\python.exe -m ruff check .` -> passed
+- `.\.venv\Scripts\python.exe -m pip check` -> `No broken requirements found.`
+- `git diff --check` on touched paths -> clean
+
+### Notes
+- `code_review_gate.py` has no path-limited mode; broad `--base HEAD` would include unrelated workspace WIP, so it was not used as evidence for this scoped project change.
+- Real-LLM retention simulator E2E remains approval/cost gated.
+
+---
+
+## 2026-06-11 | Codex | archived ShortsFactory workflow/runbook drift fix (T-2365)
+
+### Work Summary
+- Continued the autonomous debug loop after T-2362.
+- Reproduced the stale standalone workflow/runbook failure:
+  - `.venv\Scripts\python.exe -m pip install -r requirements.txt` failed because `requirements.txt` no longer exists.
+  - `.venv\Scripts\python.exe -m pytest tests/unit/test_visual_regression.py --collect-only -q -o addopts=` failed because the test moved to `archive/tests_legacy_v1`.
+- Confirmed the archived compatibility tests are still viable at their current paths: `57 passed`.
+- Updated `.github/workflows/visual-regression.yml` into a manual archived ShortsFactory compatibility lane using `pip install -e ".[dev]"` and `archive/tests_legacy_v1` paths.
+- Updated `docs/runbook.md` to use the pyproject install command.
+- Added `tests/unit/test_project_hygiene.py` so the workflow and runbook cannot drift back to deleted `requirements.txt` or moved test paths.
+- Verified root `.github/workflows/full-test-matrix.yml` already runs full `shorts-maker-v2` unit+integration tests on PRs, so the old PR-gate TODO was stale.
+
+### Changed Files
+- `.github/workflows/visual-regression.yml`
+- `docs/runbook.md`
+- `tests/unit/test_project_hygiene.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- `.venv\Scripts\python.exe -m pytest tests/unit/test_project_hygiene.py -q --tb=short --maxfail=1 -o addopts= --basetemp .tmp/pytest-project-hygiene-final` -> `2 passed`
+- `.venv\Scripts\python.exe -m pytest archive/tests_legacy_v1/unit/test_visual_regression.py archive/tests_legacy_v1/unit/test_engines_v2.py archive/tests_legacy_v1/unit/test_interfaces.py -q --tb=short --maxfail=1 -o addopts= --basetemp .tmp/pytest-legacy-visual-fixed` -> `57 passed`
+- `.venv\Scripts\python.exe -m pytest tests/unit/test_project_hygiene.py archive/tests_legacy_v1/unit/test_visual_regression.py archive/tests_legacy_v1/unit/test_engines_v2.py archive/tests_legacy_v1/unit/test_interfaces.py -q --tb=short --maxfail=1 -o addopts= --basetemp .tmp/pytest-legacy-hygiene-fixed` -> `59 passed`
+- `.venv\Scripts\python.exe -m ruff check tests/unit/test_project_hygiene.py` -> passed
+- `projects\shorts-maker-v2\.venv\Scripts\python.exe execution/project_qc_runner.py --project shorts-maker-v2 --json` from workspace root -> passed (`1642 passed, 12 skipped, 1 warning`; lint passed)
+- `.\.venv\Scripts\python.exe -m ruff check .` -> passed
+- `git diff --check -- projects/shorts-maker-v2` -> clean
+
+### Notes
+- Remaining known item: upstream `google-genai` `_UnionGenericAlias` DeprecationWarning on Python 3.14/3.17. Official googleapis/python-genai issue #1640 is open, and fix PR #1939 is still unmerged.
+- Real-LLM retention simulator E2E remains paid-token gated and was not run.
+
+---
+
+## 2026-06-11 | Codex | README local verification venv alignment (T-2366)
+
+### Work Summary
+- Continued the autonomous debug loop after T-2365.
+- Reproduced the README local verification failure from `projects/shorts-maker-v2`: bare `python -m pytest --no-cov tests/unit/test_project_hygiene.py -q --tb=short --maxfail=1` failed before tests ran because the shell `python` resolves outside the project `.venv` and lacks pytest-cov option support.
+- Updated `README.md` focused local verification commands to use `.\.venv\Scripts\python.exe`.
+- Added the same Windows/Codex no-cov fallback command to `docs/README.md`.
+- Extended `tests/unit/test_project_hygiene.py` so local verification docs must include project-venv Python commands.
+
+### Changed Files
+- `README.md`
+- `docs/README.md`
+- `tests/unit/test_project_hygiene.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- `.venv\Scripts\python.exe -m pytest --no-cov tests/unit/test_project_hygiene.py -q --tb=short --maxfail=1` -> `3 passed`
+- `.venv\Scripts\python.exe -m pytest tests/unit/test_project_hygiene.py -q --tb=short --maxfail=1 -o addopts= --basetemp .tmp/pytest-project-hygiene-readme-final` -> `3 passed`
+- `.venv\Scripts\python.exe -m ruff check tests/unit/test_project_hygiene.py` -> passed
+- `projects\shorts-maker-v2\.venv\Scripts\python.exe execution/project_qc_runner.py --project shorts-maker-v2 --json` from workspace root -> passed (`1643 passed, 12 skipped, 1 warning`; lint passed)
+- `.\.venv\Scripts\python.exe -m ruff check .` -> passed
+- `git diff --check -- projects/shorts-maker-v2` -> clean
+
+### Notes
+- This closes the confirmed local documentation drift for focused checks. Full project QC should still be run through `execution/project_qc_runner.py` from the workspace root.
+
+---
+
+## 2026-06-11 | Codex | generated tool Pillow mode sweep (T-2367)
+
+### Work Summary
+- Continued the autonomous debug loop after T-2366 because a full `Image.fromarray` search still found explicit Pillow mode arguments in generated demo tool renderers.
+- Reproduced seven remaining failures by importing each module, creating its demo generator, and calling the render path with `DeprecationWarning` treated as error.
+- Removed deprecated `Image.fromarray(..., "RGB"/"RGBA")` mode arguments from health/history/psychology/space tool renderers while preserving RGB-to-RGBA conversion where needed.
+- Added `tests/unit/test_tool_pillow_deprecations.py` to exercise the seven demo renderers under warning-as-error.
+- Recorded the Pillow 13 `Image.fromarray(..., mode)` landmine in `.ai/CONTEXT.md`.
+
+### Changed Files
+- `tools/health_do_vs_dont.py`
+- `tools/health_medical_study.py`
+- `tools/history_mystery.py`
+- `tools/history_timeline.py`
+- `tools/psychology_quiz.py`
+- `tools/psychology_shorts.py`
+- `tools/space_fact_bomb.py`
+- `tests/unit/test_tool_pillow_deprecations.py`
+- `.ai/CONTEXT.md`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+
+### Verification
+- Inline render repro after fix -> `PASS` for all seven demo renderers with `DeprecationWarning` as error.
+- `.\.venv\Scripts\python.exe -m pytest --no-cov tests/unit/test_tool_pillow_deprecations.py -q --tb=short --maxfail=1 -o addopts= -W error::DeprecationWarning --basetemp .tmp/pytest-tool-pillow-deprecation` -> `7 passed`
+- `rg` for `Image.fromarray(..., "mode")` and `Image.fromarray(..., 'mode')` under `tools`, `src`, and `tests` -> no matches
+- `projects\shorts-maker-v2\.venv\Scripts\python.exe execution\project_qc_runner.py --project shorts-maker-v2 --json` from workspace root -> passed (`1653 passed, 12 skipped, 1 warning`; lint passed)
+- `git diff --check -- projects/shorts-maker-v2` -> clean
+
+### Notes
+- The only remaining warning in project QC is still the upstream `google-genai` `_UnionGenericAlias` warning. Rechecked GitHub on 2026-06-11: issue #1640 and fix PR #1939 are both still open.
+- Real-LLM retention simulator E2E remains paid-token gated and was not run.
+
+---
+
+## 2026-06-11 | Codex | handoff rotator suffixed heading fix (T-2368)
+
+### Work Summary
+- Continued the autonomous debug loop after the Shorts Maker V2 project QC was green because session-close verification repeatedly showed `handoff_rotator.py --repo-root projects/shorts-maker-v2` returning `skip / Current Addendum heading not found`.
+- Reproduced the bug with `python execution/handoff_rotator.py --repo-root projects/shorts-maker-v2 --check --json`.
+- Isolated the root cause: `find_current_addendum_range()` compared the heading to exactly `## Current Addendum`, while this project's HANDOFF uses `## Current Addendum (2026-06-11 / Codex autonomous debug loop)`.
+- Updated `execution/handoff_rotator.py` to accept descriptor suffixes after `## Current Addendum`.
+- Added workspace regression tests for suffixed table-style addenda and prose-style project HANDOFF sections.
+
+### Changed Files
+- `execution/handoff_rotator.py`
+- `workspace/tests/test_handoff_rotator.py`
+- `projects/shorts-maker-v2/.ai/HANDOFF.md`
+- `projects/shorts-maker-v2/.ai/TASKS.md`
+- `projects/shorts-maker-v2/.ai/SESSION_LOG.md`
+
+### Verification
+- `python execution/handoff_rotator.py --repo-root projects/shorts-maker-v2 --check --json` -> `{"status": "noop", "kept": 0, "archived": 0, "cutoff": "2026-06-04"}` instead of false `skip`
+- `python execution/handoff_rotator.py --repo-root . --check --json` -> `noop`, root behavior preserved
+- `python -m pytest workspace/tests/test_handoff_rotator.py -q --tb=short --maxfail=1 -o addopts=` -> `19 passed`
+- `python -m ruff check execution/handoff_rotator.py workspace/tests/test_handoff_rotator.py` -> passed
+- `git diff --check -- execution/handoff_rotator.py workspace/tests/test_handoff_rotator.py` -> clean
+
+### Notes
+- The project HANDOFF currently uses prose rather than table rows, so the correct result for this project is `noop` rather than rotation. The fixed behavior is that the section is detected instead of falsely reported missing.
+
+---
+
+## 2026-06-11 | Codex | tasks done rotator checklist parsing fix (T-2369)
+
+### Work Summary
+- Continued the autonomous debug loop after T-2368 because `python execution/tasks_done_rotator.py --repo-root projects/shorts-maker-v2 --check --json` returned `kept: 0, archived: 0` even though the project TASKS DONE section contained many completed tasks.
+- Reproduced and isolated the issue: `parse_done_entries()` only recognized root shared-board table rows such as `| T-1546 | ... |`, while project TASKS uses checklist rows such as `- [x] T-2368 ...`.
+- Updated `execution/tasks_done_rotator.py` to support both table rows and checklist rows keyed by `T-####`/suffixed task ids.
+- Updated heading normalization so a plain `## DONE` heading becomes `## DONE (Latest N)` when a rotation writes the file.
+- Added workspace regression tests for checklist parsing and plain-heading rotation.
+
+### Changed Files
+- `execution/tasks_done_rotator.py`
+- `workspace/tests/test_tasks_done_rotator.py`
+- `projects/shorts-maker-v2/.ai/archive/TASKS_DONE_archive_2026-06-11.md`
+- `projects/shorts-maker-v2/.ai/HANDOFF.md`
+- `projects/shorts-maker-v2/.ai/TASKS.md`
+- `projects/shorts-maker-v2/.ai/SESSION_LOG.md`
+
+### Verification
+- `python execution/tasks_done_rotator.py --repo-root projects/shorts-maker-v2 --check --json` -> `{"status": "rotated", "kept": 5, "archived": 22, "keep_count": 5, "archive_file": ".ai/archive/TASKS_DONE_archive_2026-06-11.md", "dry_run": true}`
+- `python execution/tasks_done_rotator.py --repo-root . --check --json` -> root behavior preserved as `noop`, `kept: 5`
+- `python execution/tasks_done_rotator.py --repo-root projects/shorts-maker-v2 --json` -> `{"status": "rotated", "kept": 5, "archived": 23, "keep_count": 5, "archive_file": ".ai/archive/TASKS_DONE_archive_2026-06-11.md", "dry_run": false}`
+- `python execution/tasks_done_rotator.py --repo-root projects/shorts-maker-v2 --check --json` after the real rotation -> `{"status": "noop", "kept": 5, "archived": 0, "keep_count": 5}`
+- `python -m pytest workspace/tests/test_tasks_done_rotator.py -q --tb=short --maxfail=1 -o addopts=` -> `12 passed`
+- `python -m pytest workspace/tests/test_handoff_rotator.py workspace/tests/test_tasks_done_rotator.py -q --tb=short --maxfail=1 -o addopts=` -> `31 passed`
+- `python -m ruff check execution/tasks_done_rotator.py workspace/tests/test_tasks_done_rotator.py` -> passed
+- `git diff --check -- execution/tasks_done_rotator.py workspace/tests/test_tasks_done_rotator.py` -> clean
+
+### Notes
+- The real project rotation was run after recording T-2369. `TASKS.md` now keeps the latest 5 DONE items and older checklist entries are in `.ai/archive/TASKS_DONE_archive_2026-06-11.md`.
+
+---
+
+## 2026-06-11 | Codex | debug-loop inventory refresh after timeout artifact (T-2370)
+
+### Work Summary
+- Continued the `/goal` autonomous debug loop after local Shorts Maker V2 QC and workspace rotator regressions were green.
+- Regenerated the live 0-step debug inventory using `debug_loop_inventory.py`.
+- The first 5s helper-timeout run reported `Debug Inventory Input Evidence Is Unavailable`; rerunning with a 30s helper timeout produced valid JSON/Markdown inventory, so the earlier item was an execution-timeout artifact rather than a code/product bug.
+- The refreshed inventory reports `item_count=5`, `actionable_item_count=0`, `blocked_item_count=5`, `reproduction_unclear_count=0`, `completion_allowed=false`.
+- Confirmed no additional actionable local `shorts-maker-v2` bug remains beyond the existing upstream/approval boundaries.
+
+### Changed Files
+- `projects/shorts-maker-v2/.ai/HANDOFF.md`
+- `projects/shorts-maker-v2/.ai/TASKS.md`
+- `projects/shorts-maker-v2/.ai/SESSION_LOG.md`
+
+### Verification
+- `python .agents/skills/auto-research/scripts/debug_loop_inventory.py --root . --output-md .tmp/debug-loop-known-bugs-current.md --output-json .tmp/debug-loop-known-bugs-current.json --timeout 30 --json` -> expected exit `1` because completion remains blocked; `.tmp/debug-loop-known-bugs-current.{json,md}` written successfully
+- Inventory summary from `.tmp/debug-loop-known-bugs-current.md`: `Items: 5`, `Actionable: 0`, `Blocked: 5`, `Reproduction unclear: 0`, `Completion allowed: false`
+- `projects\shorts-maker-v2\.venv\Scripts\python.exe execution\project_qc_runner.py --project shorts-maker-v2 --json` -> passed (`1653 passed, 12 skipped, 1 warning`; lint passed)
+- Python scan for `Image.fromarray(..., "mode")` under `projects/shorts-maker-v2/tools`, `src`, and `tests` -> no matches
+
+### Notes
+- The expected remaining blockers are authorization/external boundaries: dirty handoff/scoped commit authorization, current-head Actions requiring push authorization, user-owned Hanwoo T-251, Blind-to-X dirty-path handoff, and incomplete launch completion audit.
+- Do not call `update_goal` until those boundaries are cleared and a completion audit proves every objective requirement.
+
+---
+
+## 2026-06-11 | Codex | behavior-preserving Pillow renderer refactor continuation (T-2371)
+
+### Work Summary
+- Continued the user-approved refactor loop after the prior generated-tool Pillow mode-argument sweep was already green.
+- Extracted explicit RGB/RGBA array-to-image helpers in generated render tools so final materialization sites are named instead of inline `Image.fromarray(...).convert("RGBA")`.
+- Extended warning-as-error renderer coverage to `health_mental_message` and `space_scale`, and extracted `_assert_rgb_frame` in the shared Pillow deprecation test.
+- Strengthened `test_history_fact_shorts.py` so countdown renders also execute with `DeprecationWarning` as error.
+
+### Changed Files
+- `tools/health_do_vs_dont.py`
+- `tools/health_medical_study.py`
+- `tools/health_mental_message.py`
+- `tools/history_fact_shorts.py`
+- `tools/history_mystery.py`
+- `tools/space_fact_bomb.py`
+- `tools/space_scale.py`
+- `tests/unit/test_history_fact_shorts.py`
+- `tests/unit/test_tool_pillow_deprecations.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `.ai/archive/TASKS_DONE_archive_2026-06-11.md`
+
+### Verification
+- `.\.venv\Scripts\python.exe -m pytest --no-cov tests/unit/test_tool_pillow_deprecations.py -q --tb=short --maxfail=1 --basetemp .tmp/pytest-loop13-focused` -> `9 passed`
+- `.\.venv\Scripts\python.exe -m pytest --no-cov tests/unit/test_history_fact_shorts.py -q --tb=short --maxfail=1 --basetemp .tmp/pytest-loop12-focused` -> `8 passed`
+- Targeted `ruff check` commands for touched focused files -> passed
+- Targeted `git diff --check` commands for touched focused files -> clean
+- `python execution/project_qc_runner.py --project shorts-maker-v2 --json` -> passed (`1655 passed, 12 skipped, 1 warning`; lint passed)
+
+### Notes
+- The remaining warning is the known external `google-genai` `_UnionGenericAlias` deprecation from site-packages.
+- The Pillow array materialization refactor axis is now effectively exhausted except helper bodies and temporary resize/crop conversions.
+
+---
+
+## 2026-06-12 | Codex | font/rendering helper consolidation refactor continuation (T-2372)
+
+### Work Summary
+- Continued the behavior-preserving refactor loop after T-2371.
+- Added `tools/_rendering_helpers.py` with shared `rgba_array_to_image`, `rgb_array_to_rgba_image`, `find_font_path`, and `load_font` helpers.
+- Converted `space_scale.py`, `space_fact_bomb.py`, `health_do_vs_dont.py`, and `health_medical_study.py` one file at a time using a dual-import pattern that supports both `spec_from_file_location` tests and standalone `python tools/<tool>.py` execution.
+- Extracted file-local font search/loading helpers in `history_fact_shorts.py` and switched both `HistoryFactGenerator` and `HistoryCountdownGenerator` to them.
+
+### Changed Files
+- `tools/_rendering_helpers.py`
+- `tools/space_scale.py`
+- `tools/space_fact_bomb.py`
+- `tools/health_do_vs_dont.py`
+- `tools/health_medical_study.py`
+- `tools/history_fact_shorts.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `.ai/archive/TASKS_DONE_archive_2026-06-12.md`
+
+### Verification
+- `.\.venv\Scripts\python.exe -m pytest --no-cov tests/unit/test_history_fact_shorts.py -q --tb=short --maxfail=1 --basetemp .tmp/pytest-loop15-focused` -> `8 passed`
+- `.\.venv\Scripts\python.exe -m pytest --no-cov tests/unit/test_space_scale.py tests/unit/test_tool_pillow_deprecations.py -q --tb=short --maxfail=1 --basetemp .tmp/pytest-loop16-focused-rerun` -> `12 passed`
+- `.\.venv\Scripts\python.exe -m pytest --no-cov tests/unit/test_tool_pillow_deprecations.py -q --tb=short --maxfail=1 --basetemp .tmp/pytest-loop19-focused` -> `9 passed`
+- Standalone script smoke passed for `tools\space_scale.py`, `tools\space_fact_bomb.py`, `tools\health_do_vs_dont.py`, and `tools\health_medical_study.py`.
+- Targeted `ruff check` and targeted `git diff --check` commands for touched files -> passed.
+- `python execution/project_qc_runner.py --project shorts-maker-v2 --json` -> passed (`1655 passed, 12 skipped, 1 warning`; lint passed).
+
+### Notes
+- The remaining warning is still the known external `google-genai` `_UnionGenericAlias` deprecation from site-packages.
+- Next small refactor candidate: convert one more warning-as-error-covered generated tool, likely `health_mental_message.py` or `history_mystery.py`, to `tools/_rendering_helpers.py` with the same dual-import and standalone smoke pattern.
+
+---
+
+## 2026-06-12 | Codex | shared rendering-helper continuation for health/history tools (T-2373)
+
+### Work Summary
+- Continued the shared helper consolidation loop after T-2372.
+- Converted `health_mental_message.py` to use `find_font_path`, `load_font`, and `rgb_array_to_rgba_image` from `tools/_rendering_helpers.py`.
+- Converted `history_mystery.py` to use `find_font_path`, `load_font`, `rgba_array_to_image`, and `rgb_array_to_rgba_image` from `tools/_rendering_helpers.py`.
+- Kept temporary crop/resize `Image.fromarray(...)` calls local when they are not final materialization helper sites.
+
+### Changed Files
+- `tools/health_mental_message.py`
+- `tools/history_mystery.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `.ai/archive/TASKS_DONE_archive_2026-06-12.md`
+
+### Verification
+- `.\.venv\Scripts\python.exe -m pytest --no-cov tests/unit/test_tool_pillow_deprecations.py -q --tb=short --maxfail=1 --basetemp .tmp/pytest-loop20-focused` -> `9 passed`
+- `.\.venv\Scripts\python.exe -m pytest --no-cov tests/unit/test_tool_pillow_deprecations.py -q --tb=short --maxfail=1 --basetemp .tmp/pytest-loop21-focused-rerun` -> `9 passed`
+- Standalone script smoke: `tools\health_mental_message.py` printed expected `--demo` guidance; `tools\history_mystery.py --help` returned usage successfully.
+- Targeted `ruff check` and targeted `git diff --check` commands for touched files -> passed.
+- `python execution/project_qc_runner.py --project shorts-maker-v2 --json` -> passed (`1655 passed, 12 skipped, 1 warning`; lint passed).
+
+### Notes
+- The remaining warning is still the known external `google-genai` `_UnionGenericAlias` deprecation from site-packages.
+- Next small refactor candidate: continue shared helper adoption for `history_timeline.py` or `psychology_quiz.py`, one tool per loop.
+
+---
+
+## 2026-06-12 | Codex | shared rendering-helper continuation for timeline and quiz tools (T-2374)
+
+### Work Summary
+- Continued the shared helper consolidation loop after T-2373.
+- Converted `history_timeline.py` to use `find_font_path`, `load_font`, and `rgba_array_to_image` from `tools/_rendering_helpers.py`.
+- Converted `psychology_quiz.py` to use `find_font_path`, `load_font`, and `rgba_array_to_image` from `tools/_rendering_helpers.py`.
+- Project-local `.ai/TOOL_MATRIX.md` was missing during rehydrate; available `.ai` context plus `session_orient.py --json` was used.
+
+### Changed Files
+- `tools/history_timeline.py`
+- `tools/psychology_quiz.py`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `.ai/archive/TASKS_DONE_archive_2026-06-12.md`
+
+### Verification
+- `.\.venv\Scripts\python.exe -m pytest --no-cov tests/unit/test_tool_pillow_deprecations.py -q --tb=short --maxfail=1 --basetemp .tmp/pytest-loop22-focused-rerun` -> `9 passed`
+- `.\.venv\Scripts\python.exe -m pytest --no-cov tests/unit/test_tool_pillow_deprecations.py -q --tb=short --maxfail=1 --basetemp .tmp/pytest-loop23-focused-rerun` -> `9 passed`
+- Standalone script smoke: `tools\history_timeline.py --help` and `tools\psychology_quiz.py --help` returned usage successfully.
+- Targeted `ruff check` and targeted `git diff --check` commands for touched files -> passed.
+- `python execution/project_qc_runner.py --project shorts-maker-v2 --json` -> passed (`1655 passed, 12 skipped, 1 warning`; lint passed).
+
+### Notes
+- The remaining warning is still the known external `google-genai` `_UnionGenericAlias` deprecation from site-packages.
+- Next small refactor candidate: continue shared helper adoption for `psychology_shorts.py` or `psychology_quote.py`, one tool per loop.
+
+---

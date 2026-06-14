@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 import math
-import os
 import random
 import warnings
 from pathlib import Path
@@ -17,7 +16,13 @@ from pathlib import Path
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="PIL")
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageDraw, ImageFilter
+
+try:
+    from tools._rendering_helpers import find_font_path, load_font, rgb_array_to_rgba_image
+except ModuleNotFoundError:
+    from _rendering_helpers import find_font_path, load_font, rgb_array_to_rgba_image  # type: ignore
+
 
 try:
     from moviepy import VideoClip
@@ -81,30 +86,15 @@ class MentalHealthMessageGenerator:
         ]
 
     def _load_fonts(self):
-        dirs = [Path("C:/Windows/Fonts"), Path(os.path.expanduser("~/AppData/Local/Microsoft/Windows/Fonts"))]
-
-        def _f(ns, fb="malgun.ttf"):
-            for d in dirs:
-                for n in ns:
-                    if (d / n).exists():
-                        return str(d / n)
-            for d in dirs:
-                if (d / fb).exists():
-                    return str(d / fb)
-            return ""
-
         # Serif for emotional feel
-        serif = _f(["NanumMyeongjo.ttf", "NanumMyeongjoBold.ttf", "batang.ttc"])
-        sans = _f(["NanumGothic.ttf", "malgun.ttf"])
-        sb = _f(["NanumGothicBold.ttf", "malgunbd.ttf"])
+        serif = find_font_path(["NanumMyeongjo.ttf", "NanumMyeongjoBold.ttf", "batang.ttc"])
+        sans = find_font_path(["NanumGothic.ttf", "malgun.ttf"])
+        sb = find_font_path(["NanumGothicBold.ttf", "malgunbd.ttf"])
 
-        def _l(p, s):
-            return ImageFont.truetype(p, s) if p else ImageFont.load_default(s)
-
-        self.f_msg = _l(serif, 50)  # 메시지 (세리프)
-        self.f_highlight = _l(serif, 50)  # 하이라이트 (same font, colored)
-        self.f_closing = _l(sb, 30)  # 마무리 작은 텍스트
-        self.f_disc = _l(sans, 22)  # 면책
+        self.f_msg = load_font(serif, 50)  # 메시지 (세리프)
+        self.f_highlight = load_font(serif, 50)  # 하이라이트 (same font, colored)
+        self.f_closing = load_font(sb, 30)  # 마무리 작은 텍스트
+        self.f_disc = load_font(sans, 22)  # 면책
 
     def _prepare_bg(self):
         """배경 이미지 준비 (블러 + 어둡게) or 그래디언트."""
@@ -226,7 +216,7 @@ class MentalHealthMessageGenerator:
             img = img.crop((dx, dy, dx + self.W, dy + self.H))
             bg_f = np.array(img)
 
-        bg = Image.fromarray(bg_f).convert("RGBA")
+        bg = rgb_array_to_rgba_image(bg_f)
         ov = Image.new("RGBA", (self.W, self.H), (0, 0, 0, 0))
         draw = ImageDraw.Draw(ov)
 

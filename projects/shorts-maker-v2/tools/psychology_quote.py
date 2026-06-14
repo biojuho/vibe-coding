@@ -29,6 +29,10 @@ except ImportError:
     from moviepy.editor import VideoClip  # type: ignore
 
 
+def _rgb_array_to_rgba_image(array: np.ndarray) -> Image.Image:
+    return Image.fromarray(array).convert("RGBA")
+
+
 class QuoteShortsGenerator:
     W, H = 1080, 1920
     FPS = 30
@@ -158,7 +162,7 @@ class QuoteShortsGenerator:
             for y in range(self.H):
                 r = y / self.H
                 arr[y, :] = [int(30 * (1 - r)), int(10 * (1 - r)), int(40 * (1 - r))]
-            img = Image.fromarray(arr, "RGB")
+            img = Image.fromarray(arr)
         # 가우시안 블러 + 어둡게
         img = img.filter(ImageFilter.GaussianBlur(radius=30))
         arr = np.array(img, dtype=np.float32) * 0.4
@@ -174,7 +178,7 @@ class QuoteShortsGenerator:
             else:
                 alpha = int(179 * (y / zone))  # 0 → 70%
                 a[self.H - zone + y, :, 3] = alpha
-        return Image.fromarray(a, "RGBA")
+        return Image.fromarray(a)
 
     # ── Text Helpers ──
     @staticmethod
@@ -242,7 +246,7 @@ class QuoteShortsGenerator:
 
     def _new_frame_layers(self, bg_alpha, global_alpha):
         bg_arr = self._bg.astype(np.float32) * bg_alpha * global_alpha
-        bg = Image.fromarray(np.clip(bg_arr, 0, 255).astype(np.uint8), "RGB").convert("RGBA")
+        bg = _rgb_array_to_rgba_image(np.clip(bg_arr, 0, 255).astype(np.uint8))
         ov = Image.new("RGBA", (self.W, self.H), (0, 0, 0, 0))
         return bg, ov, ImageDraw.Draw(ov)
 

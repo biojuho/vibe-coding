@@ -2,7 +2,7 @@
 
 ## 1. 사전 준비
 
-1. `python -m pip install -r requirements.txt`
+1. `python -m pip install -e ".[dev]"`
 2. `.env` 파일에 `OPENAI_API_KEY`, `GEMINI_API_KEY` 설정
 3. `python -m shorts_maker_v2 doctor --config config.yaml` 실행
 

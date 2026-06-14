@@ -1906,6 +1906,7 @@ export default function DashboardClient(options = {}) {
 					feedHistory={feedHistory}
 					cattleList={cattleList}
 					expenseRecords={expenseRecords}
+					marketPrice={initialMarketPrice}
 				/>
 			);
 		}

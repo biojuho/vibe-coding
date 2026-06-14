@@ -1,23 +1,14 @@
-name: Visual Regression CI
+name: Archived ShortsFactory Compatibility CI
 
 on:
-  push:
-    paths:
-      - 'ShortsFactory/engines/**'
-      - 'ShortsFactory/templates/**'
-      - 'tests/unit/test_visual_regression.py'
-  pull_request:
-    paths:
-      - 'ShortsFactory/engines/**'
-      - 'ShortsFactory/templates/**'
-      - 'tests/unit/test_visual_regression.py'
+  workflow_dispatch:
 
 env:
   PYTHON_VERSION: '3.14'
 
 jobs:
   visual-regression:
-    name: Visual Regression Tests
+    name: Archived Visual Regression Tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -38,20 +29,20 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-html
+          pip install -e ".[dev]"
+          pip install pytest-html
 
       - name: Restore baseline cache
         uses: actions/cache@v4
         with:
           path: .tmp/visual_baselines
-          key: visual-baselines-${{ hashFiles('tests/unit/test_visual_regression.py') }}
+          key: visual-baselines-${{ hashFiles('archive/tests_legacy_v1/unit/test_visual_regression.py') }}
           restore-keys: |
             visual-baselines-
 
       - name: Run visual regression tests
         run: |
-          python -m pytest tests/unit/test_visual_regression.py \
+          python -m pytest archive/tests_legacy_v1/unit/test_visual_regression.py \
             -v --tb=long \
             --html=.tmp/visual_regression_report.html \
             --self-contained-html \
@@ -98,11 +89,11 @@ jobs:
         run: |
           echo "::error::Visual regression detected! Check the report artifact for details."
           echo "To update baselines locally, run:"
-          echo "  pytest tests/unit/test_visual_regression.py --update-baselines"
+          echo "  pytest archive/tests_legacy_v1/unit/test_visual_regression.py --update-baselines"
           exit 1
 
   engine-unit-tests:
-    name: Engine V2 Unit Tests
+    name: Archived Engine V2 Unit Tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -120,13 +111,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg fonts-noto-cjk
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest
+          pip install -e ".[dev]"
 
       - name: Run engine v2 tests
         run: |
-          python -m pytest tests/unit/test_engines_v2.py -v --tb=short
+          python -m pytest archive/tests_legacy_v1/unit/test_engines_v2.py -v --tb=short
 
       - name: Run interface tests
         run: |
-          python -m pytest tests/unit/test_interfaces.py -v --tb=short
+          python -m pytest archive/tests_legacy_v1/unit/test_interfaces.py -v --tb=short

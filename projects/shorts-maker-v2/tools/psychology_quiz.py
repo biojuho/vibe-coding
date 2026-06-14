@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import argparse
 import math
-import os
 import re
 import warnings
 from pathlib import Path
@@ -19,7 +18,12 @@ from pathlib import Path
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="PIL")
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
+
+try:
+    from tools._rendering_helpers import find_font_path, load_font, rgba_array_to_image
+except ModuleNotFoundError:
+    from _rendering_helpers import find_font_path, load_font, rgba_array_to_image  # type: ignore
 
 try:
     from moviepy import VideoClip
@@ -101,36 +105,21 @@ class PsychologyQuizGenerator:
 
     # ── Fonts ──
     def _load_fonts(self):
-        dirs = [Path("C:/Windows/Fonts"), Path(os.path.expanduser("~/AppData/Local/Microsoft/Windows/Fonts"))]
+        se = find_font_path(["NanumMyeongjo.ttf", "batang.ttc"])
+        sb = find_font_path(["NanumGothicBold.ttf", "NanumGothicExtraBold.ttf", "malgunbd.ttf"])
+        sa = find_font_path(["NanumGothic.ttf", "malgun.ttf"])
 
-        def _f(ns, fb="malgun.ttf"):
-            for d in dirs:
-                for n in ns:
-                    if (d / n).exists():
-                        return str(d / n)
-            for d in dirs:
-                if (d / fb).exists():
-                    return str(d / fb)
-            return ""
-
-        se = _f(["NanumMyeongjo.ttf", "batang.ttc"])
-        sb = _f(["NanumGothicBold.ttf", "NanumGothicExtraBold.ttf", "malgunbd.ttf"])
-        sa = _f(["NanumGothic.ttf", "malgun.ttf"])
-
-        def _l(p, s):
-            return ImageFont.truetype(p, s) if p else ImageFont.load_default(s)
-
-        self.f_question = _l(sb, 64)
-        self.f_option = _l(sa, 44)
-        self.f_body = _l(sa, 40)
-        self.f_bold = _l(sb, 52)
-        self.f_stat = _l(sb, 56)
-        self.f_countdown = _l(sb, 60)
-        self.f_small = _l(sa, 34)
-        self.f_badge = _l(sb, 36)
-        self.f_turn = _l(sb, 72)
-        self.f_cta = _l(sb, 48)
-        self.f_quote = _l(se, 46)
+        self.f_question = load_font(sb, 64)
+        self.f_option = load_font(sa, 44)
+        self.f_body = load_font(sa, 40)
+        self.f_bold = load_font(sb, 52)
+        self.f_stat = load_font(sb, 56)
+        self.f_countdown = load_font(sb, 60)
+        self.f_small = load_font(sa, 34)
+        self.f_badge = load_font(sb, 36)
+        self.f_turn = load_font(sb, 72)
+        self.f_cta = load_font(sb, 48)
+        self.f_quote = load_font(se, 46)
 
     # ── Background / Vignette ──
     def _mk_gradient(self):
@@ -141,7 +130,7 @@ class PsychologyQuizGenerator:
             a[y, :, 1] = int(self.BG_PURPLE[1] * (1 - r) + self.BG_BLACK[1] * r)
             a[y, :, 2] = int(self.BG_PURPLE[2] * (1 - r) + self.BG_BLACK[2] * r)
             a[y, :, 3] = 255
-        return Image.fromarray(a, "RGBA")
+        return rgba_array_to_image(a)
 
     def _mk_vignette(self):
         ys = np.arange(self.H, dtype=np.float32)
@@ -152,12 +141,12 @@ class PsychologyQuizGenerator:
         al = np.where(d > 0.55, np.clip((d - 0.55) / 0.45 * 180, 0, 255), 0).astype(np.uint8)
         a = np.zeros((self.H, self.W, 4), dtype=np.uint8)
         a[:, :, 3] = al
-        return Image.fromarray(a, "RGBA")
+        return rgba_array_to_image(a)
 
     def _get_bg(self, br=0.5):
         bg = self._bg_arr.copy()
         bg[:, :, :3] *= br
-        return Image.fromarray(np.clip(bg, 0, 255).astype(np.uint8), "RGBA")
+        return rgba_array_to_image(np.clip(bg, 0, 255).astype(np.uint8))
 
     # ── Text Helpers ──
     @staticmethod
@@ -215,9 +204,9 @@ class PsychologyQuizGenerator:
         total_h = lh * len(self._q_lines)
         sy = int((self.H // 2 - 100) - total_h // 2 + bounce)
         qa = int(255 * self._eo(t / 0.5))
-        for i, l in enumerate(self._q_lines):
-            lw = self._tw(l, self.f_question)
-            draw.text(((self.W - lw) // 2, sy + i * lh), l, font=self.f_question, fill=(255, 255, 255, qa))
+        for i, line in enumerate(self._q_lines):
+            lw = self._tw(line, self.f_question)
+            draw.text(((self.W - lw) // 2, sy + i * lh), line, font=self.f_question, fill=(255, 255, 255, qa))
         # "잠시 생각해보세요..."
         hint_a = int(255 * self._eo((t - 0.8) / 0.5))
         if hint_a > 0:
@@ -279,8 +268,8 @@ class PsychologyQuizGenerator:
         lines = self._wrap(text, self.f_option, w - 130)
         lh2 = self._th("가", self.f_option) + 8
         ty = y + (h - lh2 * len(lines)) // 2
-        for i, l in enumerate(lines):
-            draw.text((x + 100, ty + i * lh2), l, font=self.f_option, fill=(255, 255, 255, alpha))
+        for i, line in enumerate(lines):
+            draw.text((x + 100, ty + i * lh2), line, font=self.f_option, fill=(255, 255, 255, alpha))
 
     # ── Phase 3: Answer + Stats + Explanation ──
     def _ph3(self, draw, overlay, t):
@@ -332,10 +321,10 @@ class PsychologyQuizGenerator:
             ca = int(204 * self._eo(et / 0.6))
             if ca > 0:
                 self._card(draw, self.MARGIN, cy_, cw, card_h, col=(45, 27, 51, ca))
-            for i, l in enumerate(self._exp_lines):
+            for i, line in enumerate(self._exp_lines):
                 la = int(255 * self._eo((et - 0.3 - i * 0.2) / 0.4))
                 if la > 0:
-                    self._hl_line(draw, l, cy_ + 25 + i * lh, self.f_body, alpha=la)
+                    self._hl_line(draw, line, cy_ + 25 + i * lh, self.f_body, alpha=la)
 
     # ── Phase 4: Twist + CTA ──
     def _ph4(self, draw, t):
@@ -353,10 +342,10 @@ class PsychologyQuizGenerator:
             ca = int(204 * self._eo((t - 0.5) / 0.6))
             if ca > 0:
                 self._card(draw, self.MARGIN, cy_, cw, ch_, col=(45, 27, 51, ca))
-            for i, l in enumerate(self._twist_lines):
+            for i, line in enumerate(self._twist_lines):
                 la = int(255 * self._eo((t - 0.8 - i * 0.2) / 0.4))
                 if la > 0:
-                    self._hl_line(draw, l, cy_ + 25 + i * lh, self.f_body, alpha=la)
+                    self._hl_line(draw, line, cy_ + 25 + i * lh, self.f_body, alpha=la)
         # CTA
         cta_a = int(255 * self._eo((t - 3.0) / 0.6))
         if cta_a > 0:

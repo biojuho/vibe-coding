@@ -270,9 +270,7 @@ class TestGradeInplaceOptimization:
                 _grade_inplace(actual, profile)
 
                 max_diff = float(np.abs(expected - actual).max())
-                assert max_diff < 0.01, (
-                    f"{channel_key}/{role}: fused grade diverged from reference by {max_diff}"
-                )
+                assert max_diff < 0.01, f"{channel_key}/{role}: fused grade diverged from reference by {max_diff}"
 
     def test_operates_in_place(self):
         """_grade_inplace must mutate the passed array, not return a copy."""

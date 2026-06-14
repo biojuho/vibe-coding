@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 import math
-import os
 import random
 import warnings
 from pathlib import Path
@@ -17,7 +16,13 @@ from pathlib import Path
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="PIL")
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
+
+try:
+    from tools._rendering_helpers import find_font_path, load_font, rgba_array_to_image
+except ModuleNotFoundError:
+    from _rendering_helpers import find_font_path, load_font, rgba_array_to_image  # type: ignore
+
 
 try:
     from moviepy import VideoClip
@@ -68,30 +73,15 @@ class SpaceScaleGenerator:
         self._outro_lines = self.outro_text.split("\n")
 
     def _load_fonts(self):
-        dirs = [Path("C:/Windows/Fonts"), Path(os.path.expanduser("~/AppData/Local/Microsoft/Windows/Fonts"))]
+        sb = find_font_path(["NanumGothicBold.ttf", "malgunbd.ttf"])
+        sa = find_font_path(["NanumGothic.ttf", "malgun.ttf"])
 
-        def _f(ns, fb="malgun.ttf"):
-            for d in dirs:
-                for n in ns:
-                    if (d / n).exists():
-                        return str(d / n)
-            for d in dirs:
-                if (d / fb).exists():
-                    return str(d / fb)
-            return ""
-
-        sb = _f(["NanumGothicBold.ttf", "malgunbd.ttf"])
-        sa = _f(["NanumGothic.ttf", "malgun.ttf"])
-
-        def _l(p, s):
-            return ImageFont.truetype(p, s) if p else ImageFont.load_default(s)
-
-        self.f_name = _l(sb, 56)
-        self.f_size = _l(sb, 72)
-        self.f_unit = _l(sa, 38)
-        self.f_big = _l(sb, 52)
-        self.f_small = _l(sa, 30)
-        self.f_outro = _l(sb, 48)
+        self.f_name = load_font(sb, 56)
+        self.f_size = load_font(sb, 72)
+        self.f_unit = load_font(sa, 38)
+        self.f_big = load_font(sb, 52)
+        self.f_small = load_font(sa, 30)
+        self.f_outro = load_font(sb, 48)
 
     def _load_images(self):
         """각 스케일 이미지를 원형 크롭하여 캐싱."""
@@ -395,7 +385,7 @@ class SpaceScaleGenerator:
         if alpha < 255:
             arr = np.array(resized)
             arr[:, :, 3] = (arr[:, :, 3].astype(np.float32) * alpha / 255).clip(0, 255).astype(np.uint8)
-            resized = Image.fromarray(arr)
+            resized = rgba_array_to_image(arr)
         paste_x = cx - sz // 2
         paste_y = cy - sz // 2
         bg.paste(resized, (paste_x, paste_y), resized)

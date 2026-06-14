@@ -8,14 +8,19 @@
 from __future__ import annotations
 
 import argparse
-import os
 import warnings
 from pathlib import Path
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="PIL")
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
+
+try:
+    from tools._rendering_helpers import find_font_path, load_font, rgba_array_to_image
+except ModuleNotFoundError:
+    from _rendering_helpers import find_font_path, load_font, rgba_array_to_image  # type: ignore
+
 
 try:
     from moviepy import VideoClip
@@ -80,34 +85,19 @@ class MedicalStudyGenerator:
         self._grid = self._make_grid()
 
     def _load_fonts(self):
-        dirs = [Path("C:/Windows/Fonts"), Path(os.path.expanduser("~/AppData/Local/Microsoft/Windows/Fonts"))]
+        sb = find_font_path(["NanumGothicBold.ttf", "malgunbd.ttf"])
+        sa = find_font_path(["NanumGothic.ttf", "malgun.ttf"])
 
-        def _f(ns, fb="malgun.ttf"):
-            for d in dirs:
-                for n in ns:
-                    if (d / n).exists():
-                        return str(d / n)
-            for d in dirs:
-                if (d / fb).exists():
-                    return str(d / fb)
-            return ""
-
-        sb = _f(["NanumGothicBold.ttf", "malgunbd.ttf"])
-        sa = _f(["NanumGothic.ttf", "malgun.ttf"])
-
-        def _l(p, s):
-            return ImageFont.truetype(p, s) if p else ImageFont.load_default(s)
-
-        self.f_hook = _l(sb, 62)
-        self.f_title = _l(sb, 48)
-        self.f_stat = _l(sb, 80)
-        self.f_body = _l(sa, 34)
-        self.f_source = _l(sa, 30)
-        self.f_badge = _l(sb, 26)
-        self.f_bar = _l(sb, 28)
-        self.f_outro = _l(sb, 44)
-        self.f_small = _l(sa, 22)
-        self.f_num = _l(sb, 36)
+        self.f_hook = load_font(sb, 62)
+        self.f_title = load_font(sb, 48)
+        self.f_stat = load_font(sb, 80)
+        self.f_body = load_font(sa, 34)
+        self.f_source = load_font(sa, 30)
+        self.f_badge = load_font(sb, 26)
+        self.f_bar = load_font(sb, 28)
+        self.f_outro = load_font(sb, 44)
+        self.f_small = load_font(sa, 22)
+        self.f_num = load_font(sb, 36)
 
     def _preprocess(self):
         tw = self.W - self.MG * 2 - 40
@@ -415,7 +405,7 @@ class MedicalStudyGenerator:
         concl_start = findings_start + self.findings_dur
 
         bg = Image.new("RGBA", (self.W, self.H), (*self.BG, 255))
-        grid = Image.fromarray(self._grid, "RGBA")
+        grid = rgba_array_to_image(self._grid)
         bg = Image.alpha_composite(bg, grid)
         ov = Image.new("RGBA", (self.W, self.H), (0, 0, 0, 0))
         draw = ImageDraw.Draw(ov)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import warnings
 from pathlib import Path
 
 import pytest
@@ -38,7 +39,9 @@ def test_tech_vs_render_phases_return_nonblank_frames(timestamp):
     module = _load_ai_tech_module()
     generator = module.TechVSShortsGenerator(**module.DEMO_VS)
 
-    frame = generator._render(timestamp)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        frame = generator._render(timestamp)
 
     assert frame.shape == (generator.H, generator.W, 3)
     assert frame.dtype.name == "uint8"

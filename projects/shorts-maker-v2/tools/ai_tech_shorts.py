@@ -26,6 +26,10 @@ except ImportError:
     from moviepy.editor import VideoClip  # type: ignore
 
 
+def _rgb_array_to_rgba_image(array: np.ndarray) -> Image.Image:
+    return Image.fromarray(array).convert("RGBA")
+
+
 class BaseShortsGenerator:
     """HUD 기반 쇼츠 생성기 공통 베이스 클래스."""
 
@@ -380,7 +384,7 @@ class AINewsShortsGenerator(BaseShortsGenerator):
             br = 0.25 * (1 - self._ei(lt_ / dur4) * 0.4)
 
         arr = (self._bg_img.astype(np.float32) * br).clip(0, 255).astype(np.uint8)
-        bg = Image.fromarray(arr, "RGB").convert("RGBA")
+        bg = _rgb_array_to_rgba_image(arr)
         ov = Image.new("RGBA", (self.W, self.H), (0, 0, 0, 0))
         draw = ImageDraw.Draw(ov)
 
@@ -457,7 +461,7 @@ class TechVSShortsGenerator(BaseShortsGenerator):
         arr = np.zeros((self.H, self.W, 3), dtype=np.uint8)
         for y in range(self.H):
             arr[y, :] = [10, 22, 40]
-        bg = Image.fromarray(arr, "RGB").convert("RGBA")
+        bg = _rgb_array_to_rgba_image(arr)
         ov = Image.new("RGBA", (self.W, self.H), (0, 0, 0, 0))
         return bg, ov, ImageDraw.Draw(ov)
 

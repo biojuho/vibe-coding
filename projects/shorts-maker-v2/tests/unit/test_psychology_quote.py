@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import warnings
 from pathlib import Path
 
 import pytest
@@ -54,7 +55,9 @@ def test_psychology_quote_render_phases_return_expected_frames(timestamp, expect
     module = _load_quote_module()
     generator = module.QuoteShortsGenerator(**module.DEMO_DATA)
 
-    frame = generator._render(timestamp)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        frame = generator._render(timestamp)
 
     assert frame.shape == (generator.H, generator.W, 3)
     assert frame.dtype.name == "uint8"

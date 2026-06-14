@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import warnings
 from pathlib import Path
 
 import pytest
@@ -38,12 +39,28 @@ def test_countdown_background_gradient_is_cached_from_original_formula():
     assert gradient[-1, 0].tolist() == [33, 24, 10]
 
 
+@pytest.mark.parametrize("timestamp", [1.0, 12.0, 32.0])
+def test_history_fact_render_phases_return_nonblank_frames(timestamp):
+    module = _load_history_fact_module()
+    generator = module.HistoryFactGenerator(**module.DEMO_FACT)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        frame = generator._render(timestamp)
+
+    assert frame.shape == (generator.H, generator.W, 3)
+    assert frame.dtype.name == "uint8"
+    assert frame.max() > frame.min()
+
+
 @pytest.mark.parametrize("timestamp", [1.0, 8.0, 36.0])
 def test_countdown_render_phases_return_nonblank_frames(timestamp):
     module = _load_history_fact_module()
     generator = module.HistoryCountdownGenerator(**module.DEMO_COUNTDOWN)
 
-    frame = generator._render(timestamp)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        frame = generator._render(timestamp)
 
     assert frame.shape == (generator.H, generator.W, 3)
     assert frame.dtype.name == "uint8"

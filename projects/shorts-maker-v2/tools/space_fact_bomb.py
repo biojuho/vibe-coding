@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 import math
-import os
 import random
 import warnings
 from pathlib import Path
@@ -17,7 +16,13 @@ from pathlib import Path
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="PIL")
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
+
+try:
+    from tools._rendering_helpers import find_font_path, load_font, rgb_array_to_rgba_image
+except ModuleNotFoundError:
+    from _rendering_helpers import find_font_path, load_font, rgb_array_to_rgba_image  # type: ignore
+
 
 try:
     from moviepy import VideoClip
@@ -71,32 +76,17 @@ class SpaceFactBombGenerator:
         self._preprocess_text()
 
     def _load_fonts(self):
-        dirs = [Path("C:/Windows/Fonts"), Path(os.path.expanduser("~/AppData/Local/Microsoft/Windows/Fonts"))]
+        sb = find_font_path(["NanumGothicBold.ttf", "malgunbd.ttf"])
+        sa = find_font_path(["NanumGothic.ttf", "malgun.ttf"])
 
-        def _f(ns, fb="malgun.ttf"):
-            for d in dirs:
-                for n in ns:
-                    if (d / n).exists():
-                        return str(d / n)
-            for d in dirs:
-                if (d / fb).exists():
-                    return str(d / fb)
-            return ""
-
-        sb = _f(["NanumGothicBold.ttf", "malgunbd.ttf"])
-        sa = _f(["NanumGothic.ttf", "malgun.ttf"])
-
-        def _l(p, s):
-            return ImageFont.truetype(p, s) if p else ImageFont.load_default(s)
-
-        self.f_hook = _l(sb, 80)  # 훅 타이틀
-        self.f_title = _l(sb, 52)  # 팩트 제목
-        self.f_number = _l(sb, 88)  # 숫자 (크게)
-        self.f_unit = _l(sb, 44)  # 단위
-        self.f_detail = _l(sa, 32)  # 부가 설명
-        self.f_badge = _l(sb, 28)  # FACT 01 배지
-        self.f_outro = _l(sb, 48)  # 아웃트로
-        self.f_small = _l(sa, 26)  # 작은 텍스트
+        self.f_hook = load_font(sb, 80)  # 훅 타이틀
+        self.f_title = load_font(sb, 52)  # 팩트 제목
+        self.f_number = load_font(sb, 88)  # 숫자 (크게)
+        self.f_unit = load_font(sb, 44)  # 단위
+        self.f_detail = load_font(sa, 32)  # 부가 설명
+        self.f_badge = load_font(sb, 28)  # FACT 01 배지
+        self.f_outro = load_font(sb, 48)  # 아웃트로
+        self.f_small = load_font(sa, 26)  # 작은 텍스트
 
     def _init_stars(self):
         random.seed(77)
@@ -407,7 +397,7 @@ class SpaceFactBombGenerator:
 
         # BG
         arr = np.full((self.H, self.W, 3), self.BG, dtype=np.uint8)
-        bg = Image.fromarray(arr, "RGB").convert("RGBA")
+        bg = rgb_array_to_rgba_image(arr)
         ov = Image.new("RGBA", (self.W, self.H), (0, 0, 0, 0))
         draw = ImageDraw.Draw(ov)
 

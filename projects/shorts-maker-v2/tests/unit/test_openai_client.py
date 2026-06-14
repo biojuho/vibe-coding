@@ -169,7 +169,9 @@ class TestTranscribeAudio:
         expected_words = [{"word": "로컬", "start": 0.0, "end": 1.0}]
 
         # 로컬 전사 성공으로 모킹
-        with patch("shorts_maker_v2.providers.whisper_aligner.transcribe_to_word_timings", return_value=expected_words) as mock_local:
+        with patch(
+            "shorts_maker_v2.providers.whisper_aligner.transcribe_to_word_timings", return_value=expected_words
+        ) as mock_local:
             result = client.transcribe_audio(audio)
             assert result == expected_words
             # 로컬 전사가 성공했으므로 OpenAI transcribe API는 호출되지 않아야 함
@@ -192,7 +194,9 @@ class TestTranscribeAudio:
         client = openai_client.OpenAIClient(api_key="sk-test")
 
         # 로컬 전사 실패(빈 배열 반환) 모킹 → OpenAI API로 폴백
-        with patch("shorts_maker_v2.providers.whisper_aligner.transcribe_to_word_timings", return_value=[]) as mock_local:
+        with patch(
+            "shorts_maker_v2.providers.whisper_aligner.transcribe_to_word_timings", return_value=[]
+        ) as mock_local:
             result = client.transcribe_audio(audio)
             assert result == [{"word": "hello", "start": 0.0, "end": 0.5}]
             mock_client_inst.audio.transcriptions.create.assert_called_once()

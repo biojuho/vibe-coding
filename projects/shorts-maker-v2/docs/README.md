@@ -126,4 +126,7 @@ python -m pip install -e ".[dev]"
 
 # 단위/통합 테스트 실행
 python -m pytest tests -q
+
+# Windows/Codex: bare python may point outside this project venv
+.\.venv\Scripts\python.exe -m pytest --no-cov tests/unit tests/integration -q --tb=short --maxfail=1
 ```

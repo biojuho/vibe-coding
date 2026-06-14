@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 import math
-import os
 import random
 import warnings
 from pathlib import Path
@@ -18,7 +17,12 @@ from typing import Any
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="PIL")
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
+
+try:
+    from tools._rendering_helpers import find_font_path, load_font, rgba_array_to_image
+except ModuleNotFoundError:
+    from _rendering_helpers import find_font_path, load_font, rgba_array_to_image  # type: ignore
 
 try:
     from moviepy import VideoClip
@@ -72,30 +76,15 @@ class HistoryTimelineGenerator:
             e["_title"] = self._wrap(e.get("title", ""), self.f_title, tw)
 
     def _load_fonts(self):
-        dirs = [Path("C:/Windows/Fonts"), Path(os.path.expanduser("~/AppData/Local/Microsoft/Windows/Fonts"))]
+        se = find_font_path(["NanumMyeongjo.ttf", "NanumMyeongjoBold.ttf", "batang.ttc"])
+        sb = find_font_path(["NanumGothicBold.ttf", "malgunbd.ttf"])
+        sa = find_font_path(["NanumGothic.ttf", "malgun.ttf"])
 
-        def _f(ns, fb="malgun.ttf"):
-            for d in dirs:
-                for n in ns:
-                    if (d / n).exists():
-                        return str(d / n)
-            for d in dirs:
-                if (d / fb).exists():
-                    return str(d / fb)
-            return ""
-
-        se = _f(["NanumMyeongjo.ttf", "NanumMyeongjoBold.ttf", "batang.ttc"])
-        sb = _f(["NanumGothicBold.ttf", "malgunbd.ttf"])
-        sa = _f(["NanumGothic.ttf", "malgun.ttf"])
-
-        def _l(p, s):
-            return ImageFont.truetype(p, s) if p else ImageFont.load_default(s)
-
-        self.f_year = _l(sb, 90)
-        self.f_title = _l(se, 56)
-        self.f_body = _l(sa, 36)
-        self.f_intro = _l(sb, 64)
-        self.f_small = _l(sa, 32)
+        self.f_year = load_font(sb, 90)
+        self.f_title = load_font(se, 56)
+        self.f_body = load_font(sa, 36)
+        self.f_intro = load_font(sb, 64)
+        self.f_small = load_font(sa, 32)
 
     # ── Background ──
     def _mk_bg(self):
@@ -121,7 +110,7 @@ class HistoryTimelineGenerator:
         al = np.where(d > 0.5, np.clip((d - 0.5) / 0.5 * 200, 0, 200), 0).astype(np.uint8)
         a = np.zeros((self.H, self.W, 4), dtype=np.uint8)
         a[:, :, 3] = al
-        return Image.fromarray(a, "RGBA")
+        return rgba_array_to_image(a)
 
     def _get_bg(self, tint=None, tint_a=0.0):
         bg = self._bg.copy()
@@ -131,7 +120,7 @@ class HistoryTimelineGenerator:
             bg[:, :, 0] = bg[:, :, 0] * (1 - tint_a) + ta[0] * tint_a
             bg[:, :, 1] = bg[:, :, 1] * (1 - tint_a) + ta[1] * tint_a
             bg[:, :, 2] = bg[:, :, 2] * (1 - tint_a) + ta[2] * tint_a
-        return Image.fromarray(np.clip(bg, 0, 255).astype(np.uint8), "RGBA")
+        return rgba_array_to_image(np.clip(bg, 0, 255).astype(np.uint8))
 
     # ── Helpers ──
     @staticmethod
@@ -211,14 +200,14 @@ class HistoryTimelineGenerator:
         # 이벤트명
         title_y = y_base + 100
         lh_t = self._th("가", self.f_title) + 12
-        for i, l in enumerate(ev["_title"]):
+        for i, line in enumerate(ev["_title"]):
             la = int(alpha * min(1, 1))
-            draw.text((x, title_y + i * lh_t), l, font=self.f_title, fill=(*col, la))
+            draw.text((x, title_y + i * lh_t), line, font=self.f_title, fill=(*col, la))
         # 설명
         desc_y = title_y + len(ev["_title"]) * lh_t + 20
         lh_d = self._th("가", self.f_body) + 10
-        for i, l in enumerate(ev["_desc"]):
-            draw.text((x, desc_y + i * lh_d), l, font=self.f_body, fill=(*self.TEXT, int(alpha * 0.85)))
+        for i, line in enumerate(ev["_desc"]):
+            draw.text((x, desc_y + i * lh_d), line, font=self.f_body, fill=(*self.TEXT, int(alpha * 0.85)))
 
     # ── Intro / Outro ──
     def _draw_intro(self, draw, t):
