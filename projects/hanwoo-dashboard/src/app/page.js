@@ -28,6 +28,7 @@ import {
 export const metadata = {
 	title: "대시보드 · Joolife 한우",
 	description: "한우 농장 관리 대시보드 — 개체 관리, 수익성 분석, AI 인사이트를 한 곳에서.",
+	robots: { index: false, follow: false },
 };
 
 const INITIAL_PAGE_LIMIT = 50;

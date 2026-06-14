@@ -7,6 +7,7 @@ import { getSubscriptionStatus } from "@/lib/subscription-queries";
 export const metadata = {
 	title: "구독 관리 · Joolife 한우",
 	description: "Joolife 한우 프리미엄 구독을 관리하세요. 월 9,900원으로 AI 인사이트, 수익성 분석, 엑셀 내보내기를 이용하세요.",
+	robots: { index: false, follow: false },
 };
 
 const clientKey = process.env.NEXT_PUBLIC_TOSS_PAYMENTS_CLIENT_KEY || "";

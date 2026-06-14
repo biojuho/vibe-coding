@@ -227,3 +227,38 @@ test("committed service worker fallback stays build-agnostic", () => {
 	assert.doesNotMatch(serviceWorkerSource, /__SW_MANIFEST|__WB_MANIFEST/);
 	assert.doesNotMatch(serviceWorkerSource, /revision:\s*["'][a-f0-9]{16,}["']/);
 });
+
+test("private pages set robots=noindex to prevent search engine indexing", () => {
+	// Authentication-required pages must be noindex to avoid leaking URLs or descriptions
+	const privatePages = [
+		{ path: "src/app/page.js", label: "dashboard" },
+		{ path: "src/app/login/layout.js", label: "login" },
+		{ path: "src/app/register/layout.js", label: "register" },
+		{ path: "src/app/subscription/page.js", label: "subscription" },
+		{ path: "src/app/subscription/success/layout.js", label: "payment-success" },
+		{ path: "src/app/subscription/fail/layout.js", label: "payment-fail" },
+	];
+	for (const { path: p, label } of privatePages) {
+		const source = readProjectFile(p);
+		assert.match(source, /robots: \{ index: false/, `${label} page missing robots:noindex`);
+	}
+});
+
+test("sitemap only includes publicly indexable pages (not login/register/dashboard)", () => {
+	const source = readProjectFile("src/app/sitemap.js");
+	assert.match(source, /\/terms/);
+	assert.match(source, /\/privacy/);
+	assert.doesNotMatch(source, /\/login/);
+	assert.doesNotMatch(source, /\/register/);
+	assert.doesNotMatch(source, /\/subscription/);
+});
+
+test("dynamic robots.js is the single source of truth for crawl policy", () => {
+	const source = readProjectFile("src/app/robots.js");
+	assert.match(source, /\/api\//);
+	assert.match(source, /\/admin\//);
+	assert.match(source, /sitemap\.xml/);
+	// robots.js must define the rules and sitemap pointer
+	assert.match(source, /userAgent/);
+	assert.match(source, /disallow/i);
+});
