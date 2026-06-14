@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -13,6 +14,7 @@ from pipeline.content_intelligence import (  # noqa: E402
     calculate_publishability_score,
     evaluate_candidate_editorial_fit,
 )
+from pipeline.content_intelligence.builder import _bandit_recommend_draft_type  # noqa: E402
 
 
 def test_build_content_profile_is_deterministic():
@@ -197,3 +199,38 @@ def test_calculate_6d_score_preserves_dimension_weighting(monkeypatch):
     assert dimensions["viral_potential_score"] == 75.0
     assert boosted_dimensions == dimensions
     assert boosted_score == round(base_score * 1.1, 2)
+
+
+class TestBanditRecommendDraftType:
+    """_bandit_recommend_draft_type: StyleBandit override / fallback / error handling."""
+
+    def _make_bandit(self, total_trials: int, selected_style: str) -> MagicMock:
+        mock = MagicMock()
+        mock.get_arm_stats.return_value = [
+            {"draft_style": "공감형", "total_trials": total_trials},
+        ]
+        mock.select_style.return_value = selected_style
+        return mock
+
+    def test_below_min_trials_returns_rule_based(self):
+        mock_bandit = self._make_bandit(total_trials=4, selected_style="논쟁형")
+        with patch("pipeline.style_bandit.get_style_bandit", return_value=mock_bandit):
+            result = _bandit_recommend_draft_type("연봉", "공감형")
+        assert result == "공감형"
+
+    def test_at_min_trials_uses_bandit_selection(self):
+        mock_bandit = self._make_bandit(total_trials=5, selected_style="논쟁형")
+        with patch("pipeline.style_bandit.get_style_bandit", return_value=mock_bandit):
+            result = _bandit_recommend_draft_type("연봉", "공감형")
+        assert result == "논쟁형"
+
+    def test_bandit_exception_falls_back_to_rule_based(self):
+        with patch("pipeline.style_bandit.get_style_bandit", side_effect=RuntimeError("db error")):
+            result = _bandit_recommend_draft_type("연봉", "공감형")
+        assert result == "공감형"
+
+    def test_bandit_same_as_rule_still_returns_correctly(self):
+        mock_bandit = self._make_bandit(total_trials=10, selected_style="공감형")
+        with patch("pipeline.style_bandit.get_style_bandit", return_value=mock_bandit):
+            result = _bandit_recommend_draft_type("연봉", "공감형")
+        assert result == "공감형"
