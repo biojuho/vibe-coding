@@ -225,6 +225,7 @@ export default function RegisterPage() {
 								onChange={(e) => setConfirm(e.target.value)}
 								required
 								aria-invalid={passwordMismatch}
+								aria-describedby={passwordMismatch ? "reg-confirm-error" : undefined}
 								style={{
 									...FIELD_STYLE,
 									paddingRight: "44px",
@@ -255,7 +256,7 @@ export default function RegisterPage() {
 							</button>
 						</div>
 						{passwordMismatch && (
-							<p style={{ fontSize: "12px", color: "var(--color-danger)", marginTop: "4px", fontWeight: 600 }}>
+							<p id="reg-confirm-error" role="alert" style={{ fontSize: "12px", color: "var(--color-danger)", marginTop: "4px", fontWeight: 600 }}>
 								비밀번호가 일치하지 않습니다.
 							</p>
 						)}

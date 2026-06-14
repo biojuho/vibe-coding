@@ -86,3 +86,15 @@ test("login page username and password inputs are properly labelled and cross-re
 	assert.match(source, /autoComplete="username"/);
 	assert.match(source, /autoComplete="current-password"/);
 });
+
+test("register form links password mismatch error to input via aria-describedby", () => {
+	const source = readSource("app/register/page.js");
+
+	// Confirm input must have aria-describedby pointing to the mismatch error
+	assert.match(source, /aria-describedby=\{passwordMismatch \? ["']reg-confirm-error["'] : undefined\}/);
+	// Error paragraph must have matching id and role for screen reader announcement
+	assert.match(source, /id="reg-confirm-error"/);
+	assert.match(source, /role="alert"/);
+	// Confirm input must still declare aria-invalid for state signaling
+	assert.match(source, /aria-invalid=\{passwordMismatch\}/);
+});
