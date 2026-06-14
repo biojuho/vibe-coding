@@ -3,6 +3,8 @@ import { requireAuthenticatedSession } from "@/lib/auth-guard";
 import { checkRateLimit } from "@/lib/rate-limit.mjs";
 
 const MIN_PASSWORD_LENGTH = 8;
+// bcrypt silently truncates at 72 bytes; cap early to prevent DoS via long hashing
+const MAX_PASSWORD_LENGTH = 72;
 
 function validateChangePasswordPayload(body) {
 	const currentPassword =
@@ -15,6 +17,9 @@ function validateChangePasswordPayload(body) {
 	}
 	if (newPassword.length < MIN_PASSWORD_LENGTH) {
 		return { error: `새 비밀번호는 최소 ${MIN_PASSWORD_LENGTH}자 이상이어야 합니다.` };
+	}
+	if (newPassword.length > MAX_PASSWORD_LENGTH) {
+		return { error: `새 비밀번호는 최대 ${MAX_PASSWORD_LENGTH}자까지 입력할 수 있습니다.` };
 	}
 	if (currentPassword === newPassword) {
 		return { error: "새 비밀번호는 현재 비밀번호와 달라야 합니다." };

@@ -384,3 +384,20 @@ test("dashboard/summary route sets Cache-Control private, no-store on user data"
 	assert.match(summaryRoute, /Cache-Control.*private.*no-store|private.*no-store.*Cache-Control/);
 });
 
+// ── Auth routes: password length guard ───────────────────────────────────────
+
+const registerRoute = readSource("app/api/auth/register/route.js");
+const changePasswordRoute = readSource("app/api/auth/change-password/route.js");
+
+test("register route enforces MAX_PASSWORD_LENGTH=72 to prevent bcrypt DoS via long passwords", () => {
+	assert.match(registerRoute, /const MAX_PASSWORD_LENGTH = 72/);
+	assert.match(registerRoute, /password\.length > MAX_PASSWORD_LENGTH/);
+	assert.match(registerRoute, /최대.*MAX_PASSWORD_LENGTH.*자까지 입력할 수 있습니다/);
+});
+
+test("change-password route enforces MAX_PASSWORD_LENGTH=72 to prevent bcrypt DoS", () => {
+	assert.match(changePasswordRoute, /const MAX_PASSWORD_LENGTH = 72/);
+	assert.match(changePasswordRoute, /newPassword\.length > MAX_PASSWORD_LENGTH/);
+	assert.match(changePasswordRoute, /최대.*MAX_PASSWORD_LENGTH.*자까지 입력할 수 있습니다/);
+});
+

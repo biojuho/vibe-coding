@@ -62,7 +62,8 @@ def _twitter_quality_failure(drafts: dict, quality_gate, config) -> str | None:
     try:
         result = quality_gate.validate("twitter", twitter_text)
         score = int(result.score)
-    except Exception:
+    except Exception as exc:
+        logger.debug("twitter quality_gate.validate 실패, 통과 처리: %s", exc)
         return None
     min_score = _config_int(config, "review.min_twitter_quality_score", 80)
 

@@ -1258,6 +1258,27 @@ class TestGenerateReviewStage:
         assert ctx.result["failure_reason"] == "twitter_quality_gate_failed"
         assert "twitter_quality_gate_failed" in ctx.post_data["twitter_quality_failure"]
 
+    def test_twitter_quality_validate_exception_logs_and_returns_none(self, caplog):
+        """BTX-GRS001: quality_gate.validate() 예외 시 debug 로그 남기고 None 반환 (통과 처리)."""
+        import logging
+
+        from pipeline.process_stages.generate_review_stage import _twitter_quality_failure
+
+        bad_qg = MagicMock()
+        bad_qg.validate.side_effect = RuntimeError("validator crash")
+
+        config = MagicMock()
+        config.get.side_effect = lambda key, default=None: {
+            "review.require_twitter_quality_pass": True,
+            "review.min_twitter_quality_score": 80,
+        }.get(key, default)
+
+        with caplog.at_level(logging.DEBUG, logger="pipeline.process_stages.generate_review_stage"):
+            result = _twitter_quality_failure({"twitter": "some tweet text here"}, bad_qg, config)
+
+        assert result is None
+        assert any("validator crash" in r.message for r in caplog.records)
+
     def test_twitter_quality_gate_can_be_disabled_for_manual_backfill(self):
         from pipeline.process_stages.generate_review_stage import run_generate_review_stage
 

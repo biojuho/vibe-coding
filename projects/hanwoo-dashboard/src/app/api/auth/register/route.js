@@ -7,6 +7,8 @@ import { checkRateLimit } from "@/lib/rate-limit.mjs";
 const MIN_USERNAME_LENGTH = 3;
 const MAX_USERNAME_LENGTH = 30;
 const MIN_PASSWORD_LENGTH = 8;
+// bcrypt silently truncates at 72 bytes; cap early to prevent DoS via long hashing
+const MAX_PASSWORD_LENGTH = 72;
 const USERNAME_PATTERN = /^[a-z0-9_]+$/;
 
 function validateRegistrationPayload(body) {
@@ -25,6 +27,9 @@ function validateRegistrationPayload(body) {
 	}
 	if (password.length < MIN_PASSWORD_LENGTH) {
 		return { error: `비밀번호는 최소 ${MIN_PASSWORD_LENGTH}자 이상이어야 합니다.` };
+	}
+	if (password.length > MAX_PASSWORD_LENGTH) {
+		return { error: `비밀번호는 최대 ${MAX_PASSWORD_LENGTH}자까지 입력할 수 있습니다.` };
 	}
 
 	return { username, password };
