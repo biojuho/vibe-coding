@@ -168,7 +168,7 @@ Provide:
                 enriched = EnrichedContext(
                     original_topic=viral_topic,
                     deep_insights=insights,
-                    global_references=[ref["url"] for ref in references],
+                    global_references=[ref.get("url", "") for ref in references if ref.get("url")],
                     sentiment_angle=sentiment,
                 )
                 logger.info("Topic '%s' 컨텍스트 보강 완료.", viral_topic)

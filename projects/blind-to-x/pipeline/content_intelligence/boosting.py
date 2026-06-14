@@ -55,6 +55,9 @@ def estimate_viral_boost_llm(title: str, content: str, topic_cluster: str, emoti
             user_prompt=_user,
             temperature=0.3,
         )
+        if result is None:
+            logger.debug("LLM 바이럴 부스트: generate_json returned None")
+            return 0.0
         raw = float(result.get("score", 0))
         # 0~100 점수를 0~15 부스트로 변환 (최대 15점 가산)
         boost = round(max(0.0, min(15.0, raw * 0.15)), 2)
