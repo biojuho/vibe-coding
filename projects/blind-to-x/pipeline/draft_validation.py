@@ -93,7 +93,7 @@ class DraftValidationMixin:
         for candidate in candidates:
             try:
                 payload = json.loads(candidate)
-            except Exception:
+            except json.JSONDecodeError:
                 continue
             if not isinstance(payload, dict):
                 continue

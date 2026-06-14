@@ -136,7 +136,7 @@ async def _run_enricher(topic: str, assets: NotebookLMAssets) -> NotebookLMAsset
     """실제 enricher 로직 (비동기 래퍼)."""
     mode = os.environ.get("NOTEBOOKLM_MODE", "topic").lower()
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
 
     if mode == "gdrive":
         # ── GDrive 모드: 새 파일 감지 → 텍스트 추출 ─────────────────────

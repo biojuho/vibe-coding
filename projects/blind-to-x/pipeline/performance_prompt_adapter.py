@@ -239,7 +239,7 @@ class PerformancePromptAdapter:
             return cached
 
         try:
-            insight = await asyncio.get_event_loop().run_in_executor(None, self._fetch_insight_sync, source)
+            insight = await asyncio.get_running_loop().run_in_executor(None, self._fetch_insight_sync, source)
         except Exception:
             logger.exception(
                 "get_insight: executor level exception — source=%s, returning empty insight",

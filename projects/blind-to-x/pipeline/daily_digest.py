@@ -216,7 +216,8 @@ class DigestGenerator:
                 }
                 for t in trends
             ]
-        except Exception:
+        except Exception as exc:
+            logger.debug("_get_trending_emotions unavailable (non-fatal): %s", exc)
             return []
 
     def _compute_topic_distribution(self, entries: list[DigestEntry]) -> dict[str, int]:

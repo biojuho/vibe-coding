@@ -182,7 +182,7 @@ class TrendMonitor:
         """Google Trends 데이터 비동기 조회 (스레드 위임)."""
         if not self.google_enabled:
             return {}
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         try:
             return await asyncio.wait_for(
                 loop.run_in_executor(self._executor, self._fetch_google_trends_sync),

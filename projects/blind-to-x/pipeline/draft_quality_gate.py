@@ -266,7 +266,8 @@ def _load_quality_gate_patterns() -> dict[str, Any]:
     """
     try:
         section = get_rule_section("quality_gate_patterns", {})
-    except Exception:
+    except Exception as exc:
+        logger.debug("_load_quality_gate_patterns failed, using hardcoded defaults: %s", exc)
         return {}
     return section if isinstance(section, dict) else {}
 

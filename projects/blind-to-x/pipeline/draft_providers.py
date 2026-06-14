@@ -80,7 +80,8 @@ def _emit_workspace_langfuse_trace(
                 "error": error[:200],
             },
         )
-    except Exception:
+    except Exception as exc:
+        logger.debug("Langfuse trace emit failed (non-fatal): %s", exc)
         return
 
 

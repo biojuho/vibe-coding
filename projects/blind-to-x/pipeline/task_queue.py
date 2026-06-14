@@ -202,7 +202,6 @@ class CeleryTaskQueue:
             result_group = job.apply_async()
 
             # Polling loop for progress tracking
-            asyncio.get_event_loop()
             total = len(items)
 
             async def _poll_results():
