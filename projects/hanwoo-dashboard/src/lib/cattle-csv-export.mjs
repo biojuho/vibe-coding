@@ -56,10 +56,15 @@ function formatCsvDate(value) {
 	return Number.isNaN(date.getTime()) ? "" : date.toLocaleDateString("ko-KR");
 }
 
+const FORMULA_PREFIX_RE = /^[=+\-@]/;
+
 function formatCsvCell(value) {
 	const text = String(value ?? "");
-	if (!/[",\r\n]/.test(text)) {
-		return text;
+	// Prefix cells that start with formula characters to prevent CSV injection
+	// when the file is opened in Excel/Sheets.
+	const safe = FORMULA_PREFIX_RE.test(text) ? `'${text}` : text;
+	if (!/[",\r\n]/.test(safe)) {
+		return safe;
 	}
-	return `"${text.replace(/"/g, '""')}"`;
+	return `"${safe.replace(/"/g, '""')}"`;
 }

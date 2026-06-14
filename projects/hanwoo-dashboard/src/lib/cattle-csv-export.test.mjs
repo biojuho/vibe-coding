@@ -95,6 +95,35 @@ test("buildCattleCsvRows quotes cells that would otherwise break CSV columns", (
 	assert.match(csv, /사료 조정/);
 });
 
+test("buildCattleCsvRows prefixes formula-start characters to prevent CSV injection", () => {
+	const csv = buildCattleCsvRows([
+		{
+			id: "cow-x",
+			name: "=1+1",
+			tagNumber: "@HYPERLINK",
+			birthDate: null,
+			gender: "암",
+			status: "+cmd",
+			buildingId: "-harm",
+			penNumber: 1,
+			memo: "=SUM(A1:A10)",
+		},
+	]);
+
+	// Name starting with = should be prefixed with single quote
+	assert.match(csv, /\\'=1\+1|'=1\+1/);
+	// @HYPERLINK prefix guard
+	assert.match(csv, /'@HYPERLINK/);
+	// Status +cmd prefix guard
+	assert.match(csv, /'\+cmd/);
+	// buildingId -harm prefix guard (no building mapping, falls back to buildingId)
+	assert.match(csv, /'-harm/);
+	// Memo =SUM gets prefixed
+	assert.match(csv, /'=SUM/);
+	// Cells should NOT appear as raw formulas
+	assert.doesNotMatch(csv, /(?<!'),(?<!'),(?<!'),(?<!'),(?<!'),=1\+1/);
+});
+
 test("buildCattleCsvRows ignores malformed collection payloads", () => {
 	const csv = buildCattleCsvRows([
 		null,
