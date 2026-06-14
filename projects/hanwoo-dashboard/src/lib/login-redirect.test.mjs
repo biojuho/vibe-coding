@@ -41,3 +41,24 @@ test("getSafeLoginRedirectTarget rejects unsafe callbacks", () => {
 	assert.equal(getSafeLoginRedirectTarget("not a url"), "/");
 	assert.equal(getSafeLoginRedirectTarget("http://127.0.0.1:3001/login"), "/");
 });
+
+test("getSafeLoginRedirectTarget handles non-string and empty inputs defensively", () => {
+	// non-string types
+	assert.equal(getSafeLoginRedirectTarget(null), "/");
+	assert.equal(getSafeLoginRedirectTarget(undefined), "/");
+	assert.equal(getSafeLoginRedirectTarget(42), "/");
+	// empty string
+	assert.equal(getSafeLoginRedirectTarget(""), "/");
+	// callbackUrl param is present but empty
+	assert.equal(getSafeLoginRedirectTarget("http://127.0.0.1:3001/login?callbackUrl="), "/");
+});
+
+test("getSafeLoginRedirectTarget preserves query and hash in same-origin callback", () => {
+	// query + hash combination
+	assert.equal(
+		getSafeLoginRedirectTarget(
+			"http://127.0.0.1:3001/login?callbackUrl=%2Fdashboard%3Ftab%3Dcattle%23section-2",
+		),
+		"/dashboard?tab=cattle#section-2",
+	);
+});
