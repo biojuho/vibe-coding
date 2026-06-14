@@ -151,3 +151,13 @@ test("feedback confirmation dialog actions expose stable Korean labels", () => {
 		/<Button[\s\S]*?onClick=\{\(\) => closeConfirmation\(true\)\}[\s\S]*?aria-label=\{confirmButtonLabel\}[\s\S]*?title=\{confirmButtonLabel\}[\s\S]*?>/,
 	);
 });
+
+test("FeedbackProvider toast region is a named landmark for screen reader navigation", () => {
+	const source = readSource("components/feedback/FeedbackProvider.js");
+	// Toast container is a named region so screen readers can navigate to it
+	assert.match(source, /role="region"/);
+	assert.match(source, /aria-label="시스템 알림"/);
+	// Each toast declares its urgency via role=alert or role=status
+	assert.match(source, /role=\{isUrgent \? "alert" : "status"\}/);
+	assert.match(source, /aria-live=\{isUrgent \? "assertive" : "polite"\}/);
+});
