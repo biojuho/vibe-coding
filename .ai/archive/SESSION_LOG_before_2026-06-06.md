@@ -1,0 +1,686 @@
+# SESSION_LOG Archive before 2026-06-06
+
+Rotated on 2026-06-13.
+
+## Table Entries
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1322/T-1323/T-1324 launch evidence freshness and graph audit refinement**. Continued `$auto-research` without pushing or retrying user-owned T-251. T-1322 added launch-audit current-code triage evidence from `session_orient.py --json` and `code_review_gate.py`; T-1323 made canonical project-QC artifacts schema 3 with git head metadata and relevant-path freshness checks; T-1324 made stale graph evidence block only when graph-relevant files changed or the stale range cannot be inspected. Verification passed T-1322 focused/related tests 37/37 and 56/56 with A/B `adopt_candidate` score_delta 1.155124, T-1323 focused tests 44/44 with A/B score_delta 1.503968, T-1324 focused tests 39/39 with A/B score_delta 1.232601, ruff/format/py_compile/diff-check gates, and full active-project QC: blind-to-x `1739 passed, 9 skipped`; shorts-maker-v2 `1577 passed, 12 skipped, 1 warning`; Hanwoo `500 passed` plus lint/build/smoke; Knowledge `61 passed` plus lint/build/smoke. Final pre-relay readiness remained score 96, local blockers 0, publish blockers 1, external blockers 1, release packet `ready_for_authorization`, selector `blocked_publish_only`, and completion audit 8/13 complete with 5 blocked issues.
+
+Changed Files: `.agents/skills/auto-research/scripts/launch_objective_audit.py`; `execution/project_qc_runner.py`; `execution/product_readiness_score.py`; `workspace/tests/test_auto_research_launch_objective_audit.py`; `workspace/tests/test_project_qc_runner.py`; `workspace/tests/test_product_readiness_score.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT,GOAL}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1321 blind-to-x Ppomppu post helper extraction**. Continued `$auto-research` after a new Ppomppu post local candidate appeared, without pushing or retrying T-251. Refactored `PpomppuScraper.scrape_post()` so post fetch failure classification, route fulfillment, post container discovery, direct-navigation fallback, title/content/count/image extraction, and screenshot saving live in focused helpers while preserving behavior. Added regressions for comment-span title cleanup, content selector fallback, comment-line count fallback, image URL normalization/filtering, and fetch-failure reason preservation. Verification passed Ppomppu tests 11/11, related scraper tests 43/43, full blind-to-x QC `1739 passed, 9 skipped` plus lint, ruff, format check, py_compile, git diff --check, VibeDebt (`ppomppu.py` debt 44.8 -> 40.9, max complexity 53 -> 19, `scrape_post` complexity 53 -> 9, length 255 -> 85), code-review gate advisory WARN risk_score 0.50 covered by direct/full tests, and A/B `adopt_candidate` score_delta 1.827920.
+
+Changed Files: `projects/blind-to-x/scrapers/ppomppu.py`; `projects/blind-to-x/tests/unit/test_scrapers_ppomppu.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT,GOAL}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1320 blind-to-x Ppomppu scraper helper extraction**. Continued `$auto-research` after a new Ppomppu scraper local candidate appeared, without pushing or retrying T-251. Refactored `PpomppuScraper` so feed URL selection, feed navigation, row title/comment/view/like/image extraction, feed candidate construction, and feed candidate collection live in focused helpers while preserving ranking, dedupe, and metadata behavior. Added regression coverage for candidate sort/filter/dedupe plus image metadata. Verification passed Ppomppu scraper tests 19/19, related scraper tests 71/71, ruff, format check, py_compile, git diff --check, staged code-review gate advisory WARN risk_score 0.45 covered by direct tests, and A/B `adopt_candidate` score_delta 2.314408.
+
+Changed Files: `projects/blind-to-x/scrapers/ppomppu.py`; `projects/blind-to-x/tests/unit/test_scrapers_ppomppu.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT,GOAL}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1319 blind-to-x Blind scraper helper extraction**. Continued `$auto-research` after a new Blind scraper local candidate appeared, without pushing or retrying T-251. Refactored `BlindScraper` so feed URL selection, feed row metadata, feed candidate construction/collection, post content/count extraction, fetch failure classification, navigation, container discovery, Crawl4AI fallback handling, screenshot saving, and category keyword matching live in focused helpers while preserving behavior. Added regressions for feed candidate engagement sorting/deduplication and category fallback coverage. Verification passed graph detect-changes risk_score 0.0, Blind scraper tests 11/11, related scraper tests 75/75, full blind-to-x QC `1733 passed, 9 skipped` plus lint, ruff, format check, py_compile, git diff --check, staged code-review gate advisory WARN risk_score 0.65 covered by direct/full tests, and A/B `adopt_candidate` score_delta 0.528523.
+
+Changed Files: `projects/blind-to-x/scrapers/blind.py`; `projects/blind-to-x/tests/unit/test_scrapers_blind.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT,GOAL}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1318 blind-to-x selector repair maintainability**. Continued `$auto-research` from the publish/external blocker boundary without pushing or retrying T-251. Refactored `BaseScraper._suggest_selectors()` into selector part scoring, scored dedupe, unique append, and class/id/tag fallback helpers while preserving repair ordering and max-3 behavior. Added regressions for duplicate class/id/tag candidates, similar-id fallback, and content-tag fallback. Verification passed focused selector/scraper tests 46/46, ruff, format check, py_compile, VibeDebt audit (`base.py` 43.1 -> 43.0; `_suggest_selectors` complexity 35 -> 7, length 92 -> 50), git diff --check, code-review gate advisory WARN risk_score 0.40 covered by direct tests, full blind-to-x project QC `1732 passed, 9 skipped` plus lint, and A/B `adopt_candidate` score_delta 0.693839.
+
+Changed Files: `projects/blind-to-x/scrapers/base.py`; `projects/blind-to-x/tests/unit/test_scrapers_base.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT,GOAL}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1317 blind-to-x draft generator best-of-N maintainability**. Continued `$auto-research` from the publish/external blocker boundary without pushing or retrying T-251. Refactored `generate_drafts()` so cache writes, recent-failure provider filtering, best-of-N candidate generation, and reviewer selection live in focused helpers. Added regressions for selected comment-trigger persistence, single-candidate cache writes, and reviewer-failure fallback cache writes. Verification passed project `.venv` best-of-N tests 15/15, related draft generation tests 36/36, blind-to-x project QC `1729 passed, 9 skipped` plus lint, ruff, format check, py_compile, git diff --check, code-review gate advisory WARN risk_score 0.40 covered by direct tests, and A/B `adopt_candidate` score_delta 0.773171.
+
+Changed Files: `projects/blind-to-x/pipeline/draft_generator.py`; `projects/blind-to-x/tests/unit/test_draft_generator_best_of_n.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT,GOAL}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1316 session-orient graph freshness evidence**. Continued `$auto-research` from the publish/external blocker boundary without pushing or retrying T-251. `session_orient.py --json` now compares code-review graph `built_at_commit` to the current git head and reports `current_head`, `freshness`, `stale`, and `stale_reason`; text/Rich diagnostics show stale or unknown graph freshness. Verification passed focused session-orient tests 33/33, ruff, format check, py_compile, git diff --check, runtime JSON stale-graph evidence, staged code-review gate advisory WARN risk_score 0.60 covered by direct tests, and A/B `adopt_candidate` score_delta 1.472549.
+
+Changed Files: `execution/session_orient.py`; `workspace/tests/test_session_orient.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT,GOAL}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1313/T-1314/T-1315 launch-loop evidence and QC stabilization**. Continued `$auto-research` without pushing or retrying T-251. T-1313 made release authorization a direct launch-audit item; T-1314 consolidated blind-to-x Notion review optional-signal formatting helpers; T-1315 preserved the canonical full-workspace project-QC latest artifact from focused partial runs. Verification passed T-1314 Notion tests 42/42 and related tests 51/51, T-1315 project-QC runner tests 14/14, full active-project QC, ruff/format/py_compile/diff-check gates, A/B `adopt_candidate` for T-1314/T-1315, release packet `ready_for_authorization`, selector `blocked_publish_only`, and completion audit 8/13 complete with 5 blocked issues.
+
+Changed Files: `.agents/skills/auto-research/scripts/launch_objective_audit.py`; `workspace/tests/test_auto_research_launch_objective_audit.py`; `projects/blind-to-x/pipeline/notion/_upload.py`; `projects/blind-to-x/tests/unit/test_notion_upload.py`; `execution/project_qc_runner.py`; `workspace/tests/test_project_qc_runner.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT,GOAL}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1312 release authorization packet and Hanwoo direct launch evidence**. Continued `$auto-research` without pushing or retrying T-251. Added a no-push `release_authorization_packet.py` for clean-ahead current HEADs, made selector publish-only state explicit as `blocked_publish_only`, and added direct Hanwoo target readiness evidence to launch audit. Verification passed focused/related selector, launch, completion, release-packet, and workflow-hygiene pytest slices; ruff, format check, py_compile, git diff --check; clean release packet `ready_for_authorization`; selector `blocked_publish_only`; completion audit 8/12 complete with 4 blocked issues; A/B `adopt_candidate` score_delta 0.998026; and code-review gate advisory WARN risk_score 0.40 covered by direct tests.
+
+Changed Files: `.agents/skills/auto-research/SKILL.md`; `.agents/skills/auto-research/scripts/{launch_objective_audit,next_experiment_selector,release_authorization_packet}.py`; `workspace/tests/test_auto_research_{launch_objective_audit,next_experiment_selector,release_authorization_packet}.py`; `.github/workflows/{root-quality-gate,full-test-matrix}.yml`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT,GOAL}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1310/T-1311 publish-boundary launch evidence cleanup**. Continued `$auto-research` without pushing or retrying T-251. T-1310 made readiness `next_actions` show the current-head publish/Actions blocker before the user-owned Hanwoo T-251 wait. T-1311 made launch audits classify publish-boundary evidence as complete-but-blocked instead of partial coverage. Verification passed product-readiness pytest 28/28, readiness+selector pytest 38/38, launch+completion pytest 34/34, auto-research related pytest 44/44, ruff, py_compile, git diff --check, clean-state readiness/selector/launch/completion audits, and A/B `adopt_candidate` for both candidates.
+
+Changed Files: `execution/product_readiness_score.py`; `workspace/tests/test_product_readiness_score.py`; `.agents/skills/auto-research/scripts/launch_objective_audit.py`; `workspace/tests/test_auto_research_launch_objective_audit.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT,GOAL}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1309 session-orient clean-ahead relay note**. Continued `$auto-research` after T-1308 and hardened `session_orient.py` so clean-ahead HANDOFF relay-closeout instructions can report that the local commit step is already satisfied while publish/CI/user blockers may remain. Verification passed focused session-orient pytest 30/30, broader session/selector/launch pytest 68/68, ruff, pre-commit ruff format check, py_compile, git diff --check, staged code-review gate advisory WARN risk_score 0.55 covered by direct tests, and A/B `adopt_candidate` score_delta 0.949127.
+
+Changed Files: `execution/session_orient.py`; `workspace/tests/test_session_orient.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT,GOAL}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1306 release publish-blocker classification**. Continued `$auto-research` after T-1305 and separated clean unpublished current-head Actions from local code blockers. `product_readiness_score.py` now exposes GitHub release `ahead_count`, `publish_required`, `blocker_type=publish`, and overall `publish_blocker_count`; clean ahead-of-origin missing Actions can block launch completion without increasing `local_blocker_count`. `launch_objective_audit.py` now records `workspace/local/publish/agent blockers=...` evidence. Verification passed focused product-readiness + launch-audit pytest 51/51, broader auto-research/readiness pytest 67/67, full active-project QC, ruff, format check, py_compile, git diff --check, and A/B `adopt_candidate` score_delta 0.998045.
+
+Changed Files: `execution/product_readiness_score.py`; `.agents/skills/auto-research/scripts/launch_objective_audit.py`; `workspace/tests/test_product_readiness_score.py`; `workspace/tests/test_auto_research_launch_objective_audit.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT,GOAL}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1305 shorts-maker-v2 launch evidence routing and local tool ignore**. Continued `$auto-research` for the `shorts-maker-v2` launch target without retrying user-owned Hanwoo T-251. Added `.playwright-mcp/` to `.gitignore`; added direct `shorts-maker-v2` target readiness evidence to `launch_objective_audit.py`; and hardened `next_experiment_selector.py` so a clean local HEAD ahead of origin with missing required Actions is a push-authorization boundary. Runtime audit shows `shorts-maker-v2` complete with score 100, QC PASS (`1577 passed`, `12 skipped`), docs 5/5, env 1/1, tasks 0, dirty paths 0. Verification passed focused auto-research pytest 35/35, broader auto-research/GitHub pytest 76/76, ruff, format check, py_compile, Hanwoo Node tests 499/499, `shorts-maker-v2` QC, diff-check, check-ignore, A/B `adopt_candidate` score_delta 1.285459, and code-review gate exit 0 with advisory WARN risk_score 0.4.
+
+Changed Files: `.agents/skills/auto-research/SKILL.md`; `.agents/skills/auto-research/scripts/{launch_objective_audit,next_experiment_selector}.py`; `workspace/tests/test_auto_research_{launch_objective_audit,next_experiment_selector}.py`; `projects/hanwoo-dashboard/src/app/layout.js`; `projects/hanwoo-dashboard/src/lib/app-metadata-copy.test.mjs`; `.gitignore`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1304 launch evidence refresh and external-blocker boundary check**. Continued active `$auto-research` without retrying user-owned Hanwoo T-251. Current state is clean/synced `main` at `a6535544`, open PRs 0, required Actions green, readiness score 96 with workspace/local/agent blockers 0/0/0 and external blocker count 1. Refreshed GitHub inventory (7 projects, 3 workflows, PRs 0, dirty 0), browser QA inventory (coverage 4/4, fresh usable/nonblank screenshots 4/4), dependency freshness (direct candidates 0; only peer-blocked ESLint 10 majors deferred), selector (`blocked_external_only` for T-251), and launch completion audit (8/9 complete, blocked count 1 only for T-251). `py -3.13 execution\code_review_gate.py --base HEAD~1 --json` passed with risk_score 0.0.
+
+Changed Files: `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1303 launch audit selector required-gate evidence**. Continued `$auto-research` with T-251 kept external/user-owned. `launch_objective_audit.py` now carries `selected.required_gates` from `next_experiment_selector.py` into the launch audit selector requirement evidence as `Selector required gates: ...`, preserving exact resume gates directly in launch audits. Verification passed focused launch audit pytest 21/21, broader auto-research launch/completion/selector pytest 34/34, ruff, format check, py_compile, diff-check, runtime selector required-gate evidence, A/B `adopt_candidate` score_delta 0.9881422924901185, T-1303 completion audit complete 3/3, code-review gate exit 0 with advisory WARN risk_score 0.4 covered by direct tests, and required Actions on `dc0d11e8` passed (`root-quality-gate` 26997046879, `active-project-matrix` 26997046881).
+
+Changed Files: `.agents/skills/auto-research/scripts/launch_objective_audit.py`; `workspace/tests/test_auto_research_launch_objective_audit.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT,GOAL}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1302 launch audit selector guardrail evidence**. Continued `$auto-research` with T-251 kept external/user-owned. `launch_objective_audit.py` now normalizes selector action evidence so it does not double-punctuate actions, and carries `selected.guardrails` from `next_experiment_selector.py` into the launch audit selector requirement evidence. Verification passed focused launch audit pytest 21/21, broader auto-research launch/completion/selector pytest 34/34, ruff, format check, py_compile, diff-check, runtime launch audit guardrail evidence, A/B `adopt_candidate` score_delta 0.9849618229539489, T-1302 completion audit complete 3/3, code-review gate exit 0 with advisory WARN risk_score 0.4 covered by direct tests, and required Actions on `ae9d9e59` passed.
+
+Changed Files: `.agents/skills/auto-research/scripts/launch_objective_audit.py`; `workspace/tests/test_auto_research_launch_objective_audit.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT,GOAL}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1301 launch audit selector-state evidence**. Continued `$auto-research` with T-251 kept as an external/user-owned blocker. `launch_objective_audit.py` now collects live `next_experiment_selector.py --root . --json` output and adds a selector requirement item so `blocked_external_only` is complete evidence without duplicate T-251 blocker noise, while local selector candidates block launch completion. Verification passed focused launch audit pytest 20/20, broader auto-research launch/completion/selector pytest 33/33, ruff, format check, py_compile, diff-check, runtime launch audit selector evidence, A/B `adopt_candidate` score_delta 0.9910837857979347, T-1301 completion audit complete 4/4, code-review gate exit 0 with advisory WARN risk_score 0.35 covered by direct tests, and required Actions on `43bd0f8e` passed.
+
+Changed Files: `.agents/skills/auto-research/scripts/launch_objective_audit.py`; `workspace/tests/test_auto_research_launch_objective_audit.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT,GOAL}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1300 deterministic launch audit A/B manifest evidence selection**. Continued `$auto-research` from a clean/synced state where selector was `blocked_external_only` for user-owned Hanwoo T-251, then completed a distinct local maintenance experiment. `launch_objective_audit.py` now extracts T-IDs from A/B manifest filenames/fields, ranks task-id-bearing manifests by highest T-ID before mtime/name fallback, and exposes `--ab-manifest` for explicit final evidence pinning. Added regressions for T-ID selection over newer-touched older artifacts and explicit override selection. Verification passed focused launch audit pytest 18/18, broader auto-research launch/completion/selector pytest 31/31, ruff, format check, py_compile, diff-check, code-review gate risk 0.0, A/B `adopt_candidate` score_delta 1.2387226869238648, T-1300 completion audit complete 4/4, runtime launch audit with T-1300 metrics 5 and gates 8/8, and required Actions on `b59e3006` passed.
+
+Changed Files: `.agents/skills/auto-research/scripts/launch_objective_audit.py`; `workspace/tests/test_auto_research_launch_objective_audit.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT,GOAL}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1297 post-push release-gate confirmation**. Confirmed feature commit `7984696c` is pushed to `origin/main` and required GitHub Actions passed on that feature head: `root-quality-gate` run 26993403449 and `active-project-matrix` run 26993403451. Feature evidence remains skill lint pass score 100 warning_count 0, missing-input selector selecting `input_evidence_unavailable`, A/B `adopt_candidate` score_delta 1.154267543156432, and T-1297 completion audit complete 4/4.
+
+Changed Files: `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT,GOAL}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1297 skill evidence lint cleanup and selector input-evidence guard**. Continued the `$auto-research` launch loop after T-1296. `skill_lint.py --skills-root .agents\skills --json` baseline had false broken-reference warnings from generated `input/`/`output/` examples, unavailable local skill links, and a stale Shorts Maker V2 test path; candidate runtime skill lint is pass, score 100, warning_count 0. `next_experiment_selector.py` now routes missing, unreadable, invalid, non-object, or schema-incomplete readiness/GitHub/browser/dependency artifacts to `input_evidence_unavailable` instead of completion audit, and supports UTF-16 JSON artifacts. Runtime missing-input selector selected `input_evidence_unavailable`. Verification passed skill-lint pytest 9/9, focused selector+skill-lint pytest 18/18, broader auto-research/GitHub/skill-lint pytest 75/75, ruff, format check, py_compile, runtime skill lint pass, A/B `adopt_candidate` score_delta 1.154267543156432, T-1297 completion audit complete 4/4, and diff-check with CRLF warnings only.
+
+Changed Files: `.agents/skills/{accessibility,auto-research,seo,shorts-tts-quality}/SKILL.md`; `.agents/skills/auto-research/scripts/next_experiment_selector.py`; `execution/skill_lint.py`; `workspace/tests/test_{auto_research_next_experiment_selector,skill_lint}.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT,GOAL}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1296 post-push release-gate confirmation**. Confirmed feature commit `4a1d1dbc` is pushed to `origin/main` and required GitHub Actions passed on that feature head: `root-quality-gate` run 26992731140 and `active-project-matrix` run 26992731162. Final clean checks confirmed `session_orient.py --json` clean/synced main with open PRs 0 and `head_claim_status=none`; product readiness score 96 with workspace/local/agent blockers 0/0/0 and external blocker count 1; `next_experiment_selector.py` returned `blocked_external_only` with selected external/user-owned T-251; launch-objective completion audit on `.tmp/launch-objective-audit-t1296-final.json` is 7/8 complete with issue_count 1 and blocked_count 1 only for T-251.
+
+Changed Files: `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT,GOAL}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1296 next-experiment selector and blocker-detail audit**. Added deterministic `next_experiment_selector.py` to the auto-research launch loop so inventories rank local readiness blockers, GitHub follow-ups, browser QA refreshes, dependency candidates, stale QC refreshes, and external/user-owned blockers before a new experiment is chosen. Regression coverage locks clean external-only T-251 to `blocked_external_only`, selected external blocker `T-251`, and the guardrail not to retry until Supabase Dashboard credentials are reset. Runtime selector during the candidate dirty worktree selected `local_readiness_blocker` while preserving T-251 as a blocked ranked candidate. `SKILL.md` now documents selector usage, launch objective audit now requires the selector as the 8th auto-research artifact, completion audit blocked issues now carry requirement/blocker details, and both root CI workspace-quality slices include the selector script/test. Verification passed selector pytest 6/6, completion audit pytest 4/4, launch audit pytest 16/16, broader auto-research/GitHub pytest 63/63, ruff, format check, py_compile, runtime selector, runtime launch audit, A/B `adopt_candidate` score_delta 1.468470559113834, T-1296 completion audit complete 4/4, and diff-check with CRLF warnings only.
+
+Changed Files: `.agents/skills/auto-research/SKILL.md`; `.agents/skills/auto-research/scripts/{completion_audit,launch_objective_audit,next_experiment_selector}.py`; `workspace/tests/test_auto_research_{completion_audit,launch_objective_audit,next_experiment_selector}.py`; `.github/workflows/{root-quality-gate,full-test-matrix}.yml`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT,GOAL}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1295 post-push release-gate confirmation**. Confirmed feature commit `2c5ad69e` is pushed to `origin/main` and required GitHub Actions passed on that feature head: `root-quality-gate` run 26992093689 and `active-project-matrix` run 26992093691. Live closeout checks confirmed `.ai/GOAL.md` is active for the product-launch auto-research loop, browser QA evidence has fresh valid usable nonblank screenshots 4/4, A/B decision is `adopt_candidate` with score_delta 0.9822995235306066, and T-1295 completion audit is complete 3/3.
+
+Changed Files: `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1295 launch evidence routing and screenshot validity**. Aligned `.ai/GOAL.md` with the active product-launch auto-research loop, then hardened `launch_objective_audit.py` so the resumability requirement includes GOAL existence, active launch-loop status, and product-launch/auto-research objective mapping. Completed browser QA evidence hardening in `browser_qa_inventory.py`: retained PNG screenshots are now parsed for validity, blank/nonblank pixels, dimensions, and valid/usable/nonblank summary counts; invalid or blank retained screenshots produce refresh recommendations. Launch-objective audit now requires fresh usable and fresh nonblank screenshot coverage. Runtime browser inventory reports browser coverage 4/4 and fresh valid usable nonblank screenshots 4/4. Runtime launch audit cites `.tmp/ab-manifest-t1295.json` with 10 candidate metrics and required gates 6/6, GOAL mapped true, and fresh usable/nonblank 4/4. Verification passed launch audit pytest 16/16, browser inventory pytest 13/13, broader auto-research/GitHub pytest 57/57, ruff, format check, py_compile, runtime browser inventory, runtime launch audit, A/B `adopt_candidate` score_delta 0.9822995235306066, T-1295 completion audit complete 3/3, and diff-check with CRLF warnings only. Pre-commit launch completion audit remains incomplete only from dirty worktree plus external/user-owned T-251.
+
+Changed Files: `.agents/skills/auto-research/scripts/{browser_qa_inventory,launch_objective_audit}.py`; `workspace/tests/test_auto_research_{browser_qa_inventory,launch_objective_audit}.py`; `.ai/{GOAL,HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1294 post-push release-gate confirmation**. Confirmed feature commit `680c5224` and context count correction `b898ded2` were pushed. Live closeout checks reported clean/synced `main`, open PRs 0, `head_claim_status=none`, and required workflows green for the checked state: `root-quality-gate` run 26991455712 and `active-project-matrix` run 26991455721. Product readiness is score 96 with workspace/local/agent blockers 0/0/0 and only external/user-owned Hanwoo T-251 blocked. Final launch-objective completion audit on `.tmp/launch-objective-audit-t1294-final.json` is 7/8 complete with issue_count 1 and blocked_count 1, only for T-251.
+
+Changed Files: `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1294 dependency peer metadata evidence**. Continued `$auto-research` after T-1293. Completed the existing uncommitted dependency helper change so dependency freshness now queries latest npm `version` plus `peerDependencies` metadata for installed peer blockers on deferred major migrations, annotates each blocker with latest peer support fields, and summarizes latest-supported/blocked/unavailable counts. Launch-objective audit now includes those counts in dependency evidence, and recommendations show when a blocker already has upstream support versus still blocking. Runtime inventory reports direct dependency candidates 0, outdated count 3, deferred dependencies 2, latest peer support 1, latest blocked 6, unavailable 0: Hanwoo ESLint 10 has 1/4 latest-supported blockers while Knowledge ESLint 10 remains 0/3. Verification passed dependency freshness pytest 11/11, launch-objective pytest 14/14, broader auto-research pytest 53/53, ruff, format check, py_compile, runtime dependency inventory, launch-objective audit generation, A/B `adopt_candidate` score_delta 0.9919931369745496, and expected pre-commit launch completion audit incomplete only from dirty candidate worktree plus external/user-owned T-251.
+
+Changed Files: `.agents/skills/auto-research/scripts/{dependency_freshness_inventory,launch_objective_audit}.py`; `workspace/tests/test_auto_research_{dependency_freshness_inventory,launch_objective_audit}.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1293 post-push release-gate confirmation**. Confirmed T-1293 feature commit `dd890834` and context closeout `0746521d` are pushed/synced. `session_orient.py --json` reports clean/synced worktree, open PRs 0, `head_claim_status=none`, and no stale latest HANDOFF head claims. Required GitHub Actions passed for the pushed context state checked in this closeout: `root-quality-gate` run 26990896929 and `active-project-matrix` run 26990896922. Product readiness remains score 96 with workspace/local/agent blockers 0/0/0 and only external/user-owned Hanwoo T-251 blocked. Fresh inventories report GitHub dirty count 0, browser QA fresh screenshots 4/4, direct dependency candidates 0, and deferred ESLint peer blockers only. Launch-objective audit remains 7/8 complete with only T-251 unresolved.
+
+Changed Files: `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1293 GitHub inventory dirty-state confirmation hardening**. Continued the `$auto-research` launch loop after T-1292 gates were green. Runtime inventory exposed a false-risk pattern where stale tracked status can surface as dirty until the index is refreshed, causing launch audit/product readiness to see a local blocker. `github_project_inventory.py` now refreshes the Git index, records raw `status_dirty_count`, confirms tracked dirty status through worktree and cached diff checks, preserves untracked files as real dirty work, and exposes `dirty_paths` plus `dirty_confirmation`. Verification passed focused GitHub inventory pytest 12/12, broader auto-research pytest 51/51, ruff, format check, py_compile, runtime inventory generation, diff-check with CRLF warnings only, A/B `adopt_candidate` score_delta 0.9966832504145935, and completion audit complete 3/3.
+
+Changed Files: `.agents/skills/auto-research/scripts/github_project_inventory.py`; `workspace/tests/test_github_project_inventory.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1292 post-push release-gate confirmation**. Confirmed the T-1292 feature and corrected evidence are pushed, local state is clean/synced, open PRs are 0, latest HANDOFF head-claim status is `none`, and required GitHub Actions passed for the pushed context state checked in this closeout: `root-quality-gate` run 26990435906 and `active-project-matrix` run 26990435930. Product readiness remains score 96 with workspace/local/agent blockers 0/0/0 and only external/user-owned Hanwoo T-251 blocked. Launch-objective completion audit on `.tmp/launch-objective-audit-t1292-final.json` remains 7/8 complete with issue_count 1 and blocked_count 1, only for T-251.
+
+Changed Files: `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1292 relay head-claim detection and inventory artifact persistence**. Added latest-addendum HEAD claim detection to `session_orient.py` so the HANDOFF snapshot now extracts explicit live-head claims, compares them to live git evidence, reports `head_claim_status`, and renders stale latest claims as an advisory line. The runtime candidate detected the existing T-1291 relay mismatch, proving the next tool can see stale wording instead of trusting it. Added `--output` JSON artifact support to GitHub and browser QA inventory helpers and documented retained `.tmp` output paths in the auto-research skill. Verification passed focused pytest 42/42, ruff, format check, py_compile, runtime inventory output generation with ASCII-safe files, runtime stale-claim detection, A/B `adopt_candidate` score_delta 1.1248447204968943, and T-1292 completion audit complete 3/3.
+
+Changed Files: `execution/session_orient.py`; `.agents/skills/auto-research/SKILL.md`; `.agents/skills/auto-research/scripts/{github_project_inventory,browser_qa_inventory}.py`; `workspace/tests/test_session_orient.py`; `workspace/tests/test_github_project_inventory.py`; `workspace/tests/test_auto_research_browser_qa_inventory.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1291 post-push release-gate confirmation**. Confirmed current `main`/`origin/main` head `6fbc74ae` is the T-1291 feature commit and required GitHub Actions are green on that head: `root-quality-gate` run 26989894129 and `active-project-matrix` run 26989894138. Final session orientation is clean/synced with open PRs 0, HANDOFF `archivable_addendum_count=0`, and `rotation_suggested=false`. Product readiness remains score 96 with workspace/local/agent blockers 0/0/0 and only external/user-owned Hanwoo T-251 blocked. Final launch objective audit `.tmp/launch-objective-audit-t1291-head.json` is 7/8 complete and incomplete only for T-251; dependency evidence now reports direct candidates 0, outdated count 3, peer-blocked ESLint majors 2, and Hanwoo `next-auth` current on npm beta.
+
+Changed Files: `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1291 launch audit dependency channel evidence clarity**. Improved `launch_objective_audit.py` dependency evidence so the launch audit reports total `outdated_dependency_count` and explains current prerelease-channel packages instead of leaving npm outdated/deferred counts ambiguous. Current runtime evidence now shows candidate_dependency_count 0, outdated_dependency_count 3, deferred_dependency_count 2, peer-blocked ESLint 10 for Hanwoo/Knowledge, and Hanwoo `next-auth beta=5.0.0-beta.31 current=5.0.0-beta.31 stable_latest=4.24.14` as a non-blocking current prerelease channel. Added regression coverage for the channel evidence. Verification passed focused launch audit pytest 14/14, broader launch/completion audit pytest 18/18, ruff, format check, py_compile, diff-check, code-review gate, runtime launch audit generation, A/B `adopt_candidate` score_delta 0.705308775731311, and T-1291 completion audit complete 3/3.
+
+Changed Files: `.agents/skills/auto-research/scripts/launch_objective_audit.py`; `workspace/tests/test_auto_research_launch_objective_audit.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1290 launch audit unreadable/BOM A/B manifest resilience**. Hardened `launch_objective_audit.py` so the A/B manifest scanner ignores unreadable `.tmp/ab-manifest-*.json` artifacts during latest-manifest sorting instead of raising on `stat()` failures, records the ignored artifact as evidence, accepts BOM-encoded manifest JSON, and still retains the newest readable valid manifest. Hardened `ab_decision.py` to accept BOM-encoded manifests after the live T-1290 manifest exposed an `Unexpected UTF-8 BOM` failure. Regression coverage now covers stat-failure selection, BOM launch-audit evidence, and BOM A/B decision parsing. Verification passed focused A/B/launch/completion audit pytest 18/18, ruff, format check, py_compile, diff-check, A/B `adopt_candidate` score_delta 0.847887323943662, completion audit complete 3/3, and runtime candidate launch audit generation with BOM-written `.tmp/ab-manifest-t1290.json` in A/B evidence with candidate metrics 5 and required gates 4/4. Feature commit `f3391ffe` is pushed; required Actions passed (`root-quality-gate` 26989496985, `active-project-matrix` 26989497031).
+
+Changed Files: `.agents/skills/auto-research/scripts/ab_decision.py`; `.agents/skills/auto-research/scripts/launch_objective_audit.py`; `workspace/tests/test_auto_research_ab_decision.py`; `workspace/tests/test_auto_research_launch_objective_audit.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1289 launch audit A/B manifest evidence hardening**. Updated `launch_objective_audit.py` so the A/B launch requirement discovers the newest valid local `.tmp/ab-manifest-*.json`, cites it as an artifact, records candidate metric count and required-gate pass count, and blocks complete coverage when metrics are missing or required gates fail. This makes the self-improvement loop's A/B evidence concrete instead of relay-prose-only. Verification passed focused launch audit pytest 11/11, broader launch/completion audit pytest 15/15, ruff, format check, py_compile, diff-check, A/B `adopt_candidate` score_delta 0.6666666666666666, completion audit complete 4/4, and runtime candidate launch audit generation with `.tmp/ab-manifest-t1289.json` in A/B evidence with required gates 7/7.
+
+Changed Files: `.agents/skills/auto-research/scripts/launch_objective_audit.py`; `workspace/tests/test_auto_research_launch_objective_audit.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1288 post-push release-gate confirmation**. Confirmed feature commit `9025f5fc` is on `origin/main`; required GitHub Actions passed on that head (`root-quality-gate` 26988553084, `active-project-matrix` 26988553088). Final session orientation is clean/synced with open PRs 0, HANDOFF `archivable_addendum_count=0`, and `rotation_suggested=false`. Product readiness is score 96 with workspace/local/agent blockers 0/0/0, external blocker count 1, and the first next action explicitly waits on user-owned T-251. Launch-objective completion audit on `.tmp/launch-objective-audit-t1288-feature-head.json` remains 7/8 complete with issue_count 1 and incomplete only for external/user-owned T-251; the known external blocker now has complete coverage and only the `blocked` issue.
+
+Changed Files: `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1288 launch audit external blocker coverage precision**. Updated `launch_objective_audit.py` so known user-owned external blockers such as T-251 are fully mapped to evidence (`coverage: complete`) while still blocking launch completion. This removes the extra `incomplete_coverage` issue for known external blockers, keeps unknown external blockers partial, and covers case-insensitive user-owner matching. Verification passed focused launch/completion audit pytest 13/13, ruff, format check, py_compile, runtime candidate launch audit generation, diff-check, A/B `adopt_candidate` score_delta 0.6071428571428571, and completion audit complete 4/4.
+
+Changed Files: `.agents/skills/auto-research/scripts/launch_objective_audit.py`; `workspace/tests/test_auto_research_launch_objective_audit.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1287 post-push release-gate confirmation**. Confirmed `31faa96e` is on `origin/main`; required GitHub Actions passed on that head (`root-quality-gate` 26988113562, `active-project-matrix` 26988113556). Final session orientation is clean/synced with open PRs 0, HANDOFF `archivable_addendum_count=0`, and `rotation_suggested=false`. Product readiness is score 96 with workspace/local/agent blockers 0/0/0, external blocker count 1, and the first next action explicitly waits on user-owned T-251. Launch-objective completion audit remains 7/8 complete and incomplete only for external/user-owned T-251.
+
+Changed Files: `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1287 mixed-owner readiness regression coverage**. Added a follow-up product-readiness regression for the pushed T-1286 blocker-routing change: mixed agent-owned plus user-owned project blockers now have explicit test coverage that keeps the agent-owned work first and then waits on user-owned T-251. Updated the T-1286 relay evidence to product-readiness pytest 25/25, A/B `adopt_candidate` score_delta 0.9090909090909091, and completion audit complete 5/5. Verification passed focused pytest, ruff, format check, py_compile, runtime readiness JSON, diff-check, and staged code-review gate exit 0 with advisory WARN risk_score 0.35 from graph helper-gap heuristics covered by the focused tests.
+
+Changed Files: `workspace/tests/test_product_readiness_score.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1286 owner-aware readiness blocker routing**. Updated product readiness so user-owned task blockers are routed as wait-for-owner actions instead of generic local resolution work. The current Hanwoo T-251 recommendation and first next action now say `Wait for 1 user-owned task blocker(s) before rerunning local launch checks: T-251.`, preserving the external Supabase credential reset boundary and reducing auto-research retry risk. Mixed user-owned and agent-owned project blockers now keep agent-owned work first, then wait on user-owned blockers. Verification passed product-readiness pytest 25/25, ruff, format check, py_compile, runtime readiness JSON, diff-check, A/B `adopt_candidate` score_delta 0.9090909090909091, and completion audit complete 5/5.
+
+Changed Files: `execution/product_readiness_score.py`; `workspace/tests/test_product_readiness_score.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1285 post-push release-gate confirmation**. Confirmed `491b7782` and context head `7d5f633b` are pushed to `origin/main`; required GitHub Actions passed on `7d5f633b` (`root-quality-gate` 26987547889, `active-project-matrix` 26987547880). Final session orientation is clean/synced with open PRs 0, HANDOFF `archivable_addendum_count=0` and `rotation_suggested=false`. Product readiness is score 96 with workspace/local/agent blockers 0/0/0; launch objective audit remains 7/8 complete and incomplete only for external/user-owned Hanwoo T-251.
+
+Changed Files: `.ai/{HANDOFF,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1285 session orientation HANDOFF rotation signal alignment**. Fixed `session_orient.py` so HANDOFF rotation recommendations use actual seven-day archivable-addendum detection instead of line-count pressure alone. The snapshot now exposes `rotation_cutoff` and `archivable_addendum_count`; current runtime output reports the 593-line HANDOFF has `archivable_addendum_count=0` and `rotation_suggested=false`, matching `handoff_rotator.py --check --json` noop (`kept=83`, `archived=0`, cutoff `2026-05-29`). Added regression coverage for stale addenda and long recent HANDOFF files. Verification passed focused pytest 31/31, ruff, format check, py_compile, runtime session-orient/rotator checks, diff-check, A/B `adopt_candidate` score_delta 1.0, and completion audit complete 4/4.
+
+Changed Files: `execution/session_orient.py`; `workspace/tests/test_session_orient.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1284 auto-research JSON ASCII evidence hardening**. Follow-up after T-1283 verification found launch evidence JSON with the Korean profile path was valid UTF-8 but could fail when parsed through Windows PowerShell default `Get-Content` plus `ConvertFrom-Json`. Changed all six auto-research JSON emitters to ASCII-escape JSON output, added a Korean-path launch-audit CLI regression, and documented the rule in the auto-research skill. Runtime launch/dependency JSON files now parse through default PowerShell reads; browser freshness remains 4/4 fresh and stale 0; dependency freshness still reports direct candidates 0 with Hanwoo/Knowledge ESLint 10 peer-blocked. Verification passed launch-audit pytest 7/7, broader auto-research/GitHub pytest 38/38, ruff, format check, py_compile, skill lint score 100, runtime parse checks, diff-check, A/B `adopt_candidate` score_delta 3.0604133545310015, and completion audit complete 3/3.
+
+Changed Files: `.agents/skills/auto-research/SKILL.md`; `.agents/skills/auto-research/scripts/{ab_decision,browser_qa_inventory,completion_audit,dependency_freshness_inventory,github_project_inventory,launch_objective_audit}.py`; `workspace/tests/test_auto_research_launch_objective_audit.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1283 post-push release-gate confirmation**. Confirmed feature commit `37a68afe` is on `origin/main` and both required GitHub Actions passed on that head: `root-quality-gate` run 26986800302 and `active-project-matrix` run 26986800326. Clean post-push readiness is score 96 with workspace/local/agent blockers 0/0/0 and only external/user-owned Hanwoo T-251 remaining. Final launch objective audit is 7/8 complete and incomplete only for T-251; dependency freshness reports direct candidates 0 and peer-blocked Hanwoo/Knowledge ESLint 10 evidence; browser QA inventory reports coverage 4/4, fresh screenshots 4/4, stale 0.
+
+Changed Files: `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1283 launch evidence routing clarity**. Improved auto-research evidence routing so fully peer-blocked deferred major migrations are not reselected as generic upgrade work, and stale retained browser screenshots cannot silently count as launch-ready evidence. Dependency freshness now recommends waiting for upstream peer support before Hanwoo ESLint 10 (4 peer blockers) and Knowledge ESLint 10 (3 peer blockers), with direct dependency candidates still 0. Browser QA inventory now reports screenshot modified time, age, fresh/stale counts, and stale refresh recommendations; current runtime browser inventory is 4/4 covered, 4/4 fresh, stale 0. Launch objective audit now surfaces peer-blocked deferred dependency evidence plus fresh screenshot coverage. No app package manifests or lockfiles changed; T-251 was not retried. Verification passed auto-research pytest 37/37, ruff, format check, py_compile, runtime dependency/browser/launch inventories, skill lint score 100, diff-check, A/B `adopt_candidate` score_delta 1.4835309617918315, and completion audit complete 5/5.
+
+Changed Files: `.agents/skills/auto-research/SKILL.md`; `.agents/skills/auto-research/scripts/{browser_qa_inventory,dependency_freshness_inventory,launch_objective_audit}.py`; `workspace/tests/test_auto_research_{browser_qa_inventory,dependency_freshness_inventory,launch_objective_audit}.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1282 dependency freshness peer blocker evidence**. Added lockfile peer-blocker context to dependency freshness inventory so generic deferred ESLint major migrations now include concrete installed peer ranges. Baseline inventory reported direct candidates 0, deferred dependencies 2, and opaque Hanwoo/Knowledge ESLint 10 major deferrals; candidate inventory still reports no direct patch/minor candidates but now shows Hanwoo `peer_blocker_count=4` and Knowledge `peer_blocker_count=3`. No dashboard package manifests or lockfiles changed. Verification passed dependency freshness pytest 9/9, broader auto-research/GitHub pytest 33/33, ruff, format check, py_compile, runtime inventory, diff-check, A/B `adopt_candidate` score_delta 6.222222222222222, and completion audit complete 4/4.
+
+Changed Files: `.agents/skills/auto-research/SKILL.md`; `.agents/skills/auto-research/scripts/dependency_freshness_inventory.py`; `workspace/tests/test_auto_research_dependency_freshness_inventory.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1281 post-push release-gate confirmation**. Confirmed feature commit `97c62c64` is on `origin/main`, required GitHub Actions are green (`root-quality-gate` 26985740619, `active-project-matrix` 26985740597), and the worktree is clean/synced. Product readiness is score 96 with workspace/local/agent blockers 0/0/0 and only external/user-owned Hanwoo T-251 remaining. Final dependency freshness artifact reports direct patch/minor candidates 0, deferred dependencies 2, and Hanwoo `next-auth` as `current_prerelease_channel`; final launch objective audit is 7/8 complete and incomplete only for T-251.
+
+Changed Files: `.ai/{HANDOFF,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1281 dependency inventory prerelease dist-tag context**. Added npm dist-tag context to the auto-research dependency freshness helper so prerelease packages current on their matching channel no longer become false deferred blockers. Live npm metadata shows `next-auth` `beta=5.0.0-beta.31` while `latest=4.24.14`, so Hanwoo's current beta is now classified as `current_prerelease_channel`; runtime dependency inventory reduces deferred dependency count from 3 to 2. Tested Knowledge Dashboard ESLint 10 and rejected it: temporary `eslint ^10` install produced peer override warnings for Next's bundled `eslint-plugin-import`, `eslint-plugin-jsx-a11y`, and `eslint-plugin-react`, and lint failed under ESLint 10 with `react/display-name` `TypeError: contextOrFilename.getFilename is not a function`; the package was restored to valid `eslint@9.39.4`. Verification passed focused pytest 8/8, broader auto-research/GitHub inventory pytest 32/32, ruff, format check, py_compile, valid Knowledge npm ls, Knowledge lint, audit high/critical 0, skill lint no-error status, diff-check, completion audit complete 4/4, and A/B `adopt_candidate` score_delta 1.2549019607843137. Pushed feature commit `97c62c64`; GitHub Actions passed on that head (`root-quality-gate` 26985740619, `active-project-matrix` 26985740597). Clean post-push launch audit remains incomplete only for external/user-owned T-251.
+
+Changed Files: `.agents/skills/auto-research/SKILL.md`; `.agents/skills/auto-research/scripts/dependency_freshness_inventory.py`; `workspace/tests/test_auto_research_dependency_freshness_inventory.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1280 auto-research launch audit evidence correction**. Corrected `launch_objective_audit.py` so skill evidence explicitly includes the documented launch objective audit command, and added regression coverage for that evidence string. Repaired T-1279 relay records by removing an unsupported Knowledge Dashboard ESLint 10 recheck claim, correcting A/B to score_delta 5.25, and clarifying that launch-objective completion audit remains intentionally incomplete while dirty work or external/user-owned T-251 exists. Verification passed focused pytest 4/4, broader auto-research/GitHub inventory pytest 30/30, ruff, format check, py_compile, runtime manifest generation with 7/7 skill artifacts, expected incomplete completion audit before clean commit, A/B `adopt_candidate` score_delta 2.0, and diff-check with CRLF warnings only.
+
+Changed Files: `.agents/skills/auto-research/scripts/launch_objective_audit.py`; `workspace/tests/test_auto_research_launch_objective_audit.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1279 auto-research launch objective audit helper**. Added a deterministic helper that generates a completion-audit manifest for the product-launch objective from current workspace evidence: readiness, GitHub inventory, browser QA inventory, dependency freshness, A/B evidence, external blockers, and `.ai` relay continuity. Documented the helper in the auto-research skill and wired its test/helper into both required workspace-quality workflows. Verification passed focused pytest 4/4, broader auto-research/GitHub inventory pytest 30/30, ruff, py_compile, runtime manifest generation, and A/B `adopt_candidate` score_delta 5.25. The generated launch-objective completion audit correctly refuses to mark the overall objective complete while dirty work or external/user-owned T-251 exists. No Knowledge Dashboard ESLint 10 recheck was run in this cycle; Knowledge ESLint 10 remains a separate deferred migration.
+
+Changed Files: `.agents/skills/auto-research/SKILL.md`; `.agents/skills/auto-research/scripts/launch_objective_audit.py`; `workspace/tests/test_auto_research_launch_objective_audit.py`; `.github/workflows/{root-quality-gate,full-test-matrix}.yml`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1278 post-push release-gate confirmation**. Confirmed `7b649d9f` is on `origin/main`, the worktree is clean, and required GitHub Actions are green on the pushed head: `root-quality-gate` run 26983546992 and `active-project-matrix` run 26983546977. Current readiness remains score 96 with workspace/local blockers 0, open PRs 0, direct patch/minor dependency candidates 0, and only external/user-owned Hanwoo T-251 blocked. Updated the top HANDOFF next-priority note so future sessions do not repeat the already completed commit/push/Actions step.
+
+Changed Files: `.ai/HANDOFF.md`; `.ai/SESSION_LOG.md`; `.ai/CONTEXT.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1278 Hanwoo Dashboard TypeScript 6 migration**. Adopted `typescript` `^6.0.3` for Hanwoo Dashboard on the existing Next 16/React 19/Prisma 7 stack, synchronized the Hanwoo npm lock plus root `pnpm-lock.yaml`, and kept ESLint 10, next-auth channel changes, and T-251 live DB work separate. Current metadata and package listing confirm TypeScript 6.0.3 with compatible `typescript-eslint@8.60.1`, `eslint-config-next@16.2.7`, Prisma, and Serwist peers. Verification passed Hanwoo tests 499/499, lint, offline Prisma 7 test 14 passed/live skipped, build, smoke, Hanwoo project QC, frozen root pnpm lockfile check, selected outdated `{}`, audit high/critical 0, dependency inventory total deferred dependencies 4 -> 3, browser-click QA screenshot `output/playwright/hanwoo-t1278-typescript6-browser-qa.png` with manifest/API health 200 and no console/page/request/status issues, diff-check, A/B `adopt_candidate` score_delta 0.4375, and completion audit complete 7/7.
+
+Changed Files: `projects/hanwoo-dashboard/package.json`; `projects/hanwoo-dashboard/package-lock.json`; `pnpm-lock.yaml`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1277 full active-project QC evidence refresh**. Regenerated `.tmp/project_qc_runner_latest.json` with `python execution/project_qc_runner.py --json` after the latest single-project Knowledge QC artifact made readiness treat blind-to-x, shorts-maker-v2, and Hanwoo QC as unavailable. Full QC passed: blind-to-x tests 1723 passed / 9 skipped plus ruff, shorts-maker-v2 tests 1577 passed / 12 skipped plus ruff, Hanwoo tests 499/499 plus lint/build/smoke, and Knowledge tests 61/61 plus lint/build/smoke. Readiness then returned score 96 with blind-to-x, shorts-maker-v2, and Knowledge ready, Hanwoo blocked only by user-owned T-251, and no project-QC refresh recommendations. Dependency freshness inventory `.tmp/dependency-freshness-t1277.json` still reports zero direct patch/minor candidates and four deferred major/channel items.
+
+Changed Files: `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1276 post-push release-gate confirmation**. Confirmed `0c42f201` is on `origin/main`, worktree is clean, and required GitHub Actions are green on the pushed head: `root-quality-gate` run 26981857496 and `active-project-matrix` run 26981857489. Current readiness remains score 96 with workspace/local blockers 0 and only external/user-owned Hanwoo T-251 blocked. Updated the top HANDOFF next-priority note so future sessions do not repeat the already completed commit/push/Actions step.
+
+Changed Files: `.ai/HANDOFF.md`; `.ai/SESSION_LOG.md`; `.ai/CONTEXT.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1276 Knowledge Dashboard TypeScript 6 migration**. Adopted `typescript` `^6.0.3` for Knowledge Dashboard on the existing Next 16/React 19 stack, synchronized npm and root pnpm locks, and kept ESLint on `^9` after the first install attempt pulled ESLint 10 out of scope. Current npm metadata reports TypeScript 6.0.3 and `typescript-eslint@8.60.1` peers on `typescript >=4.8.4 <6.1.0`; local package listing reports `typescript@6.0.3`, `eslint@9.39.4`, `eslint-config-next@16.2.7`, `typescript-eslint@8.60.1`, and `@typescript-eslint/parser@8.60.1`. Verification passed Knowledge tests 61/61, lint, build, smoke, project QC, frozen root pnpm lockfile check, selected outdated `{}`, browser-click QA with console errors/warnings 0 and screenshot `output/playwright/knowledge-t1276-typescript6-browser-qa.png`, dependency inventory with total deferred dependencies 5 -> 4, diff-check, A/B `adopt_candidate` score_delta 0.5625, and completion audit complete 7/7. Knowledge ESLint 10 remains a separate deferred major migration.
+
+Changed Files: `projects/knowledge-dashboard/package.json`; `projects/knowledge-dashboard/package-lock.json`; `pnpm-lock.yaml`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1275 Word Chain plugin-react 6 migration**. Adopted `@vitejs/plugin-react` `^6.0.2` for `projects/word-chain` after current official research showed plugin-react 6 removes Babel-related features and drops Vite 7-and-below support, while 6.0.2 is type-only. Word Chain uses plain `react()` with no Babel options and Vite `8.0.16`, matching npm metadata for 6.0.2. Verification passed package version check (`@vitejs/plugin-react@6.0.2`, `vite@8.0.16`), Word Chain tests 23/23, lint, build through the known ASCII fallback after direct Vite `3221226505`, frozen lockfile-only pnpm, audit total 0, selected outdated `{}`, dependency inventory with Word Chain clean and total deferred dependencies reduced 6 -> 5, Playwright production browser-click QA with Korean input `????, console errors/warnings 0, all requests 200, screenshot `output/playwright/word-chain-t1275-plugin-react6-qa.png`, diff-check, A/B `adopt_candidate` score_delta 0.875, and completion audit complete 6/6.
+
+Changed Files: `projects/word-chain/package.json`; `projects/word-chain/package-lock.json`; `pnpm-lock.yaml`; `output/playwright/word-chain-t1275-plugin-react6-qa.png`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1274 root Biome/Turbo patch freshness**. Applied root devDependency patch candidates from T-1273: `@biomejs/biome` `^2.4.16` and `turbo` `^2.9.16`, synchronized `pnpm-lock.yaml`, updated `biome.json` schema to 2.4.16, and confirmed root `pnpm outdated --json` is `{}`. Verification passed root package list and Biome/Turbo version commands, frozen lockfile-only pnpm, root-filtered frozen pnpm, dependency freshness inventory with root clean and candidate count 0, workspace-quality pytest 162/162, workspace-quality ruff, Turbo Word Chain test 23/23, Turbo Word Chain lint, diff-check, A/B `adopt_candidate`, and completion audit complete. Local full-workspace `pnpm install --frozen-lockfile --ignore-scripts` still exits `-1073740791` during Windows node_modules linking, so required Linux Actions remain the full-workspace install gate after push.
+
+Changed Files: `biome.json`; `package.json`; `pnpm-lock.yaml`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1273 auto-research dependency freshness inventory**. Added a deterministic npm freshness helper for launch-loop dependency triage. It discovers package projects, runs `npm outdated --json`, separates direct patch/minor candidates from major migrations and prerelease/stable channel mismatches, and can persist JSON artifacts. Runtime inventory wrote `.tmp/dependency-freshness-t1273.json`, finding root patch candidates `@biomejs/biome 2.4.15 -> 2.4.16` and `turbo 2.9.14 -> 2.9.16`, while deferring Hanwoo/Knowledge/Word Chain major or channel migrations. Verification passed focused pytest 6/6, combined auto-research pytest 18/18 with repo-local basetemp, ruff, runtime inventory, A/B `adopt_candidate` score_delta 1.325, and completion audit complete 3/3. Next separate experiment is T-1274 for the root patch candidates.
+
+Changed Files: `.agents/skills/auto-research/SKILL.md`; `.agents/skills/auto-research/scripts/dependency_freshness_inventory.py`; `workspace/tests/test_auto_research_dependency_freshness_inventory.py`; `.github/workflows/{root-quality-gate,full-test-matrix}.yml`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1271 dashboard safe dependency freshness**. Updated Hanwoo `bullmq`, `ioredis`, `react-hook-form`, and `zod` to current safe patch/minor targets; refreshed Knowledge's existing `eslint` `^9` lock to `9.39.4`; and synchronized npm/pnpm locks. Verification passed root frozen pnpm lock, target `npm ls`, Hanwoo test/lint/build/smoke (`499` tests), Knowledge test/lint/build/smoke (`61` tests), selected outdated checks, audit review with no high/critical findings, diff-check, staged code-review gate pass risk 0.0, A/B `adopt_candidate` score_delta 4.0, completion audit complete, feature commit `7383776b`, and required GitHub Actions `root-quality-gate` 26978670413 plus `active-project-matrix` 26978670027 passed. Moderate audit findings remain only where npm recommends unsuitable downgrade paths; Hanwoo T-251 remains the only external/user-owned launch blocker.
+
+Changed Files: `projects/hanwoo-dashboard/package.json`; `projects/hanwoo-dashboard/package-lock.json`; `projects/knowledge-dashboard/package-lock.json`; `pnpm-lock.yaml`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1267 browser QA screenshot retention closeout**. Captured current local `output/playwright` screenshot evidence for Suika and Word Chain after T-1266 identified them as covered only by historical/log browser QA. Both projects built through the known ASCII fallback after direct Vite `3221226505`; production preview QA passed on `127.0.0.1:43167` and `127.0.0.1:43168`. Playwright clicked Suika start and keyboard drop controls, verified nonblank canvas pixels, submitted Korean input `???? in Word Chain, and saved `output/playwright/suika-t1267-browser-click-qa.png` plus `output/playwright/word-chain-t1267-browser-click-qa.png`. Both apps had console warnings/errors 0 and failed requests 0; screenshot checks reported 1280x900 nonblank images. Browser QA inventory now reports 4/4 covered, current screenshots 4, missing 0, recommendations empty. A/B `adopt_candidate` score_delta 1.25 and completion audit complete. No app source changes were needed.
+
+Changed Files: `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1266 auto-research browser QA evidence inventory**. Added a deterministic browser QA inventory helper that summarizes browser app direct-click evidence from `.ai` logs and current `output/playwright` screenshots, with safeguards for generic-token and mixed-task false positives. Runtime output reports `4/4` browser projects covered and `0` missing; recommendation remains to capture/retain current screenshots for `projects/suika-game-v2` and `projects/word-chain`. CI workflow lists now include the new helper and regression test. Verification passed focused pytest 8/8, workflow-focused pytest 14/14, ruff, py_compile, auto-research skill lint score 100/pass, diff-check, staged code-review gate pass risk 0.0, A/B `adopt_candidate` score_delta 1.6666666666666667, completion audit complete, pushed feature commit `94abd514` plus ai-context head `b0765352`, and GitHub Actions `root-quality-gate` 26974181977 plus `active-project-matrix` 26974182044 passed on `b0765352`.
+
+Changed Files: `.agents/skills/auto-research/SKILL.md`; `.agents/skills/auto-research/scripts/browser_qa_inventory.py`; `workspace/tests/test_auto_research_browser_qa_inventory.py`; `.github/workflows/{root-quality-gate,full-test-matrix}.yml`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1265 GitHub Actions checkout/submodule hygiene**. Added `.gitmodules` for the tracked `nature-skills` gitlink, upgraded checkout steps in both required workflows to `actions/checkout@v6`, set `persist-credentials: false`, and added `workspace/tests/test_github_workflow_hygiene.py` coverage. Verification passed submodule status/cleanup checks, focused pytest 2/2, root-quality equivalent 140 passed, ruff, diff-check, code-review gate pass risk 0.0, A/B `adopt_candidate`, pushed `a94136b2`, and GitHub Actions `root-quality-gate` 26973845848 plus `active-project-matrix` 26973845884 passed with no repeated checkout fatal/128 warnings in logs.
+
+Changed Files: `.gitmodules`; `.github/workflows/{root-quality-gate,full-test-matrix}.yml`; `workspace/tests/test_github_workflow_hygiene.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1261 project-QC contract drift guard**. Hardened `product_readiness_score.py` so stored `project_qc_runner` artifacts are rechecked against the current runner's expected check IDs before readiness treats them as complete. This prevents old artifacts missing newly required web-app `smoke` checks from scoring as complete launch evidence. Verification passed readiness pytest 23/23, ruff, ruff format check, py_compile, diff-check, full active-project QC with smoke (`blind-to-x` 1723/9, `shorts-maker-v2` 1577/12, Hanwoo 499 + lint/build/smoke, Knowledge 61 + lint/build/smoke), A/B `adopt_candidate` score_delta 0.8939393939393939, completion audit complete, pushed `c72e0ce8`, and GitHub Actions `root-quality-gate` 26969298890 plus `active-project-matrix` 26969298914 passed. Current readiness: score 96, workspace blocker 0, local blocker 0, external blocker 1 (Hanwoo T-251).
+
+Changed Files: `execution/product_readiness_score.py`; `workspace/tests/test_product_readiness_score.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1256..T-1259 workspace release-gate hardening closeout**. Added a duplicate task-ID commit gate, added workspace release gates to product readiness, hardened the GitHub gate for non-Git temporary roots, and fixed the task-ID gate's no-edit amend false positive. Current readiness reports score 96 with clean worktree, open PRs 0, required workflows green, workspace blocker count 0, and only Hanwoo T-251 blocked. Verification passed focused product-readiness pytest 21/21, task-id gate pytest 8/8, ruff, py_compile, diff checks, live task-id CLI allow/block repro, A/B `adopt_candidate`, completion audits `complete`, and GitHub Actions passed on current HEAD `a1956ec6` (`root-quality-gate` 26967317966, `active-project-matrix` 26967317897).
+
+Changed Files: `execution/product_readiness_score.py`; `workspace/tests/test_product_readiness_score.py`; `execution/task_id_gate.py`; `workspace/tests/test_task_id_gate.py`; `.githooks/commit-msg`; `.github/workflows/{root-quality-gate,full-test-matrix}.yml`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1255 blind-to-x/workspace google-genai migration**. Adopted the current Google GenAI SDK path after checking official Google GenAI SDK docs. `projects/blind-to-x/pyproject.toml` now uses `google-genai>=1.0.0` instead of deprecated `google-generativeai>=0.8.0`, the active root workspace `uv.lock` resolves `google-genai 2.8.0`, and `workspace/execution/content_writer.py` now uses `google.genai` Client generation with updated tests. Verification passed workspace content writer tests 8/8, ruff, py_compile, `uv lock --project projects/blind-to-x --check`, project venv import smoke (`google.genai` available, legacy `google.generativeai` absent), focused blind-to-x FutureWarning repro with `-W error::FutureWarning`, blind-to-x lint, blind-to-x project QC 1723/9, full active-project QC (`blind-to-x` 1723 passed/9 skipped, `shorts-maker-v2` 1577 passed/12 skipped, Hanwoo 499 tests + lint/build, Knowledge 61 tests + lint/build), readiness score 96 with only Hanwoo T-251 blocked, A/B `adopt_candidate` (`score_delta=1.4`), completion audit `complete`, pushed feature commit `401b77b7`, and GitHub Actions `root-quality-gate` run `26965986775` plus `active-project-matrix` run `26965986181` passed. The feature commit message says T-1254 due numbering collision; recorded here as T-1255.
+
+Changed Files: `projects/blind-to-x/pyproject.toml`; `uv.lock`; `workspace/execution/content_writer.py`; `workspace/tests/test_content_writer.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1253 Hanwoo browser QA no-adopt cycle**. Ran Playwright CLI against local Hanwoo dev server `127.0.0.1:4316`. `/login` rendered readable Korean copy and demo credentials, admin/admin123 submit showed the expected Korean invalid-credentials alert, browser console errors/warnings were 0, auth provider/csrf/callback requests returned 200, `/manifest.json` returned 200 JSON, `/` redirected to `/login`, `/privacy` returned 200 with readable policy copy, and screenshot artifact was saved to `output/playwright/hanwoo-t1252-privacy.png`. `/api/health` returned 200 JSON with the known T-251 Supabase `P2010 / XX000 / ENOTFOUND tenant/user postgres.fuemeqmigptwfzqvrpjf not found` warning. No local code defect was found; dev server and browser session were stopped.
+
+Changed Files: `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1252 knowledge-dashboard runtime auth readiness gate**. Closed the readiness evidence gap where `knowledge-dashboard` protected runtime routes with `DASHBOARD_API_KEY` but readiness only had a non-verifying watch check. Added a `dashboard_runtime_auth` check that reads `projects/knowledge-dashboard/.env.local` or `.env`, blocks missing/empty/placeholder `DASHBOARD_API_KEY`, and reports `DASHBOARD_SESSION_SECRET` as configured or optional fallback without exposing values. The new gate first detected the missing env file, then a gitignored local `.env.local` was generated and confirmed ignored. Current readiness reports overall score 96 and `knowledge-dashboard` score 100 with Dashboard API key and dedicated session secret configured; only Hanwoo T-251 remains blocked. Verification passed focused pytest (`16` passed), ruff, `ruff format`, `py_compile`, `git diff --check`, A/B `adopt_candidate` (`score_delta=2.875`), completion audit `complete`, pushed `53563abf`, and GitHub Actions `root-quality-gate` plus `active-project-matrix` passed.
+
+Changed Files: `execution/product_readiness_score.py`; `workspace/tests/test_product_readiness_score.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1251 blind-to-x launch env readiness gate**. Closed the readiness evidence gap where `blind-to-x` documented Notion review queue credentials and at least one LLM provider key as operating prerequisites but readiness still had no env check. Added a `blind_to_x_launch_env` check that validates `NOTION_API_KEY`, `NOTION_DATABASE_ID`, and at least one usable LLM provider key without exposing values; it reports only configured-key counts and blocks placeholder/missing credentials. Stale QC now downgrades status to `needs-review` even if the numeric score reaches the ready threshold. Current readiness reports overall score 96 and `blind-to-x` score 100 with Notion keys plus 8 LLM provider key(s) configured. Verification passed focused pytest (`14` passed), ruff, `py_compile`, `git diff --check`, A/B `adopt_candidate` (`score_delta=2.514473684210526`), completion audit `complete`, pushed `694491a2`, and GitHub Actions `root-quality-gate` plus `active-project-matrix` passed.
+
+Changed Files: `execution/product_readiness_score.py`; `workspace/tests/test_product_readiness_score.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1250 shorts-maker-v2 provider-key readiness gate**. Closed a launch-readiness evidence gap where `shorts-maker-v2` had real generation provider keys configured locally but readiness reported no env checks. Added a `shorts_provider_keys` env check that parses `.env` without exposing values, treats empty/placeholder values as blockers, and reports only the configured provider-key count. Current readiness now reports overall score 95 and `shorts-maker-v2` score 100 with 8 provider key(s) configured. Verification passed focused pytest (`11` passed), ruff, `py_compile`, `git diff --check`, A/B `adopt_candidate` (`score_delta=1.8894876819708846`), and completion audit `complete`.
+
+Changed Files: `execution/product_readiness_score.py`; `workspace/tests/test_product_readiness_score.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`
+
+## 2026-06-05 | Codex | Session log row
+
+**T-1249 shorts-maker-v2 root launch README and readiness gate**. Closed the GitHub onboarding/readiness gap where `shorts-maker-v2` only had nested `docs/README.md`. Added a root launch README with quick start, generation, operations, verification, artifact hygiene, and doc links. Inventory now recommends root README entrypoints for projects missing one, and product readiness now requires `projects/shorts-maker-v2/README.md`. Verification passed focused pytest (`11` passed), inventory reports `shorts-maker-v2 has_readme=true`, readiness reports the README present with `shorts-maker-v2` state ready, diff check, A/B `adopt_candidate` (`score_delta=1.0`), completion audit `complete`, pushed `848e83a0`, GitHub Actions `root-quality-gate` and `active-project-matrix` passed, and HANDOFF rotation archived 69 older addenda.
+
+Changed Files: `.agents/skills/auto-research/scripts/github_project_inventory.py`; `projects/shorts-maker-v2/README.md`; `execution/product_readiness_score.py`; `workspace/tests/test_github_project_inventory.py`; `workspace/tests/test_product_readiness_score.py`; `.ai/{HANDOFF,TASKS,SESSION_LOG,CONTEXT}.md`; `.ai/archive/HANDOFF_archive_2026-06-05.md`
+
+## Detailed Sections
+
+## 2026-06-05 - Codex
+
+- Completed T-1297 as a bounded `$auto-research` launch-loop reliability cycle for skill evidence linting and selector input artifacts.
+- Changed `execution/skill_lint.py`: generated `input/` and `output/` artifact examples are now treated as workflow artifacts, not missing bundled skill files.
+- Changed `.agents/skills/accessibility/SKILL.md`, `.agents/skills/seo/SKILL.md`, and `.agents/skills/shorts-tts-quality/SKILL.md`: removed unavailable local skill links and the stale Shorts Maker V2 test path that produced false broken-reference warnings.
+- Changed `.agents/skills/auto-research/scripts/next_experiment_selector.py`: missing, unreadable, invalid, non-object, or schema-incomplete readiness/GitHub/browser/dependency input evidence now selects `input_evidence_unavailable` with regeneration gates instead of falling through to completion audit; UTF-16 JSON input artifacts are accepted for Windows resilience.
+- Changed `.agents/skills/auto-research/SKILL.md`: documented that selector ranking checks input evidence availability first and requires helper artifact regeneration when `input_evidence_unavailable` is selected.
+- Changed `workspace/tests/test_skill_lint.py` and `workspace/tests/test_auto_research_next_experiment_selector.py`: added regressions for generated artifact examples, missing/schema-invalid selector inputs, and UTF-16 selector input artifacts.
+- Verification: skill-lint pytest passed 9/9, focused selector+skill-lint pytest passed 17/17, broader auto-research/GitHub/skill-lint pytest passed 75/75, runtime `skill_lint.py --skills-root .agents\skills --json` returned `pass` score 100 with warning_count 0, ruff passed, format check passed, `py_compile` passed, and `git diff --check` passed with CRLF warnings only.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1297.json --json` returned `adopt_candidate` with `score_delta=0.7777777777777778`.
+- Completion audit: `.agents/skills/auto-research/scripts/completion_audit.py .tmp\completion-audit-t1297.json --json` returned `complete` with 4/4 items complete and 0 issues.
+- Boundary: full launch completion remains blocked only by external/user-owned Hanwoo T-251; do not retry T-251 until Supabase Dashboard credentials are reset.
+
+
+## 2026-06-05 - Codex
+
+- Completed T-1264 as a bounded `$auto-research` Knowledge Dashboard product-readiness cycle focused on sync resilience and direct browser-click QA.
+- Changed `projects/knowledge-dashboard/scripts/sync_data.py`: when `httpx` is unavailable, `GITHUB_PERSONAL_ACCESS_TOKEN` is absent, or GitHub fetch fails, it now falls back to the deterministic local workspace inventory from `.agents/skills/auto-research/scripts/github_project_inventory.py`.
+- The local fallback maps workspace projects into GitHub-card-compatible rows with stable ids, local/root tree URLs, inferred language, README/test/workflow metadata, and safe descriptions, so the dashboard GitHub section is not empty on local/operator machines without a GitHub token.
+- Changed `build_product_readiness()` in the same script to call `build_report(REPO_ROOT)` without forcing the legacy public QA/QC artifact path, keeping Knowledge sync aligned with the current project-QC readiness artifact contract.
+- Changed `projects/knowledge-dashboard/tests/test_sync_data.py`: added regressions for GitHub remote URL normalization, local project card mapping, no-token fallback, and default readiness invocation.
+- Runtime sync proof: `python projects\knowledge-dashboard\scripts\sync_data.py` reported `GITHUB_PERSONAL_ACCESS_TOKEN is not configured; using local project inventory` and found 7 local workspace projects; NotebookLM remained blocked only by the checked-in template token boundary.
+- Browser QA: Playwright CLI against standalone Knowledge Dashboard on `127.0.0.1:4317` used deterministic `.tmp/knowledge-browser-data` fixtures; clicked login, operations, knowledge tab, search/clear, notebook detail modal, export menu, QA/QC tab, activity tab, refresh, and logout. Console errors/warnings were 0, tracked auth/data requests returned 200, and screenshot artifact was saved to `output/playwright/knowledge-t1264-browser-click-qa.png`.
+- Verification: `python -m pytest -o addopts= --basetemp .tmp\pytest-knowledge-sync-data projects\knowledge-dashboard\tests\test_sync_data.py` passed 8/8; `python -m ruff check ...` passed; `python -m py_compile ...` passed; `git diff --check` passed; `npm.cmd test` passed 61/61; `python execution\project_qc_runner.py --project knowledge-dashboard --json` passed test/lint/build/smoke.
+- Full active-project QC restored complete readiness evidence and passed: `blind-to-x` 1723 passed/9 skipped, `shorts-maker-v2` 1577 passed/12 skipped, Hanwoo 499 passed, Knowledge 61 passed; total 3860 passed/21 skipped. Known shorts google.genai DeprecationWarning persisted.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-t1264-knowledge-sync-local-inventory.json --json` returned `adopt_candidate` with `score_delta=4.666666666666667`.
+- Completion audit: `.agents/skills/auto-research/scripts/completion_audit.py .tmp\completion-audit-t1264-knowledge-sync-local-inventory.json --json` returned `complete` with 5/5 items complete and 0 issues.
+- Gate note: staged `code_review_gate.py --staged --json` returned advisory WARN (`risk_score=0.55`) for graph-reported broad sync helper test gaps; direct fallback tests, runtime sync proof, project QC, browser QA, A/B, and completion audit covered the adopted change.
+- Commit/push closeout: `7b656d3a fix(knowledge): T-1264 fall back to local project inventory` is on `origin/main`; GitHub Actions passed on that head with `root-quality-gate` run `26973233204` and `active-project-matrix` run `26973233352`. The known checkout annotation appeared in matrix jobs, but all jobs and summary concluded success.
+- Current readiness after push: score 96, clean worktree, open PRs 0, required Actions green, workspace/local blockers 0, external blocker 1 for user-owned Hanwoo T-251 only.
+- Boundary: T-251 remains the only TODO and is still user-owned Supabase credential reset/live Prisma verification, not local repo work.
+
+
+## 2026-06-05 - Codex
+
+- Completed T-1260 as a bounded release-readiness cycle focused on separating local launch blockers from user-owned external blockers and adding runtime smoke to dashboard QC.
+- Changed `execution/product_readiness_score.py`: added active-task/user-owned helpers, per-project `blocker_breakdown`, and overall `external_blocker_count`, `local_blocker_count`, `agent_task_count`, `environment_blocker_count`, plus nested `blocker_breakdown`.
+- Changed `workspace/tests/test_product_readiness_score.py`: added a regression for the current T-251 shape where Hanwoo has a user-owned task and configured env, so overall stays `blocked` with `external_blocker_count=1` and `local_blocker_count=0`; also covered placeholder/env and workspace-gate blocker counts.
+- Preserved and verified related release-gate worktree changes in `execution/project_qc_runner.py` and `workspace/tests/test_project_qc_runner.py`: Hanwoo and Knowledge dashboard now include `smoke` checks and CLI `--check smoke` accepts them.
+- Verification: `python -m pytest -o addopts= --basetemp .tmp\pytest-product-readiness workspace/tests/test_product_readiness_score.py` passed 22/22; the two direct T-251 ownership regressions passed 2/2; `python -m pytest -o addopts= --basetemp .tmp\pytest-project-qc workspace/tests/test_project_qc_runner.py` passed 11/11; `python -m py_compile execution/product_readiness_score.py` passed; `python -m ruff check ...` passed; `git diff --check` passed.
+- Runtime smoke: direct `npm.cmd run smoke` passed for `projects/hanwoo-dashboard` and `projects/knowledge-dashboard`; runner smoke `python execution/project_qc_runner.py --project hanwoo-dashboard --project knowledge-dashboard --check smoke --json --no-artifact` passed for both projects.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\T-1260-readiness-ab.json --json` returned `adopt_candidate` with `score_delta=7.25`; baseline failed the runtime-smoke gate and candidate passed all required gates.
+- Gate note: `py -3.13 execution/code_review_gate.py --base HEAD --json` returned advisory WARN with risk 0.35 for a graph-reported `_dirty_paths_by_project` helper gap; direct dirty-path/readiness tests passed and the gate had no fail-level finding.
+- Boundary: T-251 remains the only TODO and is still user-owned Supabase credential reset/live Prisma verification. After T-1260 is committed, expected readiness should show local blockers 0 and external blockers 1 until the user resets Supabase DB credentials.
+
+
+## 2026-06-05 - Codex
+
+- Completed T-1262 as a bounded `$auto-research` launch-evidence accuracy cycle for GitHub inventory and project-QC test counts.
+- Changed `.agents/skills/auto-research/scripts/github_project_inventory.py`: detects colocated JS/TS/MJS test files, detects usable `package.json` test scripts while ignoring default npm placeholders, skips generated/dependency directories, avoids duplicating child project tests in the root summary, and tolerates disappearing directories during live scans.
+- Changed `execution/project_qc_runner.py`: Node test-runner summary parsing now accepts non-word status prefixes so lines such as info-prefixed `tests 61`, `pass 61`, and `skipped 0` produce real readiness-artifact counts.
+- Changed `workspace/tests/test_github_project_inventory.py` and `workspace/tests/test_project_qc_runner.py`: added regressions for colocated Node tests, default no-test placeholders, root/project count separation, and info-prefixed Node summary parsing.
+- Verification: `python -m pytest -o addopts= --basetemp .tmp\pytest-github-inventory workspace/tests/test_github_project_inventory.py` passed 5/5; `python -m pytest -o addopts= --basetemp .tmp\pytest-project-qc workspace/tests/test_project_qc_runner.py` passed 12/12; live `python .agents\skills\auto-research\scripts\github_project_inventory.py --root . --include-prs` passed and now reports Hanwoo, Suika, and Word Chain with tests; Hanwoo/Knowledge runner test checks passed; ruff, ruff format check, `py_compile`, and diff-check passed.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\T-1262-inventory-test-evidence-ab.json --json` returned `adopt_candidate` with `score_delta=3.4285714285714284`; baseline had 3 Node-project test false negatives and 0 parsed Node counts, candidate had 0 false negatives and parsed both Node test summaries.
+- Commit/push closeout: `fb0268eb fix(inventory): T-1262 detect colocated test coverage` is on `origin/main`; GitHub Actions passed on that head with `root-quality-gate` run `26970050492` and `active-project-matrix` run `26970050500`. The known checkout annotation appeared, but all jobs and workflows concluded success.
+- Boundary: T-251 remains the only TODO and is still user-owned Supabase credential reset/live Prisma verification, not local repo work.
+
+
+## 2026-06-05 - Codex
+
+- Completed T-1263 as a bounded `$auto-research` launch-evidence hardening cycle for project-QC readiness artifacts.
+- Changed `execution/project_qc_runner.py`: readiness artifacts now include `schema_version=2`, so downstream readiness can distinguish current parser/counting evidence from older `.tmp/project_qc_runner_latest.json` files.
+- Changed `execution/product_readiness_score.py`: imports the current runner contract and downgrades `project_qc_runner` artifacts missing the current schema to `PARTIAL` with `contract_mismatches=["artifact_schema_version"]`; existing current-check drift detection still handles missing check IDs.
+- Changed `workspace/tests/test_project_qc_runner.py` and `workspace/tests/test_product_readiness_score.py`: locked artifact schema emission/persistence and missing-schema partial-readiness behavior.
+- Verification: project-QC runner pytest passed 12/12; product-readiness pytest passed 24/24; combined focused pytest passed 36/36; ruff, ruff format check, `py_compile`, and diff-check passed.
+- Full active-project QC: `python execution\project_qc_runner.py --json --timeout-seconds 900` passed and regenerated `.tmp/project_qc_runner_latest.json` with schema-v2 evidence: `blind-to-x` 1723 passed/9 skipped, `shorts-maker-v2` 1577 passed/12 skipped, Hanwoo 499 passed, Knowledge 61 passed, total 3860 passed/21 skipped.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-t1263-project-qc-schema.json --json` returned `adopt_candidate` with `score_delta=1.5105105105105106`; baseline had missing-schema contract mismatches and blocked workspace gates, candidate enforced schema and refreshed counts.
+- Completion audit: `.agents/skills/auto-research/scripts/completion_audit.py .tmp\completion-audit-t1263-project-qc-schema.json --json` returned `complete` with 5/5 checklist items complete and 0 issues.
+- Commit/push closeout: `3df8642c fix(readiness): T-1263 version project QC artifacts` is on `origin/main`; GitHub Actions passed on that head with `root-quality-gate` run `26971365112` and `active-project-matrix` run `26971365069`. The known checkout annotation appeared, but all jobs and workflows concluded success.
+- Current readiness after the code commit: score 96, clean worktree, open PRs 0, required Actions green, workspace/local blockers 0, external blocker 1.
+- Boundary: T-251 remains the only TODO and is still user-owned Supabase credential reset/live Prisma verification, not local repo work.
+
+
+## 2026-06-05 - Codex
+
+- Completed T-1268 as a bounded auto-research tooling compatibility cycle for GitHub project inventory automation.
+- Changed `.agents/skills/auto-research/scripts/github_project_inventory.py`: added an accepted `--json` flag while preserving JSON as the default output.
+- Changed `.agents/skills/auto-research/SKILL.md`: updated the documented inventory command to include `--json`.
+- Changed workflow quality lists so the inventory helper and `workspace/tests/test_github_project_inventory.py` remain covered in required CI.
+- Changed `workspace/tests/test_github_project_inventory.py`: added a CLI regression that calls `inventory.main(["--root", ..., "--json"])` and parses the emitted JSON.
+- Verification: focused inventory pytest passed 8/8 with `-o addopts= --basetemp .tmp\pytest-t1268-github-inventory`; ruff passed for the helper/test paths; `python -m py_compile .agents\skills\auto-research\scripts\github_project_inventory.py` passed.
+- Commit/push closeout: `5849691e feat(auto-research): T-1268 accept github inventory json flag` is on `origin/main`; required GitHub Actions passed on that head with `root-quality-gate` run `26975490577` and `active-project-matrix` run `26975490500`.
+- Boundary: T-251 remains the only TODO and is still user-owned Supabase credential reset/live Prisma verification, not local repo work.
+
+
+## 2026-06-05 - Codex
+
+- Completed T-1269 as a bounded browser-app dependency freshness cycle for the Vitest family.
+- Changed `projects/suika-game-v2/package.json` and `projects/word-chain/package.json`: updated `vitest` and `@vitest/coverage-v8` to `^4.1.8`.
+- Changed `projects/suika-game-v2/package-lock.json`, `projects/word-chain/package-lock.json`, and root `pnpm-lock.yaml`: synchronized the npm and pnpm locks after the package updates.
+- Changed `.gitignore`: ignored generated `coverage/` folders so coverage reports do not pollute future git status or app lint scans.
+- External/current-source check: npm metadata for `vitest@4.1.8` reports Node engine `^20.0.0 || ^22.0.0 || >=24.0.0` and Vite peer support through `^8.0.0`; npm metadata for `@vitest/coverage-v8@4.1.8` peers exactly on `vitest 4.1.8`. Local Node `24.13.0` and Vite `8.0.16` are compatible.
+- Verification: `npm.cmd ls vitest @vitest/coverage-v8 --depth=0` reported `4.1.8` in both apps; Suika `npm.cmd run test:coverage` passed 61 tests with Vitest v4.1.8; Word Chain `npm.cmd run test:coverage` passed 23 tests with Vitest v4.1.8; both app lint commands passed after generated coverage output was removed; both app builds passed through the known ASCII-workspace Vite fallback after direct `3221226505`; root `pnpm.cmd install --lockfile-only --frozen-lockfile --ignore-scripts` passed; both app `npm.cmd audit --json` commands reported 0 vulnerabilities; both selected-package outdated checks returned `{}`; `git diff --check` passed with only the known `pnpm-lock.yaml` line-ending warning.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-t1269-vitest-418.json --json` returned `adopt_candidate` with `score_delta=1.4285714285714286`.
+- Completion audit: `.agents/skills/auto-research/scripts/completion_audit.py .tmp\completion-audit-t1269-vitest-418.json --json` returned `complete` with 5/5 items complete and 0 issues.
+- Boundary: T-251 remains the only TODO and is still user-owned Supabase credential reset/live Prisma verification, not local repo work.
+
+
+## 2026-06-05 - Codex
+
+- Completed T-1270 as a bounded frontend dependency freshness cycle for React/Next patch alignment across Word Chain, Hanwoo Dashboard, and Knowledge Dashboard.
+- Changed `projects/word-chain/package.json`: updated `react` and `react-dom` to `^19.2.7` and `@types/react` to `^19.2.16`; kept `react`/`react-dom` in `dependencies` after npm initially placed them under dev dependencies.
+- Changed `projects/hanwoo-dashboard/package.json`: updated `next` and `eslint-config-next` to `^16.2.7`, and `react`/`react-dom` to `^19.2.7`.
+- Changed `projects/knowledge-dashboard/package.json`: updated `next` and `eslint-config-next` to `16.2.7`.
+- Synchronized `projects/word-chain/package-lock.json`, `projects/hanwoo-dashboard/package-lock.json`, `projects/knowledge-dashboard/package-lock.json`, and root `pnpm-lock.yaml`.
+- External/current-source check: npm metadata confirmed `react@19.2.7`, `react-dom@19.2.7`, `@types/react@19.2.16`, `next@16.2.7`, and `eslint-config-next@16.2.7`, including peer/engine compatibility for the selected apps.
+- Verification: root `pnpm.cmd install --lockfile-only --frozen-lockfile --ignore-scripts` passed; selected `npm.cmd ls` checks reported the target versions; selected `npm.cmd outdated` checks returned `{}`.
+- Word Chain verification: `npm.cmd run test` passed 23/23, `npm.cmd run lint` passed, `npm.cmd run build` passed through the known ASCII-workspace fallback after direct Vite `3221226505`, and `npm.cmd audit --json` reported 0 vulnerabilities.
+- Dashboard verification: `python execution\project_qc_runner.py --project hanwoo-dashboard --project knowledge-dashboard --json --timeout-seconds 900` passed test/lint/build/smoke for both dashboards; Hanwoo reported 499 tests and Knowledge reported 61 tests.
+- Browser QA: `.tmp\word-chain-t1270-browser-qa.json` reports pass after submitting Korean input and retrying after game over; `.tmp\dashboard-t1270-browser-qa.json` reports pass for Hanwoo login input/password-toggle clicks and Knowledge wrong-key submit/error-alert click flow. Screenshots were retained under `output/playwright/`.
+- Audit note: dashboard npm audit output still reports existing moderate transitive advisories, including Next/PostCSS and Prisma/Hono paths, and npm suggested unsuitable downgrade fixes. No broad audit fix was applied in this scoped patch cycle.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-t1270-frontend-patch-alignment.json --json` returned `adopt_candidate` with `score_delta=5.777777777777778`.
+- Completion audit: `.agents/skills/auto-research/scripts/completion_audit.py .tmp\completion-audit-t1270-frontend-patch-alignment.json --json` returned `complete` with 7/7 items complete and 0 issues.
+- Boundary: T-251 remains the only TODO and is still user-owned Supabase credential reset/live Prisma verification, not local repo work.
+
+
+## 2026-06-05 - Codex
+
+- Completed T-1272 as a bounded Hanwoo Recharts 3 responsive chart hardening cycle after T-1271 dependency freshness left Recharts 3 active in the dashboard.
+- Changed `AnalysisTab`, `CattleDetailModal`, `FeedTab`, `SalesTab`, and `FinancialChartWidget`: all six `ResponsiveContainer` chart surfaces now declare `minWidth={0}`, `minHeight={0}`, and `initialDimension={{ width: 1, height: 1 }}` to avoid Recharts 3's initial `width(-1)/height(-1)` sizing warning while preserving responsive resize.
+- Changed source coverage tests in `analysis-copy.test.mjs`, `cattle-detail-modal-wiring.test.mjs`, `empty-state-wiring.test.mjs`, and `home-market-copy.test.mjs` so chart accessibility/source checks lock the sizing guard contract.
+- Verification: `npm.cmd ls recharts react-is --depth=0` reports top-level `recharts@3.8.1` and `react-is@19.2.7`; Hanwoo `npm.cmd test` passed `499/499`; `npm.cmd run lint`, `npm.cmd run smoke`, and `npm.cmd run build` passed.
+- Browser QA: `node .tmp\hanwoo-t1271-browser-qa.cjs` wrote `.tmp\hanwoo-t1272-browser-qa.json` and passed production login click QA plus Recharts 3 render harness; both surfaces reported console/page/network/server errors `0`, and screenshots were retained at `output/playwright/hanwoo-t1272-login-click-qa.png` and `output/playwright/hanwoo-t1272-recharts3-browser-qa.png`.
+- Audit/outdated review: direct top-level outdated checks no longer include Recharts; remaining direct outdated items are deferred major/beta work (`eslint` 10, TypeScript 6, next-auth stable-vs-beta). `npm.cmd audit --json` still reports the existing 5 moderate dashboard advisories with unsuitable Next/Prisma downgrade fixes.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-t1271-hanwoo-recharts-responsive-guards.json --json` returned `adopt_candidate` with `score_delta=3.090909090909091`.
+- Completion audit: `.agents/skills/auto-research/scripts/completion_audit.py .tmp\completion-audit-t1271-hanwoo-recharts-responsive-guards.json --json` returned `complete` with 5/5 items complete and 0 issues.
+- Boundary: T-251 remains the only TODO and is still user-owned Supabase credential reset/live Prisma verification, not local repo work.
+
+
+## 2026-06-05 - Codex
+
+- Completed T-1298 as a bounded `$auto-research` session-orientation reliability cycle for stale HANDOFF closeout routing.
+- Changed `execution/session_orient.py`: extracts the latest Current Addendum `Next Priorities` row, reports `latest_next_priorities`, `latest_next_priority_status`, and `stale_next_priority_reason`, and marks post-push closeout instructions stale only when git is clean/synced.
+- Changed `execution/session_orient.py` rendering: text and Rich dashboard output now surface stale latest next-priority warnings alongside existing stale head-claim warnings.
+- Changed `workspace/tests/test_session_orient.py`: added regression coverage for clean/synced stale closeout detection, dirty/not-synced closeout preservation, and rendered warning output.
+- Runtime proof: after feature commit `d7719bbf` was pushed and the workspace was clean/synced, `python execution\session_orient.py --json` reported `latest_next_priority_status=stale` for the prior T-1297 post-push closeout instruction, proving the stale relay was machine-visible before this context closeout replaced it.
+- Verification: focused session-orient pytest passed `25/25`; broader auto-research selector/launch/session pytest passed `50/50`; ruff, ruff format check, `py_compile`, and `git diff --check` passed; selector dirty-state run selected `local_readiness_blocker` as expected during candidate work; `py -3.13 execution\code_review_gate.py --base HEAD --json` returned advisory WARN (`risk_score=0.55`) from graph heuristic gaps covered by direct focused tests.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1298.json --json` returned `adopt_candidate` with `score_delta=0.9451472980300019`.
+- Commit/push closeout: `d7719bbf fix(session): T-1298 flag stale handoff closeout priorities` is on `origin/main`; required GitHub Actions passed on that head with `root-quality-gate` run `26994128473` and `active-project-matrix` run `26994128458`.
+- Boundary: T-251 remains the only TODO and is still user-owned Supabase credential reset/live Prisma verification, not local repo work.
+
+
+## 2026-06-05 - Codex
+
+- Completed T-1299 as a bounded `$auto-research` follow-up to T-1298 stale HANDOFF closeout-priority detection.
+- Finding: T-1298's git-only stale-priority rule could misclassify a clean/synced context head while current-HEAD release checks were still running, which could hide actionable final live-check work.
+- Changed `execution/session_orient.py`: `handoff_snapshot()` now receives `release_checks_green`; `_stale_next_priority_reason()` requires both git clean/synced and current-HEAD release checks green before marking post-push closeout priorities stale.
+- Changed `execution/session_orient.py`: added `_required_release_checks_green()` and current-head SHA prefix matching for required release workflows `root-quality-gate` and `active-project-matrix`.
+- Changed `workspace/tests/test_session_orient.py`: added regressions for clean/synced closeout priorities while release checks are not green, current-head required workflow success, and in-progress current-head workflow status.
+- Verification: focused session-orient pytest passed `28/28`; broader session/auto-research audit pytest slice passed `57/57`; ruff, ruff format check, `py_compile`, and `git diff --check` passed.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1299.json --json` returned `adopt_candidate` with `score_delta=0.8818502202643175`.
+- Completion audit: `.agents/skills/auto-research/scripts/completion_audit.py .tmp\completion-manifest-t1299.json --json` returned `complete` with 4/4 items complete and 0 issues.
+- Commit/push closeout: `0bac5859 fix(session): T-1299 wait for green checks before stale closeout` is on `origin/main`; required GitHub Actions passed on that head with `root-quality-gate` run `26994295341` and `active-project-matrix` run `26994295347`.
+- Boundary: T-251 remains the only TODO and is still user-owned Supabase credential reset/live Prisma verification, not local repo work.
+
+
+## 2026-06-05 - Codex
+
+- Completed T-1303 as a bounded `$auto-research` launch-audit evidence cycle for selector required gates.
+- Changed `.agents/skills/auto-research/scripts/launch_objective_audit.py`: selector requirement evidence now carries `selected.required_gates` from `next_experiment_selector.py` as `Selector required gates: ...`.
+- Changed `workspace/tests/test_auto_research_launch_objective_audit.py`: added regression coverage proving required-gate evidence is emitted alongside selector guardrails and normalized action punctuation.
+- Runtime proof: dirty candidate launch audit evidence included `Selector required gates: focused blocker regression. product_readiness_score.py --json.` and final clean-state audits are expected to show the T-251 gates `Supabase credential reset by user` and `Hanwoo live Prisma CRUD E2E after reset`.
+- Verification: focused launch audit pytest passed `21/21`; broader auto-research launch/completion/selector pytest passed `34/34`; ruff, ruff format check, `py_compile`, and `git diff --check` passed; `code_review_gate.py --base HEAD --json` exited `0` with advisory WARN `risk_score=0.4` covered by direct tests.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1303.json --json` returned `adopt_candidate` with `score_delta=0.9881422924901185`.
+- Completion audit: `.agents/skills/auto-research/scripts/completion_audit.py .tmp\completion-manifest-t1303.json --json` returned `complete` with 3/3 items complete and 0 issues.
+- Commit/push closeout: `dc0d11e8 fix(auto-research): T-1303 expose selector required gates` is on `origin/main`; required GitHub Actions are checked on the final context closeout head.
+- Boundary: T-251 remains the only TODO and is still user-owned Supabase credential reset/live Prisma verification, not local repo work.
+
+
+## 2026-06-05 - Codex
+
+- Audited the active thread goal `complete` against current workspace evidence before making any completion claim.
+- Rehydration: read `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/GOAL.md`, `.ai/CONTEXT.md`, `.ai/DECISIONS.md`, `.ai/TOOL_MATRIX.md`, and ran `python execution/session_orient.py --json`.
+- Live state at audit time: git worktree clean, `main` at `b036e6a27473c6384adb6ad2fcae22f6751ff87d`, open PRs `0`, required Actions green on that head. Rerun `session_orient.py --json` for exact current head/ahead/CI state after context-recording commits.
+- Readiness: `python execution/product_readiness_score.py --json` returned score `96`, state `blocked`, workspace/local/agent blockers `0/0/0`, external blocker count `1`, and next action waiting on T-251.
+- Selector: `python .agents/skills/auto-research/scripts/next_experiment_selector.py --root . --output .tmp/next-experiment-completion-check.json --json` returned `blocked_external_only`, selected external/user-owned T-251, and required gates `Supabase credential reset by user` plus `Hanwoo live Prisma CRUD E2E after reset`.
+- Launch audit: `python .agents/skills/auto-research/scripts/launch_objective_audit.py --root . --output .tmp/launch-objective-audit-completion-check.json --json` generated a 9-item manifest with local/GitHub/browser/dependency/A/B/relay evidence complete and T-251 as the only blocker.
+- Completion audit: `python .agents/skills/auto-research/scripts/completion_audit.py .tmp/launch-objective-audit-completion-check.json --json --allow-incomplete` returned `status=incomplete`, `complete_count=8/9`, `issue_count=1`, `blocked_count=1`, only because requirement 7 has unresolved external/user-owned blocker T-251.
+- Post-recording boundary: context-only commits can move HEAD ahead of `origin/main`, which makes current-HEAD GitHub Actions unproven until push/CI. Push was not performed because this workspace says not to push without explicit user authorization.
+- T-251 boundary: no Supabase live retry was run; do not mark the product launch goal complete until Supabase credentials are reset and Hanwoo live Prisma CRUD E2E passes.
+
+
+## 2026-06-05 - Codex
+
+- Closed T-1306 as a bounded `$auto-research` readiness classification follow-up after T-1305.
+- Changed `execution/product_readiness_score.py`: clean ahead-of-origin current-head Actions are now reported as `publish` blockers with `ahead_count`, `publish_required`, and overall `publish_blocker_count`, while `local_blocker_count` stays reserved for actual repo-side blockers.
+- Changed `.agents/skills/auto-research/scripts/launch_objective_audit.py`: readiness evidence now records `workspace/local/publish/agent blockers=...`.
+- Changed regression coverage in `workspace/tests/test_product_readiness_score.py` and `workspace/tests/test_auto_research_launch_objective_audit.py`.
+- Verification: focused product-readiness + launch-audit pytest passed `53/53`; broader auto-research/readiness pytest passed `67/67`; ruff, `py_compile`, and `git diff --check` passed; A/B returned `adopt_candidate` with `score_delta=0.9980448019663706`.
+- Post-context clean-state proof: `session_orient.py --json` reports a clean worktree with `main` ahead of `origin/main`; `product_readiness_score.py --json` reports score `96`, `workspace_blocker_count=1`, `local_blocker_count=0`, `publish_blocker_count=1`, and `external_blocker_count=1`.
+- Selector/completion proof: `next_experiment_selector.py --json` selected `current_head_release_checks_unproven`; launch objective audit wrote `.tmp/launch-objective-audit-t1306-postcommit.json`; completion audit returned `incomplete` with `8/11` complete because current-head Actions require push authorization and T-251 remains user-owned.
+- Boundary: no push was performed. Do not retry T-251 until the user resets Supabase credentials; after explicit push authorization or user push, wait for current-head `root-quality-gate` and `active-project-matrix`.
+
+
+## 2026-06-05 - Codex
+
+- Closed T-1307 as a bounded `$auto-research` launch hardening cycle for Hanwoo credential exposure and launch selector snapshot consistency.
+- Changed `projects/hanwoo-dashboard/prisma/seed.js`: admin seed now requires configured `ADMIN_PASSWORD` with length `>= 12` and no longer seeds the public `admin/admin123` default.
+- Changed `projects/hanwoo-dashboard/src/app/login/page.js`: removed the visible demo credential card and replaced it with operator credential guidance.
+- Changed `projects/hanwoo-dashboard/src/lib/error-pages-wiring.test.mjs`: added source coverage for the no-demo-login copy contract and configured admin seed password requirement.
+- Changed `.agents/skills/auto-research/scripts/launch_objective_audit.py`: `collect_current_inputs()` now calls the next-experiment selector in-process from the already-collected readiness/GitHub/browser/dependency snapshot instead of launching a second snapshot subprocess.
+- Changed `workspace/tests/test_auto_research_launch_objective_audit.py`: added regression coverage proving selector output is derived from the same collected snapshot.
+- Verification: Hanwoo Node tests passed `500/500`; Hanwoo project QC passed test/lint/build/smoke; focused auto-research pytest passed `37/37`; ruff, ruff format check, `py_compile`, and `git diff --check` passed.
+- Browser QA: `/login` showed operator credential guidance, no visible demo `admin/admin123` credentials, wrong-password submit produced the expected Korean auth error, and browser console errors/warnings were `0/0`; screenshot retained at `output/playwright/hanwoo-t1307-login-no-demo-credentials.png` when available.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1307.json` returned `adopt_candidate` with `score_delta=1.124169`.
+- Commit closeout: `30ed0791 fix(launch): harden Hanwoo login seed credentials` is local only; no push was performed.
+- Boundary: product launch remains incomplete until explicit push authorization/user push plus current-head Actions, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
+
+
+## 2026-06-05 - Codex
+
+- Closed T-1308 as a bounded `$auto-research` launch-audit evidence cycle for `shorts-maker-v2` feature acceptance status.
+- Changed `.agents/skills/auto-research/scripts/launch_objective_audit.py`: added Markdown checkbox parsing and required the direct `shorts-maker-v2` target readiness item to have a non-empty, fully closed `projects/shorts-maker-v2/FEATURE.md` checklist.
+- Changed `projects/shorts-maker-v2/FEATURE.md`: added implemented status and marked all seven acceptance criteria complete.
+- Changed `workspace/tests/test_auto_research_launch_objective_audit.py`: added fixture checklist creation, evidence assertions, and a regression proving open feature checklist items block target readiness completion.
+- Runtime launch-audit proof during the dirty candidate state showed `shorts-maker-v2 FEATURE checklist complete 7/7, open=0`; the same dirty audit remained incomplete because uncommitted files were correctly treated as local blockers.
+- Verification: focused launch-audit pytest passed `28/28`; broader auto-research/readiness pytest passed `69/69`; ruff, `py_compile`, and `git diff --check` passed; staged code-review gate passed with `risk_score=0.0`.
+- Full active-project QC passed: blind-to-x `1723 passed, 9 skipped`; shorts-maker-v2 `1577 passed, 12 skipped`; Hanwoo `500/500` plus lint/build/smoke; Knowledge `61/61` plus lint/build/smoke.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1308.json --json` returned `adopt_candidate` with `score_delta=0.9942122861956799`.
+- Commit closeout: `925e7bf1 fix(auto-research): T-1308 require shorts feature checklist evidence` is local only.
+- Boundary: product launch remains incomplete until explicit push authorization/user push plus current-head Actions, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
+
+
+## 2026-06-05 - Codex
+
+- Closed T-1309 as a bounded `$auto-research` session-orientation reliability cycle for clean-but-unpushed relay closeouts.
+- Changed `execution/session_orient.py`: expanded closeout detection for relay/clean-state/audit wording and added `latest_next_priority_note` when the latest HANDOFF asks to commit a relay update, the worktree is already clean, and git is ahead rather than synced.
+- Changed `workspace/tests/test_session_orient.py`: added regressions proving clean-ahead committed relay closeouts surface the note while dirty worktrees do not.
+- Verification: focused session-orient pytest passed `30/30`; broader session/selector/launch pytest passed `68/68`; ruff, pre-commit ruff format check, `py_compile`, `git diff --check`, and staged code-review gate returned advisory WARN `risk_score=0.55` covered by direct tests.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1309.json --json` returned `adopt_candidate` with `score_delta=0.9491270946413181`.
+- Commit closeout: `dc815257 fix(session): T-1309 note clean-ahead relay closeout` is local only.
+- Boundary: product launch remains incomplete until explicit push authorization/user push plus current-head Actions, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
+
+
+## 2026-06-05 - Codex
+
+- Closed T-1312 as a bounded `$auto-research` launch-boundary hardening cycle for clean-ahead release authorization and direct Hanwoo target evidence.
+- Added `.agents/skills/auto-research/scripts/release_authorization_packet.py`: it reports `blocked_dirty_worktree`, `not_required`, `ready_for_authorization`, or `already_verified` without pushing, and includes branch/upstream, ahead commits, dirty paths, required workflow status, unproven workflows, suggested push command only when clean, and guardrails.
+- Changed `.agents/skills/auto-research/scripts/next_experiment_selector.py`: clean-ahead current-head Actions now return `blocked_publish_only` with `release_authorization_packet.py --json` as a required gate before explicit push authorization; dirty states route to GitHub inventory follow-up before publish authorization.
+- Changed `.agents/skills/auto-research/scripts/launch_objective_audit.py`: required auto-research artifacts include the release packet helper, and launch manifests include direct `hanwoo-dashboard` target readiness evidence so T-251 is a complete-coverage direct blocker.
+- Changed `.github/workflows/root-quality-gate.yml` and `.github/workflows/full-test-matrix.yml`: workspace quality test/ruff lists now include the release packet script and test.
+- Verification: focused/related selector, launch, completion, release-packet, and workflow-hygiene pytest slices passed; ruff check, ruff format check, `py_compile`, and `git diff --check` passed.
+- Runtime proof: clean release packet returned `ready_for_authorization` before context closeout, with dirty count `0`, suggested command `git push origin main`, and guardrail `allowed_without_explicit_user_authorization=false`; selector returned `blocked_publish_only`; launch audit generated 12 requirements; completion audit returned `incomplete` with `8/12` complete and 4 blocked issues.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1312.json --json` returned `adopt_candidate` with `score_delta=0.9980260349978661`.
+- Code-review gate: `py -3.13 execution\code_review_gate.py --base HEAD~1 --json` returned advisory WARN `risk_score=0.40` for graph test-gap heuristics; direct focused/related tests covered the changed behavior.
+- Commit closeout: `f7f64b6d fix(auto-research): T-1312 add release authorization packet` is local only; no push was performed.
+- Boundary: product launch remains incomplete until explicit push authorization/user push plus current-head `root-quality-gate` and `active-project-matrix`, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
+
+
+## 2026-06-05 - Codex
+
+- Closed T-1313, T-1314, and T-1315 as bounded `$auto-research` launch-loop improvements without pushing and without retrying user-owned Hanwoo T-251.
+- T-1313 changed `.agents/skills/auto-research/scripts/launch_objective_audit.py` so release authorization is a direct launch-objective requirement; completion audits now expose the clean-ahead publish boundary directly.
+- T-1314 changed `projects/blind-to-x/pipeline/notion/_upload.py`: metric pair formatting, fact-check warning counts/previews, and emotion profile lines are centralized in small helpers while preserving Notion review output.
+- T-1314 changed `projects/blind-to-x/tests/unit/test_notion_upload.py`: added optional-signal helper/output regressions.
+- T-1315 changed `execution/project_qc_runner.py`: partial/focused runs redirect canonical default output to `.tmp/project_qc_runner_partial_latest.json` unless the artifact has complete coverage for all active projects.
+- T-1315 changed `workspace/tests/test_project_qc_runner.py`: added regressions proving partial runs do not overwrite canonical latest and full workspace runs still do.
+- Verification: Notion upload tests passed `42/42`; related Notion review/schema tests passed `51/51`; project-QC runner tests passed `14/14`; ruff check, ruff format check, `py_compile`, and `git diff --check` passed for changed files.
+- Full active-project QC passed: blind-to-x `1726 passed, 9 skipped` plus lint; shorts-maker-v2 `1577 passed, 12 skipped` plus lint; Hanwoo `500/500` plus lint/build/smoke; Knowledge `61/61` plus lint/build/smoke.
+- A/B decisions: T-1314 `adopt_candidate` with `score_delta=1.346602`; T-1315 `adopt_candidate` with `score_delta=0.993639`.
+- Runtime proof after QC refresh: `product_readiness_score.py --json` reports score `96`, `local_blocker_count=0`, `publish_blocker_count=1`, and `external_blocker_count=1`; `release_authorization_packet.py` reports `ready_for_authorization` for the current local HEAD; `next_experiment_selector.py` reports `blocked_publish_only`.
+- Launch completion audit on `.tmp/launch-objective-audit-t1315.json` is `incomplete` with `8/13` complete and 5 blocked issues: product readiness publish gate, release authorization/push authorization, selector publish boundary, external/user-owned T-251, and direct Hanwoo readiness T-251.
+- Commit closeout: feature commits `f9b20c72`, `ceb9d612`, and `a3081938` are local only; no push was performed.
+- Boundary: the local branch is clean and ahead of `origin/main`; regenerate the release packet for the exact current HEAD before any push request. Product launch remains incomplete until explicit push authorization/user push, current-head `root-quality-gate` and `active-project-matrix` success, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass.

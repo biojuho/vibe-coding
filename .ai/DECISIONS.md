@@ -97,12 +97,12 @@
 
 ## ADR-021: Repo-map selective context loading in VibeCodingGraph
 
-| ??ぉ | ?댁슜 |
+| 항목 | 내용 |
 |------|------|
-| **?좎쭨** | 2026-03-31 |
-| **?곹깭** | ?뺤젙 |
-| **寃곗젙** | `workspace/execution/repo_map.py` + `workspace/execution/context_selector.py` are the first adoption layer for agentic-coding optimization. `graph_engine.py` now injects ranked, budget-limited repo context instead of broad whole-repo context. |
-| **?좏깮 ?댁쑀** | Captures the practical value of selective context loading without importing a heavier external runtime, while preserving the existing 3-layer architecture and the `workspace/` vs `projects/` path contract. |
+| **날짜** | 2026-03-31 |
+| **상태** | 확정 |
+| **결정** | `workspace/execution/repo_map.py` + `workspace/execution/context_selector.py` are the first adoption layer for agentic-coding optimization. `graph_engine.py` now injects ranked, budget-limited repo context instead of broad whole-repo context. |
+| **선택 이유** | Captures the practical value of selective context loading without importing a heavier external runtime, while preserving the existing 3-layer architecture and the `workspace/` vs `projects/` path contract. |
 
 ---
 
