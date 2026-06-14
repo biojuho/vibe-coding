@@ -6,7 +6,7 @@ import asyncio
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from pipeline.ab_feedback_loop import ABFeedbackLoop
+from pipeline.ab_feedback_loop import ABFeedbackLoop, _safe_float
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
@@ -415,3 +415,42 @@ class TestUpdateStyleBandit:
             # Should not raise — style_bandit.update itself catches exceptions
             # (this test confirms the bandit is called, errors are swallowed internally)
             loop._update_style_bandit(records)
+
+    @patch("pipeline.ab_feedback_loop.ImageABTester")
+    def test_non_numeric_views_does_not_crash(self, _):
+        """T-AB052: views='N/A' should not raise ValueError in _update_style_bandit."""
+        mock_bandit = MagicMock()
+        with patch("pipeline.ab_feedback_loop.get_style_bandit", return_value=mock_bandit):
+            loop = ABFeedbackLoop(MagicMock(), FakeConfig())
+            records = [
+                {
+                    "topic_cluster": "연봉",
+                    "chosen_draft_type": "공감형",
+                    "performance_grade": None,  # triggers views fallback
+                    "views": "N/A",  # non-numeric — was ValueError before fix
+                },
+            ]
+            loop._update_style_bandit(records)  # must not raise
+            # reward should fall back to 0.3 (no views)
+            call_args = mock_bandit.update.call_args
+            assert call_args[0][2] == 0.3
+
+
+class TestSafeFloat:
+    """Unit tests for _safe_float helper."""
+
+    def test_numeric_string(self):
+        assert _safe_float("500") == 500.0
+
+    def test_non_numeric_string_returns_default(self):
+        assert _safe_float("N/A") == 0.0
+        assert _safe_float("none") == 0.0
+
+    def test_none_returns_default(self):
+        assert _safe_float(None) == 0.0
+
+    def test_integer(self):
+        assert _safe_float(100) == 100.0
+
+    def test_custom_default(self):
+        assert _safe_float("bad", default=-1.0) == -1.0

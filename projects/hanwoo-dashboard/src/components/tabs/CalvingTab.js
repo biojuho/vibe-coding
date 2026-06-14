@@ -76,11 +76,12 @@ export default function CalvingTab(options = {}) {
 		() =>
 			safeCattle
 				.filter((row) => row.status === "임신우")
-				.sort(
-					(first, second) =>
+				.sort((first, second) => {
+					const diff =
 						getPregnancyDateTime(first.pregnancyDate) -
-						getPregnancyDateTime(second.pregnancyDate),
-				),
+						getPregnancyDateTime(second.pregnancyDate);
+					return Number.isNaN(diff) ? 0 : diff;
+				}),
 		[safeCattle],
 	);
 	const calvingAlertCount = useMemo(

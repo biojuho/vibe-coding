@@ -31,6 +31,14 @@ _GRADE_TO_REWARD: dict[str, float] = {
 CACHE_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "tuned_image_styles.json")
 
 
+def _safe_float(value, default: float = 0.0) -> float:
+    """Convert a Notion field value to float, returning default on non-numeric strings."""
+    try:
+        return float(value or 0)
+    except (ValueError, TypeError):
+        return default
+
+
 class ABFeedbackLoop:
     """Feedback loop to tune image generation styles based on A/B test results."""
 
@@ -107,7 +115,7 @@ class ABFeedbackLoop:
                 reward = _GRADE_TO_REWARD[grade]
             else:
                 # Fallback: derive reward from raw views (normalised to [0, 1])
-                views = float(record.get("views") or 0)
+                views = _safe_float(record.get("views"))
                 if views <= 0:
                     reward = 0.3  # generated but no observed engagement yet
                 elif views >= 1000:
@@ -141,9 +149,7 @@ class ABFeedbackLoop:
         manual_winners = await self.fetch_manual_winners(pages)
 
         # Filter valid records that have actual views and a topic cluster
-        valid_records = [
-            r for r in records if r.get("views") and float(r.get("views") or 0) > 0 and r.get("topic_cluster")
-        ]
+        valid_records = [r for r in records if _safe_float(r.get("views")) > 0 and r.get("topic_cluster")]
 
         if not valid_records:
             logger.info("No valid records with views found for A/B testing feedback.")
@@ -161,9 +167,9 @@ class ABFeedbackLoop:
             variant = r.get("chosen_draft_type") or r.get("recommended_draft_type") or "공감형"
 
             stats = topic_stats[topic][variant]
-            stats["views"] += float(r.get("views", 0) or 0)
-            stats["likes"] += float(r.get("likes", 0) or 0)
-            stats["retweets"] += float(r.get("retweets", 0) or 0)
+            stats["views"] += _safe_float(r.get("views", 0))
+            stats["likes"] += _safe_float(r.get("likes", 0))
+            stats["retweets"] += _safe_float(r.get("retweets", 0))
             stats["count"] += 1.0
 
         # ── Style Bandit reward update ────────────────────────────────────────

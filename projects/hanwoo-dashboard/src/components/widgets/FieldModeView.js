@@ -463,8 +463,10 @@ export default function FieldModeView(options = {}) {
 		const currentCattleList = normalizeFieldModeCattleList(cattleList);
 		const estrusCount = currentCattleList.filter((cow) => {
 			if (!cow.lastEstrus) return false;
+			const estrusDate = new Date(cow.lastEstrus);
+			if (Number.isNaN(estrusDate.getTime())) return false;
 			const days = Math.floor(
-				(new Date() - new Date(cow.lastEstrus)) / (1000 * 60 * 60 * 24),
+				(new Date() - estrusDate) / (1000 * 60 * 60 * 24),
 			);
 			return days >= 19 && days <= 23; // standard estrus cycle alarm range
 		}).length;
