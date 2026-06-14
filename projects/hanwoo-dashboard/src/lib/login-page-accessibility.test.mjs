@@ -87,6 +87,16 @@ test("login page username and password inputs are properly labelled and cross-re
 	assert.match(source, /autoComplete="current-password"/);
 });
 
+test("register page external links declare new-tab opening for screen readers", () => {
+	const source = readSource("app/register/page.js");
+
+	// Terms and privacy links open in a new tab — aria-label must tell screen reader users
+	assert.match(source, /aria-label="이용약관 \(새 탭에서 열림\)"/);
+	assert.match(source, /aria-label="개인정보처리방침 \(새 탭에서 열림\)"/);
+	// Both must have noopener security attribute
+	assert.match(source, /rel="noopener noreferrer"/);
+});
+
 test("register form links password mismatch error to input via aria-describedby", () => {
 	const source = readSource("app/register/page.js");
 

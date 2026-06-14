@@ -285,6 +285,7 @@ export default function RegisterPage() {
 								href="/terms"
 								target="_blank"
 								rel="noopener noreferrer"
+								aria-label="이용약관 (새 탭에서 열림)"
 								style={{ color: "var(--color-primary-custom)", fontWeight: 700, textDecoration: "none" }}
 							>
 								이용약관
@@ -294,6 +295,7 @@ export default function RegisterPage() {
 								href="/privacy"
 								target="_blank"
 								rel="noopener noreferrer"
+								aria-label="개인정보처리방침 (새 탭에서 열림)"
 								style={{ color: "var(--color-primary-custom)", fontWeight: 700, textDecoration: "none" }}
 							>
 								개인정보처리방침
