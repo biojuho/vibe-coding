@@ -1,5 +1,15 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const SRC_ROOT = path.resolve(__dirname, "..");
+
+function readSource(relativePath) {
+	return readFileSync(path.join(SRC_ROOT, relativePath), "utf8");
+}
 
 import {
 	buildUnavailableMarketPrice,
@@ -241,4 +251,11 @@ test("buildUnavailableMarketPrice returns an explicit degraded unavailable state
 	assert.doesNotMatch(result.message, /한우 시세 데이터를 확인할 수 없습니다/);
 	assert.equal(result.degraded, true);
 	assert.equal(result.bull, null);
+});
+
+test("MarketPriceWidget price rows use role=list/listitem for screen reader navigation", () => {
+	const source = readSource("components/widgets/MarketPriceWidget.js");
+	assert.match(source, /role="list"/);
+	assert.match(source, /aria-label="한우 시세 목록"/);
+	assert.match(source, /role="listitem"/);
 });

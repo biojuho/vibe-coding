@@ -27,10 +27,11 @@ function PricePanel(options = {}) {
 					{title}
 				</span>
 			</div>
-			<div className="grid gap-2.5">
+			<div role="list" aria-label="한우 시세 목록" className="grid gap-2.5">
 				{visibleRows.map(([grade, value], index) => (
 					<div
 						key={`${grade ?? "price"}-${index}`}
+						role="listitem"
 						className="flex items-center justify-between text-sm transition-[background,transform] duration-200 rounded-lg px-2 py-1.5 -mx-2 hover:bg-[color:color-mix(in_srgb,var(--color-surface-elevated)_60%,transparent)]"
 						style={{
 							borderBottom:
