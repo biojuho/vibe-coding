@@ -229,7 +229,7 @@ export default function SettingsTab(options = {}) {
 
 	useEffect(() => {
 		isMountedRef.current = true;
-		setDeadLetterItems(getDeadLetterQueue());
+		queueMicrotask(() => setDeadLetterItems(getDeadLetterQueue()));
 
 		return () => {
 			isMountedRef.current = false;

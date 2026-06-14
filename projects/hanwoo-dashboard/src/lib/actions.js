@@ -52,6 +52,7 @@ export {
 	toggleEventCompletion,
 } from "./actions/schedule";
 
+export { cancelSubscription } from "./actions/subscription";
 export {
 	deleteAccount,
 	getProfitabilityData,

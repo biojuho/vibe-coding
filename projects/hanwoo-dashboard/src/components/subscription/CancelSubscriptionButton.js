@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition, useState } from "react";
-import { cancelSubscription } from "@/lib/actions/subscription";
+import { cancelSubscription } from "@/lib/actions";
 
 export default function CancelSubscriptionButton() {
 	const [confirming, setConfirming] = useState(false);

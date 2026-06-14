@@ -823,3 +823,11 @@ test("SettingsTab marks all required form fields with aria-required for screen r
 		assert.ok(reqIdx !== -1 && reqIdx < idIdx + 800, `aria-required missing for ${fieldId}`);
 	}
 });
+
+test("SettingsTab defers dead-letter state init with queueMicrotask to avoid React 19 set-state-in-effect error", () => {
+	const source = readSource("components/tabs/SettingsTab.js");
+	// react-hooks/set-state-in-effect blocks synchronous setState in useEffect — use queueMicrotask
+	assert.match(source, /queueMicrotask\(\(\) => setDeadLetterItems\(getDeadLetterQueue\(\)\)\)/);
+	// Must NOT use direct synchronous call
+	assert.doesNotMatch(source, /^\s*setDeadLetterItems\(getDeadLetterQueue\(\)\);/m);
+});

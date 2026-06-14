@@ -218,3 +218,31 @@ test("redis isRedisConfigured returns false when REDIS_URL is absent", () => {
 	assert.match(redis, /export function isRedisConfigured\(\)/);
 	assert.match(redis, /Boolean\(getRedisUrl\(\)\)/);
 });
+
+// ── actions barrel ────────────────────────────────────────────────────────────
+
+const actions = readSource("lib/actions.js");
+
+test("actions barrel re-exports cancelSubscription from subscription domain", () => {
+	assert.match(actions, /export \{ cancelSubscription \} from ["']\.\/actions\/subscription["']/);
+});
+
+test("actions barrel covers all 9 domain modules", () => {
+	const domains = [
+		"./actions/building",
+		"./actions/cattle",
+		"./actions/expense",
+		"./actions/farm-settings",
+		"./actions/feed",
+		"./actions/inventory",
+		"./actions/market",
+		"./actions/notification",
+		"./actions/sales",
+		"./actions/schedule",
+		"./actions/subscription",
+		"./actions/system",
+	];
+	for (const domain of domains) {
+		assert.ok(actions.includes(domain), `Missing domain in barrel: ${domain}`);
+	}
+});
