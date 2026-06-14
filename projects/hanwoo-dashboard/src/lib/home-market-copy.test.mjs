@@ -2294,3 +2294,10 @@ test("DashboardClient updates document.title on tab change for WCAG 2.4.2 Page T
 	assert.match(source, /tabTitle.*Joolife.*한우/);
 	assert.match(source, /useEffect\(\(\) => \{/);
 });
+
+test("LandingPage features grid uses role=list/listitem for screen reader navigation", () => {
+	const source = readSource("components/LandingPage.js");
+	assert.match(source, /role="list"/);
+	assert.match(source, /aria-label="핵심 기능 목록"/);
+	assert.match(source, /role="listitem"/);
+});

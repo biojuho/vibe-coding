@@ -178,6 +178,8 @@ export default function LandingPage() {
 				}}
 			>
 				<div
+					role="list"
+					aria-label="핵심 기능 목록"
 					style={{
 						display: "grid",
 						gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
@@ -187,6 +189,7 @@ export default function LandingPage() {
 					{FEATURES.map((f) => (
 						<div
 							key={f.title}
+							role="listitem"
 							style={{
 								background: "var(--color-surface-elevated)",
 								border: "1px solid var(--color-surface-stroke)",
