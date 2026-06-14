@@ -7,7 +7,6 @@ from datetime import datetime
 from importlib import util as importlib_util
 from pathlib import Path
 
-
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 

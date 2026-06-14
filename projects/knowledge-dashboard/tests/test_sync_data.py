@@ -5,7 +5,6 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3]
 MODULE_PATH = REPO_ROOT / "projects" / "knowledge-dashboard" / "scripts" / "sync_data.py"
 
