@@ -77,6 +77,7 @@ data: {"error":"Failed to generate an AI response."}
 ## Existing API Surface
 
 - `GET|POST /api/auth/[...nextauth]`: public Auth.js control-plane route for sign-in/session/callback handling. This route is intentionally outside `requireAuthenticatedSession()` so users can create or refresh a session.
+- `POST /api/auth/register`: public user registration endpoint. Accepts `{ username, password }` JSON. Validates username (3–30 chars, lowercase/digits/underscore) and password (min 8 chars), hashes with bcrypt (cost 12), creates a new User row. Returns `201 { ok: true }` on success, `400` on validation failure, `409` on duplicate username, `500` on internal error.
 - `GET /api/health`: public health probe. Build/CI requests skip the database ping; runtime requests return degraded health instead of exposing a protected dashboard payload.
 - `POST /api/ai/insight`: authenticated daily insight endpoint with AI/cache/heuristic fallback. Unauthenticated requests return `401`.
 - `GET /api/dashboard/summary`: authenticated dashboard aggregate summary.

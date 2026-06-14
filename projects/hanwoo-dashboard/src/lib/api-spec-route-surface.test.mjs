@@ -9,7 +9,11 @@ const PROJECT_ROOT = path.resolve(__dirname, "..", "..");
 const API_ROOT = path.join(PROJECT_ROOT, "src", "app", "api");
 const API_SPEC = readFileSync(path.join(PROJECT_ROOT, "API_SPEC.md"), "utf8");
 
-const PUBLIC_ROUTES = new Set(["/api/auth/[...nextauth]", "/api/health"]);
+const PUBLIC_ROUTES = new Set([
+	"/api/auth/[...nextauth]",
+	"/api/auth/register",
+	"/api/health",
+]);
 
 function escapeRegExp(value) {
 	return value.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
@@ -60,6 +64,7 @@ test("API_SPEC documents every App Router API route", () => {
 		"/api/ai/chat",
 		"/api/ai/insight",
 		"/api/auth/[...nextauth]",
+		"/api/auth/register",
 		"/api/dashboard/cattle",
 		"/api/dashboard/sales",
 		"/api/dashboard/summary",

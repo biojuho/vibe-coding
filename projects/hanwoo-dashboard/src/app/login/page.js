@@ -65,6 +65,7 @@ export default function LoginPage() {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [showPassword, setShowPassword] = useState(false);
 	const [legalRedirectTarget, setLegalRedirectTarget] = useState("");
+	const [registrationSuccess, setRegistrationSuccess] = useState(false);
 	const submitInFlightRef = useRef(false);
 	const usernameInputRef = useRef(null);
 
@@ -89,6 +90,10 @@ export default function LoginPage() {
 			setLegalRedirectTarget(
 				resolveLoginLegalRedirectTarget(window.location.href),
 			);
+			const params = new URLSearchParams(window.location.search);
+			if (params.get("registered") === "1") {
+				setRegistrationSuccess(true);
+			}
 		}
 		return () => {
 			isMountedRef.current = false;
@@ -169,6 +174,24 @@ export default function LoginPage() {
 				<p className="login-copy">
 					오늘의 사육, 재고, 출하 업무를 이어서 관리해 주세요.
 				</p>
+
+				{registrationSuccess && (
+					<div
+						role="status"
+						style={{
+							background: "color-mix(in srgb, #16a34a 12%, transparent)",
+							border: "1px solid color-mix(in srgb, #16a34a 35%, transparent)",
+							borderRadius: "10px",
+							padding: "10px 14px",
+							marginBottom: "16px",
+							fontSize: "13px",
+							color: "#16a34a",
+							fontWeight: 600,
+						}}
+					>
+						계정이 만들어졌습니다. 아이디와 비밀번호로 로그인해 주세요.
+					</div>
+				)}
 
 				{/* 운영자 계정 안내 */}
 				<div style={{
@@ -282,6 +305,27 @@ export default function LoginPage() {
 						{isSubmitting ? "로그인 확인 중..." : "대시보드 열기"}
 					</button>
 				</form>
+
+				<p
+					style={{
+						textAlign: "center",
+						fontSize: "13px",
+						color: "var(--color-text-secondary)",
+						margin: "0 0 16px",
+					}}
+				>
+					계정이 없으신가요?{" "}
+					<Link
+						href="/register"
+						style={{
+							color: "var(--color-primary-custom)",
+							fontWeight: 700,
+							textDecoration: "none",
+						}}
+					>
+						무료로 시작하기
+					</Link>
+				</p>
 
 				<div className="login-status-row" aria-label="운영 상태">
 					<span>보안 세션</span>

@@ -66,22 +66,34 @@ export default function LandingPage() {
 				>
 					Joolife 한우
 				</span>
-				<Link
-					href="/login"
-					style={{
-						background: "var(--color-primary-custom)",
-						color: "#fff",
-						border: "none",
-						borderRadius: "10px",
-						padding: "8px 20px",
-						fontSize: "14px",
-						fontWeight: 700,
-						textDecoration: "none",
-						cursor: "pointer",
-					}}
-				>
-					로그인 / 시작하기
-				</Link>
+				<div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+					<Link
+						href="/login"
+						style={{
+							color: "var(--color-text-secondary)",
+							fontSize: "14px",
+							fontWeight: 600,
+							textDecoration: "none",
+						}}
+					>
+						로그인
+					</Link>
+					<Link
+						href="/register"
+						style={{
+							background: "var(--color-primary-custom)",
+							color: "#fff",
+							border: "none",
+							borderRadius: "10px",
+							padding: "8px 20px",
+							fontSize: "14px",
+							fontWeight: 700,
+							textDecoration: "none",
+						}}
+					>
+						무료 시작
+					</Link>
+				</div>
 			</header>
 
 			{/* Hero */}
@@ -126,7 +138,7 @@ export default function LandingPage() {
 					Joolife 한우가 농장 운영의 모든 것을 도와드립니다.
 				</p>
 				<Link
-					href="/login"
+					href="/register"
 					style={{
 						display: "inline-block",
 						background: "var(--color-primary-custom)",
@@ -244,7 +256,7 @@ export default function LandingPage() {
 					/ 월 · 모든 기능 포함 · 언제든 해지 가능
 				</p>
 				<Link
-					href="/login"
+					href="/register"
 					style={{
 						display: "inline-block",
 						background: "var(--color-primary-custom)",
