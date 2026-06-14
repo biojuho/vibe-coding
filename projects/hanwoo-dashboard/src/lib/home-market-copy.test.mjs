@@ -2125,8 +2125,17 @@ test("landing page uses semantic HTML landmarks for accessibility", () => {
 	assert.match(source, /<footer/);
 	assert.match(source, /<header/);
 
-	// Sections inside main
-	assert.match(source, /<section/);
+	// Sections inside main must be labelled so screen readers can navigate between them
+	assert.match(source, /aria-label="주요 기능"/);
+	assert.match(source, /aria-label="요금 안내"/);
+
+	// Feature cards must have heading semantics for screen reader heading navigation
+	assert.match(source, /role="heading"/);
+	assert.match(source, /aria-level=\{3\}/);
+
+	// Pricing section heading
+	assert.match(source, /aria-level=\{2\}/);
+	assert.match(source, /심플한 요금제/);
 
 	// No bare divs wrapping the entire content area (main is the semantic container)
 	assert.match(source, /무료로 시작하기/);

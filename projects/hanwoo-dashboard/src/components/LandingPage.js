@@ -170,6 +170,7 @@ export default function LandingPage() {
 
 			{/* Features grid */}
 			<section
+				aria-label="주요 기능"
 				style={{
 					maxWidth: "720px",
 					margin: "0 auto",
@@ -200,6 +201,8 @@ export default function LandingPage() {
 								{f.icon}
 							</div>
 							<div
+								role="heading"
+								aria-level={3}
 								style={{
 									fontWeight: 700,
 									fontSize: "14px",
@@ -225,6 +228,7 @@ export default function LandingPage() {
 
 			{/* Pricing callout */}
 			<section
+				aria-label="요금 안내"
 				style={{
 					background: "var(--color-surface)",
 					borderTop: "1px solid var(--color-surface-stroke)",
@@ -234,6 +238,8 @@ export default function LandingPage() {
 				}}
 			>
 				<p
+					role="heading"
+					aria-level={2}
 					style={{
 						fontSize: "13px",
 						color: "var(--color-text-secondary)",
