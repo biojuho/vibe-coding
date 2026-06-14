@@ -382,6 +382,16 @@ class MediaFallbackMixin:
             self._log(logger, "warning", "image_all_failed_placeholder", scene_id=scene.scene_id)
             w, h = self.config.video.resolution
             visual_path = self._generate_placeholder_image(img_path, w, h)
+            # SMV2-FM001: placeholder 사용 시 failures 에 기록 → orchestrator가
+            # degraded_steps 로 승격시켜 manifest.status="degraded" 로 표면화.
+            failures.append(
+                {
+                    "step": "visual_all_failed",
+                    "code": "PlaceholderFallback",
+                    "scene_id": str(getattr(scene, "scene_id", "?")),
+                    "message": f"모든 이미지 생성 실패 → placeholder 사용 (scene_id={getattr(scene, 'scene_id', '?')})",
+                }
+            )
 
         # ── 캐시 저장 (placeholder 제외) ──
         if image_ready:

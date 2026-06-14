@@ -336,6 +336,49 @@ def test_generate_best_image_downgrades_video_then_uses_stock_mix(tmp_path: Path
     logger.warning.assert_called()
 
 
+def test_generate_best_image_placeholder_fallback_records_failure(tmp_path: Path) -> None:
+    """SMV2-FM001: 모든 이미지 생성 실패 시 PlaceholderFallback이 failures에 기록돼야 함.
+
+    이전에는 placeholder 사용 시 logger.warning만 찍히고 failures가 비어서
+    manifest.degraded_steps가 비어 status="success"로 잘못 ship됐음.
+    """
+    step = _make_step()
+    step._cache = MagicMock(get=MagicMock(return_value=None), put=MagicMock())
+
+    placeholder_path = tmp_path / "placeholder.png"
+    placeholder_path.write_bytes(b"placeholder")
+
+    step._last_video_primary_failed = False
+    with (
+        patch.object(step, "_try_video_primary", return_value=None),
+        patch.object(step, "_try_stock_video", return_value=None),
+        patch.object(
+            step,
+            "_try_image_chain",
+            return_value=(
+                tmp_path / "scene_01.png",
+                False,
+                [{"step": "image_chain", "code": "AllFailed", "message": "all failed"}],
+            ),
+        ),
+        patch.object(step, "_generate_placeholder_image", return_value=placeholder_path),
+    ):
+        path_str, visual_type, failures = step._generate_best_image(
+            "visual",
+            tmp_path / "scene_01.png",
+            5.0,
+            _make_cost_guard(),
+            tmp_path,
+            _scene(),
+            MagicMock(),
+        )
+
+    assert path_str == str(placeholder_path)
+    assert visual_type == "image"
+    placeholder_failures = [f for f in failures if f.get("code") == "PlaceholderFallback"]
+    assert len(placeholder_failures) == 1, f"Expected PlaceholderFallback in failures, got: {failures}"
+
+
 def test_generate_best_image_stock_mix_skip_does_not_record_failure(tmp_path: Path) -> None:
     config = _make_config()
     config.video.stock_mix_ratio = 0.5

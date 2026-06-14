@@ -793,6 +793,10 @@ class PipelineOrchestrator:
             for mf in media_failures:
                 error_type = classify_error(Exception(mf.get("message", "")))
                 mf["error_type"] = error_type.value
+                # SMV2-FM001: placeholder fallback은 시각 에셋 완전 실패 —
+                # failed_steps 가 아닌 degraded_steps 로 승격해 manifest.status 반영.
+                if mf.get("code") == "PlaceholderFallback":
+                    degraded_steps.append({**mf, "step": "media"})
             failures.extend(media_failures)
             jlog.info("media_ready", scene_count=len(scene_assets), perf_sec=step_timings["media"])
             status.complete("media", detail=f"{len(scene_assets)}/{len(scene_plans)} assets")
