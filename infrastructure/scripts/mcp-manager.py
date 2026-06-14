@@ -1,6 +1,6 @@
 import argparse
-import os
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -128,7 +128,7 @@ main().catch((error) => {
     # README
     with open(path / "README.md", "w", encoding="utf-8") as f:
         f.write("""# TS MCP Server
-        
+
 ## Setup
 1. `npm install`
 2. `npm run build`

@@ -3,7 +3,6 @@ import sys
 
 from server import get_system_stats
 
-
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
