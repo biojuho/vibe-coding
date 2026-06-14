@@ -213,7 +213,11 @@ async def find_similar_in_notion(
     recent_pages: list[Any] = []
     if keywords and hasattr(notion_uploader, "search_pages_by_title"):
         best_keyword = max(keywords, key=len)
-        server_results = await notion_uploader.search_pages_by_title(best_keyword, limit=limit)
+        try:
+            server_results = await notion_uploader.search_pages_by_title(best_keyword, limit=limit)
+        except Exception as exc:
+            logger.debug("search_pages_by_title 실패, get_recent_pages 폴백: %s", exc)
+            server_results = None
         if server_results:
             recent_pages = server_results
             logger.debug(

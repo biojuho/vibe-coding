@@ -280,6 +280,19 @@ class TestFindSimilarInNotion:
         result = asyncio.run(find_similar_in_notion(mock_notion, "연봉 협상 실패했어요", use_semantic=False))
         assert result == []
 
+    def test_search_pages_exception_falls_back_to_recent_pages(self, monkeypatch):
+        """BTX-DEDUP001: search_pages_by_title 예외 시 get_recent_pages로 폴백해야 함."""
+        monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+        mock_notion = MagicMock()
+        mock_notion.search_pages_by_title = AsyncMock(side_effect=Exception("Notion API 오류"))
+        mock_notion.get_recent_pages = AsyncMock(return_value=[{"id": "p1"}])
+        mock_notion.get_page_property_value = MagicMock(return_value="완전 다른 주제")
+
+        # Must not raise; should fall back to get_recent_pages
+        result = asyncio.run(find_similar_in_notion(mock_notion, "연봉 협상 실패했어요", use_semantic=False))
+        mock_notion.get_recent_pages.assert_called_once()
+        assert isinstance(result, list)
+
 
 # ── check_cross_source_duplicates ────────────────────────────────
 
