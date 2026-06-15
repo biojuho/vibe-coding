@@ -694,7 +694,8 @@ class BaseScraper:
                 favor_precision=True,
             )
             return text.strip() if text else ""
-        except Exception:
+        except Exception as e:
+            logger.debug("trafilatura extraction failed: %s", e)
             return ""
 
     @staticmethod
@@ -723,7 +724,8 @@ class BaseScraper:
             seen: set[str] = set()
             unique = [c for c in candidates if c not in seen and not seen.add(c)]  # type: ignore[func-returns-value]
             return unique[:5]
-        except Exception:
+        except Exception as e:
+            logger.debug("selector suggestion failed: %s", e)
             return []
 
     async def _save_failure_snapshot(self, page, url, stage, reason):
@@ -740,7 +742,8 @@ class BaseScraper:
             if page:
                 try:
                     html = await page.content()
-                except Exception:
+                except Exception as e:
+                    logger.debug("page snapshot content() failed: %s", e)
                     html = ""
 
             # 셀렉터 자동 제안

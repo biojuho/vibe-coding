@@ -327,22 +327,25 @@ def _print_execution_summary(results, feed_stats, metrics, start_time, *, dry_ru
     elapsed = (datetime.now() - start_time).total_seconds()
     content_dup_skips = len(metrics.get("content_duplicate_skips", []))
 
-    print(f"\n{'=' * 55}")
-    print(f"  EXECUTION SUMMARY  ({elapsed:.1f}s)")
-    print(f"  Total: {len(results)}  |  OK {len(metrics['successful'])}  |  FAIL {len(metrics['failed'])}")
-    print(f"  Duplicate Skips: {len(metrics['duplicate_skips'])}")
-    print(f"  Content Similarity Skips: {content_dup_skips}")
-    print(f"  Low Engagement Skips: {feed_stats['low_engagement_skips']}")
-    print(f"  Blacklist Skips: {feed_stats['blacklist_skips']}")
-    print(f"  Cross-Source Dedup: {feed_stats['cross_source_dedup_count']}")
-    print(f"  Filtered Skips: {len(metrics['filtered_skips'])}")
-    print(f"  Avg Quality Score (success): {metrics['avg_quality_score']:.1f}")
+    sep = "=" * 55
+    logger.info(sep)
+    logger.info("  EXECUTION SUMMARY  (%.1fs)", elapsed)
+    logger.info("  Total: %d  |  OK %d  |  FAIL %d", len(results), len(metrics["successful"]), len(metrics["failed"]))
+    logger.info("  Duplicate Skips: %d", len(metrics["duplicate_skips"]))
+    logger.info("  Content Similarity Skips: %d", content_dup_skips)
+    logger.info("  Low Engagement Skips: %d", feed_stats["low_engagement_skips"])
+    logger.info("  Blacklist Skips: %d", feed_stats["blacklist_skips"])
+    logger.info("  Cross-Source Dedup: %d", feed_stats["cross_source_dedup_count"])
+    logger.info("  Filtered Skips: %d", len(metrics["filtered_skips"]))
+    logger.info("  Avg Quality Score (success): %.1f", metrics["avg_quality_score"])
     if not dry_run:
-        print(
-            f"  Upload Success Rate: {metrics['upload_success_rate']:.1f}% "
-            f"({len(metrics['live_upload_success'])}/{metrics['live_upload_attempts']})"
+        logger.info(
+            "  Upload Success Rate: %.1f%% (%d/%d)",
+            metrics["upload_success_rate"],
+            len(metrics["live_upload_success"]),
+            metrics["live_upload_attempts"],
         )
-    print(f"{'=' * 55}")
+    logger.info(sep)
 
 
 async def _send_execution_notification(notifier, results, metrics, successful, failed):

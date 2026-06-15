@@ -200,7 +200,8 @@ class BlindScraper(BaseScraper):
             content = self._extract_clean_text(raw_html)
             if content:
                 logger.info("Content extracted via trafilatura fallback")
-        except Exception:
+        except Exception as e:
+            logger.debug("Blind trafilatura fallback extraction failed: %s", e)
             return ""
         return content
 

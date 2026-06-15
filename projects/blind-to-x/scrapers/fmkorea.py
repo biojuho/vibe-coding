@@ -246,7 +246,8 @@ class FMKoreaScraper(BaseScraper):
                         break
                 except PlaywrightTimeoutError:
                     continue
-                except Exception:
+                except Exception as e:
+                    logger.debug("fmkorea post extraction failed: %s", e)
                     continue
 
         if candidates:

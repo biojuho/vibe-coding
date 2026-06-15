@@ -479,7 +479,8 @@ class PpomppuScraper(BaseScraper):
             if content:
                 logger.info("Content extracted via trafilatura fallback")
             return content
-        except Exception:
+        except Exception as e:
+            logger.debug("ppomppu trafilatura fallback extraction failed: %s", e)
             return ""
 
     @staticmethod

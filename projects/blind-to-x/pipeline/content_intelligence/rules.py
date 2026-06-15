@@ -120,7 +120,8 @@ def get_time_context() -> dict[str, str]:
 
     try:
         kst_hour = (_dt.datetime.now(_dt.UTC).hour + 9) % 24
-    except Exception:
+    except Exception as e:
+        logger.debug("datetime.UTC unavailable, falling back to time module: %s", e)
         import time as _time
 
         kst_hour = (_time.gmtime().tm_hour + 9) % 24
@@ -200,7 +201,8 @@ def get_season_boost(topic_cluster: str, month: int | None = None) -> float:
 
         try:
             month = _dt.datetime.now(_dt.UTC).month
-        except Exception:
+        except Exception as e:
+            logger.debug("datetime.UTC unavailable, falling back to time module: %s", e)
             import time as _time
 
             month = _time.gmtime().tm_mon
