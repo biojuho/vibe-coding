@@ -1,10 +1,17 @@
+import logging
 import sys
 import types
+from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from pipeline.runner import _append_cross_source_insights, execute_pipeline, handle_single_commands
+from pipeline.runner import (
+    _append_cross_source_insights,
+    _print_execution_summary,
+    execute_pipeline,
+    handle_single_commands,
+)
 
 
 @pytest.fixture
@@ -290,3 +297,103 @@ async def test_execute_pipeline_parallel_processes_each_item(
 
     assert mock_process.await_count == 2
     notifier.send_message.assert_called_once()
+
+
+# ── _print_execution_summary logger regression ──────────────────────────────
+
+
+def _make_metrics(
+    *,
+    successful=None,
+    failed=None,
+    filtered_skips=None,
+    duplicate_skips=None,
+    content_duplicate_skips=None,
+    upload_success_rate=80.0,
+    live_upload_success=None,
+    live_upload_attempts=10,
+    avg_quality_score=7.5,
+):
+    return {
+        "successful": successful or [1, 2],
+        "failed": failed or [],
+        "filtered_skips": filtered_skips or [],
+        "duplicate_skips": duplicate_skips or [],
+        "content_duplicate_skips": content_duplicate_skips or [],
+        "upload_success_rate": upload_success_rate,
+        "live_upload_success": live_upload_success or [1],
+        "live_upload_attempts": live_upload_attempts,
+        "avg_quality_score": avg_quality_score,
+    }
+
+
+def _make_feed_stats():
+    return {
+        "low_engagement_skips": 0,
+        "blacklist_skips": 2,
+        "cross_source_dedup_count": 1,
+    }
+
+
+def test_print_execution_summary_uses_logger_not_stdout(caplog, capsys):
+    """_print_execution_summary must emit via logger.info, NOT print/stdout."""
+    with caplog.at_level(logging.INFO, logger="pipeline.runner"):
+        _print_execution_summary(
+            results=[{}, {}],
+            feed_stats=_make_feed_stats(),
+            metrics=_make_metrics(),
+            start_time=datetime.now(),
+            dry_run=True,
+        )
+
+    combined = " ".join(r.message for r in caplog.records)
+    assert "EXECUTION SUMMARY" in combined
+
+    out, _ = capsys.readouterr()
+    assert "EXECUTION SUMMARY" not in out, "Expected logger.info, got print()"
+
+
+def test_print_execution_summary_includes_key_counts(caplog):
+    """Key metrics (total, ok, fail, quality score) are logged."""
+    with caplog.at_level(logging.INFO, logger="pipeline.runner"):
+        _print_execution_summary(
+            results=[{}, {}, {}],
+            feed_stats=_make_feed_stats(),
+            metrics=_make_metrics(successful=[1, 2], failed=[3], avg_quality_score=6.5),
+            start_time=datetime.now(),
+            dry_run=True,
+        )
+
+    combined = " ".join(r.message for r in caplog.records)
+    assert "3" in combined  # total items
+    assert "6.5" in combined  # avg quality score
+
+
+def test_print_execution_summary_omits_upload_rate_in_dry_run(caplog):
+    """Upload success rate is NOT logged when dry_run=True."""
+    with caplog.at_level(logging.INFO, logger="pipeline.runner"):
+        _print_execution_summary(
+            results=[{}],
+            feed_stats=_make_feed_stats(),
+            metrics=_make_metrics(upload_success_rate=75.0),
+            start_time=datetime.now(),
+            dry_run=True,
+        )
+
+    combined = " ".join(r.message for r in caplog.records)
+    assert "75.0" not in combined
+
+
+def test_print_execution_summary_includes_upload_rate_in_live_run(caplog):
+    """Upload success rate IS logged when dry_run=False."""
+    with caplog.at_level(logging.INFO, logger="pipeline.runner"):
+        _print_execution_summary(
+            results=[{}],
+            feed_stats=_make_feed_stats(),
+            metrics=_make_metrics(upload_success_rate=92.0),
+            start_time=datetime.now(),
+            dry_run=False,
+        )
+
+    combined = " ".join(r.message for r in caplog.records)
+    assert "92.0" in combined
