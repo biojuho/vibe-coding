@@ -124,9 +124,11 @@ class TestNotionContentCalendarCheckDuplicate:
 
     def test_check_duplicate_logs_debug_on_api_failure(self, caplog):
         cal = self._make_calendar()
-        with caplog.at_level(logging.DEBUG, logger="shorts_maker_v2.utils.content_calendar"):
-            with patch.object(cal, "_request", side_effect=ConnectionError("timeout")):
-                cal._check_duplicate("테스트 주제")
+        with (
+            caplog.at_level(logging.DEBUG, logger="shorts_maker_v2.utils.content_calendar"),
+            patch.object(cal, "_request", side_effect=ConnectionError("timeout")),
+        ):
+            cal._check_duplicate("테스트 주제")
         messages = [r.message for r in caplog.records]
         assert any("content_calendar: duplicate check API failed" in m for m in messages)
 

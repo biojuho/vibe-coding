@@ -895,6 +895,53 @@ class TestSceneQCVisualContinuity:
         assert "visual_continuity_ok" not in result.checks
 
 
+# ── _mean_rgb 직접 단위 테스트 ───────────────────────────────────────────────
+
+
+class TestMeanRgb:
+    """QCStep._mean_rgb 직접 단위 테스트.
+
+    _check_visual_continuity 가 간접 커버하지만, 메서드 자체의 계약(반환 타입,
+    fallback None 경로)을 명시적으로 고정한다.
+    """
+
+    def test_returns_tuple_for_valid_solid_color_image(self, tmp_path: Path) -> None:
+        # 단색 이미지 → 평균 RGB 가 그 색상과 동일해야 한다.
+        path = _write_png_color(tmp_path / "red.png", color=(200, 50, 30))
+        result = QCStep._mean_rgb(path)
+        assert result is not None
+        r, g, b = result
+        # 64x64 다운샘플 후 평균이므로 원래 색과 1 이내 오차 허용
+        assert abs(r - 200) < 2
+        assert abs(g - 50) < 2
+        assert abs(b - 30) < 2
+
+    def test_returns_three_float_tuple(self, tmp_path: Path) -> None:
+        path = _write_png_color(tmp_path / "img.png", color=(128, 128, 128))
+        result = QCStep._mean_rgb(path)
+        assert isinstance(result, tuple)
+        assert len(result) == 3
+        assert all(isinstance(v, float) for v in result)
+
+    def test_returns_none_for_missing_file(self) -> None:
+        result = QCStep._mean_rgb("/nonexistent/path/image.png")
+        assert result is None
+
+    def test_returns_none_for_corrupt_file(self, tmp_path: Path) -> None:
+        bad = tmp_path / "bad.png"
+        bad.write_bytes(b"not-a-png-at-all" * 10)
+        result = QCStep._mean_rgb(str(bad))
+        assert result is None
+
+    def test_black_and_white_extremes(self, tmp_path: Path) -> None:
+        black_path = _write_png_color(tmp_path / "black.png", color=(0, 0, 0))
+        white_path = _write_png_color(tmp_path / "white.png", color=(255, 255, 255))
+        black = QCStep._mean_rgb(black_path)
+        white = QCStep._mean_rgb(white_path)
+        assert black is not None and all(v < 1.0 for v in black)
+        assert white is not None and all(v > 254.0 for v in white)
+
+
 # ── SemanticQCStep: LLM 기반 씬-씬 의미 QC (T-288 non-goal #3) ───────────────
 
 
