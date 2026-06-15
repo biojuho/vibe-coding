@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from PIL import Image, ImageDraw
@@ -483,3 +484,18 @@ class TestEstimateCaptionHeight:
 
         assert estimate_caption_height("", 1080, _base_style(mode="static")) >= 1
         assert estimate_caption_height("   ", 1080, _base_style(mode="karaoke")) >= 1
+
+
+# ── logging contract regression tests ──────────────────────────────────────
+
+
+class TestLoadFontLogging:
+    def test_corrupt_font_candidate_logs_debug(self, caplog, tmp_path: Path) -> None:
+        corrupt = tmp_path / "bad.ttf"
+        corrupt.write_bytes(b"NOT A FONT")
+        style = _base_style(font_candidates=(str(corrupt),))
+        with caplog.at_level(logging.DEBUG, logger="shorts_maker_v2.render.caption_pillow"):
+            result = _load_font(style)
+        messages = [r.message for r in caplog.records]
+        assert any("caption_pillow: font candidate" in m for m in messages)
+        assert result is not None

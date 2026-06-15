@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import types
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -12,6 +13,7 @@ from shorts_maker_v2.pipeline.thumbnail_step import (
     ThumbnailStep,
     _generate_pillow_thumbnail,
     _http_download,
+    _load_font_for_thumb,
     _load_token,
     _pillow_gradient_bg,
     _refresh_access_token,
@@ -584,3 +586,23 @@ def test_export_design_missing_urls_key_raises_runtime_error() -> None:
         pytest.raises(RuntimeError, match="no URLs"),
     ):
         _export_design("design-abc", "tok-xyz")
+
+
+# ── logging contract regression tests ──────────────────────────────────────
+
+
+class TestLoadFontForThumbLogging:
+    def test_corrupt_font_candidate_logs_debug(self, caplog, tmp_path: Path) -> None:
+        corrupt = tmp_path / "bad.ttf"
+        corrupt.write_bytes(b"NOT A FONT")
+        with (
+            patch(
+                "shorts_maker_v2.pipeline.thumbnail_step._FONT_CANDIDATES",
+                [str(corrupt)],
+            ),
+            caplog.at_level(logging.DEBUG, logger="shorts_maker_v2.pipeline.thumbnail_step"),
+        ):
+            result = _load_font_for_thumb(36)
+        messages = [r.message for r in caplog.records]
+        assert any("thumbnail_step: font candidate" in m for m in messages)
+        assert result is not None
