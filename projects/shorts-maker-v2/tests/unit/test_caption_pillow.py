@@ -331,7 +331,8 @@ class TestRenderGlowLayer:
         base = Image.new("RGBA", size, (255, 255, 255, 255))
         result = _render_glow_layer(base, "#FF0000", glow_radius=4)
         # 결과 이미지가 완전 투명은 아니어야 함
-        pixels = list(result.getdata())
+        get_pixels = getattr(result, "get_flattened_data", result.getdata)
+        pixels = list(get_pixels())
         assert any(p[3] > 0 for p in pixels)
 
 
