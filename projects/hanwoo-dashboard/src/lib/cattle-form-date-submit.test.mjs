@@ -50,3 +50,15 @@ test("cattle form OCGK lookup gates birthDate with typeof string check (HW-CF001
 	// Must NOT call .replace() with only a truthiness check
 	assert.doesNotMatch(source, /if \(data\.birthDate\) \{\s*const raw = data\.birthDate\.replace/s);
 });
+
+test("CattleForm logs cattle tag lookup failure to console.error before showing user error", () => {
+	const source = readSource("components/forms/CattleForm.js");
+	assert.match(
+		source,
+		/console\.error\(["']CattleForm: cattle tag lookup failed["'], err\)/,
+	);
+	assert.match(
+		source,
+		/} catch \(err\) \{\s+console\.error\(["']CattleForm: cattle tag lookup failed["'], err\)/,
+	);
+});

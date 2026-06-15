@@ -643,3 +643,15 @@ test("admin/diagnostics error.js is a client component with accessible structure
 	assert.match(source, /console\.error/);
 	assert.match(source, /useEffect/);
 });
+
+test("register page logs registration request failure to console.error before showing network error", () => {
+	const source = readSource("app/register/page.js");
+	assert.match(
+		source,
+		/console\.error\(["']RegisterPage: registration request failed["'], err\)/,
+	);
+	assert.match(
+		source,
+		/} catch \(err\) \{\s+console\.error\(["']RegisterPage: registration request failed["'], err\)/,
+	);
+});

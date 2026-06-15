@@ -226,7 +226,8 @@ export default function CattleForm({
 					text: res.message || "조회에 실패했습니다.",
 				});
 			}
-		} catch {
+		} catch (err) {
+			console.error("CattleForm: cattle tag lookup failed", err);
 			if (!mountedRef.current || lookupRequestIdRef.current !== requestId) {
 				return;
 			}
