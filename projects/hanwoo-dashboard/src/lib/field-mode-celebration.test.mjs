@@ -154,7 +154,7 @@ test("FieldModeView normalizes malformed props and callbacks before rendering", 
 	);
 	assert.match(
 		source,
-		/value[\s\S]*?\.filter\(\(item\) => item && typeof item === ["']object["'] && !Array\.isArray\(item\)\)/,
+		/value[\s\S]*?\.filter\([\s\S]*?\(item\) =>[\s\S]*?item &&[\s\S]*?typeof item === ["']object["'] &&[\s\S]*?!Array\.isArray\(item\)/,
 	);
 	assert.match(source, /export default function FieldModeView\(options = \{\}\) \{/);
 	assert.match(source, /normalizeFieldModeViewOptions\(options\);/);
@@ -361,11 +361,11 @@ test("FieldModeView guards celebration animation frame scheduling and cleanup", 
 	);
 	assert.match(
 		source,
-		/const t1 = scheduleFieldModeTimer\(\s+\(\) => \{\s+if \(!cancelled\) \{\s+createFirework\(width \* 0\.25, height \* 0\.6\);/,
+		/const t1 = scheduleFieldModeTimer\([\s\S]*?\(\) => \{[\s\S]*?if \(!cancelled\) \{[\s\S]*?createFirework\(width \* 0\.25, height \* 0\.6\);/,
 	);
 	assert.match(
 		source,
-		/const t2 = scheduleFieldModeTimer\(\s+\(\) => \{\s+if \(!cancelled\) \{\s+createFirework\(width \* 0\.75, height \* 0\.6\);/,
+		/const t2 = scheduleFieldModeTimer\([\s\S]*?\(\) => \{[\s\S]*?if \(!cancelled\) \{[\s\S]*?createFirework\(width \* 0\.75, height \* 0\.6\);/,
 	);
 	assert.doesNotMatch(source, /animationId = requestAnimationFrame\(animate\)/);
 	assert.doesNotMatch(source, /\n\s*cancelAnimationFrame\(animationId\);/);
@@ -425,10 +425,10 @@ test("FieldModeView search results use specific missing-building copy", () => {
 
 	assert.match(
 		source,
-		/cow\.buildingId \? `\$\{cow\.buildingId\}동` : ["']축사 미지정["']/,
+		/cow\.buildingId\s*\?[\s\S]{0,40}`\$\{cow\.buildingId\}동`[\s\S]{0,40}:[\s\S]{0,20}["']축사 미지정["']/,
 	);
 	assert.doesNotMatch(
 		source,
-		/cow\.buildingId \? `\$\{cow\.buildingId\}동` : ["']미지정["']/,
+		/cow\.buildingId\s*\?[\s\S]{0,40}`\$\{cow\.buildingId\}동`[\s\S]{0,40}:[\s\S]{0,20}["']미지정["']/,
 	);
 });

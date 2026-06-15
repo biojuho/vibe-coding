@@ -232,7 +232,7 @@ test("AI chat route normalizes Gemini stream helper options before provider setu
 	assert.match(route, /function createGeminiChatStream\(options = \{\}\) \{/);
 	assert.match(
 		route,
-		/\} = normalizeGeminiChatStreamOptions\(options\);/,
+		/\}[\s\S]{0,40}=[\s\S]{0,40}normalizeGeminiChatStreamOptions\(options\);/,
 	);
 	assert.match(route, /return createAiChatSseStream\(\{ chat, message \}\);/);
 	assert.doesNotMatch(

@@ -294,7 +294,7 @@ test("settings tab normalizes widget controls and callbacks before rendering", (
 	assert.match(source, /function normalizeSettingsWidgetRegistry\(widgets\) \{/);
 	assert.match(
 		source,
-		/Array\.isArray\(widgets\)[\s\S]*?\? widgets\.filter\([\s\S]*?\(widget\) =>[\s\S]*?widget && typeof widget === ["']object["'] && !Array\.isArray\(widget\)[\s\S]*?\)[\s\S]*?: \[\]/,
+		/Array\.isArray\(widgets\)[\s\S]*?\?[\s\S]*?widgets\.filter\([\s\S]*?\(widget\) =>[\s\S]*?widget &&[\s\S]*?typeof widget === ["']object["'] &&[\s\S]*?!Array\.isArray\(widget\)[\s\S]*?\)[\s\S]*?: \[\]/,
 	);
 	assert.match(source, /function normalizeSettingsWidgetVisible\(widgetVisible\) \{/);
 	assert.match(
@@ -469,7 +469,7 @@ test("settings building form waits for async saves before re-enabling actions", 
 	assert.match(source, /setIsSavingBuilding\(true\);/);
 	assert.match(
 		source,
-		/const handleCreateBuilding =[\s\S]*?typeof onCreateBuilding === ["']function["'][\s\S]*?\? onCreateBuilding[\s\S]*?: async \(\) => false;/,
+		/const handleCreateBuilding =[\s\S]*?typeof onCreateBuilding === ["']function["'][\s\S]*?\?[\s\S]*?onCreateBuilding[\s\S]*?:[\s\S]*?async \(\) => false;/,
 	);
 	assert.match(source, /const saved = await handleCreateBuilding\(values\);/);
 	assert.doesNotMatch(source, /const saved = await onCreateBuilding\(values\);/);

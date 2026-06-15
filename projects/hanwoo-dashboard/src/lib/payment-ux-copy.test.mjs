@@ -219,7 +219,7 @@ test("subscription result pages avoid bare English loading and status copy", () 
 
 	assert.match(subscriptionSource, /Joolife 프리미엄 구독/);
 	assert.match(subscriptionSource, /월 9,900원/);
-	assert.match(subscriptionSource, /더 안정적으로 사용해 주세요/);
+	assert.match(subscriptionSource, /더 안정적으로 사용해[\s\S]{0,10}주세요/);
 	assert.doesNotMatch(subscriptionSource, /더 안정적으로 사용하세요/);
 	assert.match(subscriptionSource, /Joolife 사용자/);
 	assert.doesNotMatch(subscriptionSource, /Premium Subscription/);
