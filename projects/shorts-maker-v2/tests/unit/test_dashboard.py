@@ -243,3 +243,18 @@ class TestGenerateDashboard:
         result = generate_dashboard(logs, out)
         content = result.read_text(encoding="utf-8")
         assert "$0.5" in content or "0.5000" in content
+
+    def test_broken_jsonl_file_logs_debug_skip(self, tmp_path: Path, caplog):
+        """파일 읽기 에러 시 dashboard: skipping job file 로그 발생."""
+        import logging
+
+        logs = tmp_path / "logs"
+        logs.mkdir()
+        bad = logs / "unreadable.jsonl"
+        bad.write_bytes(b"\xff\xfe invalid bytes\n")
+
+        out = tmp_path / "out.html"
+        with caplog.at_level(logging.DEBUG, logger="shorts_maker_v2.utils.dashboard"):
+            generate_dashboard(logs, out)
+        messages = [r.message for r in caplog.records]
+        assert any("dashboard: skipping job file" in m for m in messages)

@@ -1,6 +1,10 @@
 """content_calendar 헬퍼 함수 테스트."""
 
+import logging
+from unittest.mock import patch
+
 from shorts_maker_v2.utils.content_calendar import (
+    NotionContentCalendar,
     _extract_date,
     _extract_select,
     _extract_title,
@@ -101,3 +105,40 @@ class TestJaccardSimilarity:
 
     def test_both_empty(self):
         assert _jaccard_similarity("", "") == 0.0
+
+
+# ── logging contract regression tests ──────────────────────────────────────
+
+
+class TestNotionContentCalendarCheckDuplicate:
+    """_check_duplicate logs debug and returns False on API failure."""
+
+    def _make_calendar(self):
+        return NotionContentCalendar(api_key="test-key", database_id="test-db")
+
+    def test_check_duplicate_returns_false_on_api_failure(self, caplog):
+        cal = self._make_calendar()
+        with patch.object(cal, "_request", side_effect=RuntimeError("network error")):
+            result = cal._check_duplicate("테스트 주제")
+        assert result is False
+
+    def test_check_duplicate_logs_debug_on_api_failure(self, caplog):
+        cal = self._make_calendar()
+        with caplog.at_level(logging.DEBUG, logger="shorts_maker_v2.utils.content_calendar"):
+            with patch.object(cal, "_request", side_effect=ConnectionError("timeout")):
+                cal._check_duplicate("테스트 주제")
+        messages = [r.message for r in caplog.records]
+        assert any("content_calendar: duplicate check API failed" in m for m in messages)
+
+    def test_check_duplicate_returns_true_when_api_returns_results(self):
+        cal = self._make_calendar()
+        mock_resp = {"results": [{"id": "existing-page"}]}
+        with patch.object(cal, "_request", return_value=mock_resp):
+            result = cal._check_duplicate("기존 주제")
+        assert result is True
+
+    def test_check_duplicate_returns_false_when_api_returns_empty(self):
+        cal = self._make_calendar()
+        with patch.object(cal, "_request", return_value={"results": []}):
+            result = cal._check_duplicate("새 주제")
+        assert result is False

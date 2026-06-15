@@ -202,3 +202,20 @@ class TestStyleTrackerThompson:
 
         assert tracker._db_initialized is True
         assert not tracker._db_path.exists()
+
+
+# ── logging contract regression tests ──────────────────────────────────────
+
+
+class TestStyleTrackerLogging:
+    """_load logs debug when skipping a bad manifest."""
+
+    def test_skips_invalid_manifest_logs_debug(self, tmp_path, caplog):
+        import logging
+
+        (tmp_path / "bad_manifest.json").write_text("NOT JSON", encoding="utf-8")
+        tracker = StyleTracker(tmp_path, db_path=tmp_path / "db.sqlite")
+        with caplog.at_level(logging.DEBUG, logger="shorts_maker_v2.utils.style_tracker"):
+            tracker._load()
+        messages = [r.message for r in caplog.records]
+        assert any("style_tracker: skipping manifest" in m for m in messages)
