@@ -132,7 +132,7 @@ def _refresh_access_token(token_file: Path) -> str:
     if "refresh_token" in new_data:
         token_data["refresh_token"] = new_data["refresh_token"]
     token_file.write_text(json.dumps(token_data, indent=2), encoding="utf-8")
-    print("[Canva] 액세스 토큰 자동 갱신 완료")
+    logger.info("[Canva] 액세스 토큰 자동 갱신 완료")
     return new_data["access_token"]
 
 
@@ -483,13 +483,13 @@ class ThumbnailStep:
     def _run_pillow(self, title: str, output_path: Path, bg_image_path: str | None = None) -> str | None:
         clean_title = _sanitize_title(title)
         if len(clean_title) > 15:
-            print(f"[Thumbnail] WARNING: 제목 {len(clean_title)}자 - 15자 이하 권장 (모바일 가독성)")
+            logger.warning("[Thumbnail] 제목 %d자 - 15자 이하 권장 (모바일 가독성)", len(clean_title))
         result = _generate_pillow_thumbnail(
             title,
             output_path,
             bg_image_path=bg_image_path,
         )
-        print(f"[Thumbnail] Pillow 썸네일 저장: {result}")
+        logger.info("[Thumbnail] Pillow 썸네일 저장: %s", result)
         return result.resolve().as_posix()
 
     @staticmethod
@@ -599,7 +599,7 @@ class ThumbnailStep:
         bg_image_path: str | None = None,
     ) -> str | None:
         if not self.canva_config.enabled or not self.canva_config.design_id:
-            print("[Thumbnail] Canva 모드지만 설정 없음 -> Pillow 폴백")
+            logger.warning("[Thumbnail] Canva 모드지만 설정 없음 -> Pillow 폴백")
             return self._run_pillow(title, output_path, bg_image_path=bg_image_path)
 
         token = _get_access_token(self.token_file)
@@ -609,7 +609,7 @@ class ThumbnailStep:
             download_url = _export_design(self.canva_config.design_id, token)
         except requests.HTTPError as http_err:
             if http_err.response is not None and http_err.response.status_code == 401:
-                print("[Canva] 토큰 만료 - 자동 갱신 시도...")
+                logger.warning("[Canva] 토큰 만료 - 자동 갱신 시도...")
                 token = _refresh_access_token(self.token_file)
                 download_url = _export_design(self.canva_config.design_id, token)
             else:
@@ -618,7 +618,7 @@ class ThumbnailStep:
         try:
             _http_download(download_url, tmp_path)
             _overlay_title(tmp_path, _sanitize_title(title), output_path)
-            print(f"[Canva] 썸네일 저장: {output_path}")
+            logger.info("[Canva] 썸네일 저장: %s", output_path)
             return output_path.resolve().as_posix()
         finally:
             tmp_path.unlink(missing_ok=True)

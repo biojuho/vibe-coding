@@ -226,9 +226,10 @@ def test_run_canva_other_http_error(tmp_path: Path) -> None:
         assert res is None
 
 
-def test_pillow_long_title(tmp_path: Path, capfd) -> None:
+def test_pillow_long_title(tmp_path: Path, caplog) -> None:
+    import logging
+
     step = _make_step(mode="pillow")
-    res = step.run("이 제목은 15자를 무조건 넘어가는 아주아주 긴 테스트 제목입니다", tmp_path)
-    assert res is not None
-    out, _ = capfd.readouterr()
-    assert "15자 이하 권장" in out
+    with caplog.at_level(logging.WARNING, logger="shorts_maker_v2.pipeline.thumbnail_step"):
+        step.run("이 제목은 15자를 무조건 넘어가는 아주아주 긴 테스트 제목입니다", tmp_path)
+    assert any("15자 이하 권장" in r.message for r in caplog.records)
