@@ -138,7 +138,10 @@ test("DashboardClient.js toStrictIsoDateOrNull rejects non-strings and invalid d
 
 test("DashboardClient.js getSortableDateTime returns null for NaN", () => {
 	assert.match(src, /function getSortableDateTime\(value\)/);
-	assert.match(src, /return Number\.isNaN\(date\.getTime\(\)\) \? null : date\.getTime\(\)/);
+	assert.match(
+		src,
+		/return Number\.isNaN\(date\.getTime\(\)\) \? null : date\.getTime\(\)/,
+	);
 });
 
 test("DashboardClient.js toValidCalendarDate applies strict calendar roundtrip for YYYY-MM-DD strings", () => {
@@ -189,7 +192,10 @@ test("toStrictIsoDateOrNull returns ISO string for valid calendar dates", () => 
 });
 
 test("toStrictIsoDateOrNull trims whitespace before parsing", () => {
-	assert.equal(toStrictIsoDateOrNull("  2026-06-15  "), "2026-06-15T00:00:00.000Z");
+	assert.equal(
+		toStrictIsoDateOrNull("  2026-06-15  "),
+		"2026-06-15T00:00:00.000Z",
+	);
 });
 
 test("toStrictIsoDateOrNull returns null for calendar-impossible dates", () => {
@@ -414,4 +420,11 @@ test("normalizeDashboardCattleList passes through extra cow fields unchanged", (
 	const result = normalizeDashboardCattleList(cows);
 	assert.equal(result[0].weight, 450);
 	assert.equal(result[0].breed, "한우");
+});
+
+test("DashboardClient logs archive cattle failure to console.error", () => {
+	assert.match(
+		src,
+		/console\.error\(["']DashboardClient: archive cattle operation failed["'], err\)/,
+	);
 });

@@ -13,7 +13,10 @@ function readSource(relativePath) {
 
 test("LoginPage buildLoginLegalDocumentHref rejects non-path inputs with /login fallback", () => {
 	const source = readSource("app/login/page.js");
-	assert.match(source, /function buildLoginLegalDocumentHref\(pathname, redirectTarget = ""\) \{/);
+	assert.match(
+		source,
+		/function buildLoginLegalDocumentHref\(pathname, redirectTarget = ""\) \{/,
+	);
 	assert.match(source, /!pathname\.startsWith\("\/"\)/);
 	assert.match(source, /pathname\.startsWith\("\/\/"\)/);
 	assert.match(source, /return "\/login";/);
@@ -28,7 +31,10 @@ test("LoginPage buildLoginLegalDocumentHref appends returnTo+callbackUrl when re
 
 test("LoginPage canSubmit gate requires both username and password with no in-flight", () => {
 	const source = readSource("app/login/page.js");
-	assert.match(source, /username\.trim\(\)\.length > 0 && password\.length > 0 && !isSubmitting/);
+	assert.match(
+		source,
+		/username\.trim\(\)\.length > 0 && password\.length > 0 && !isSubmitting/,
+	);
 	assert.match(source, /disabled=\{!canSubmit\}/);
 });
 
@@ -46,7 +52,10 @@ test("LoginPage handleSubmit prevents double-submit via submitInFlightRef guard"
 	const source = readSource("app/login/page.js");
 	assert.match(source, /submitInFlightRef\.current = true;/);
 	assert.match(source, /submitInFlightRef\.current = false;/);
-	assert.match(source, /if \(submitInFlightRef\.current \|\| !canSubmit\) return;/);
+	assert.match(
+		source,
+		/if \(submitInFlightRef\.current \|\| !canSubmit\) return;/,
+	);
 });
 
 test("LoginPage password toggle button has accessible labels", () => {
@@ -70,4 +79,13 @@ test("LoginPage shows registration success message on ?registered=1 param", () =
 	assert.match(source, /params\.get\("registered"\) === "1"/);
 	assert.match(source, /registrationSuccess/);
 	assert.match(source, /setRegistrationSuccess\(true\)/);
+});
+
+test("LoginPage logs sign-in error to console.error before showing user message", () => {
+	const source = readSource("app/login/page.js");
+	assert.match(
+		source,
+		/console\.error\(["']LoginPage: sign-in failed["'], err\)/,
+	);
+	assert.match(source, /catch \(err\)/);
 });

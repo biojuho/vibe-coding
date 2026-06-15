@@ -21,6 +21,10 @@ const src = readFileSync(
 	"utf8",
 );
 
+function readSource(relativePath) {
+	return readFileSync(path.join(SRC_ROOT, relativePath), "utf8");
+}
+
 // ── Inline re-implementations ─────────────────────────────────────────────────
 
 function normalizeSettingsBuildings(buildings) {
@@ -55,7 +59,8 @@ function normalizeSettingsTabOptions(options) {
 function normalizeSettingsWidgetRegistry(widgets) {
 	return Array.isArray(widgets)
 		? widgets.filter(
-				(widget) => widget && typeof widget === "object" && !Array.isArray(widget),
+				(widget) =>
+					widget && typeof widget === "object" && !Array.isArray(widget),
 			)
 		: [];
 }
@@ -79,7 +84,10 @@ test("SettingsTab.js normalizeSettingsBuildings requires id != null and coerces 
 
 test("SettingsTab.js normalizeSettingsTabOptions returns input or empty object", () => {
 	assert.match(src, /function normalizeSettingsTabOptions\(options\)/);
-	assert.match(src, /typeof options === ["']object["'] && !Array\.isArray\(options\)/);
+	assert.match(
+		src,
+		/typeof options === ["']object["'] && !Array\.isArray\(options\)/,
+	);
 });
 
 test("SettingsTab.js normalizeSettingsWidgetRegistry filters plain objects", () => {
@@ -178,7 +186,9 @@ test("normalizeSettingsBuildings passes through numeric penCount directly", () =
 });
 
 test("normalizeSettingsBuildings spreads other fields through", () => {
-	const buildings = [{ id: "b1", name: "축사", pens: ["p1", "p2"], location: "동쪽" }];
+	const buildings = [
+		{ id: "b1", name: "축사", pens: ["p1", "p2"], location: "동쪽" },
+	];
 	const result = normalizeSettingsBuildings(buildings);
 	assert.deepEqual(result[0].pens, ["p1", "p2"]);
 	assert.equal(result[0].location, "동쪽");
@@ -235,4 +245,18 @@ test("normalizeSettingsWidgetVisible returns {} for null/undefined/array", () =>
 
 test("normalizeSettingsWidgetVisible accepts empty object", () => {
 	assert.deepEqual(normalizeSettingsWidgetVisible({}), {});
+});
+
+test("SettingsTab logs password change failure to console.error", () => {
+	assert.match(
+		src,
+		/console\.error\(["']SettingsTab: password change failed["'], err\)/,
+	);
+});
+
+test("SettingsTab logs account delete failure to console.error", () => {
+	assert.match(
+		src,
+		/console\.error\(["']SettingsTab: account delete failed["'], err\)/,
+	);
 });
