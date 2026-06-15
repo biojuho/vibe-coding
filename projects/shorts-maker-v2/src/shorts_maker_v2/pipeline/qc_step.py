@@ -668,7 +668,7 @@ class QCStep:
             with Image.open(path) as img:
                 img.thumbnail((64, 64))
                 rgb = img.convert("RGB")
-                pixels = list(rgb.getdata())
+                pixels = list(rgb.get_flattened_data())
         except (UnidentifiedImageError, OSError, ValueError):
             return None
         if not pixels:
