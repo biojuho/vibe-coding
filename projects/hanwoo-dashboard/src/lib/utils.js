@@ -5,7 +5,7 @@ import {
 	CALVING_DAYS,
 	ESTRUS_ALERT_WINDOW,
 	ESTRUS_CYCLE_DAYS,
-} from "./constants";
+} from "./constants.js";
 
 const DAY_MS = 86400000;
 
