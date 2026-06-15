@@ -36,7 +36,9 @@ def test_hud_overlay_has_transparency() -> None:
     """HUD 오버레이가 완전 불투명이 아님 (반투명 요소 존재 확인)."""
     img = render_hud_overlay(target_width=540, target_height=960, opacity=80)
     # 전체 투명 픽셀이 10% 이상 있어야 함 (대부분 배경이 투명)
-    alpha_data = list(img.split()[3].getdata())
+    alpha_channel = img.split()[3]
+    get_pixels = getattr(alpha_channel, "get_flattened_data", alpha_channel.getdata)
+    alpha_data = list(get_pixels())
     transparent_count = sum(1 for a in alpha_data if a == 0)
     total = len(alpha_data)
     assert transparent_count / total > 0.5, "HUD는 배경 대부분이 투명해야 합니다"
