@@ -233,7 +233,8 @@ def _load_font_for_thumb(size: int):
         if p.exists():
             try:
                 return ImageFont.truetype(str(p), size)
-            except Exception:
+            except Exception as exc:
+                logger.debug("thumbnail_step: font candidate %s failed (%s), trying next", p, exc)
                 continue
     return ImageFont.load_default()
 
@@ -452,7 +453,8 @@ class ThumbnailStep:
                         bg_image_path = str(frame_path)
                         cleanup_paths.append(frame_path)
                         break
-                    except Exception:
+                    except Exception as exc:
+                        logger.debug("thumbnail_step: frame extraction from %s failed (%s), trying next", vp, exc)
                         continue
 
         try:

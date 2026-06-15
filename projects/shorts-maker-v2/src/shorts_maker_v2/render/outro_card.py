@@ -88,7 +88,8 @@ def render_outro_card(
                     font_medium = ImageFont.truetype(str(p), int(target_width * 0.06))
                     font_small = ImageFont.truetype(str(p), int(target_width * 0.045))
                     break
-                except Exception:
+                except Exception as exc:
+                    logger.debug("outro_card: font candidate %s failed (%s), trying next", p, exc)
                     continue
     if not font_large:
         font_large = ImageFont.load_default()

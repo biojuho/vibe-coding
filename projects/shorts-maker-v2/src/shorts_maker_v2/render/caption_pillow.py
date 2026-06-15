@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import dataclasses
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -373,7 +376,8 @@ def _load_font(style: CaptionStyle) -> ImageFont.FreeTypeFont | ImageFont.ImageF
         if path.exists():
             try:
                 return ImageFont.truetype(str(path), style.font_size)
-            except Exception:
+            except Exception as exc:
+                logger.debug("caption_pillow: font candidate %s failed (%s), trying next", path, exc)
                 continue
     try:
         return ImageFont.load_default(size=style.font_size)

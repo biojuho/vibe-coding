@@ -108,7 +108,8 @@ class RenderCaptionsMixin:
                 try:
                     font = _ImageFont.truetype(str(p), font_size)
                     break
-                except Exception:
+                except Exception as exc:
+                    logger.debug("render_captions: font candidate %s failed (%s), trying next", p, exc)
                     continue
         if font is None:
             font = _ImageFont.load_default()

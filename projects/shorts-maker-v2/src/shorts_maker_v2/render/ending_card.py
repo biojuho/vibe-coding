@@ -1,6 +1,9 @@
+import logging
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
+
+logger = logging.getLogger(__name__)
 
 # 채널별 브랜드 컬러, 아이콘, 표시명
 _CHANNEL_BRAND: dict[str, dict] = {
@@ -60,7 +63,8 @@ def render_branded_ending_card(
                     font_title = ImageFont.truetype(str(p), int(target_width * 0.10))
                     font_sub = ImageFont.truetype(str(p), int(target_width * 0.055))
                     break
-                except Exception:
+                except Exception as exc:
+                    logger.debug("ending_card: font candidate %s failed (%s), trying next", p, exc)
                     continue
     if not font_title:
         font_title = ImageFont.load_default()

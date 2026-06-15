@@ -115,7 +115,8 @@ def generate_dashboard(logs_dir: str | Path, output_file: str | Path = "dashboar
             try:
                 dt = datetime.fromisoformat(job_ts)
                 date_str = dt.strftime("%Y-%m-%d")
-            except Exception:
+            except Exception as exc:
+                logger.debug("dashboard: unparseable job timestamp %r — using Unknown (%s)", job_ts, exc)
                 date_str = "Unknown"
             total_jobs += 1
             total_cost += job_cost
