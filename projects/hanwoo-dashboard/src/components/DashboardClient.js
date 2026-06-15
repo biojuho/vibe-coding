@@ -1406,7 +1406,8 @@ export default function DashboardClient(options = {}) {
 				showError("개체 보관 처리에 실패했습니다.", result.message);
 			}
 			return false;
-		} catch {
+		} catch (err) {
+			console.error("DashboardClient: archive cattle operation failed", err);
 			if (dashboardMountedRef.current) {
 				showError("개체 보관 처리 중 오류가 발생했습니다.");
 			}

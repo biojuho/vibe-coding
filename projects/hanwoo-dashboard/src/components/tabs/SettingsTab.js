@@ -6,10 +6,7 @@ import { signOut, useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useAppFeedback } from "@/components/feedback/FeedbackProvider";
-import {
-	clearDeadLetterQueue,
-	getDeadLetterQueue,
-} from "@/lib/offlineQueue";
+import { clearDeadLetterQueue, getDeadLetterQueue } from "@/lib/offlineQueue";
 import { PremiumButton } from "@/components/ui/premium-button";
 import {
 	PremiumInput,
@@ -113,7 +110,8 @@ function normalizeSettingsTabOptions(options) {
 function normalizeSettingsWidgetRegistry(widgets) {
 	return Array.isArray(widgets)
 		? widgets.filter(
-				(widget) => widget && typeof widget === "object" && !Array.isArray(widget),
+				(widget) =>
+					widget && typeof widget === "object" && !Array.isArray(widget),
 			)
 		: [];
 }
@@ -171,9 +169,13 @@ export default function SettingsTab(options = {}) {
 	const deleteBuildingInFlightRef = useRef(false);
 	const { confirm } = useAppFeedback();
 	const handleCreateBuilding =
-		typeof onCreateBuilding === "function" ? onCreateBuilding : async () => false;
+		typeof onCreateBuilding === "function"
+			? onCreateBuilding
+			: async () => false;
 	const handleDeleteBuildingAction =
-		typeof onDeleteBuilding === "function" ? onDeleteBuilding : async () => false;
+		typeof onDeleteBuilding === "function"
+			? onDeleteBuilding
+			: async () => false;
 	const handleUpdateFarmSettings =
 		typeof onUpdateFarmSettings === "function"
 			? onUpdateFarmSettings
@@ -268,25 +270,25 @@ export default function SettingsTab(options = {}) {
 	}, [isAdding, quickActionIntent?.nonce]);
 
 	const koreanLocations = [
-			{ name: "서울", lat: 37.566, lng: 126.978 },
-			{ name: "부산", lat: 35.179, lng: 129.075 },
-			{ name: "대구", lat: 35.871, lng: 128.601 },
-			{ name: "인천", lat: 37.456, lng: 126.705 },
-			{ name: "광주", lat: 35.16, lng: 126.851 },
-			{ name: "대전", lat: 36.35, lng: 127.384 },
-			{ name: "울산", lat: 35.538, lng: 129.311 },
-			{ name: "세종", lat: 36.48, lng: 127.289 },
-			{ name: "경기 수원", lat: 37.263, lng: 127.028 },
-			{ name: "강원 춘천", lat: 37.881, lng: 127.729 },
-			{ name: "충북 청주", lat: 36.642, lng: 127.489 },
-			{ name: "충남 홍성", lat: 36.601, lng: 126.66 },
-			{ name: "전북 전주", lat: 35.824, lng: 127.147 },
-			{ name: "전북 남원", lat: 35.416, lng: 127.39 },
-			{ name: "전북 남원 대강", lat: 35.446, lng: 127.344 },
-			{ name: "전남 무안", lat: 34.99, lng: 126.471 },
-			{ name: "경북 안동", lat: 36.568, lng: 128.729 },
-			{ name: "경남 창원", lat: 35.227, lng: 128.681 },
-			{ name: "제주", lat: 33.499, lng: 126.531 },
+		{ name: "서울", lat: 37.566, lng: 126.978 },
+		{ name: "부산", lat: 35.179, lng: 129.075 },
+		{ name: "대구", lat: 35.871, lng: 128.601 },
+		{ name: "인천", lat: 37.456, lng: 126.705 },
+		{ name: "광주", lat: 35.16, lng: 126.851 },
+		{ name: "대전", lat: 36.35, lng: 127.384 },
+		{ name: "울산", lat: 35.538, lng: 129.311 },
+		{ name: "세종", lat: 36.48, lng: 127.289 },
+		{ name: "경기 수원", lat: 37.263, lng: 127.028 },
+		{ name: "강원 춘천", lat: 37.881, lng: 127.729 },
+		{ name: "충북 청주", lat: 36.642, lng: 127.489 },
+		{ name: "충남 홍성", lat: 36.601, lng: 126.66 },
+		{ name: "전북 전주", lat: 35.824, lng: 127.147 },
+		{ name: "전북 남원", lat: 35.416, lng: 127.39 },
+		{ name: "전북 남원 대강", lat: 35.446, lng: 127.344 },
+		{ name: "전남 무안", lat: 34.99, lng: 126.471 },
+		{ name: "경북 안동", lat: 36.568, lng: 128.729 },
+		{ name: "경남 창원", lat: 35.227, lng: 128.681 },
+		{ name: "제주", lat: 33.499, lng: 126.531 },
 	];
 
 	const handleLocationSelect = (event) => {
@@ -415,7 +417,10 @@ export default function SettingsTab(options = {}) {
 			const res = await fetch("/api/auth/change-password", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ currentPassword: pwCurrent, newPassword: pwNew }),
+				body: JSON.stringify({
+					currentPassword: pwCurrent,
+					newPassword: pwNew,
+				}),
 			});
 			const data = await res.json();
 			if (!res.ok) {
@@ -426,7 +431,8 @@ export default function SettingsTab(options = {}) {
 			setPwCurrent("");
 			setPwNew("");
 			setPwConfirm("");
-		} catch {
+		} catch (err) {
+			console.error("SettingsTab: password change failed", err);
 			setPwError("네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
 		} finally {
 			if (isMountedRef.current) setIsSavingPw(false);
@@ -561,7 +567,8 @@ export default function SettingsTab(options = {}) {
 						style={{
 							fontSize: "11px",
 							color: "var(--color-text-muted)",
-							marginBottom: "var(--settings-widget-description-margin-bottom, 12px)",
+							marginBottom:
+								"var(--settings-widget-description-margin-bottom, 12px)",
 						}}
 					>
 						홈 화면에 표시할 위젯을 선택해 주세요.
@@ -937,9 +944,7 @@ export default function SettingsTab(options = {}) {
 						</div>
 
 						<div>
-							<PremiumLabel htmlFor="building-pen-count">
-								칸 수
-							</PremiumLabel>
+							<PremiumLabel htmlFor="building-pen-count">칸 수</PremiumLabel>
 							<PremiumInput
 								id="building-pen-count"
 								type="number"
@@ -1080,7 +1085,11 @@ export default function SettingsTab(options = {}) {
 							전체 삭제
 						</PremiumButton>
 					</div>
-					<div role="list" aria-label="동기화 실패 항목 목록" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+					<div
+						role="list"
+						aria-label="동기화 실패 항목 목록"
+						style={{ display: "flex", flexDirection: "column", gap: "10px" }}
+					>
 						{deadLetterItems.map((item, idx) => (
 							<div
 								key={item.id ?? idx}
@@ -1132,17 +1141,32 @@ export default function SettingsTab(options = {}) {
 					marginTop: "20px",
 				}}
 			>
-				<div style={{ fontWeight: 700, fontSize: "14px", color: "var(--color-text)", marginBottom: "14px" }}>
+				<div
+					style={{
+						fontWeight: 700,
+						fontSize: "14px",
+						color: "var(--color-text)",
+						marginBottom: "14px",
+					}}
+				>
 					비밀번호 변경
 				</div>
-				<form onSubmit={handleChangePassword} noValidate style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+				<form
+					onSubmit={handleChangePassword}
+					noValidate
+					style={{ display: "flex", flexDirection: "column", gap: "10px" }}
+				>
 					<div style={{ position: "relative" }}>
 						<PremiumInput
 							id="pw-current"
 							type={showPwCurrent ? "text" : "password"}
 							placeholder="현재 비밀번호"
 							value={pwCurrent}
-							onChange={(e) => { setPwCurrent(e.target.value); setPwError(""); setPwSuccess(false); }}
+							onChange={(e) => {
+								setPwCurrent(e.target.value);
+								setPwError("");
+								setPwSuccess(false);
+							}}
 							aria-label="현재 비밀번호"
 							aria-required="true"
 							autoComplete="current-password"
@@ -1153,11 +1177,31 @@ export default function SettingsTab(options = {}) {
 							type="button"
 							onClick={() => setShowPwCurrent((v) => !v)}
 							aria-pressed={showPwCurrent}
-							aria-label={showPwCurrent ? "현재 비밀번호 숨기기" : "현재 비밀번호 보기"}
-							title={showPwCurrent ? "현재 비밀번호 숨기기" : "현재 비밀번호 보기"}
-							style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", padding: "4px", display: "flex", alignItems: "center" }}
+							aria-label={
+								showPwCurrent ? "현재 비밀번호 숨기기" : "현재 비밀번호 보기"
+							}
+							title={
+								showPwCurrent ? "현재 비밀번호 숨기기" : "현재 비밀번호 보기"
+							}
+							style={{
+								position: "absolute",
+								right: "12px",
+								top: "50%",
+								transform: "translateY(-50%)",
+								background: "none",
+								border: "none",
+								cursor: "pointer",
+								color: "var(--color-text-secondary)",
+								padding: "4px",
+								display: "flex",
+								alignItems: "center",
+							}}
 						>
-							{showPwCurrent ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+							{showPwCurrent ? (
+								<EyeOff size={16} aria-hidden="true" />
+							) : (
+								<Eye size={16} aria-hidden="true" />
+							)}
 						</button>
 					</div>
 					<div style={{ position: "relative" }}>
@@ -1166,7 +1210,11 @@ export default function SettingsTab(options = {}) {
 							type={showPwNew ? "text" : "password"}
 							placeholder="새 비밀번호 (8자 이상)"
 							value={pwNew}
-							onChange={(e) => { setPwNew(e.target.value); setPwError(""); setPwSuccess(false); }}
+							onChange={(e) => {
+								setPwNew(e.target.value);
+								setPwError("");
+								setPwSuccess(false);
+							}}
 							aria-label="새 비밀번호"
 							aria-required="true"
 							autoComplete="new-password"
@@ -1179,9 +1227,25 @@ export default function SettingsTab(options = {}) {
 							aria-pressed={showPwNew}
 							aria-label={showPwNew ? "새 비밀번호 숨기기" : "새 비밀번호 보기"}
 							title={showPwNew ? "새 비밀번호 숨기기" : "새 비밀번호 보기"}
-							style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", padding: "4px", display: "flex", alignItems: "center" }}
+							style={{
+								position: "absolute",
+								right: "12px",
+								top: "50%",
+								transform: "translateY(-50%)",
+								background: "none",
+								border: "none",
+								cursor: "pointer",
+								color: "var(--color-text-secondary)",
+								padding: "4px",
+								display: "flex",
+								alignItems: "center",
+							}}
 						>
-							{showPwNew ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+							{showPwNew ? (
+								<EyeOff size={16} aria-hidden="true" />
+							) : (
+								<Eye size={16} aria-hidden="true" />
+							)}
 						</button>
 					</div>
 					<div style={{ position: "relative" }}>
@@ -1190,37 +1254,85 @@ export default function SettingsTab(options = {}) {
 							type={showPwConfirm ? "text" : "password"}
 							placeholder="새 비밀번호 확인"
 							value={pwConfirm}
-							onChange={(e) => { setPwConfirm(e.target.value); setPwError(""); setPwSuccess(false); }}
+							onChange={(e) => {
+								setPwConfirm(e.target.value);
+								setPwError("");
+								setPwSuccess(false);
+							}}
 							aria-label="새 비밀번호 확인"
 							autoComplete="new-password"
 							aria-required="true"
 							aria-invalid={pwNewMismatch}
 							maxLength={72}
-							style={{ paddingRight: "44px", borderColor: pwNewMismatch ? "var(--color-danger)" : undefined }}
+							style={{
+								paddingRight: "44px",
+								borderColor: pwNewMismatch ? "var(--color-danger)" : undefined,
+							}}
 						/>
 						<button
 							type="button"
 							onClick={() => setShowPwConfirm((v) => !v)}
 							aria-pressed={showPwConfirm}
-							aria-label={showPwConfirm ? "새 비밀번호 확인 숨기기" : "새 비밀번호 확인 보기"}
-							title={showPwConfirm ? "새 비밀번호 확인 숨기기" : "새 비밀번호 확인 보기"}
-							style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", padding: "4px", display: "flex", alignItems: "center" }}
+							aria-label={
+								showPwConfirm
+									? "새 비밀번호 확인 숨기기"
+									: "새 비밀번호 확인 보기"
+							}
+							title={
+								showPwConfirm
+									? "새 비밀번호 확인 숨기기"
+									: "새 비밀번호 확인 보기"
+							}
+							style={{
+								position: "absolute",
+								right: "12px",
+								top: "50%",
+								transform: "translateY(-50%)",
+								background: "none",
+								border: "none",
+								cursor: "pointer",
+								color: "var(--color-text-secondary)",
+								padding: "4px",
+								display: "flex",
+								alignItems: "center",
+							}}
 						>
-							{showPwConfirm ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+							{showPwConfirm ? (
+								<EyeOff size={16} aria-hidden="true" />
+							) : (
+								<Eye size={16} aria-hidden="true" />
+							)}
 						</button>
 					</div>
 					{pwNewMismatch && (
-						<p style={{ fontSize: "12px", color: "var(--color-danger)", fontWeight: 600, marginTop: "-4px" }}>
+						<p
+							style={{
+								fontSize: "12px",
+								color: "var(--color-danger)",
+								fontWeight: 600,
+								marginTop: "-4px",
+							}}
+						>
 							새 비밀번호가 일치하지 않습니다.
 						</p>
 					)}
 					{pwError && (
-						<div role="alert" style={{ fontSize: "12px", color: "var(--color-danger)", fontWeight: 600 }}>
+						<div
+							role="alert"
+							style={{
+								fontSize: "12px",
+								color: "var(--color-danger)",
+								fontWeight: 600,
+							}}
+						>
 							{pwError}
 						</div>
 					)}
 					{pwSuccess && (
-						<div role="status" style={{ fontSize: "12px", color: "#16a34a", fontWeight: 600 }}>
+						<div
+							role="status"
+							style={{ fontSize: "12px", color: "#16a34a", fontWeight: 600 }}
+						>
 							비밀번호가 변경되었습니다.
 						</div>
 					)}
@@ -1228,7 +1340,9 @@ export default function SettingsTab(options = {}) {
 						type="submit"
 						variant="secondary"
 						size="sm"
-						disabled={isSavingPw || !pwCurrent || !pwNew || !pwConfirm || pwNewMismatch}
+						disabled={
+							isSavingPw || !pwCurrent || !pwNew || !pwConfirm || pwNewMismatch
+						}
 						aria-busy={isSavingPw}
 						className="self-end"
 					>
@@ -1248,10 +1362,25 @@ export default function SettingsTab(options = {}) {
 						marginTop: "20px",
 					}}
 				>
-					<div style={{ fontWeight: 700, fontSize: "14px", color: "var(--color-text)", marginBottom: "12px" }}>
+					<div
+						style={{
+							fontWeight: 700,
+							fontSize: "14px",
+							color: "var(--color-text)",
+							marginBottom: "12px",
+						}}
+					>
 						구독 현황
 					</div>
-					<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px" }}>
+					<div
+						style={{
+							display: "flex",
+							alignItems: "center",
+							justifyContent: "space-between",
+							flexWrap: "wrap",
+							gap: "10px",
+						}}
+					>
 						<div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
 							{subscriptionStatus.status === "ACTIVE" && (
 								<>
@@ -1261,7 +1390,8 @@ export default function SettingsTab(options = {}) {
 											alignItems: "center",
 											padding: "3px 10px",
 											borderRadius: "999px",
-											background: "color-mix(in srgb, #16a34a 12%, transparent)",
+											background:
+												"color-mix(in srgb, #16a34a 12%, transparent)",
 											color: "#16a34a",
 											fontWeight: 700,
 											fontSize: "11px",
@@ -1271,7 +1401,12 @@ export default function SettingsTab(options = {}) {
 										프리미엄 구독 중
 									</span>
 									{subscriptionStatus.daysLeft != null && (
-										<span style={{ fontSize: "12px", color: "var(--color-text-secondary)" }}>
+										<span
+											style={{
+												fontSize: "12px",
+												color: "var(--color-text-secondary)",
+											}}
+										>
 											{subscriptionStatus.daysLeft}일 후 갱신
 										</span>
 									)}
@@ -1285,7 +1420,8 @@ export default function SettingsTab(options = {}) {
 											alignItems: "center",
 											padding: "3px 10px",
 											borderRadius: "999px",
-											background: "color-mix(in srgb, var(--color-accent) 12%, transparent)",
+											background:
+												"color-mix(in srgb, var(--color-accent) 12%, transparent)",
 											color: "var(--color-accent)",
 											fontWeight: 700,
 											fontSize: "11px",
@@ -1295,7 +1431,12 @@ export default function SettingsTab(options = {}) {
 										무료 체험 중
 									</span>
 									{subscriptionStatus.daysLeft != null && (
-										<span style={{ fontSize: "12px", color: "var(--color-text-secondary)" }}>
+										<span
+											style={{
+												fontSize: "12px",
+												color: "var(--color-text-secondary)",
+											}}
+										>
 											{subscriptionStatus.daysLeft > 0
 												? `${subscriptionStatus.daysLeft}일 남음`
 												: "오늘 만료"}
@@ -1310,7 +1451,8 @@ export default function SettingsTab(options = {}) {
 										alignItems: "center",
 										padding: "3px 10px",
 										borderRadius: "999px",
-										background: "color-mix(in srgb, var(--color-text-muted) 12%, transparent)",
+										background:
+											"color-mix(in srgb, var(--color-text-muted) 12%, transparent)",
 										color: "var(--color-text-secondary)",
 										fontWeight: 700,
 										fontSize: "11px",
@@ -1330,7 +1472,10 @@ export default function SettingsTab(options = {}) {
 								textDecoration: "none",
 							}}
 						>
-							{subscriptionStatus.status === "ACTIVE" ? "구독 관리" : "구독하기"} →
+							{subscriptionStatus.status === "ACTIVE"
+								? "구독 관리"
+								: "구독하기"}{" "}
+							→
 						</a>
 					</div>
 				</div>
@@ -1351,15 +1496,35 @@ export default function SettingsTab(options = {}) {
 			>
 				<div>
 					{currentUsername ? (
-						<div style={{ fontSize: "11px", color: "var(--color-text-secondary)", marginBottom: "2px" }}>
+						<div
+							style={{
+								fontSize: "11px",
+								color: "var(--color-text-secondary)",
+								marginBottom: "2px",
+							}}
+						>
 							로그인 계정:{" "}
-							<strong style={{ color: "var(--color-text)" }}>{currentUsername}</strong>
+							<strong style={{ color: "var(--color-text)" }}>
+								{currentUsername}
+							</strong>
 						</div>
 					) : null}
-					<div style={{ fontWeight: 700, fontSize: "14px", color: "var(--color-text)" }}>
+					<div
+						style={{
+							fontWeight: 700,
+							fontSize: "14px",
+							color: "var(--color-text)",
+						}}
+					>
 						로그아웃
 					</div>
-					<div style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginTop: "2px" }}>
+					<div
+						style={{
+							fontSize: "12px",
+							color: "var(--color-text-secondary)",
+							marginTop: "2px",
+						}}
+					>
 						현재 기기에서 로그인 세션을 종료합니다.
 					</div>
 				</div>
@@ -1390,7 +1555,8 @@ function DeleteAccountSection(options = {}) {
 		options && typeof options === "object" && !Array.isArray(options)
 			? options
 			: {};
-	const safeConfirm = typeof confirmDialog === "function" ? confirmDialog : null;
+	const safeConfirm =
+		typeof confirmDialog === "function" ? confirmDialog : null;
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [deleteError, setDeleteError] = useState("");
 	const isMountedRef = useRef(false);
@@ -1419,9 +1585,12 @@ function DeleteAccountSection(options = {}) {
 				return;
 			}
 			await signOut({ callbackUrl: "/" });
-		} catch {
+		} catch (err) {
+			console.error("SettingsTab: account delete failed", err);
 			if (isMountedRef.current) {
-				setDeleteError("계정 삭제 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+				setDeleteError(
+					"계정 삭제 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+				);
 				setIsDeleting(false);
 			}
 		}
@@ -1435,15 +1604,31 @@ function DeleteAccountSection(options = {}) {
 				background: "var(--color-bg-card)",
 				padding: "18px 20px",
 				borderRadius: "20px",
-				border: "1px solid color-mix(in srgb, var(--color-danger) 35%, var(--color-surface-stroke))",
+				border:
+					"1px solid color-mix(in srgb, var(--color-danger) 35%, var(--color-surface-stroke))",
 				marginTop: "20px",
 			}}
 		>
-			<div style={{ fontWeight: 700, fontSize: "14px", color: "var(--color-danger)", marginBottom: "4px" }}>
+			<div
+				style={{
+					fontWeight: 700,
+					fontSize: "14px",
+					color: "var(--color-danger)",
+					marginBottom: "4px",
+				}}
+			>
 				계정 삭제
 			</div>
-			<div style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginBottom: "12px", lineHeight: 1.5 }}>
-				계정을 삭제하면 로그인이 불가능해집니다. 농장 데이터는 삭제되지 않습니다.
+			<div
+				style={{
+					fontSize: "12px",
+					color: "var(--color-text-secondary)",
+					marginBottom: "12px",
+					lineHeight: 1.5,
+				}}
+			>
+				계정을 삭제하면 로그인이 불가능해집니다. 농장 데이터는 삭제되지
+				않습니다.
 			</div>
 			{deleteError ? (
 				<div
@@ -1467,7 +1652,10 @@ function DeleteAccountSection(options = {}) {
 				aria-label={deleteButtonLabel}
 				title={deleteButtonLabel}
 				className="gap-1.5"
-				style={{ borderColor: "var(--color-danger)", color: "var(--color-danger)" }}
+				style={{
+					borderColor: "var(--color-danger)",
+					color: "var(--color-danger)",
+				}}
 			>
 				<Trash2 size={14} aria-hidden="true" />
 				{isDeleting ? "계정 삭제 중..." : "계정 삭제"}

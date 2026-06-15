@@ -78,7 +78,9 @@ export default function LoginPage() {
 			: password.length === 0
 				? "비밀번호를 입력하면 로그인할 수 있습니다"
 				: "한우 대시보드 열기";
-	const passwordToggleLabel = showPassword ? "비밀번호 숨기기" : "비밀번호 보기";
+	const passwordToggleLabel = showPassword
+		? "비밀번호 숨기기"
+		: "비밀번호 보기";
 	const loginErrorId = "login-error-message";
 	const usernameInputId = "login-username";
 	const passwordInputId = "login-password";
@@ -143,9 +145,12 @@ export default function LoginPage() {
 					setError(LOGIN_NAVIGATION_ERROR_MESSAGE);
 				}
 			}
-		} catch {
+		} catch (err) {
+			console.error("LoginPage: sign-in failed", err);
 			if (isMountedRef.current) {
-				setError("로그인을 완료하지 못했습니다. 네트워크 상태를 확인해 주세요.");
+				setError(
+					"로그인을 완료하지 못했습니다. 네트워크 상태를 확인해 주세요.",
+				);
 				focusLoginCorrectionField();
 			}
 		} finally {
