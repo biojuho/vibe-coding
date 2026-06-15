@@ -244,7 +244,10 @@ class NotionContentCalendar:
                 },
             )
             return len(result.get("results", [])) > 0
-        except Exception:
+        except Exception as exc:
+            logger.debug(
+                "content_calendar: duplicate check API failed for topic=%r — treating as not duplicate (%s)", topic, exc
+            )
             return False  # API 실패 시 중복 아님으로 간주
 
     # ------------------------------------------------------------------

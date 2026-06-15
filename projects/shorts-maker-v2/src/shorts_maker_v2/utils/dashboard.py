@@ -1,7 +1,10 @@
 import json
+import logging
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def generate_dashboard(logs_dir: str | Path, output_file: str | Path = "dashboard.html") -> Path:
@@ -74,7 +77,8 @@ def generate_dashboard(logs_dir: str | Path, output_file: str | Path = "dashboar
                             try:
                                 dt = datetime.fromisoformat(ts)
                                 date_str = dt.strftime("%Y-%m-%d")
-                            except Exception:
+                            except Exception as exc:
+                                logger.debug("dashboard: unparseable timestamp %r — using Unknown (%s)", ts, exc)
                                 date_str = "Unknown"
                             total_jobs += 1
                             total_cost += cost
@@ -101,7 +105,8 @@ def generate_dashboard(logs_dir: str | Path, output_file: str | Path = "dashboar
                         job_status = "failed"
                     elif ev == "render_done":
                         job_cost = record.get("estimated_cost_usd", job_cost)
-        except Exception:
+        except Exception as exc:
+            logger.debug("dashboard: skipping job file %s (parse error: %s)", jsonl_file.name, exc)
             continue
 
         # 개별 job 파일에서 추출된 데이터 집계 (costs.jsonl 엔트리가 아닌 경우)

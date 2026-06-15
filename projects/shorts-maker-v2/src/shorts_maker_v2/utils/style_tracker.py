@@ -130,7 +130,8 @@ class StyleTracker:
                     else:
                         # Track failures with negative weight
                         self._stats[key][str(value)] += 0
-            except Exception:
+            except Exception as exc:
+                logger.debug("style_tracker: skipping manifest %s (parse error: %s)", mf.name, exc)
                 continue
 
         if self._stats:
