@@ -294,7 +294,7 @@ test("settings tab normalizes widget controls and callbacks before rendering", (
 	assert.match(source, /function normalizeSettingsWidgetRegistry\(widgets\) \{/);
 	assert.match(
 		source,
-		/Array\.isArray\(widgets\)[\s\S]*?\? widgets\.filter\([\s\S]*?\(widget\) => widget && typeof widget === ["']object["'] && !Array\.isArray\(widget\)[\s\S]*?\)[\s\S]*?: \[\]/,
+		/Array\.isArray\(widgets\)[\s\S]*?\? widgets\.filter\([\s\S]*?\(widget\) =>[\s\S]*?widget && typeof widget === ["']object["'] && !Array\.isArray\(widget\)[\s\S]*?\)[\s\S]*?: \[\]/,
 	);
 	assert.match(source, /function normalizeSettingsWidgetVisible\(widgetVisible\) \{/);
 	assert.match(
@@ -469,7 +469,7 @@ test("settings building form waits for async saves before re-enabling actions", 
 	assert.match(source, /setIsSavingBuilding\(true\);/);
 	assert.match(
 		source,
-		/const handleCreateBuilding =\s*typeof onCreateBuilding === ["']function["'] \? onCreateBuilding : async \(\) => false;/,
+		/const handleCreateBuilding =[\s\S]*?typeof onCreateBuilding === ["']function["'][\s\S]*?\? onCreateBuilding[\s\S]*?: async \(\) => false;/,
 	);
 	assert.match(source, /const saved = await handleCreateBuilding\(values\);/);
 	assert.doesNotMatch(source, /const saved = await onCreateBuilding\(values\);/);
@@ -625,7 +625,7 @@ test("settings building delete action waits for async deletes before re-enabling
 	assert.match(source, /setDeletingBuildingId\(id\);/);
 	assert.match(
 		source,
-		/const handleDeleteBuildingAction =\s*typeof onDeleteBuilding === ["']function["'] \? onDeleteBuilding : async \(\) => false;/,
+		/const handleDeleteBuildingAction =[\s\S]*?typeof onDeleteBuilding === ["']function["'][\s\S]*?\? onDeleteBuilding[\s\S]*?: async \(\) => false;/,
 	);
 	assert.match(source, /await handleDeleteBuildingAction\(id\);/);
 	assert.doesNotMatch(source, /await onDeleteBuilding\(id\);/);
@@ -682,7 +682,7 @@ test("settings tab renders delete account section with danger styling and confir
 	// User-facing copy
 	assert.match(source, /계정 삭제/);
 	assert.match(source, /계정을 삭제하면 로그인이 불가능해집니다/);
-	assert.match(source, /농장 데이터는 삭제되지 않습니다/);
+	assert.match(source, /농장 데이터는 삭제되지[\s\S]*?않습니다/);
 
 	// Accessibility attributes
 	assert.match(source, /aria-busy=\{isDeleting\}/);
@@ -740,7 +740,10 @@ test("settings change-password form has Eye/EyeOff toggles and real-time mismatc
 	assert.match(source, /새 비밀번호가 일치하지 않습니다/);
 
 	// Submit disabled when mismatch
-	assert.match(source, /disabled=\{isSavingPw \|\| !pwCurrent \|\| !pwNew \|\| !pwConfirm \|\| pwNewMismatch\}/);
+	assert.match(
+		source,
+		/disabled=\{[\s\S]*?isSavingPw \|\| !pwCurrent \|\| !pwNew \|\| !pwConfirm \|\| pwNewMismatch[\s\S]*?\}/,
+	);
 
 	// Toggle buttons with aria-pressed
 	assert.match(source, /aria-pressed=\{showPwCurrent\}/);

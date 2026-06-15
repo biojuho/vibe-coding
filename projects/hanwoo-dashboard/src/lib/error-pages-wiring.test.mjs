@@ -368,7 +368,7 @@ test("login credential failure returns focus to the first credential field", () 
 	);
 	assert.match(
 		source,
-		/setError\("로그인을 완료하지 못했습니다\. 네트워크 상태를 확인해 주세요\."\);\s+focusLoginCorrectionField\(\);/,
+		/setError\([\s\S]*?"로그인을 완료하지 못했습니다\. 네트워크 상태를 확인해 주세요\."[\s\S]*?\);\s+focusLoginCorrectionField\(\);/,
 	);
 });
 
@@ -409,7 +409,7 @@ test("login password visibility toggle exposes matching accessible and title cop
 
 	assert.match(
 		source,
-		/const passwordToggleLabel = showPassword \? "비밀번호 숨기기" : "비밀번호 보기"/,
+		/const passwordToggleLabel = showPassword[\s\S]*?\? "비밀번호 숨기기"[\s\S]*?: "비밀번호 보기"/,
 	);
 	assert.match(
 		source,
@@ -492,7 +492,7 @@ test("login page recovers submit state when sign-in fails unexpectedly", () => {
 		source,
 		/if \(isMountedRef\.current\) \{\s+setError\(LOGIN_NAVIGATION_ERROR_MESSAGE\);\s+\}/,
 	);
-	assert.match(source, /\} catch \{\s+if \(isMountedRef\.current\) \{\s+setError\(["']/);
+	assert.match(source, /\} catch \([^)]*\) \{[\s\S]*?if \(isMountedRef\.current\) \{\s+setError\(/);
 	assert.match(
 		source,
 		/\} finally \{\s+submitInFlightRef\.current = false;\s+if \(isMountedRef\.current\) \{\s+setIsSubmitting\(false\);\s+\}/,

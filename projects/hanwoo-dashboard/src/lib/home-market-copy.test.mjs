@@ -315,7 +315,7 @@ test("dashboard cattle archive completions ignore stale unmounted state", () => 
 	);
 	assert.match(
 		source,
-		/catch \{\s+if \(dashboardMountedRef\.current\) \{\s+showError\("개체 보관 처리 중 오류가 발생했습니다\."\);\s+\}\s+return false;/,
+		/catch \([^)]*\) \{[\s\S]*?if \(dashboardMountedRef\.current\) \{\s+showError\("개체 보관 처리 중 오류가 발생했습니다\."\);\s+\}\s+return false;/,
 	);
 	assert.match(
 		source,

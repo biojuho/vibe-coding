@@ -125,6 +125,38 @@ test("notification.js isFreshNotificationSummary checks age < 60000ms", () => {
 	assert.match(notificationSrc, /summary\?\.payload/);
 });
 
+test("notification.js isNotificationActionCattleRow has null + object + !Array guard", () => {
+	assert.match(notificationSrc, /function isNotificationActionCattleRow\(value\) \{/);
+	assert.match(notificationSrc, /value !== null/);
+	assert.match(notificationSrc, /typeof value === ["']object["']/);
+	assert.match(notificationSrc, /!Array\.isArray\(value\)/);
+});
+
+test("notification.js normalizeNotificationActionCattleRows filters via isNotificationActionCattleRow", () => {
+	assert.match(
+		notificationSrc,
+		/function normalizeNotificationActionCattleRows\(rows\) \{/,
+	);
+	assert.match(notificationSrc, /isNotificationActionCattleRow\(row\)/);
+	assert.match(notificationSrc, /Array\.isArray\(rows\)/);
+});
+
+test("notification.js getNotifications tries cache then live prisma query", () => {
+	assert.match(notificationSrc, /export async function getNotifications\(\)/);
+	assert.match(notificationSrc, /requireAuthenticatedSession\(\)/);
+	assert.match(notificationSrc, /isFreshNotificationSummary\(cached\)/);
+	assert.match(
+		notificationSrc,
+		/prisma\.cattle\.findMany\(\{ where: \{ isArchived: false \} \}\)/,
+	);
+	assert.match(notificationSrc, /prisma\.inventoryItem\.findMany\(\)/);
+	assert.match(
+		notificationSrc,
+		/normalizeNotificationActionCattleRows\(cattleRows\)/,
+	);
+	assert.match(notificationSrc, /buildNotifications\(cattle, inventory\)/);
+});
+
 test("feed.js normalizeFeedActionRows uses isFeedActionRow", () => {
 	assert.match(feedSrc, /function normalizeFeedActionRows\(rows\)/);
 	assert.match(feedSrc, /isFeedActionRow\(row\)/);
