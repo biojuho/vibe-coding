@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from shorts_maker_v2.utils.cost_tracker import CostTracker
@@ -61,3 +62,30 @@ def test_record_with_status(tmp_path: Path) -> None:
     s = tracker.summary()
     assert s["total_jobs"] == 2
     assert abs(s["total_cost_usd"] - 0.15) < 0.01
+
+
+def test_print_summary_uses_logger_not_stdout(tmp_path: Path, caplog: object, capsys) -> None:
+    """print_summary() emits via logger.info (not print()) so log aggregators capture it."""
+    tracker = CostTracker(logs_dir=tmp_path)
+    tracker.record(job_id="j1", cost_usd=0.10, topic="test")
+
+    with caplog.at_level(logging.INFO, logger="shorts_maker_v2.utils.cost_tracker"):
+        tracker.print_summary()
+
+    # Must appear in log records, not stdout
+    assert any("비용 대시보드" in r.message for r in caplog.records)
+    out, _ = capsys.readouterr()
+    assert "비용 대시보드" not in out
+
+
+def test_print_summary_includes_cost_values(tmp_path: Path, caplog: object) -> None:
+    """print_summary() log output includes date, job counts, and cost figures."""
+    tracker = CostTracker(logs_dir=tmp_path)
+    tracker.record(job_id="j1", cost_usd=0.1234, topic="test")
+
+    with caplog.at_level(logging.INFO, logger="shorts_maker_v2.utils.cost_tracker"):
+        tracker.print_summary()
+
+    combined = " ".join(r.message for r in caplog.records)
+    assert "1" in combined  # job count
+    assert "0.1234" in combined  # cost value
