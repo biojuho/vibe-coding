@@ -7,10 +7,13 @@ JSONL 파일 기반으로 모든 작업의 비용을 누적 기록하고,
 from __future__ import annotations
 
 import json
+import logging
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 class CostTracker:
@@ -120,12 +123,13 @@ class CostTracker:
     def print_summary(self) -> None:
         """비용 요약 출력."""
         s = self.summary()
-        print(f"\n{'=' * 50}")
-        print(f"📊 비용 대시보드 ({s['date']})")
-        print(f"{'=' * 50}")
-        print(f"  📅 오늘:  {s['daily_jobs']}건 | ${s['daily_cost_usd']:.4f}")
-        print(f"  📆 이번달: {s['monthly_jobs']}건 | ${s['monthly_cost_usd']:.4f}")
-        print(f"  📈 전체:  {s['total_jobs']}건 | ${s['total_cost_usd']:.4f}")
+        sep = "=" * 50
+        logger.info(sep)
+        logger.info("비용 대시보드 (%s)", s["date"])
+        logger.info(sep)
+        logger.info("  오늘:   %d건 | $%.4f", s["daily_jobs"], s["daily_cost_usd"])
+        logger.info("  이번달: %d건 | $%.4f", s["monthly_jobs"], s["monthly_cost_usd"])
+        logger.info("  전체:   %d건 | $%.4f", s["total_jobs"], s["total_cost_usd"])
         if s["total_jobs"] > 0:
-            print(f"  💰 건당 평균: ${s['avg_cost_per_job']:.4f}")
-        print(f"{'=' * 50}\n")
+            logger.info("  건당 평균: $%.4f", s["avg_cost_per_job"])
+        logger.info(sep)
