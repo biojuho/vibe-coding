@@ -189,7 +189,8 @@ class FMKoreaScraper(BaseScraper):
                     await page.route(feed_url, intercept)
                     await page.goto(feed_url, wait_until="domcontentloaded", timeout=30000)
                     await asyncio.sleep(2)
-                except Exception:
+                except Exception as e:
+                    logger.debug("fmkorea intercept mode failed, falling back to direct nav: %s", e)
                     try:
                         await page.unroute(feed_url)
                     except Exception:
@@ -390,8 +391,8 @@ class FMKoreaScraper(BaseScraper):
             if content and len(content) >= 10:
                 logger.info("Content extracted via trafilatura fallback")
                 return content
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("fmkorea trafilatura fallback failed: %s", e)
 
         raise _FMKoreaScrapeFailure(
             "Insufficient text content (minimum 10 chars).",

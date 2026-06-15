@@ -272,7 +272,8 @@ class PpomppuScraper(BaseScraper):
                 await page.goto(feed_url, wait_until="domcontentloaded", timeout=30000)
                 await asyncio.sleep(2)
                 return
-            except Exception:
+            except Exception as e:
+                logger.debug("ppomppu intercept mode failed, falling back to direct nav: %s", e)
                 try:
                     await page.unroute(feed_url)
                 except Exception:
