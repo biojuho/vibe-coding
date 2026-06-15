@@ -923,6 +923,38 @@ class TestMeanRgb:
         assert len(result) == 3
         assert all(isinstance(v, float) for v in result)
 
+    def test_prefers_get_flattened_data_when_available(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        from PIL import Image
+
+        path = _write_png_color(tmp_path / "img.png", color=(128, 128, 128))
+
+        def fake_get_flattened_data(self):
+            return ((10, 20, 30), (10, 20, 30))
+
+        monkeypatch.setattr(Image.Image, "get_flattened_data", fake_get_flattened_data, raising=False)
+
+        result = QCStep._mean_rgb(path)
+
+        assert result == (10.0, 20.0, 30.0)
+
+    def test_falls_back_to_getdata_when_get_flattened_data_is_unavailable(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from PIL import Image
+
+        path = _write_png_color(tmp_path / "img.png", color=(90, 80, 70))
+        monkeypatch.setattr(Image.Image, "get_flattened_data", None, raising=False)
+
+        result = QCStep._mean_rgb(path)
+
+        assert result is not None
+        r, g, b = result
+        assert abs(r - 90) < 2
+        assert abs(g - 80) < 2
+        assert abs(b - 70) < 2
+
     def test_returns_none_for_missing_file(self) -> None:
         result = QCStep._mean_rgb("/nonexistent/path/image.png")
         assert result is None
@@ -940,6 +972,76 @@ class TestMeanRgb:
         white = QCStep._mean_rgb(white_path)
         assert black is not None and all(v < 1.0 for v in black)
         assert white is not None and all(v > 254.0 for v in white)
+
+
+# ── _check_visual_continuity 직접 단위 테스트 ────────────────────────────────
+
+
+class TestCheckVisualContinuity:
+    """QCStep._check_visual_continuity 정적 메서드 계약 직접 검증."""
+
+    def _img(self, sid: int, audio: str, visual: str) -> SceneAsset:
+        return SceneAsset(scene_id=sid, audio_path=audio, visual_type="image", visual_path=visual, duration_sec=5.0)
+
+    def _video(self, sid: int, audio: str, visual: str) -> SceneAsset:
+        return SceneAsset(scene_id=sid, audio_path=audio, visual_type="video", visual_path=visual, duration_sec=5.0)
+
+    def test_first_scene_prev_none_always_passes(self, tmp_path: Path) -> None:
+        curr = self._img(1, "a.wav", _write_png_color(tmp_path / "c.png", (100, 100, 100)))
+        ok, issue = QCStep._check_visual_continuity(curr, None)
+        assert ok is True
+        assert issue is None
+
+    def test_similar_colors_pass(self, tmp_path: Path) -> None:
+        # RGB 거리 ~10 — 임계값(130) 훨씬 아래
+        prev = self._img(1, "a.wav", _write_png_color(tmp_path / "p.png", (100, 100, 100)))
+        curr = self._img(2, "a.wav", _write_png_color(tmp_path / "c.png", (110, 100, 100)))
+        ok, issue = QCStep._check_visual_continuity(curr, prev)
+        assert ok is True
+        assert issue is None
+
+    def test_abrupt_color_change_fails(self, tmp_path: Path) -> None:
+        # 검정→흰색: 거리 sqrt(3*255^2) ≈ 441 > 130
+        prev = self._img(1, "a.wav", _write_png_color(tmp_path / "p.png", (0, 0, 0)))
+        curr = self._img(2, "a.wav", _write_png_color(tmp_path / "c.png", (255, 255, 255)))
+        ok, issue = QCStep._check_visual_continuity(curr, prev)
+        assert ok is False
+        assert issue is not None
+        assert "abrupt transition" in issue.lower()
+        assert "130" in issue  # threshold is mentioned
+
+    def test_video_prev_silently_passes(self, tmp_path: Path) -> None:
+        # prev가 video이면 비용 없이 통과
+        prev = self._video(1, "a.wav", str(tmp_path / "p.mp4"))
+        curr = self._img(2, "a.wav", _write_png_color(tmp_path / "c.png", (255, 0, 0)))
+        ok, issue = QCStep._check_visual_continuity(curr, prev)
+        assert ok is True
+        assert issue is None
+
+    def test_video_curr_silently_passes(self, tmp_path: Path) -> None:
+        prev = self._img(1, "a.wav", _write_png_color(tmp_path / "p.png", (0, 0, 0)))
+        curr = self._video(2, "a.wav", str(tmp_path / "c.mp4"))
+        ok, issue = QCStep._check_visual_continuity(curr, prev)
+        assert ok is True
+        assert issue is None
+
+    def test_corrupt_prev_image_passes_gracefully(self, tmp_path: Path) -> None:
+        bad = tmp_path / "bad.png"
+        bad.write_bytes(b"garbage" * 20)
+        prev = self._img(1, "a.wav", str(bad))
+        curr = self._img(2, "a.wav", _write_png_color(tmp_path / "c.png", (200, 0, 0)))
+        ok, issue = QCStep._check_visual_continuity(curr, prev)
+        # 디코드 실패 → 가짜 fail 방지, 자연 통과
+        assert ok is True
+        assert issue is None
+
+    def test_rgb_distance_exactly_at_threshold_passes(self, tmp_path: Path) -> None:
+        # 임계값(130.0)과 동일한 거리 → dist > threshold 가 아니라 통과
+        # (130, 0, 0) → (0, 0, 0): dist = 130
+        prev = self._img(1, "a.wav", _write_png_color(tmp_path / "p.png", (130, 0, 0)))
+        curr = self._img(2, "a.wav", _write_png_color(tmp_path / "c.png", (0, 0, 0)))
+        ok, issue = QCStep._check_visual_continuity(curr, prev)
+        assert ok is True  # 130 is NOT > 130
 
 
 # ── SemanticQCStep: LLM 기반 씬-씬 의미 QC (T-288 non-goal #3) ───────────────
