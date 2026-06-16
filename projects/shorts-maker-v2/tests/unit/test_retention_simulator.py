@@ -273,3 +273,31 @@ class TestGateAndConfig:
             "verdict",
             "source",
         }
+
+
+# ── RetentionSimulatorStep._coerce_int NaN/Inf 회귀 (RS-CI) ─────────────────
+
+
+class TestRetentionCoerceInt:
+    """_coerce_int NaN/Inf 안전성 (RS-CI 시리즈)."""
+
+    def test_nan_float_returns_default(self) -> None:
+        """RS-CI001: float('nan') → default."""
+        result = RetentionSimulatorStep._coerce_int(float("nan"), default=5)
+        assert result == 5
+
+    def test_inf_float_returns_default(self) -> None:
+        """RS-CI002: float('inf') → default."""
+        result = RetentionSimulatorStep._coerce_int(float("inf"), default=0)
+        assert result == 0
+
+    def test_string_inf_returns_default(self) -> None:
+        """RS-CI003: 'inf' 문자열 → OverflowError 없이 default."""
+        result = RetentionSimulatorStep._coerce_int("inf", default=0)
+        assert result == 0
+
+    def test_finite_float_converts(self) -> None:
+        assert RetentionSimulatorStep._coerce_int(3.9) == 3
+
+    def test_valid_string_int(self) -> None:
+        assert RetentionSimulatorStep._coerce_int("8") == 8

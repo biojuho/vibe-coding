@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import math
 import os
 import subprocess
 from typing import TYPE_CHECKING, Any
@@ -668,7 +669,20 @@ class QCStep:
             with Image.open(path) as img:
                 img.thumbnail((64, 64))
                 rgb = img.convert("RGB")
-                pixels = list(rgb.get_flattened_data())
+                get_pixels = getattr(rgb, "get_flattened_data", None)
+                if not callable(get_pixels):
+                    import warnings
+
+                    get_pixels = rgb.getdata
+                    with warnings.catch_warnings():
+                        warnings.filterwarnings(
+                            "ignore",
+                            message=r"Image\.Image\.getdata is deprecated.*",
+                            category=DeprecationWarning,
+                        )
+                        pixels = list(get_pixels())
+                else:
+                    pixels = list(get_pixels())
         except (UnidentifiedImageError, OSError, ValueError):
             return None
         if not pixels:
@@ -849,10 +863,11 @@ class SemanticQCStep:
         if isinstance(value, int):
             return value
         if isinstance(value, float):
-            return int(value)
+            return int(value) if math.isfinite(value) else default
         if isinstance(value, str):
-            with contextlib.suppress(ValueError):
-                return int(float(value))
+            with contextlib.suppress(ValueError, OverflowError):
+                v = float(value)
+                return int(v) if math.isfinite(v) else default
         return default
 
     @staticmethod

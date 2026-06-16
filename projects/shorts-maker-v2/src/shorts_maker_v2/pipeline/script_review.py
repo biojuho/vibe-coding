@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import logging
+import math
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -330,7 +331,15 @@ class ScriptReviewMixin:
     def _passes_review(self, review: dict[str, Any], min_score: int) -> bool:
         """채널별 필수 키 전체가 min_score 이상이면 통과."""
         _, required_keys, _ = self._build_review_system()
-        return all(int(float(review.get(k, 0))) >= min_score for k in required_keys)
+
+        def _safe_int(v: object) -> int:
+            try:
+                f = float(v)  # type: ignore[arg-type]
+                return int(f) if math.isfinite(f) else 0
+            except (TypeError, ValueError, OverflowError):
+                return 0
+
+        return all(_safe_int(review.get(k, 0)) >= min_score for k in required_keys)
 
     @classmethod
     def _validate_cta(

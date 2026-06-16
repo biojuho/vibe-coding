@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import math
 from dataclasses import dataclass
 from typing import Any
 
@@ -558,10 +559,11 @@ class RetentionSimulatorStep:
         if isinstance(value, int):
             return value
         if isinstance(value, float):
-            return int(value)
+            return int(value) if math.isfinite(value) else default
         if isinstance(value, str):
-            with contextlib.suppress(ValueError):
-                return int(float(value))
+            with contextlib.suppress(ValueError, OverflowError):
+                v = float(value)
+                return int(v) if math.isfinite(v) else default
         return default
 
     @staticmethod

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -447,7 +448,11 @@ class ScriptStep(ScriptPromptsMixin, ScriptReviewMixin):
 
                 # ── no_reliable_source 감지 (2차: 리뷰 단계) ────────────
                 # Only trigger verifiability guard when review actually produced scores.
-                verifiability = int(float(review.get("verifiability_score", 10)))
+                try:
+                    _vf = float(review.get("verifiability_score", 10))
+                    verifiability = int(_vf) if math.isfinite(_vf) else 10
+                except (TypeError, ValueError, OverflowError):
+                    verifiability = 10
                 if has_scores and verifiability < 4:
                     logger.warning(
                         "[TopicUnsuitable] verifiability_score=%d < 4 → 자료 부족 주제",
@@ -461,8 +466,16 @@ class ScriptStep(ScriptPromptsMixin, ScriptReviewMixin):
                 if has_scores and not self._passes_review(review, effective_min_score):
                     # 채널 특화 피드백을 추가해 1회 재생성 시도
                     feedback = review.get("feedback", "")
+
                     # 미달 점수 키 구체적 안내
-                    weak_keys = [k for k in required_keys if int(float(review.get(k, 0))) < effective_min_score]
+                    def _safe_score(v: object) -> int:
+                        try:
+                            f = float(v)  # type: ignore[arg-type]
+                            return int(f) if math.isfinite(f) else 0
+                        except (TypeError, ValueError, OverflowError):
+                            return 0
+
+                    weak_keys = [k for k in required_keys if _safe_score(review.get(k, 0)) < effective_min_score]
                     weak_hint = f"Weak dimensions: {', '.join(weak_keys)}." if weak_keys else ""
                     retry_prompt = (
                         self._build_user_prompt(

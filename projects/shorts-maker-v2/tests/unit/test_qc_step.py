@@ -1242,3 +1242,50 @@ class TestSemanticQCStep:
         assert result.scene_flow_score == 7
         assert result.tone_consistency_score == 8
         assert result.verdict == "pass"
+
+
+# ── SemanticQCStep._coerce_int NaN/Inf 회귀 테스트 (QCS-CI 시리즈) ──────────
+
+
+class TestCoerceInt:
+    """_coerce_int 가 NaN/Inf/문자열 엣지케이스를 안전하게 처리해야 함 (QCS-CI)."""
+
+    def test_finite_float_converts_normally(self) -> None:
+        assert SemanticQCStep._coerce_int(7.9) == 7
+
+    def test_nan_float_returns_default(self) -> None:
+        """QCS-CI001: float('nan') → default (OverflowError/ValueError 없음)."""
+        import math
+
+        result = SemanticQCStep._coerce_int(float("nan"), default=5)
+        assert result == 5
+        assert not math.isnan(result)
+
+    def test_inf_float_returns_default(self) -> None:
+        """QCS-CI002: float('inf') → default (OverflowError 없음)."""
+        result = SemanticQCStep._coerce_int(float("inf"), default=5)
+        assert result == 5
+
+    def test_neg_inf_float_returns_default(self) -> None:
+        """QCS-CI003: float('-inf') → default."""
+        result = SemanticQCStep._coerce_int(float("-inf"), default=3)
+        assert result == 3
+
+    def test_string_nan_returns_default(self) -> None:
+        """QCS-CI004: '나' 문자열처럼 float() 실패 → default."""
+        result = SemanticQCStep._coerce_int("nan", default=0)
+        assert result == 0
+
+    def test_string_inf_returns_default(self) -> None:
+        """QCS-CI005: 'inf' 문자열 → OverflowError 없이 default."""
+        result = SemanticQCStep._coerce_int("inf", default=0)
+        assert result == 0
+
+    def test_bool_returns_default(self) -> None:
+        assert SemanticQCStep._coerce_int(True, default=9) == 9
+
+    def test_valid_int_passthrough(self) -> None:
+        assert SemanticQCStep._coerce_int(42) == 42
+
+    def test_valid_string_int(self) -> None:
+        assert SemanticQCStep._coerce_int("7") == 7
