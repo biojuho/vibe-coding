@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import os
 from datetime import datetime
 from typing import Any
@@ -261,8 +262,9 @@ class NotionUploader(
             return None
 
         try:
-            return max(0, int(float(retry_after)))
-        except (TypeError, ValueError):
+            v = float(retry_after)
+            return max(0, int(v)) if math.isfinite(v) else None
+        except (TypeError, ValueError, OverflowError):
             return None
 
     async def _safe_notion_call(self, fn, *args, max_retries: int = 3, **kwargs):

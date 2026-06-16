@@ -154,3 +154,54 @@ def test_estimate_viral_boost_safe_when_args_are_long():
     # Must never raise, must always return a clamped float
     assert isinstance(result, float)
     assert 0.0 <= result <= 15.0
+
+
+# BTX-VB-NI: NaN/Inf LLM score must not propagate to maximum boost
+class TestViralBoostNanInf:
+    """BTX-VB-NI: NaN/Inf score from LLM must return 0.0, not 15.0."""
+
+    def _run_with_score(self, score_value, monkeypatch):
+        class FakeLLMClient:
+            def __init__(self, **kwargs): ...
+
+            def generate_json(self, **kwargs):
+                return {"score": score_value, "reason": "test"}
+
+        class FakeLoader(importlib.abc.Loader):
+            def create_module(self, spec):
+                return None
+
+            def exec_module(self, module):
+                module.LLMClient = FakeLLMClient
+
+        monkeypatch.setattr(
+            importlib.util,
+            "spec_from_file_location",
+            lambda name, location: importlib.machinery.ModuleSpec(name, FakeLoader()),
+        )
+        return boosting.estimate_viral_boost_llm("제목", "본문", "기타", "공감")
+
+    def test_nan_float_score_returns_zero(self, monkeypatch):
+        """BTX-VB-NI001: score=nan must return 0.0, not 15.0."""
+        result = self._run_with_score(float("nan"), monkeypatch)
+        assert result == 0.0
+
+    def test_inf_float_score_returns_zero(self, monkeypatch):
+        """BTX-VB-NI002: score=inf must return 0.0, not 15.0."""
+        result = self._run_with_score(float("inf"), monkeypatch)
+        assert result == 0.0
+
+    def test_neg_inf_score_returns_zero(self, monkeypatch):
+        """BTX-VB-NI003: score=-inf must return 0.0."""
+        result = self._run_with_score(float("-inf"), monkeypatch)
+        assert result == 0.0
+
+    def test_string_nan_score_returns_zero(self, monkeypatch):
+        """BTX-VB-NI004: score='nan' (LLM string) must return 0.0."""
+        result = self._run_with_score("nan", monkeypatch)
+        assert result == 0.0
+
+    def test_normal_score_unaffected(self, monkeypatch):
+        """Guard check doesn't break normal scores."""
+        result = self._run_with_score(80, monkeypatch)
+        assert result == 12.0

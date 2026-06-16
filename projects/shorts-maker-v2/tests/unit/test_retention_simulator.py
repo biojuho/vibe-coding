@@ -301,3 +301,46 @@ class TestRetentionCoerceInt:
 
     def test_valid_string_int(self) -> None:
         assert RetentionSimulatorStep._coerce_int("8") == 8
+
+
+# ── RetentionSimulatorStep._coerce_float NaN/Inf 회귀 (RS-CF) ────────────────
+
+
+class TestRetentionCoerceFloat:
+    """_coerce_float NaN/Inf 안전성 (RS-CF 시리즈)."""
+
+    def test_nan_float_returns_default(self) -> None:
+        """RS-CF001: float('nan') → default, not NaN."""
+        import math
+
+        result = RetentionSimulatorStep._coerce_float(float("nan"), default=0.5)
+        assert not math.isnan(result)
+        assert result == 0.5
+
+    def test_inf_float_returns_default(self) -> None:
+        """RS-CF002: float('inf') → default."""
+        result = RetentionSimulatorStep._coerce_float(float("inf"), default=0.55)
+        assert result == 0.55
+
+    def test_neg_inf_float_returns_default(self) -> None:
+        """RS-CF003: float('-inf') → default."""
+        result = RetentionSimulatorStep._coerce_float(float("-inf"), default=0.3)
+        assert result == 0.3
+
+    def test_string_nan_returns_default(self) -> None:
+        """RS-CF004: 'nan' string → default."""
+        result = RetentionSimulatorStep._coerce_float("nan", default=0.6)
+        assert result == 0.6
+
+    def test_string_inf_returns_default(self) -> None:
+        """RS-CF005: 'inf' string → OverflowError 없이 default."""
+        result = RetentionSimulatorStep._coerce_float("inf", default=0.0)
+        assert result == 0.0
+
+    def test_percent_string_converts(self) -> None:
+        result = RetentionSimulatorStep._coerce_float("68%")
+        assert abs(result - 0.68) < 1e-9
+
+    def test_finite_float_passthrough(self) -> None:
+        result = RetentionSimulatorStep._coerce_float(0.72)
+        assert result == 0.72

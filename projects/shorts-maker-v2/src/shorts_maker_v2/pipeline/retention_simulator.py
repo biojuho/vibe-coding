@@ -572,12 +572,14 @@ class RetentionSimulatorStep:
         if isinstance(value, bool):
             return default
         if isinstance(value, (int, float)):
-            return float(value)
+            f = float(value)
+            return f if math.isfinite(f) else default
         if isinstance(value, str):
             s = value.strip()
             is_percent = s.endswith("%")
             s = s.rstrip("%").strip()
-            with contextlib.suppress(ValueError):
+            with contextlib.suppress(ValueError, OverflowError):
                 num = float(s)
-                return num / 100.0 if is_percent else num
+                if math.isfinite(num):
+                    return num / 100.0 if is_percent else num
         return default

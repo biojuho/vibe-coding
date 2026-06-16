@@ -323,20 +323,21 @@ def _generate_pillow_thumbnail(
 
     draw = ImageDraw.Draw(img)
 
-    # 2. 상/하단 그라디언트 비네트 오버레이 (numpy 벡터화)
-    import numpy as np
-
-    quarter = H // 4
-    alpha_arr = np.zeros(H, dtype=np.uint8)
-    # 상단 비네트: 180→0
-    alpha_arr[:quarter] = (180 * (1 - np.arange(quarter) / quarter)).astype(np.uint8)
-    # 하단 비네트: 0→200
-    bottom_len = H - H * 3 // 4
-    alpha_arr[H * 3 // 4 :] = (200 * np.arange(bottom_len) / max(quarter, 1)).astype(np.uint8)[:bottom_len]
-    # RGBA 비네트 배열 생성
-    vig_rgba = np.zeros((H, W, 4), dtype=np.uint8)
-    vig_rgba[:, :, 3] = alpha_arr[:, np.newaxis]
-    vignette = Image.fromarray(vig_rgba)
+    # 2. 상/하단 그라디언트 비네트 오버레이
+    quarter = max(H // 4, 1)
+    alpha_values: list[int] = []
+    for y in range(H):
+        if y < quarter:
+            alpha_values.append(int(180 * (1 - y / quarter)))
+        elif y >= H * 3 // 4:
+            alpha_values.append(int(200 * ((y - H * 3 // 4) / quarter)))
+        else:
+            alpha_values.append(0)
+    alpha = Image.new("L", (1, H))
+    alpha.putdata(alpha_values)
+    alpha = alpha.resize((W, H))
+    vignette = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    vignette.putalpha(alpha)
     img = Image.alpha_composite(img.convert("RGBA"), vignette).convert("RGB")
     draw = ImageDraw.Draw(img)
 
@@ -373,16 +374,19 @@ def _generate_pillow_thumbnail(
 
 
 def _pillow_gradient_bg(w: int, h: int):
-    """다크 그라데이션 배경 생성 (numpy 벡터화)."""
-    import numpy as np
+    """다크 그라데이션 배경 생성."""
     from PIL import Image
 
-    TOP_COLOR = np.array([13, 13, 30], dtype=np.float32)  # noqa: N806
-    BOT_COLOR = np.array([20, 8, 58], dtype=np.float32)  # noqa: N806
-    t = np.linspace(0, 1, h, dtype=np.float32).reshape(h, 1, 1)
-    gradient = (TOP_COLOR * (1 - t) + BOT_COLOR * t).astype(np.uint8)
-    gradient = np.broadcast_to(gradient, (h, w, 3)).copy()
-    return Image.fromarray(gradient)
+    top_color = (13, 13, 30)
+    bottom_color = (20, 8, 58)
+    height = max(h, 1)
+    pixels = []
+    for y in range(height):
+        t = y / max(height - 1, 1)
+        pixels.append(tuple(int(top_color[i] * (1 - t) + bottom_color[i] * t) for i in range(3)))
+    gradient = Image.new("RGB", (1, height))
+    gradient.putdata(pixels)
+    return gradient.resize((w, h))
 
 
 def _temp_artifact_path(output_path: Path, label: str, suffix: str) -> Path:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import math
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +60,8 @@ def estimate_viral_boost_llm(title: str, content: str, topic_cluster: str, emoti
             logger.debug("LLM 바이럴 부스트: generate_json returned None")
             return 0.0
         raw = float(result.get("score", 0))
+        if not math.isfinite(raw):
+            return 0.0
         # 0~100 점수를 0~15 부스트로 변환 (최대 15점 가산)
         boost = round(max(0.0, min(15.0, raw * 0.15)), 2)
         logger.info("LLM 바이럴 부스트: %.1f/100 → +%.2f pts | %s", raw, boost, result.get("reason", ""))

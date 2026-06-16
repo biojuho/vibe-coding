@@ -1703,3 +1703,38 @@ class TestBuildScalarPropertyPayloadNumberType:
 
     def test_none_returns_none(self):
         assert self._call(None) is None
+
+
+# BTX-RA001 — _extract_retry_after_seconds NaN/Inf guard
+class TestExtractRetryAfterSeconds:
+    """_extract_retry_after_seconds must not raise OverflowError on 'inf'/'nan'."""
+
+    def _call(self, retry_after_value):
+        from unittest.mock import MagicMock
+
+        exc = MagicMock()
+        exc.response.headers = {"Retry-After": retry_after_value}
+        exc.headers = None
+        from pipeline.notion_upload import NotionUploader
+
+        return NotionUploader._extract_retry_after_seconds(exc)
+
+    def test_numeric_string_returns_int(self):
+        assert self._call("30") == 30
+
+    def test_float_string_truncates(self):
+        assert self._call("1.9") == 1
+
+    def test_inf_string_returns_none(self):
+        """BTX-RA001: 'inf' Retry-After must not raise OverflowError."""
+        assert self._call("inf") is None
+
+    def test_nan_string_returns_none(self):
+        """BTX-RA002: 'nan' Retry-After must return None, not 0."""
+        assert self._call("nan") is None
+
+    def test_negative_zero(self):
+        assert self._call("-0") == 0
+
+    def test_negative_seconds_clamped_to_zero(self):
+        assert self._call("-5") == 0
