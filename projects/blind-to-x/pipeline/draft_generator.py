@@ -539,8 +539,9 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
         providers: list[str],
         output_formats: list[str],
         allow_partial: bool,
-    ) -> list[tuple[dict[str, Any], str | None]]:
-        candidates = []
+    ) -> tuple[list[tuple[dict[str, Any], str | None]], list[dict[str, Any]]]:
+        candidates: list[tuple[dict[str, Any], str | None]] = []
+        all_failures: list[dict[str, Any]] = []
         for i in range(best_of_n):
             try:
                 drafts_dict, image_prompt = await self._generate_drafts_once(
@@ -549,7 +550,9 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
                 candidates.append((drafts_dict, image_prompt))
             except Exception as exc:
                 logger.warning("[Best-of-N] Candidate %d generation failed: %s", i + 1, exc)
-        return candidates
+                if hasattr(exc, "failures"):  # ProviderFallbackError
+                    all_failures.extend(exc.failures)
+        return candidates, all_failures
 
     async def _select_best_of_n_candidate(
         self,
@@ -687,7 +690,7 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
 
         # Best-of-N 루프 실행
         logger.info("[Best-of-N] Generating %d candidates for comparison...", best_of_n)
-        candidates = await self._generate_best_of_n_candidates(
+        candidates, bon_failures = await self._generate_best_of_n_candidates(
             best_of_n=best_of_n,
             prompt=prompt,
             providers=providers,
@@ -697,7 +700,11 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
 
         if not candidates:
             logger.error("[Best-of-N] All candidate generations failed.")
-            return self._generation_failure("All candidates failed to generate.")
+            return self._generation_failure(
+                "All candidates failed to generate.",
+                provider_failures=bon_failures or None,
+                provider_failure_summary=summarize_provider_failures(bon_failures) if bon_failures else None,
+            )
 
         if len(candidates) == 1:
             drafts_dict, image_prompt = candidates[0]

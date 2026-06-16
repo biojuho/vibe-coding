@@ -400,3 +400,68 @@ def test_combined_score_handles_missing_avg_attribute_gracefully():
     # avg=0.0, ct_avg=9.0, weight=0.5 → 4.5
     assert combined == 4.5
     assert breakdown["avg_score"] == 0.0
+
+
+# ── BON-PFE: ProviderFallbackError diagnostics preserved in Best-of-N ────────
+
+
+def test_generate_best_of_n_candidates_collects_provider_failures(monkeypatch):
+    """BON-PFE001: 각 후보 생성 실패 시 ProviderFallbackError.failures 가 누적돼야 한다."""
+    from pipeline.draft_generator import ProviderFallbackError
+
+    gen = _build_generator()
+
+    failures_a = [{"provider": "anthropic", "error_preview": "timeout"}]
+    failures_b = [{"provider": "openai", "error_preview": "rate_limit"}]
+
+    call_count = [0]
+
+    async def _always_fail(_prompt, _providers, _output_formats, _allow_partial):
+        call_count[0] += 1
+        exc = ProviderFallbackError("all providers failed", failures_a if call_count[0] == 1 else failures_b)
+        raise exc
+
+    monkeypatch.setattr(gen, "_generate_drafts_once", _always_fail)
+
+    candidates, all_failures = asyncio.run(
+        gen._generate_best_of_n_candidates(
+            best_of_n=2,
+            prompt="테스트 프롬프트",
+            providers=["anthropic", "openai"],
+            output_formats=["twitter"],
+            allow_partial=False,
+        )
+    )
+
+    assert candidates == []
+    assert len(all_failures) == 2
+    providers_in_failures = {f["provider"] for f in all_failures}
+    assert "anthropic" in providers_in_failures
+    assert "openai" in providers_in_failures
+
+
+def test_generate_drafts_all_bon_fail_surfaces_provider_failures(monkeypatch):
+    """BON-PFE002: Best-of-N 전체 실패 시 _provider_failures 가 결과 dict 에 포함돼야 한다."""
+    from pipeline.draft_generator import ProviderFallbackError
+
+    gen = _build_generator({"llm.best_of_n": 2})
+    gen.draft_cache = MagicMock(spec=DraftCache)
+    gen.draft_cache.get.return_value = None
+
+    failures = [{"provider": "anthropic", "error_preview": "overloaded"}]
+
+    async def _always_fail(_prompt, _providers, _output_formats, _allow_partial):
+        raise ProviderFallbackError("providers exhausted", failures)
+
+    monkeypatch.setattr(gen, "_generate_drafts_once", _always_fail)
+    # Override provider availability so the early-exit "no providers" guard is bypassed
+    monkeypatch.setattr(gen, "_available_providers_after_recent_failures", lambda: ["anthropic"])
+
+    result_dict, image_prompt = asyncio.run(
+        gen.generate_drafts({"title": "제목", "content": "본문"}, output_formats=["twitter"])
+    )
+
+    assert result_dict.get("_generation_failed") is True
+    assert "_provider_failures" in result_dict, "Provider failures must be surfaced for Notion triage"
+    assert result_dict["_provider_failures"][0]["provider"] == "anthropic"
+    assert image_prompt is None

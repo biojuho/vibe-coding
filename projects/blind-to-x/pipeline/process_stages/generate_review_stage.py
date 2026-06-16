@@ -521,6 +521,10 @@ async def run_generate_review_stage(
         review_only,
     )
 
+    generation_result = _handle_generation_failure(ctx, drafts, image_prompt, review_only)
+    if generation_result is not None:
+        return generation_result
+
     if isinstance(drafts, dict):
         drafts = await _run_post_generation_components(ctx, drafts, draft_generator, config, components_loaded)
         repaired_drafts, repair_quality_gate = _run_publish_repair_loop(ctx, drafts, config)
