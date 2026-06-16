@@ -395,6 +395,86 @@ class TestGetTimeContext:
         assert result["tone_hint"]
 
 
+# ── get_season_boost / get_source_hint 직접 단위 테스트 ─────────────────────
+
+
+class TestGetSeasonBoost:
+    """get_season_boost: YAML 조회 + 클램핑 + 미존재 폴백."""
+
+    def setup_method(self):
+        from pipeline.content_intelligence.rules import get_season_boost
+
+        self._fn = get_season_boost
+
+    def test_unknown_topic_returns_zero(self):
+        # A topic that doesn't exist in any month's season_weights → 0.0
+        assert self._fn("비존재_주제_xyz", month=6) == 0.0
+
+    def test_returns_float(self):
+        result = self._fn("이직", month=6)
+        assert isinstance(result, float)
+
+    def test_result_in_valid_range(self):
+        # All results must be in [0.0, 15.0]
+        result = self._fn("이직", month=6)
+        assert 0.0 <= result <= 15.0
+
+    def test_extreme_boost_clamped_to_15(self, monkeypatch):
+        monkeypatch.setattr(
+            "pipeline.content_intelligence.rules._load_rules",
+            lambda: {"season_weights": {6: {"이직": 999}}},
+        )
+        from pipeline.content_intelligence import rules as _rules
+
+        _rules._loaded_rules = None  # force reload
+        try:
+            result = self._fn("이직", month=6)
+            assert result == 15.0
+        finally:
+            _rules._loaded_rules = None
+
+    def test_negative_boost_clamped_to_zero(self, monkeypatch):
+        monkeypatch.setattr(
+            "pipeline.content_intelligence.rules._load_rules",
+            lambda: {"season_weights": {6: {"이직": -5}}},
+        )
+        from pipeline.content_intelligence import rules as _rules
+
+        _rules._loaded_rules = None
+        try:
+            result = self._fn("이직", month=6)
+            assert result == 0.0
+        finally:
+            _rules._loaded_rules = None
+
+
+class TestGetSourceHint:
+    """get_source_hint: 알려진 소스 조회 + 미등록 소스 기본값."""
+
+    def setup_method(self):
+        from pipeline.content_intelligence.rules import get_source_hint
+
+        self._fn = get_source_hint
+
+    def test_unknown_source_returns_default_quality_boost_1(self):
+        result = self._fn("unknown_source_xyz")
+        assert result["quality_boost"] == 1.0
+
+    def test_unknown_source_returns_dict_with_required_keys(self):
+        result = self._fn("xyz")
+        assert "quality_boost" in result
+        assert "display_name" in result
+
+    def test_known_source_blind_has_positive_quality_boost(self):
+        result = self._fn("blind")
+        # "blind" is a primary source — should have quality_boost >= 1.0
+        assert float(result.get("quality_boost", 1.0)) >= 1.0
+
+    def test_empty_string_returns_default(self):
+        result = self._fn("")
+        assert result["quality_boost"] == 1.0
+
+
 # ── T-QC: scoring_6d 신규 감정축 + 데드 topic label 회귀 테스트 ─────────────
 
 
