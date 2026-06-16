@@ -717,6 +717,101 @@ class TestNormalizeCalibrationWeights:
 # ── utils 순수 함수 단위 테스트 ─────────────────────────────────────────────
 
 
+class TestCalculatePerformanceScore:
+    """calculate_performance_score: 역사적 예시 가중치 기반 성과 점수."""
+
+    def setup_method(self):
+        from pipeline.content_intelligence.scoring_performance import calculate_performance_score
+
+        self._fn = calculate_performance_score
+
+    def test_no_historical_examples_returns_45(self):
+        score, rationale = self._fn("연봉", "논쟁형", "분노", "논쟁형", None)
+        assert score == 45.0
+        assert rationale == ["no_historical_examples"]
+
+    def test_empty_examples_returns_45(self):
+        score, rationale = self._fn("연봉", "논쟁형", "분노", "논쟁형", [])
+        assert score == 45.0
+        assert rationale == ["no_historical_examples"]
+
+    def test_single_example_no_match_returns_35(self):
+        example = {
+            "topic_cluster": "기타",
+            "hook_type": "공감형",
+            "emotion_axis": "공감",
+            "draft_style": "공감형",
+            "views": 0,
+        }
+        score, rationale = self._fn("연봉", "논쟁형", "분노", "논쟁형", [example])
+        assert score == 35.0
+        assert rationale == ["weak_match"]
+
+    def test_topic_match_increases_score(self):
+        example = {
+            "topic_cluster": "연봉",
+            "hook_type": "정보형",
+            "emotion_axis": "통찰",
+            "draft_style": "정보전달형",
+            "views": 0,
+        }
+        score, _ = self._fn("연봉", "논쟁형", "분노", "논쟁형", [example])
+        assert score > 35.0
+
+    def test_all_four_matches_gives_high_score(self):
+        example = {
+            "topic_cluster": "이직",
+            "hook_type": "논쟁형",
+            "emotion_axis": "분노",
+            "draft_style": "논쟁형",
+            "views": 0,
+        }
+        score, rationale = self._fn("이직", "논쟁형", "분노", "논쟁형", [example])
+        assert score > 70.0
+        assert set(rationale) == {"topic_match", "hook_match", "emotion_match", "draft_style_match"}
+
+    def test_high_views_same_normalized_score_as_low_views_with_same_matches(self):
+        # Bug fix: previously the base score 35.0 was divided by total_weight,
+        # so high-views examples diluted the base and gave LOWER scores.
+        # After fix: base 35.0 is constant; only the match bonus is weight-normalized.
+        # Result: same match structure → same normalized score regardless of views.
+        low_views = {
+            "topic_cluster": "이직",
+            "hook_type": "논쟁형",
+            "emotion_axis": "분노",
+            "draft_style": "논쟁형",
+            "views": 0,
+        }
+        high_views = {
+            "topic_cluster": "이직",
+            "hook_type": "논쟁형",
+            "emotion_axis": "분노",
+            "draft_style": "논쟁형",
+            "views": 10000,
+        }
+        score_low, _ = self._fn("이직", "논쟁형", "분노", "논쟁형", [low_views])
+        score_high, _ = self._fn("이직", "논쟁형", "분노", "논쟁형", [high_views])
+        assert abs(score_low - score_high) < 0.01
+
+    def test_non_matching_examples_do_not_dilute_base_score(self):
+        # Bug fix: previously more non-matching examples diluted the 35.0 base
+        # (35/3 < 35/1). After fix, base is constant — non-matching examples
+        # don't change the score because match_bonus stays 0.
+        one_example = [
+            {
+                "topic_cluster": "기타",
+                "hook_type": "공감형",
+                "emotion_axis": "공감",
+                "draft_style": "공감형",
+                "views": 0,
+            }
+        ]
+        three_examples = one_example * 3
+        score1, _ = self._fn("연봉", "논쟁형", "분노", "논쟁형", one_example)
+        score3, _ = self._fn("연봉", "논쟁형", "분노", "논쟁형", three_examples)
+        assert score1 == score3 == 35.0
+
+
 class TestKoreanRatio:
     """_korean_ratio: 한국어 비율 계산."""
 

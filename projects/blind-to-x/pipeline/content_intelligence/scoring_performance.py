@@ -22,7 +22,7 @@ def calculate_performance_score(
         return 45.0, ["no_historical_examples"]
 
     total_weight = 0.0
-    score = 35.0
+    match_bonus = 0.0  # weighted match increments, normalized separately from base
     rationale: list[str] = []
 
     for example in historical_examples:
@@ -30,20 +30,22 @@ def calculate_performance_score(
         total_weight += weight
 
         if example.get("topic_cluster") == topic_cluster:
-            score += 18 * weight
+            match_bonus += 18 * weight
             rationale.append("topic_match")
         if example.get("hook_type") == hook_type:
-            score += 15 * weight
+            match_bonus += 15 * weight
             rationale.append("hook_match")
         if example.get("emotion_axis") == emotion_axis:
-            score += 12 * weight
+            match_bonus += 12 * weight
             rationale.append("emotion_match")
         if example.get("draft_style") == recommended_draft_type:
-            score += 10 * weight
+            match_bonus += 10 * weight
             rationale.append("draft_style_match")
 
     if total_weight <= 0:
         return 50.0, ["no_weighted_examples"]
 
-    normalized = score / total_weight
+    # Base score 35.0 is a constant prior independent of example count/weight.
+    # Only the match bonus is weight-normalized so high-viewed examples count more.
+    normalized = 35.0 + match_bonus / total_weight
     return _round_score(normalized), sorted(set(rationale)) or ["weak_match"]
