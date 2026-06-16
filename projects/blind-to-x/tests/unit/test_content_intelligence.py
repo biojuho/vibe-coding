@@ -507,3 +507,95 @@ class TestSocialSignalScoreFloor:
 
     def test_score_never_exceeds_100(self):
         assert self._fn(10_000, 5_000) == 100.0
+
+
+# ── classify_hook_type 직접 단위 테스트 ─────────────────────────────────────
+
+
+class TestClassifyHookType:
+    """classify_hook_type: 키워드 기반 훅 타입 분류 — 우선순위 순서 검증."""
+
+    def setup_method(self):
+        from pipeline.content_intelligence.classifiers import classify_hook_type
+
+        self._fn = classify_hook_type
+
+    def test_분석형_keyword_트렌드(self):
+        assert self._fn("AI 트렌드 분석", "", "공감") == "분석형"
+
+    def test_통찰형_keyword_인사이트(self):
+        assert self._fn("인사이트가 있는 글", "", "공감") == "통찰형"
+
+    def test_논쟁형_keyword_논란(self):
+        assert self._fn("논란이 된 발언", "", "공감") == "논쟁형"
+
+    def test_정보형_keyword_팁(self):
+        assert self._fn("이직 팁 모음", "", "공감") == "정보형"
+
+    def test_짤형_keyword_웃김(self):
+        assert self._fn("웃김 ㅋㅋ 레전드", "", "공감") == "짤형"
+
+    def test_한줄팩폭형_keyword_실화냐(self):
+        # "실화냐" is only in 한줄팩폭형_kw, not 짤형_kw.
+        # NOTE: Avoid "?" in text — it's also in 논쟁형_kw and has higher priority.
+        assert self._fn("실화냐 ㄹㅇ", "", "공감") == "한줄팩폭형"
+
+    def test_한줄팩폭형_via_emotion_axis_분노_short_content(self):
+        # 감정=분노 + 짧은 본문 → 키워드 없어도 한줄팩폭형
+        short_content = "직장에서 이런 일이 있었어요."
+        assert self._fn("제목", short_content, "분노") == "한줄팩폭형"
+
+    def test_default_no_match_returns_공감형(self):
+        assert self._fn("평범한 직장 이야기입니다", "오늘 점심을 먹었습니다", "공감") == "공감형"
+
+    def test_분석형_takes_priority_over_통찰형(self):
+        # "분석"과 "인사이트" 둘 다 포함 → 분석형 우선
+        assert self._fn("커뮤니티 인사이트 종합", "데이터 분석", "공감") == "분석형"
+
+    def test_통찰형_takes_priority_over_논쟁형(self):
+        # "교훈"(통찰형)과 "왜"(논쟁형) 둘 다 → 통찰형 우선
+        assert self._fn("이 상황에서 배운 교훈", "왜 그랬을까", "공감") == "통찰형"
+
+
+# ── recommend_draft_type 직접 단위 테스트 ────────────────────────────────────
+
+
+class TestRecommendDraftType:
+    """recommend_draft_type: hook_type × emotion_axis 매핑 + 감정축 우선순위."""
+
+    def setup_method(self):
+        from pipeline.content_intelligence.classifiers import recommend_draft_type
+
+        self._fn = recommend_draft_type
+
+    def test_분석형_hook_returns_분석형(self):
+        assert self._fn("분석형", "공감") == "분석형"
+
+    def test_AI_전환_emotion_overrides_논쟁형_hook(self):
+        # T-AB048: 논쟁형 hook이더라도 AI_전환 감정이면 분석형으로
+        assert self._fn("논쟁형", "AI_전환") == "분석형"
+
+    def test_고용불안_emotion_returns_공감형(self):
+        assert self._fn("논쟁형", "고용불안") == "공감형"
+
+    def test_정보형_hook_returns_정보전달형(self):
+        assert self._fn("정보형", "공감") == "정보전달형"
+
+    def test_논쟁형_hook_returns_논쟁형(self):
+        assert self._fn("논쟁형", "현타") == "논쟁형"
+
+    def test_분노_emotion_triggers_논쟁형_even_with_non_논쟁형_hook(self):
+        assert self._fn("통찰형", "분노") == "논쟁형"
+
+    def test_경악_emotion_triggers_논쟁형(self):
+        assert self._fn("공감형", "경악") == "논쟁형"
+
+    def test_한줄팩폭형_with_공감_emotion_returns_공감형(self):
+        assert self._fn("한줄팩폭형", "공감") == "공감형"
+
+    def test_한줄팩폭형_with_비공감_emotion_returns_논쟁형(self):
+        # 경악은 {"공감", "허탈", "현타"} 밖 → 논쟁형
+        assert self._fn("한줄팩폭형", "경악") == "논쟁형"
+
+    def test_default_공감형_hook_and_emotion_returns_공감형(self):
+        assert self._fn("공감형", "통찰") == "공감형"
