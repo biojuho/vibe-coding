@@ -6,10 +6,17 @@
 
 | Field | Value |
 |---|---|
+| Date | 2026-06-17 |
+| Tool | Claude Code |
+| Work | **자율 품질 루프 4차 — HIGH/MED 버그 8건 수정 (commit d365e94c)**. shorts-maker-v2: `media_step._process_one_scene` audio/image 실패 시 `raise` → `(None, failures)` 반환 (구조적 실패정보 보존); `run()` None asset 감지 후 raise; `run_parallel` None asset 처리. `script_step` `channel_duration_override=0` 거짓 판단 수정 (`is not None`). `render_effects._pan_horizontal` x1 우측 경계 overflow 클램프. `orchestrator` Gate3 미디어 QC 실패 → `manifest.degraded_steps` 추가. `audio_mixin` pending warnings에 `scene_id` 키 추가. `fallback_mixin` `scene_id` str→int. blind-to-x: `persist_stage` `update_page_properties()` 반환값 캡처 + errors[] 갱신. `notion/_cache` url_prop 접근 try 블록 내부로 이동 (KeyError→None). `notion/_query` `_db_properties[prop_name]` → `.get()` 기본값 "select". 회귀 테스트 6개(MS-ANA001/002/003, SS-CDO001, NQM-PBS001, NC-IDC001). shorts-maker-v2 1982 green, blind-to-x 3083 passed. |
+| Next Priorities | (1) 백그라운드 스캔 에이전트 (a18df4b3a6d0f437c) 완료 대기 — 다음 버그 배치 확인. (2) render_step, subtitle_step, bgm_step, providers/ 영역 품질 개선 계속. |
+
+| Field | Value |
+|---|---|
 | Date | 2026-06-16 |
 | Tool | Claude Code |
 | Work | **자율 품질 루프 3차 — 구조적·프로덕션 버그 9건 수정 (2 commits, fb717608, 912f9975)**. shorts-maker-v2: planning `blocking=True→False` (주석과 일치), ResearchStep에 항상 실제 `llm_router` 전달, QC Gate4 `ffprobe` 미설치 시 false-positive HOLD 방지, fallback `closing` 씬 `scene_id` 중복(scene_count≤2), thumbnail 임시 파일 누수 수정 + QC4-FP001/002 + SS-SID001~003. blind-to-x: tweet URL 하드코딩 `/user/`→`/i/status/`, quality_gate `None` 진입 방어, dedup `strict=True` ValueError→`0.0`, editorial `avg_score` CT axes 이중계산, process.py `ERROR_FILTERED_EDITORIAL` upload 분모 왜곡 수정 + DEDUP-DIM001/002 + QG-ND001 + PROC-EF001/002 + TP-URL001. shorts-maker-v2 1936+ green, blind-to-x 3078 passed. |
-| Next Priorities | (1) 자율 품질 루프 계속 — 미수정 medium 버그: editorial `review_and_polish` CT 이중계산 test gap, draft_generator Best-of-N ProviderFallbackError 진단 정보 손실, generate_review_stage retry 실패 dict가 성공으로 흐르는 문제. (2) 다음 스캔 영역: tts_step, subtitle_step, bgm_step, notion_upload. |
+| Next Priorities | (계속 진행 중) |
 
 | Date | 2026-06-14 (2차) |
 | Tool | Claude Code |
@@ -181,13 +188,6 @@
 | Tool | Codex |
 | Work | **T-2702 GitHub recommendation authorization guardrail**. Continued the auto-research loop under the dirty-handoff boundary after T-2701. Found that the launch checklist `GitHub recommendations` line still surfaced generic inventory guidance, `stage and commit only files owned by the current experiment`, without the current session's explicit authorization precondition. Patched `refresh_current_evidence.py` so the rendered GitHub recommendation says `after explicit scoped authorization, stage and commit...` while preserving dirty-group rewriting. Added focused regression coverage, including a no-duplication case for recommendations that already include the authorization wording. |
 | Next Priorities | Verification passed focused refresh-current-evidence pytest (`138 passed` with `-o addopts=`), Ruff, `py_compile`, full `refresh_current_evidence.py --root . --timeout 360 --json` (`all steps ok`; debug inventory exit `1` expected), scoped authorization menu check (`rendered_matches=true`, `exact_rendered_matches=true`, `coverage_stale=false`), path-limited diff-check with CRLF warnings only, and A/B `adopt_candidate` (`score_delta=0.42857142857142855`, `.tmp/ab-decision-t2702-github-recommendation-authorization-guardrail.json`). Current checklist now shows `GitHub recommendations: Worktree is dirty; after explicit scoped authorization, stage and commit only files owned by the current experiment...`. Completion remains incomplete and selector remains `blocked / dirty_worktree_handoff_current`; no stage, commit, push, revert, product source edit, live Prisma/T-251 retry, cleanup apply, or `update_goal` was performed. |
-
-| Field | Value |
-|---|---|
-| Date | 2026-06-15 |
-| Tool | Codex |
-| Work | **T-2701 code review risk source summary**. Continued the auto-research loop under the dirty-handoff boundary after T-2700. Found that the launch checklist first-screen `Code review gate` representative line used launch-audit summary risk (`0.4`), while `Code review gate reasons` used the detail artifact reason (`risk_score 0.60`), creating an apparent contradiction. Patched `refresh_current_evidence.py` so `Code review gate count sources` also reports `risk score launch/detail` when the two sources differ. Updated focused regression coverage in `workspace/tests/test_auto_research_refresh_current_evidence.py`. |
-| Next Priorities | Verification passed focused refresh-current-evidence pytest (`137 passed` with `-o addopts=`), Ruff, `py_compile`, full `refresh_current_evidence.py --root . --timeout 360 --json` (`all steps ok`; debug inventory exit `1` expected), scoped authorization menu check (`rendered_matches=true`, `exact_rendered_matches=true`, `coverage_stale=false`), path-limited diff-check with CRLF warnings only, and A/B `adopt_candidate` (`score_delta=0.5714285714285714`, `.tmp/ab-decision-t2701-code-review-risk-source-summary.json`). Current checklist now shows `Code review gate count sources: ... risk score launch/detail 0.4/0.6`, explaining the launch summary vs detail reason risk values. Completion remains incomplete and selector remains `blocked / dirty_worktree_handoff_current`; no stage, commit, push, revert, product source edit, live Prisma/T-251 retry, cleanup apply, or `update_goal` was performed. |
 
 > T-1570 relay note: `f3f376a6` is the verified code baseline before this documentation relay. After this relay is committed, use live `python execution/session_orient.py --json` for the exact current HEAD/ahead count; the remaining boundaries should still be publish/current-head Actions plus user-owned Hanwoo T-251.
 
