@@ -256,6 +256,11 @@ class StructureStep:
                 )
             )
 
+        if not scenes:
+            raise ValueError(
+                f"No valid scene dicts in outline response; "
+                f"raw_scenes contained {len(raw_scenes)} items but none were dicts"
+            )
         total_sec = sum(s.target_sec for s in scenes)
         narrative_arc = str(data.get("narrative_arc", "quiet_storytelling")).strip()
 

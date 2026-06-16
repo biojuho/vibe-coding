@@ -102,6 +102,8 @@ class RenderAudioMixin:
                     user_prompt=_user,
                     temperature=0.0,
                 )
+                if not isinstance(result, dict):
+                    raise TypeError(f"generate_json returned {type(result).__name__}, expected dict")
                 mood = str(result.get("mood", "")).strip().lower()
                 if mood in ("dramatic", "upbeat", "calm"):
                     return mood
@@ -117,6 +119,8 @@ class RenderAudioMixin:
                     user_prompt=_user,
                     temperature=0.0,
                 )
+                if not isinstance(result, dict):
+                    raise TypeError(f"generate_json returned {type(result).__name__}, expected dict")
                 mood = str(result.get("mood", "")).strip().lower()
                 if mood in ("dramatic", "upbeat", "calm"):
                     return mood

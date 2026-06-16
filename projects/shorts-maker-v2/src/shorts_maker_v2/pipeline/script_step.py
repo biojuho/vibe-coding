@@ -488,24 +488,31 @@ class ScriptStep(ScriptPromptsMixin, ScriptReviewMixin):
                         + f"\nQuality feedback to fix: {feedback}\n{weak_hint}\n"
                     )
                     # Sprint 4.1: 재생성은 thinking_level='medium' (품질↑ + 속도 균형)
-                    retry_payload = self.llm_router.generate_json(
-                        system_prompt=system_prompt,
-                        user_prompt=retry_prompt,
-                        temperature=0.7,
-                        thinking_level="medium",
-                    )
-                    retry_parsed = self.parse_script_payload(
-                        retry_payload,
-                        scene_count=scene_count,
-                        target_duration_sec=duration_range,
-                        language=language,
-                        tts_speed=tts_speed,
-                    )
-                    best_result = retry_parsed
-                    logger.info(
-                        "[ScriptReview] 채널 '%s' 기준 재생성 완료",
-                        self.channel_key or "default",
-                    )
+                    # Isolated try: retry failures must not be mis-logged as "scoring failed"
+                    try:
+                        retry_payload = self.llm_router.generate_json(
+                            system_prompt=system_prompt,
+                            user_prompt=retry_prompt,
+                            temperature=0.7,
+                            thinking_level="medium",
+                        )
+                        retry_parsed = self.parse_script_payload(
+                            retry_payload,
+                            scene_count=scene_count,
+                            target_duration_sec=duration_range,
+                            language=language,
+                            tts_speed=tts_speed,
+                        )
+                        best_result = retry_parsed
+                        logger.info(
+                            "[ScriptReview] 채널 '%s' 기준 재생성 완료",
+                            self.channel_key or "default",
+                        )
+                    except Exception as retry_exc:
+                        logger.warning(
+                            "[ScriptReview] retry generation failed (keeping original): %s",
+                            retry_exc,
+                        )
             except TopicUnsuitableError:
                 raise
             except Exception as exc:

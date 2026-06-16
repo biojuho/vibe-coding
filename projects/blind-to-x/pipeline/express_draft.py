@@ -287,15 +287,17 @@ class ExpressDraftPipeline:
     def _parse_response(raw: dict[str, Any]) -> dict[str, str]:
         """LLM 응답에서 JSON 파싱 시도."""
         import json
-        import re
 
         text = str(raw.get("response", ""))
 
-        # JSON 블록 추출
-        json_match = re.search(r"\{[^{}]*\}", text, re.DOTALL)
-        if json_match:
+        # JSON 블록 추출 — first-{ to last-} slice handles nested braces inside
+        # string values (the previous r"\{[^{}]*\}" regex only matched flat
+        # objects, so {"x": "use {curly}", ...} caused a JSONDecodeError).
+        start = text.find("{")
+        end = text.rfind("}")
+        if start != -1 and end > start:
             try:
-                return json.loads(json_match.group())
+                return json.loads(text[start : end + 1])
             except json.JSONDecodeError:
                 pass
 

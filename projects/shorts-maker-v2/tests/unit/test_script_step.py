@@ -621,6 +621,60 @@ def test_run_skips_review_errors_and_returns_best_result() -> None:
     assert len(scenes) == 2
 
 
+def test_run_keeps_original_when_retry_parse_fails() -> None:
+    """SR-RETRY001: retry parse_script_payload 실패 시 원본 결과 보존 + 경고 로그.
+
+    이전 코드는 retry ValueError가 outer except에 잡혀 '채점 실패(스킵)'로 mis-log 됐다.
+    Isolated inner try/except로 수정 후 '재생성 실패(원본 유지)' 경고를 남겨야 한다.
+    """
+    initial_payload = {
+        "title": "Original script",
+        "scenes": [
+            {
+                "narration_ko": "This original narration has enough words to land inside the target duration range.",
+                "visual_prompt_en": "opening shot",
+                "structure_role": "hook",
+            },
+            {
+                "narration_ko": "The original ending narration also has enough detail to stay in range here.",
+                "visual_prompt_en": "closing shot",
+                "structure_role": "closing",
+            },
+        ],
+    }
+    # Retry payload is None → parse_script_payload raises ValueError (see TestParseScriptPayloadGuards)
+    llm_router = MagicMock()
+    llm_router.generate_json.side_effect = [initial_payload, None]
+
+    step = ScriptStep(
+        config=make_config(duration_range=(4, 40), script_review_enabled=True, script_review_min_score=7),
+        llm_router=llm_router,
+        channel_key="ai_tech",
+    )
+
+    with (
+        patch.object(
+            step,
+            "_review_script",
+            return_value={
+                "hook_score": 5,
+                "flow_score": 5,
+                "cta_score": 5,
+                "verifiability_score": 5,
+                "spelling_score": 5,
+                "data_score": 4,
+                "feedback": "Too weak.",
+            },
+        ),
+        patch("shorts_maker_v2.pipeline.script_step.logger") as mock_logger,
+    ):
+        title, scenes, _, _ = step.run("quantum computing")
+
+    assert title == "Original script"
+    warning_msgs = [call.args[0] for call in mock_logger.warning.call_args_list]
+    assert any("retry generation failed" in msg for msg in warning_msgs)
+
+
 def test_topic_unsuitable_propagates_from_review_stage() -> None:
     """SMV2-SS001: verifiability_score < 4 시 TopicUnsuitableError가 오케스트레이터까지 전파돼야 함.
 

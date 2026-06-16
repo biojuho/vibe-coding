@@ -72,6 +72,40 @@ class TestClassifyMoodKeywords:
         assert RenderAudioMixin._classify_mood_keywords("건강 성장 행복의 방법") == "upbeat"
 
 
+class TestClassifyMoodGpt:
+    """RA-GPT: _classify_mood_gpt None-return guard."""
+
+    def _make_step(self):
+        step = _MinimalRenderStep()
+        step.config.audio.bgm_mood_classify_enabled = True
+        return step
+
+    def test_none_return_from_llm_falls_through_to_keyword_fallback(self):
+        """RA-GPT001: generate_json이 None 반환 시 AttributeError 없이 keyword fallback 사용.
+
+        이전 코드는 None.get("mood", "") 를 호출해 AttributeError가 발생하고
+        except Exception이 '분류 실패'로 mis-log 했다. isinstance(result, dict) 가드로 수정.
+        """
+        step = self._make_step()
+        mock_router = MagicMock()
+        mock_router.generate_json.return_value = None  # simulate non-dict return
+
+        step._llm_router = mock_router
+        # Should NOT raise; AttributeError must be caught as TypeError and fall through
+        result = step._classify_mood_gpt("블랙홀과 시간의 비밀")
+        assert result is None  # falls through to keyword path, gpt returns None
+
+    def test_non_dict_return_falls_through(self):
+        """RA-GPT002: generate_json이 문자열(예: 'calm')을 반환 시 AttributeError 없이 None 반환."""
+        step = self._make_step()
+        mock_router = MagicMock()
+        mock_router.generate_json.return_value = "calm"
+
+        step._llm_router = mock_router
+        result = step._classify_mood_gpt("오늘의 날씨")
+        assert result is None
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # 2. _collect_bgm_files — staticmethod (파일시스템)
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -746,13 +746,13 @@ async def test_generate_async_raises_when_audio_chunks_empty(tmp_path: Path) -> 
             side_effect=_empty_stream,
         ),
         patch("edge_tts.Communicate"),
+        pytest.raises(RuntimeError, match="No audio data received"),
     ):
-        with pytest.raises(RuntimeError, match="No audio data received"):
-            await _generate_async_with_timing(
-                text="안녕하세요",
-                voice="ko-KR-SunHiNeural",
-                rate="+0%",
-                pitch="+0Hz",
-                output_path=output_mp3,
-                words_json_path=words_json,
-            )
+        await _generate_async_with_timing(
+            text="안녕하세요",
+            voice="ko-KR-SunHiNeural",
+            rate="+0%",
+            pitch="+0Hz",
+            output_path=output_mp3,
+            words_json_path=words_json,
+        )

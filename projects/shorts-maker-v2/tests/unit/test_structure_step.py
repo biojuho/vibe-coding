@@ -119,6 +119,16 @@ class TestStructureStepParsing:
         with pytest.raises(ValueError, match="No scenes"):
             step._parse_outline({"scenes": []})
 
+    def test_all_non_dict_scenes_raises_value_error(self, _config):
+        """SS-PO001: scenes가 정수/문자열 등 비-dict 리스트이면 ValueError.
+
+        LLM이 ["scene 1", "scene 2"] 형태로 반환할 때 모든 항목이 continue되어
+        scenes=[]가 조용히 만들어지던 버그 방지. 명시적 ValueError로 전환.
+        """
+        step = StructureStep(config=_config, llm_router=MagicMock())
+        with pytest.raises(ValueError, match="No valid scene dicts"):
+            step._parse_outline({"narrative_arc": "test", "scenes": [1, "two", 3.0]})
+
 
 class TestGate2Validation:
     """Gate 2 검증 테스트."""
