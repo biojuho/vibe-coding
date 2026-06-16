@@ -400,3 +400,93 @@ class TestQualityScore:
         # Only 9.0 (→90.0) is numeric; None is skipped
         result = self._fn({"twitter": 9.0, "x": None})
         assert result == 90.0
+
+
+# ── _regulation_failures 경계 조건 테스트 ────────────────────────────────────
+
+
+class TestRegulationFailures:
+    """_regulation_failures: None/str/dict/object 경로 + 다중 플랫폼."""
+
+    def setup_method(self):
+        from pipeline.publish_decision import _regulation_failures
+
+        self._fn = _regulation_failures
+
+    def test_none_returns_empty(self):
+        assert self._fn(None) == []
+
+    def test_empty_string_returns_empty(self):
+        assert self._fn("") == []
+
+    def test_string_with_FAILED_returns_report_failure(self):
+        assert self._fn("FAILED 검사 결과") == ["regulation_report_not_passed"]
+
+    def test_string_with_경고_returns_report_failure(self):
+        assert self._fn("경고: 글자 수 초과") == ["regulation_report_not_passed"]
+
+    def test_string_without_keywords_returns_empty(self):
+        assert self._fn("정상 통과") == []
+
+    def test_non_dict_non_string_returns_empty(self):
+        assert self._fn(42) == []
+
+    def test_dict_with_passed_false_appends_platform_failure(self):
+        result = self._fn({"twitter": {"passed": False}})
+        assert result == ["twitter:regulation_failed"]
+
+    def test_dict_with_passed_true_returns_empty(self):
+        assert self._fn({"twitter": {"passed": True}}) == []
+
+    def test_dict_multi_platform_partial_failure(self):
+        result = self._fn({"twitter": {"passed": True}, "instagram": {"passed": False}})
+        assert result == ["instagram:regulation_failed"]
+
+    def test_dict_with_object_having_passed_attr_false(self):
+        class Report:
+            passed = False
+
+        result = self._fn({"linkedin": Report()})
+        assert result == ["linkedin:regulation_failed"]
+
+
+# ── _research_failed 경계 조건 테스트 ────────────────────────────────────────
+
+
+class TestResearchFailed:
+    """_research_failed: None/empty/non-dict + value_reduction_failed + universal_value 누락."""
+
+    def setup_method(self):
+        from pipeline.publish_decision import _research_failed
+
+        self._fn = _research_failed
+
+    def test_none_returns_true(self):
+        assert self._fn(None) is True
+
+    def test_empty_dict_returns_true(self):
+        assert self._fn({}) is True
+
+    def test_non_dict_string_returns_true(self):
+        assert self._fn("some string") is True
+
+    def test_dict_without_universal_value_key_returns_true(self):
+        assert self._fn({"conflict_risk": 0.1}) is True
+
+    def test_dict_with_empty_universal_value_returns_true(self):
+        assert self._fn({"universal_value": ""}) is True
+
+    def test_dict_with_value_reduction_failed_true_returns_true(self):
+        assert self._fn({"universal_value": "책임", "value_reduction_failed": True}) is True
+
+    def test_dict_with_value_reduction_failed_string_true_returns_true(self):
+        assert self._fn({"universal_value": "책임", "value_reduction_failed": "true"}) is True
+
+    def test_dict_with_universal_value_and_no_failure_returns_false(self):
+        assert self._fn({"universal_value": "책임 있는 권한"}) is False
+
+    def test_dict_with_value_reduction_failed_false_returns_false(self):
+        assert self._fn({"universal_value": "공정한 기준", "value_reduction_failed": False}) is False
+
+    def test_dict_with_value_reduction_failed_string_false_returns_false(self):
+        assert self._fn({"universal_value": "공정한 기준", "value_reduction_failed": "false"}) is False
