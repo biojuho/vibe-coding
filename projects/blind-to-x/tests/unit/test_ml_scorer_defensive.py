@@ -234,3 +234,70 @@ def test_predict_score_binary_clamps_to_0_100():
     score, meta = scorer.predict_score("연봉", "공감형", "공감", "공감형")
     assert 0.0 <= score <= 100.0, f"score {score} out of [0, 100]"
     assert meta["method"] == "ml"
+
+
+# ── NaN / Inf 오염 방어 테스트 ──────────────────────────────────────────────
+
+
+def _make_row(**kwargs):
+    base = {
+        "topic_cluster": "연봉",
+        "hook_type": "정보형",
+        "emotion_axis": "공감",
+        "draft_style": "정보전달형",
+        "final_rank_score": 70.0,
+        "published": 1,
+        "yt_views": 1000,
+    }
+    base.update(kwargs)
+    return base
+
+
+def test_nan_final_rank_score_replaced_with_zero():
+    """float('nan')은 try/except를 통과하므로 isfinite 검사가 필요함 — 수정 회귀."""
+    import math
+
+    from pipeline.ml_scorer import _build_feature_matrix
+
+    rows = [_make_row(final_rank_score=float("nan"))]
+    X, y, _, _ = _build_feature_matrix(rows)
+    rank_feature = X[0][-1]
+    assert rank_feature == 0.0, f"NaN should be replaced with 0.0, got {rank_feature}"
+    assert math.isfinite(rank_feature)
+
+
+def test_inf_final_rank_score_replaced_with_zero():
+    """float('inf')도 isfinite로 0.0으로 대체됨."""
+    import math
+
+    from pipeline.ml_scorer import _build_feature_matrix
+
+    rows = [_make_row(final_rank_score=float("inf"))]
+    X, y, _, _ = _build_feature_matrix(rows)
+    rank_feature = X[0][-1]
+    assert rank_feature == 0.0
+    assert math.isfinite(rank_feature)
+
+
+def test_nan_yt_views_replaced_with_zero_in_continuous_mode():
+    """use_views=True에서 yt_views=NaN → y[0]=0.0 (log1p(nan) 방지)."""
+    import math
+
+    from pipeline.ml_scorer import _build_feature_matrix
+
+    rows = [_make_row(yt_views=float("nan"))]
+    X, y, _, _ = _build_feature_matrix(rows, use_views=True)
+    assert y[0] == 0.0
+    assert math.isfinite(y[0])
+
+
+def test_inf_yt_views_replaced_with_zero_in_continuous_mode():
+    """use_views=True에서 yt_views=inf → y[0]=0.0 (log1p(inf)=inf 방지)."""
+    import math
+
+    from pipeline.ml_scorer import _build_feature_matrix
+
+    rows = [_make_row(yt_views=float("inf"))]
+    X, y, _, _ = _build_feature_matrix(rows, use_views=True)
+    assert y[0] == 0.0
+    assert math.isfinite(y[0])

@@ -123,16 +123,19 @@ def _build_feature_matrix(rows: list[dict], use_views: bool = False):
             val = row.get(col) or "unknown"
             for _v in cat_sorted[col]:
                 vec.append(1 if val == _v else 0)
-        # 안전한 float 변환 — DB 오염 데이터("N/A", None 등) 방어
+        # 안전한 float 변환 — DB 오염 데이터("N/A", None, NaN, Inf 등) 방어
         try:
             rank_val = float(row.get("final_rank_score") or 0.0)
+            if not math.isfinite(rank_val):
+                rank_val = 0.0
         except (ValueError, TypeError):
             rank_val = 0.0
         vec.append(rank_val)
         X.append(vec)
         try:
             if use_views:
-                y.append(math.log1p(float(row.get("yt_views") or 0.0)))
+                views_val = float(row.get("yt_views") or 0.0)
+                y.append(math.log1p(views_val) if math.isfinite(views_val) else 0.0)
             else:
                 y.append(int(row.get("published") or 0))
         except (ValueError, TypeError):
