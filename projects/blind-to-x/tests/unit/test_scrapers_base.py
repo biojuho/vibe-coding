@@ -157,6 +157,7 @@ async def test_suggest_selectors_falls_back_to_tag_content_candidates(mock_confi
 
 @pytest.mark.asyncio
 async def test_suggest_selectors_from_html():
+    pytest.importorskip("bs4", reason="_suggest_selectors_from_html returns [] without bs4")
     html = (
         """
     <div>

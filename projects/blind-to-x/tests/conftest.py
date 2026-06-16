@@ -2,10 +2,47 @@
 
 import sys
 from pathlib import Path
+from types import ModuleType
+from unittest.mock import MagicMock
 
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+
+def _inject_scraper_stubs() -> None:
+    """Stub optional native packages before any test module imports scraper code.
+
+    patchright / playwright / playwright_stealth / curl_cffi are not installed
+    in the test environment.  scrapers.blind and scrapers.base import them at
+    module level, so the stubs must exist in sys.modules before pytest collects
+    any test file that transitively imports those scrapers.
+    """
+    for pkg in ("patchright", "playwright"):
+        if pkg not in sys.modules:
+            sys.modules[pkg] = ModuleType(pkg)
+    for submod in ("patchright.async_api", "playwright.async_api"):
+        if submod not in sys.modules:
+            m = ModuleType(submod)
+            m.TimeoutError = TimeoutError  # type: ignore[attr-defined]
+            m.async_playwright = MagicMock()  # type: ignore[attr-defined]
+            sys.modules[submod] = m
+            parent = submod.split(".")[0]
+            setattr(sys.modules[parent], "async_api", m)
+    if "playwright_stealth" not in sys.modules:
+        stealth_mod = ModuleType("playwright_stealth")
+        stealth_mod.Stealth = MagicMock()  # type: ignore[attr-defined]
+        sys.modules["playwright_stealth"] = stealth_mod
+    if "curl_cffi" not in sys.modules:
+        sys.modules["curl_cffi"] = ModuleType("curl_cffi")
+    if "curl_cffi.requests" not in sys.modules:
+        req_mod = ModuleType("curl_cffi.requests")
+        req_mod.AsyncSession = MagicMock()  # type: ignore[attr-defined]
+        sys.modules["curl_cffi.requests"] = req_mod
+        sys.modules["curl_cffi"].requests = req_mod  # type: ignore[attr-defined]
+
+
+_inject_scraper_stubs()
 
 
 @pytest.fixture(autouse=True)
