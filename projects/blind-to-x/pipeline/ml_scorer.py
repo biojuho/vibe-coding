@@ -40,6 +40,7 @@ try:
 
     _HAS_JOBLIB = True
 except ImportError:
+    _joblib = None  # type: ignore[assignment]  # guarded by _HAS_JOBLIB before every use
     _HAS_JOBLIB = False
 
 logger = logging.getLogger(__name__)

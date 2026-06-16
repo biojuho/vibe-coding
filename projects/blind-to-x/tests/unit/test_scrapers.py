@@ -156,6 +156,7 @@ class TestTakeScreenshot:
 
 class TestSuggestSelectors:
     def test_finds_id_selector(self):
+        pytest.importorskip("bs4", reason="_suggest_selectors_from_html returns [] without bs4")
         from scrapers.base import BaseScraper
 
         html = '<div id="main-content"><p>' + "직장인 이야기입니다. " * 10 + "</p></div>"
@@ -163,6 +164,7 @@ class TestSuggestSelectors:
         assert "#main-content" in result
 
     def test_finds_class_selector(self):
+        pytest.importorskip("bs4", reason="_suggest_selectors_from_html returns [] without bs4")
         from scrapers.base import BaseScraper
 
         html = '<article class="post-body"><p>' + "연봉 이야기입니다. " * 10 + "</p></article>"
@@ -176,6 +178,7 @@ class TestSuggestSelectors:
         assert isinstance(result, list)
 
     def test_limits_to_5(self):
+        pytest.importorskip("bs4", reason="_suggest_selectors_from_html returns [] without bs4")
         from scrapers.base import BaseScraper
 
         sections = "".join(f'<div id="sec{i}"><p>' + "한글 텍스트입니다. " * 20 + "</p></div>" for i in range(10))
