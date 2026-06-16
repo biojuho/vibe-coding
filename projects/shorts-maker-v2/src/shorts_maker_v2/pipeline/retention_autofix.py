@@ -21,6 +21,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import re
 from dataclasses import replace
 from typing import Any
@@ -99,7 +100,11 @@ class RetentionAutoFixer:
         시뮬레이션 verdict 가 ``degraded`` 가 아니거나 max_passes 가 0 이면
         아무것도 하지 않고 ``verdict="skipped"`` 를 반환한다.
         """
-        before = float(simulation.predicted_retention)
+        try:
+            _b = float(simulation.predicted_retention)
+            before = _b if math.isfinite(_b) else 0.0
+        except (TypeError, ValueError, OverflowError):
+            before = 0.0
         if simulation.verdict != "degraded" or self.max_passes == 0:
             return RetentionAutoFixResult(
                 applied=False,
@@ -198,7 +203,11 @@ class RetentionAutoFixer:
                 break  # 임계값 회복 — 종료
 
         accepted_count = sum(1 for r in rewrites if r.get("accepted"))
-        after = float(current_sim.predicted_retention)
+        try:
+            _a = float(current_sim.predicted_retention)
+            after = _a if math.isfinite(_a) else before
+        except (TypeError, ValueError, OverflowError):
+            after = before
         if accepted_count > 0:
             verdict = "improved"
             feedback = f"{accepted_count}개 씬 재작성 채택, 예측 리텐션 {before:.0%} → {after:.0%}"

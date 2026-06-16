@@ -577,3 +577,41 @@ class TestHasForbiddenTone:
         """BTX-FT011: '기절할 뻔' (공백 있음) 감지."""
         result = self._fn("기절할 뻔 했어요")
         assert "기절할 뻔" in result
+
+
+# ── NaN/Inf conflict_risk guard (PD-NI series) ───────────────────────────────
+
+
+class TestPublishDecisionConflictRiskNanInf:
+    """PD-NI: conflict_risk NaN/Inf → 0.0 폴백, DROP 미발동 보장."""
+
+    def test_nan_conflict_risk_does_not_drop(self):
+        """PD-NI001: conflict_risk=NaN → 0.0 폴백, publishable draft가 DROP 안 됨."""
+        research = dict(RESEARCH, conflict_risk=float("nan"))
+        decision = decide_publish({"twitter": 95}, {"twitter": {"passed": True}}, research, GOOD_DRAFT)
+        assert decision.action != "drop"
+        assert decision.metrics.get("conflict_risk") == 0.0
+
+    def test_inf_conflict_risk_does_not_drop(self):
+        """PD-NI002: conflict_risk=inf → 0.0 폴백, publishable draft가 DROP 안 됨."""
+        research = dict(RESEARCH, conflict_risk=float("inf"))
+        decision = decide_publish({"twitter": 95}, {"twitter": {"passed": True}}, research, GOOD_DRAFT)
+        assert decision.action != "drop"
+        assert decision.metrics.get("conflict_risk") == 0.0
+
+    def test_negative_conflict_risk_becomes_zero(self):
+        """PD-NI003: conflict_risk=-1.0 → 0.0 폴백 (음수 위험 점수 무효)."""
+        research = dict(RESEARCH, conflict_risk=-1.0)
+        decision = decide_publish({"twitter": 95}, {"twitter": {"passed": True}}, research, GOOD_DRAFT)
+        assert decision.metrics.get("conflict_risk") == 0.0
+
+    def test_valid_high_conflict_risk_metric_stored_correctly(self):
+        """PD-NI004: conflict_risk=0.9 (유효) → metrics에 0.9 그대로 저장, NaN으로 오염 안 됨."""
+        import math
+
+        research = dict(RESEARCH, conflict_risk=0.9)
+        decision = decide_publish({"twitter": 95}, {"twitter": {"passed": True}}, research, GOOD_DRAFT)
+        stored = decision.metrics.get("conflict_risk")
+        assert stored is not None
+        assert math.isfinite(stored)
+        assert stored == 0.9

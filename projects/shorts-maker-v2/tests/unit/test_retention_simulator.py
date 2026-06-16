@@ -344,3 +344,68 @@ class TestRetentionCoerceFloat:
     def test_finite_float_passthrough(self) -> None:
         result = RetentionSimulatorStep._coerce_float(0.72)
         assert result == 0.72
+
+
+# ── NaN asset duration regression (RS-NI series) ─────────────────────────────
+
+
+class TestRetentionSimulatorNanDuration:
+    """RS-NI: SceneAsset.duration_sec=NaN → plan target_sec 폴백 보장."""
+
+    def test_nan_asset_duration_falls_back_to_plan_target_sec(self) -> None:
+        """RS-NI001: NaN duration_sec → dur_by_id에 저장 안 되고 target_sec으로 폴백."""
+        import math
+
+        plan = ScenePlan(
+            scene_id=1,
+            narration_ko="테스트",
+            visual_prompt_en="p1",
+            target_sec=5.0,
+            structure_role="body",
+        )
+        asset = SceneAsset(
+            scene_id=1, audio_path="a1.mp3", visual_type="video", visual_path="v1.mp4", duration_sec=float("nan")
+        )
+        sim = RetentionSimulatorStep(llm_router=None)
+        views = sim._build_scene_views([plan], scene_assets=[asset])
+        assert len(views) == 1
+        assert math.isfinite(views[0].duration_sec)
+        assert views[0].duration_sec == 5.0  # plan.target_sec used as fallback
+
+    def test_inf_asset_duration_falls_back_to_plan_target_sec(self) -> None:
+        """RS-NI002: inf duration_sec → dur_by_id에 저장 안 되고 target_sec으로 폴백."""
+        import math
+
+        plan = ScenePlan(
+            scene_id=2,
+            narration_ko="두 번째",
+            visual_prompt_en="p2",
+            target_sec=8.0,
+            structure_role="insight",
+        )
+        asset = SceneAsset(
+            scene_id=2, audio_path="a2.mp3", visual_type="video", visual_path="v2.mp4", duration_sec=float("inf")
+        )
+        sim = RetentionSimulatorStep(llm_router=None)
+        views = sim._build_scene_views([plan], scene_assets=[asset])
+        assert len(views) == 1
+        assert math.isfinite(views[0].duration_sec)
+        assert views[0].duration_sec == 8.0
+
+    def test_valid_asset_duration_is_used(self) -> None:
+        """RS-NI003: 유효한 duration_sec은 plan target_sec 대신 사용된다."""
+        import math
+
+        plan = ScenePlan(
+            scene_id=3,
+            narration_ko="세 번째",
+            visual_prompt_en="p3",
+            target_sec=4.0,
+            structure_role="closing",
+        )
+        asset = SceneAsset(scene_id=3, audio_path="a3.mp3", visual_type="video", visual_path="v3.mp4", duration_sec=6.5)
+        sim = RetentionSimulatorStep(llm_router=None)
+        views = sim._build_scene_views([plan], scene_assets=[asset])
+        assert len(views) == 1
+        assert math.isfinite(views[0].duration_sec)
+        assert views[0].duration_sec == 6.5

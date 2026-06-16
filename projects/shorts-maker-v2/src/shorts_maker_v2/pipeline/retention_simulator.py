@@ -193,8 +193,12 @@ class RetentionSimulatorStep:
             return []
         dur_by_id: dict[int, float] = {}
         for asset in scene_assets or []:
-            with contextlib.suppress(AttributeError, TypeError):
-                dur_by_id[asset.scene_id] = float(asset.duration_sec)
+            try:
+                _d = float(asset.duration_sec)
+                if math.isfinite(_d) and _d > 0:
+                    dur_by_id[asset.scene_id] = _d
+            except (AttributeError, TypeError, ValueError, OverflowError):
+                pass
 
         views: list[_SceneView] = []
         for plan in scene_plans:

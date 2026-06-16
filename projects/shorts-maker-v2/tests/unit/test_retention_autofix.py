@@ -285,3 +285,44 @@ class TestApplyToPlans:
         updated = RetentionAutoFixer.apply_to_plans(_plans(), result)
         assert next(p for p in updated if p.scene_id == 3).narration_ko == "새 마무리 나레이션"
         assert next(p for p in updated if p.scene_id == 2).narration_ko == _plans()[1].narration_ko
+
+
+# ── NaN/Inf guard regression tests (RA-NI series) ────────────────────────────
+
+
+class TestRetentionAutoFixNanInf:
+    """RA-NI: NaN/Inf predicted_retention → before/after 유한값 보장."""
+
+    def test_nan_predicted_retention_skipped_verdict_finite(self) -> None:
+        """RA-NI001: verdict != degraded 이고 predicted_retention=NaN → before 유한."""
+        import math
+
+        sim = RetentionSimulationResult(predicted_retention=float("nan"), verdict="pass")
+        fixer = RetentionAutoFixer(llm_router=None, simulator=None, max_passes=0)
+        result = fixer.fix(_plans(), sim)
+        assert result.verdict == "skipped"
+        assert math.isfinite(result.before_retention)
+
+    def test_inf_predicted_retention_returns_zero(self) -> None:
+        """RA-NI002: predicted_retention=inf → before=0.0."""
+        import math
+
+        sim = RetentionSimulationResult(predicted_retention=float("inf"), verdict="pass")
+        fixer = RetentionAutoFixer(llm_router=None, simulator=None, max_passes=0)
+        result = fixer.fix(_plans(), sim)
+        assert math.isfinite(result.before_retention)
+        assert result.before_retention == 0.0
+
+    def test_nan_retention_no_llm_router_error_path_finite(self) -> None:
+        """RA-NI003: degraded + NaN retention + no llm_router → error verdict with finite before."""
+        import math
+
+        sim = RetentionSimulationResult(
+            predicted_retention=float("nan"),
+            verdict="degraded",
+            weakest_scene_id=1,
+        )
+        fixer = RetentionAutoFixer(llm_router=None, simulator=None, max_passes=1)
+        result = fixer.fix(_plans(), sim)
+        assert result.verdict == "error"
+        assert math.isfinite(result.before_retention)

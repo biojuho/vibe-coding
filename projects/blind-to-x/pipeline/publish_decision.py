@@ -225,7 +225,11 @@ def decide_publish(
         hard_hold_reasons.append("hashtag_limit_exceeded")
     hard_hold_reasons.extend(_regulation_failures(regulation))
 
-    conflict_risk = float(research.get("conflict_risk") or 0.0)
+    try:
+        _cr = float(research.get("conflict_risk") or 0.0)
+        conflict_risk = _cr if math.isfinite(_cr) and _cr >= 0 else 0.0
+    except (TypeError, ValueError, OverflowError):
+        conflict_risk = 0.0
     value_reduced = _has_value_frame(text, research) and _has_universal_reduction(text, research)
     if conflict_risk > 0.8 and not value_reduced:
         return PublishDecision(
