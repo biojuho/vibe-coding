@@ -200,3 +200,125 @@ class TestReviewerNodeFloatScores:
         result = self._run(reviewer._reviewer_node(state))
         # avg_score should be (10 + 1 + 5 + 5 + 5) / 5 = 5.2
         assert 1.0 <= result["avg_score"] <= 10.0
+
+    def test_nan_score_does_not_raise_and_defaults_to_5(self):
+        """BTX-ER002: LLM가 NaN 점수를 반환해도 OverflowError/ValueError 없이 5로 폴백."""
+        import math
+
+        reviewer = self._make_reviewer_with_llm(
+            {
+                "scores": {
+                    "accuracy": float("nan"),
+                    "relevance": 7,
+                    "originality": 6,
+                    "clarity": 8,
+                    "engagement": 5,
+                },
+                "suggestions": [],
+                "rewritten": "text",
+            }
+        )
+        state = {
+            "platform": "threads",
+            "draft_text": "초안",
+            "post_data": {},
+            "avg_score": 0.0,
+            "iteration": 0,
+            "max_iterations": 3,
+            "rewritten_candidate": "",
+        }
+        result = self._run(reviewer._reviewer_node(state))
+        assert not math.isnan(result["avg_score"])
+        assert 1.0 <= result["avg_score"] <= 10.0
+
+    def test_inf_score_does_not_raise_and_defaults_to_5(self):
+        """BTX-ER003: LLM가 Inf 점수를 반환해도 OverflowError 없이 5로 폴백."""
+        import math
+
+        reviewer = self._make_reviewer_with_llm(
+            {
+                "scores": {
+                    "accuracy": float("inf"),
+                    "relevance": 7,
+                    "originality": 6,
+                    "clarity": 8,
+                    "engagement": 5,
+                },
+                "suggestions": [],
+                "rewritten": "text",
+            }
+        )
+        state = {
+            "platform": "twitter",
+            "draft_text": "초안",
+            "post_data": {},
+            "avg_score": 0.0,
+            "iteration": 0,
+            "max_iterations": 3,
+            "rewritten_candidate": "",
+        }
+        result = self._run(reviewer._reviewer_node(state))
+        assert not math.isinf(result["avg_score"])
+        assert 1.0 <= result["avg_score"] <= 10.0
+
+    def test_nan_score_string_does_not_raise(self):
+        """BTX-ER004: LLM가 문자열 'nan'을 반환해도 안전하게 처리됨."""
+        reviewer = self._make_reviewer_with_llm(
+            {
+                "scores": {
+                    "accuracy": "nan",
+                    "relevance": 7,
+                    "originality": 6,
+                    "clarity": 8,
+                    "engagement": 5,
+                },
+                "suggestions": [],
+                "rewritten": "text",
+            }
+        )
+        state = {
+            "platform": "threads",
+            "draft_text": "초안",
+            "post_data": {},
+            "avg_score": 0.0,
+            "iteration": 0,
+            "max_iterations": 3,
+            "rewritten_candidate": "",
+        }
+        result = self._run(reviewer._reviewer_node(state))
+        assert 1.0 <= result["avg_score"] <= 10.0
+
+    def test_comment_trigger_nan_score_no_crash(self):
+        """BTX-ER005: twitter/threads의 댓글 트리거 점수에 NaN → 크래시 없음."""
+        import math
+
+        reviewer = self._make_reviewer_with_llm(
+            {
+                "scores": {
+                    "accuracy": 7,
+                    "relevance": 7,
+                    "originality": 6,
+                    "clarity": 8,
+                    "engagement": 5,
+                    # comment trigger axes with NaN
+                    "controversy": float("nan"),
+                    "relatability": float("inf"),
+                    "emotional_resonance": 6,
+                    "curiosity_gap": 7,
+                },
+                "suggestions": [],
+                "rewritten": "text",
+            }
+        )
+        state = {
+            "platform": "twitter",
+            "draft_text": "초안",
+            "post_data": {},
+            "avg_score": 0.0,
+            "iteration": 0,
+            "max_iterations": 3,
+            "rewritten_candidate": "",
+        }
+        result = self._run(reviewer._reviewer_node(state))
+        assert not math.isnan(result["avg_score"])
+        assert not math.isinf(result["avg_score"])
