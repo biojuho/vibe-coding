@@ -3,8 +3,44 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
+from types import ModuleType
+from unittest.mock import MagicMock
 
 import pytest
+
+
+def _inject_optional_sdk_stubs() -> None:
+    """Inject lightweight stubs for optional provider SDKs.
+
+    Must run before any test module imports production code that does
+    ``from google import genai`` or ``import anthropic`` at module level.
+    conftest.py is loaded first by pytest, so module-level injection here
+    ensures stubs are in place for every test file in the suite.
+    """
+    if "google" not in sys.modules:
+        google_mod = ModuleType("google")
+        sys.modules["google"] = google_mod
+    else:
+        google_mod = sys.modules["google"]
+
+    if not hasattr(google_mod, "genai") or "google.genai" not in sys.modules:
+        genai_mod = ModuleType("google.genai")
+        genai_mod.Client = MagicMock()  # type: ignore[attr-defined]
+        # Use MagicMock for types so attribute access (e.g. types.GenerateVideosConfig)
+        # returns a MagicMock automatically rather than raising AttributeError
+        types_stub = MagicMock()
+        genai_mod.types = types_stub  # type: ignore[attr-defined]
+        sys.modules["google.genai"] = genai_mod
+        sys.modules["google.genai.types"] = types_stub
+        google_mod.genai = genai_mod  # type: ignore[attr-defined]
+
+    if "anthropic" not in sys.modules:
+        anthropic_mod = ModuleType("anthropic")
+        anthropic_mod.Anthropic = MagicMock()  # type: ignore[attr-defined]
+        sys.modules["anthropic"] = anthropic_mod
+
+
+_inject_optional_sdk_stubs()
 
 _LIVE_LLM_ENV_KEYS = (
     "OPENAI_API_KEY",
