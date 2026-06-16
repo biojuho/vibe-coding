@@ -712,3 +712,112 @@ class TestNormalizeCalibrationWeights:
         weights = self._fn(corr)
         # social should dominate all other dimensions
         assert weights["social"] == max(weights.values())
+
+
+# ── utils 순수 함수 단위 테스트 ─────────────────────────────────────────────
+
+
+class TestKoreanRatio:
+    """_korean_ratio: 한국어 비율 계산."""
+
+    def setup_method(self):
+        from pipeline.content_intelligence.utils import _korean_ratio
+
+        self._fn = _korean_ratio
+
+    def test_empty_string_returns_zero(self):
+        assert self._fn("") == 0.0
+
+    def test_all_whitespace_returns_zero(self):
+        assert self._fn("   ") == 0.0
+
+    def test_all_korean_returns_one(self):
+        assert self._fn("안녕하세요") == 1.0
+
+    def test_half_korean_half_english(self):
+        # "안녕하세요"=5 Korean + " " + "hello"=5 English → ratio 5/10 = 0.5
+        result = self._fn("안녕하세요 hello")
+        assert 0.4 < result < 0.6
+
+    def test_all_english_returns_zero(self):
+        assert self._fn("hello world") == 0.0
+
+
+class TestExtractFirstSentence:
+    """_extract_first_sentence: 첫 문장 추출."""
+
+    def setup_method(self):
+        from pipeline.content_intelligence.utils import _extract_first_sentence
+
+        self._fn = _extract_first_sentence
+
+    def test_empty_returns_empty(self):
+        assert self._fn("") == ""
+
+    def test_single_sentence_with_period(self):
+        assert self._fn("안녕하세요. 반갑습니다.") == "안녕하세요."
+
+    def test_multiline_returns_first_line(self):
+        result = self._fn("첫째 줄\n둘째 줄")
+        assert result == "첫째 줄"
+
+    def test_no_delimiter_returns_whole_text(self):
+        result = self._fn("마침표없는문장")
+        assert result == "마침표없는문장"
+
+
+class TestEngagementSignal:
+    """_engagement_signal: 좋아요+댓글 기반 참여도 신호 — 로그 스케일 + 20 상한."""
+
+    def setup_method(self):
+        from pipeline.content_intelligence.utils import _engagement_signal
+
+        self._fn = _engagement_signal
+
+    def test_no_engagement_returns_zero(self):
+        assert self._fn({"likes": 0, "comments": 0}) == 0.0
+
+    def test_missing_keys_treated_as_zero(self):
+        assert self._fn({}) == 0.0
+
+    def test_high_engagement_capped_at_20(self):
+        result = self._fn({"likes": 100_000, "comments": 50_000})
+        assert result == 20.0
+
+    def test_low_engagement_below_cap(self):
+        result = self._fn({"likes": 10, "comments": 0})
+        assert 0.0 < result < 20.0
+
+    def test_comments_weighted_higher_than_likes(self):
+        # comments weight 1.5× vs likes 1×
+        like_only = self._fn({"likes": 10, "comments": 0})
+        comment_only = self._fn({"likes": 0, "comments": 10})
+        assert comment_only > like_only
+
+
+class TestHumanizePerformanceRationale:
+    """_humanize_performance_rationale: label 매핑 + 미등록 패스스루 + trained_on= 파싱."""
+
+    def setup_method(self):
+        from pipeline.content_intelligence.utils import _humanize_performance_rationale
+
+        self._fn = _humanize_performance_rationale
+
+    def test_known_label_maps_to_korean(self):
+        result = self._fn(["topic_match"])
+        assert result == ["비슷한 주제가 실제로 반응했던 이력"]
+
+    def test_unknown_label_passes_through(self):
+        result = self._fn(["unknown_custom_label"])
+        assert result == ["unknown_custom_label"]
+
+    def test_trained_on_prefix_is_parsed(self):
+        result = self._fn(["trained_on=50"])
+        assert result == ["학습 표본: 50"]
+
+    def test_duplicate_labels_deduplicated(self):
+        result = self._fn(["topic_match", "topic_match"])
+        assert len(result) == 1
+
+    def test_empty_list_returns_empty(self):
+        assert self._fn([]) == []
