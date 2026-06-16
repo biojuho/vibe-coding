@@ -758,3 +758,158 @@ class TestParseScriptPayloadGuards:
         payload["scenes"][0]["narration_ko"] = "안녕하세요"  # exactly 5 chars — OK
         title, scenes = ScriptStep.parse_script_payload(payload, scene_count=2, target_duration_sec=(20, 40))
         assert len(scenes) == 2
+
+
+class TestBuildReviewSystem:
+    """_build_review_system: 채널별 min_score, extra_keys, context_note 주입 검증."""
+
+    def _make_step(self, channel_key: str, min_score: int = 6) -> ScriptStep:
+        return ScriptStep(
+            config=make_config(script_review_min_score=min_score),
+            llm_router=FakeOpenAIClient([]),
+            channel_key=channel_key,
+        )
+
+    def test_unknown_channel_returns_base_keys_only(self) -> None:
+        step = self._make_step("unknown_channel")
+        _, keys, _ = step._build_review_system()
+        assert set(keys) == {"hook_score", "flow_score", "cta_score", "verifiability_score", "spelling_score"}
+
+    def test_unknown_channel_uses_config_min_score(self) -> None:
+        step = self._make_step("unknown_channel", min_score=7)
+        _, _, min_score = step._build_review_system()
+        assert min_score == 7
+
+    def test_health_channel_overrides_min_score_to_8(self) -> None:
+        step = self._make_step("health", min_score=6)
+        _, _, min_score = step._build_review_system()
+        assert min_score == 8
+
+    def test_health_channel_adds_extra_keys(self) -> None:
+        step = self._make_step("health")
+        _, keys, _ = step._build_review_system()
+        assert "source_score" in keys
+        assert "safety_score" in keys
+
+    def test_ai_tech_channel_adds_data_score_key(self) -> None:
+        step = self._make_step("ai_tech")
+        _, keys, _ = step._build_review_system()
+        assert "data_score" in keys
+
+    def test_ai_tech_channel_overrides_min_score_to_7(self) -> None:
+        step = self._make_step("ai_tech", min_score=5)
+        _, _, min_score = step._build_review_system()
+        assert min_score == 7
+
+    def test_psychology_channel_adds_empathy_score_key(self) -> None:
+        step = self._make_step("psychology")
+        _, keys, _ = step._build_review_system()
+        assert "empathy_score" in keys
+
+    def test_history_channel_adds_narrative_score_key(self) -> None:
+        step = self._make_step("history")
+        _, keys, _ = step._build_review_system()
+        assert "narrative_score" in keys
+
+    def test_space_channel_adds_wonder_score_key(self) -> None:
+        step = self._make_step("space")
+        _, keys, _ = step._build_review_system()
+        assert "wonder_score" in keys
+
+    def test_health_system_prompt_includes_context_note(self) -> None:
+        step = self._make_step("health")
+        system_prompt, _, _ = step._build_review_system()
+        assert "HEALTH" in system_prompt or "health" in system_prompt.lower()
+
+    def test_system_prompt_includes_all_extra_keys_in_json_example(self) -> None:
+        step = self._make_step("ai_tech")
+        system_prompt, _, _ = step._build_review_system()
+        assert "data_score" in system_prompt
+
+
+class TestScorePersonaMatch:
+    """_score_persona_match 키워드 밀도 스코어링 공식 검증."""
+
+    def _make_scene(self, narration: str) -> ScenePlan:
+        return ScenePlan(
+            scene_id=1,
+            narration_ko=narration,
+            visual_prompt_en="test",
+            target_sec=4.0,
+            structure_role="body",
+        )
+
+    def test_empty_scenes_returns_zero(self) -> None:
+        score = ScriptStep._score_persona_match([], "ai_tech", {"ai_tech": ("AI", "딥러닝")})
+        assert score == 0.0
+
+    def test_unknown_channel_returns_neutral_point_five(self) -> None:
+        scenes = [self._make_scene("AI 딥러닝 모델")]
+        score = ScriptStep._score_persona_match(scenes, "unknown_channel", {"ai_tech": ("AI",)})
+        assert score == 0.5
+
+    def test_no_keyword_hit_returns_zero(self) -> None:
+        scenes = [self._make_scene("날씨가 맑은 하루였습니다.")]
+        score = ScriptStep._score_persona_match(scenes, "ai_tech", {"ai_tech": ("AI", "딥러닝", "모델")})
+        assert score == 0.0
+
+    def test_all_keywords_hit_returns_one(self) -> None:
+        # All 2 keywords present — (2+0.5)/2 = 1.25 → capped at 1.0
+        scenes = [self._make_scene("AI와 딥러닝에 대한 내용입니다.")]
+        score = ScriptStep._score_persona_match(scenes, "ai_tech", {"ai_tech": ("AI", "딥러닝")})
+        assert score == 1.0
+
+    def test_partial_hit_gives_intermediate_score(self) -> None:
+        # 1 hit out of 4 keywords: (1+0.5)/4 = 0.375
+        scenes = [self._make_scene("AI에 대한 내용입니다.")]
+        score = ScriptStep._score_persona_match(scenes, "ai_tech", {"ai_tech": ("AI", "딥러닝", "모델", "알고리즘")})
+        assert abs(score - 0.375) < 0.001
+
+    def test_multi_scene_concatenates_all_text(self) -> None:
+        scenes = [
+            self._make_scene("AI 기술이 발전합니다."),
+            self._make_scene("딥러닝 모델의 한계점을 살펴봅니다."),
+        ]
+        score = ScriptStep._score_persona_match(scenes, "ai_tech", {"ai_tech": ("AI", "딥러닝", "모델")})
+        # All 3 keywords present: (3+0.5)/3 ≈ 1.167 → capped at 1.0
+        assert score == 1.0
+
+    def test_score_is_rounded_to_three_decimals(self) -> None:
+        # 1 hit out of 3: (1+0.5)/3 = 0.5
+        scenes = [self._make_scene("AI 관련 내용")]
+        score = ScriptStep._score_persona_match(scenes, "ai_tech", {"ai_tech": ("AI", "딥러닝", "모델")})
+        assert score == round(score, 3)
+
+
+class TestValidateCtaEdgeCases:
+    """_validate_cta: 대소문자 무관 매칭, 다중 위반, 경계 케이스 검증."""
+
+    def test_no_violations_returns_empty_list(self) -> None:
+        result = ScriptStep._validate_cta("오늘도 좋은 하루 되세요.", ("구독", "좋아요", "알림"))
+        assert result == []
+
+    def test_uppercase_forbidden_word_is_detected(self) -> None:
+        result = ScriptStep._validate_cta("Please SUBSCRIBE now!", ("subscribe",))
+        assert "subscribe" in result
+
+    def test_multiple_violations_all_reported(self) -> None:
+        result = ScriptStep._validate_cta("구독하고 좋아요 누르세요!", ("구독", "좋아요", "알림"))
+        assert "구독" in result
+        assert "좋아요" in result
+        assert "알림" not in result  # 알림은 없음
+
+    def test_violation_in_middle_of_sentence_detected(self) -> None:
+        result = ScriptStep._validate_cta("이 영상이 도움이 됐다면 구독 부탁드립니다.", ("구독",))
+        assert result == ["구독"]
+
+    def test_empty_narration_returns_empty_list(self) -> None:
+        result = ScriptStep._validate_cta("", ("구독", "좋아요"))
+        assert result == []
+
+    def test_empty_forbidden_words_returns_empty_list(self) -> None:
+        result = ScriptStep._validate_cta("구독하고 좋아요!", ())
+        assert result == []
+
+    def test_default_forbidden_words_catch_cta_pattern(self) -> None:
+        result = ScriptStep._validate_cta("구독 버튼 눌러주세요")
+        assert len(result) > 0

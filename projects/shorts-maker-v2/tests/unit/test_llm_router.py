@@ -1,9 +1,35 @@
 from __future__ import annotations
 
+import sys
+import types as _types
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
+
+
+def _ensure_stubs() -> None:
+    """Inject lightweight stubs for optional provider SDKs so patch() targets resolve."""
+    if "google" not in sys.modules:
+        google_mod = _types.ModuleType("google")
+        sys.modules["google"] = google_mod
+    else:
+        google_mod = sys.modules["google"]
+
+    if "google.genai" not in sys.modules:
+        genai_mod = _types.ModuleType("google.genai")
+        genai_mod.Client = MagicMock()  # type: ignore[attr-defined]
+        genai_mod.types = MagicMock()  # type: ignore[attr-defined]
+        sys.modules["google.genai"] = genai_mod
+        google_mod.genai = genai_mod  # type: ignore[attr-defined]
+
+    if "anthropic" not in sys.modules:
+        anthropic_mod = _types.ModuleType("anthropic")
+        anthropic_mod.Anthropic = MagicMock()  # type: ignore[attr-defined]
+        sys.modules["anthropic"] = anthropic_mod
+
+
+_ensure_stubs()
 
 from shorts_maker_v2.providers.llm_router import LLMRouter
 
