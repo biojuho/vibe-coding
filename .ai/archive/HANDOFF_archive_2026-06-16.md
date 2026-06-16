@@ -1,0 +1,8 @@
+## Rotation 2026-06-16 (archived addenda older than 2026-06-09)
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-15 |
+| Tool | Codex |
+| Work | **T-2699 target action approval token**. Continued the auto-research loop under the dirty-handoff boundary after T-2698. Found that the checklist `Target blocker actions` line told operators to clear Shorts Maker V2 dirty paths but did not name the already prepared current dirty-source approval token. Patched `refresh_current_evidence.py` so the Shorts Maker V2 target action appends `via APPROVE_SHORTS_MAKER_V2_CURRENT_SOURCE_DIRTY`. Updated focused regression coverage in `workspace/tests/test_auto_research_refresh_current_evidence.py`. |
+| Next Priorities | Verification passed focused refresh-current-evidence pytest (`137 passed` with `-o addopts=`), Ruff, `py_compile`, full `refresh_current_evidence.py --root . --timeout 360 --json` (`all steps ok`; debug inventory exit `1` expected), scoped authorization menu check (`rendered_matches=true`, `exact_rendered_matches=true`, `coverage_stale=false`), path-limited diff-check with CRLF warnings only, and A/B `adopt_candidate` (`score_delta=0.3333333333333333`, `.tmp/ab-decision-t2699-target-action-approval-token.json`). Current checklist now shows `Target blocker actions: shorts-maker-v2 -> clear target dirty paths and keep project QC/readiness evidence current via APPROVE_SHORTS_MAKER_V2_CURRENT_SOURCE_DIRTY; hanwoo-dashboard -> wait for Supabase credential reset before live Prisma CRUD retry.` Completion remains incomplete and selector remains `blocked / dirty_worktree_handoff_current`; no stage, commit, push, revert, product source edit, live Prisma/T-251 retry, cleanup apply, or `update_goal` was performed. |
