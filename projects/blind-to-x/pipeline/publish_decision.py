@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass, field
 from typing import Any
@@ -77,6 +78,8 @@ def _coerce_score(value: Any) -> float | None:
     try:
         score = float(value)
     except (TypeError, ValueError):
+        return None
+    if not math.isfinite(score):
         return None
     if 0 <= score <= 10:
         score *= 10

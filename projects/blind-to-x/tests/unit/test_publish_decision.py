@@ -377,6 +377,26 @@ class TestCoerceScore:
     def test_string_numeric_is_accepted(self):
         assert self._fn("9") == 90.0
 
+    def test_nan_float_returns_none(self):
+        """BTX-PD-CS001: float('nan') → None (min(100,nan)=100 둔갑 방지)."""
+        assert self._fn(float("nan")) is None
+
+    def test_inf_float_returns_none(self):
+        """BTX-PD-CS002: float('inf') → None."""
+        assert self._fn(float("inf")) is None
+
+    def test_neg_inf_returns_none(self):
+        """BTX-PD-CS003: float('-inf') → None."""
+        assert self._fn(float("-inf")) is None
+
+    def test_string_nan_returns_none(self):
+        """BTX-PD-CS004: 'nan' 문자열 → None."""
+        assert self._fn("nan") is None
+
+    def test_string_inf_returns_none(self):
+        """BTX-PD-CS005: 'inf' 문자열 → None."""
+        assert self._fn("inf") is None
+
 
 class TestQualityScore:
     """_quality_score: dict averaging + single-value passthrough."""
