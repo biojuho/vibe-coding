@@ -33,8 +33,12 @@ HOOK_TYPE_SCORES = {
 # T-AB036: 2026 블라인드 핵심 트렌드 업데이트 (AI 전환 이슈 반영)
 # T-AB046: AI 트렌드 topic label 추가 — classification.yaml label=AI 트렌드가
 #   HIGH_TREND_TOPICS에 없으면 _trend_relevance_score가 50.0 기본값 반환
-HIGH_TREND_TOPICS = {"연봉", "이직", "회사문화", "상사", "구조조정", "AI 대체", "자동화", "AI 트렌드"}
-MEDIUM_TREND_TOPICS = {"복지", "재테크", "직장개그", "부동산", "IT", "AI 도구", "ChatGPT", "프롬프트"}
+# T-QC-ORPHAN: "AI 대체"/"자동화"는 classification.yaml에 없는 dead label → 제거.
+#   AI 관련 포스트는 모두 "AI 트렌드" label로 분류됨 (classification.yaml:276).
+HIGH_TREND_TOPICS = {"연봉", "이직", "회사문화", "상사", "구조조정", "AI 트렌드"}
+# T-QC-ORPHAN: "AI 도구"/"ChatGPT"/"프롬프트"는 classification.yaml에 없는 dead label → 제거.
+#   AI 도구 토픽은 "IT" 또는 "AI 트렌드"로 분류됨.
+MEDIUM_TREND_TOPICS = {"복지", "재테크", "직장개그", "부동산", "IT"}
 AUDIENCE_SCORES = {
     "전직장인": 85.0,
     "이직준비층": 80.0,
@@ -50,8 +54,11 @@ VIRAL_SCORES = {
     "AI_전환": 82.0,  # AI 대체 불안 = 경악급 공감 (2026 핵심 직장인 이슈)
     "고용불안": 78.0,  # 권고사직/구조조정 = 현타 이상 (강한 공유 욕구)
     "현타": 75.0,
+    "불안": 72.0,  # T-QC: classification.yaml에 있으나 미등록 — 직장불안/미래불안 공유 욕구
     "허탈": 70.0,
     "공감": 65.0,
+    "자부심": 62.0,  # T-QC: 성취/인정 게시물 — 공감보다 약간 낮은 바이럴성
+    "기대감": 58.0,  # T-QC: 이직 성공·인상 발표 등 — 현실성 있으나 자극도 낮음
     "통찰": 55.0,
 }
 

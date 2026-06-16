@@ -377,3 +377,85 @@ class TestGetTimeContext:
         assert result["slot"] in self._VALID_SLOTS
         assert result["prefix"]
         assert result["tone_hint"]
+
+
+# ── T-QC: scoring_6d 신규 감정축 + 데드 topic label 회귀 테스트 ─────────────
+
+
+class TestViralScoresCompleteness:
+    """VIRAL_SCORES가 classification.yaml의 모든 감정 label을 커버하는지 검증."""
+
+    # classification.yaml에 정의된 감정 label 전체
+    _ALL_EMOTION_LABELS = {
+        "분노",
+        "허탈",
+        "공감",
+        "웃김",
+        "경악",
+        "현타",
+        "통찰",
+        "자부심",
+        "불안",
+        "기대감",
+        "AI_전환",
+        "고용불안",
+    }
+
+    def test_all_emotion_labels_have_calibrated_viral_score(self, monkeypatch):
+        from pipeline.content_intelligence.scoring_6d import VIRAL_SCORES
+
+        missing = self._ALL_EMOTION_LABELS - set(VIRAL_SCORES)
+        assert not missing, f"VIRAL_SCORES에 없는 감정 label: {missing}"
+
+    def test_new_emotion_axes_return_non_default_scores(self, monkeypatch):
+        from pipeline.content_intelligence import scoring_6d
+
+        monkeypatch.setattr(scoring_6d, "get_season_boost", lambda _: 0.0)
+        monkeypatch.setattr(scoring_6d, "get_source_hint", lambda _: {"quality_boost": 1.0})
+
+        post = {"title": "테스트", "content": "내용", "likes": 10, "comments": 2}
+        for emotion in ("자부심", "불안", "기대감"):
+            _, dims = calculate_6d_score(post, "이직", "공감형", emotion, "전직장인")
+            assert dims["viral_potential_score"] != 50.0, (
+                f"'{emotion}' still returns default 50.0 — not registered in VIRAL_SCORES"
+            )
+
+
+class TestOrphanedTopicLabelsRemoved:
+    """HIGH/MEDIUM_TREND_TOPICS에 classification.yaml에 없는 dead label이 없어야 함."""
+
+    # classification.yaml에 실제 존재하는 topic label 전체
+    _VALID_CLASSIFICATION_LABELS = {
+        "연봉",
+        "이직",
+        "회사문화",
+        "상사",
+        "복지",
+        "연애",
+        "결혼",
+        "가족",
+        "재테크",
+        "직장개그",
+        "부동산",
+        "IT",
+        "건강",
+        "정치",
+        "자기계발",
+        "금융/경제",
+        "뷰티/라이프",
+        "구조조정",
+        "AI 트렌드",
+        "기타",
+    }
+
+    def test_high_trend_topics_are_all_valid_labels(self):
+        from pipeline.content_intelligence.scoring_6d import HIGH_TREND_TOPICS
+
+        orphans = HIGH_TREND_TOPICS - self._VALID_CLASSIFICATION_LABELS
+        assert not orphans, f"HIGH_TREND_TOPICS에 dead label 존재: {orphans}"
+
+    def test_medium_trend_topics_are_all_valid_labels(self):
+        from pipeline.content_intelligence.scoring_6d import MEDIUM_TREND_TOPICS
+
+        orphans = MEDIUM_TREND_TOPICS - self._VALID_CLASSIFICATION_LABELS
+        assert not orphans, f"MEDIUM_TREND_TOPICS에 dead label 존재: {orphans}"
