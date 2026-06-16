@@ -387,3 +387,41 @@ def test_apply_random_effect_with_exclude_param() -> None:
             exclude="ken_burns",
         )
         assert chosen != "ken_burns"
+
+
+# ── _fit_vertical / _zoom_crop NaN/Zero 가드 (RE-NI 시리즈) ────────────────
+
+
+def test_fit_vertical_zero_width_returns_clip_unchanged() -> None:
+    """RE-NI001: clip.w=0 → ZeroDivisionError 없이 원본 클립 반환."""
+    from shorts_maker_v2.pipeline.render_effects import RenderEffectsMixin as RenderEffects
+
+    clip = _make_fake_clip()
+    clip.w = 0
+    clip.h = 1920
+    result = RenderEffects._fit_vertical(clip, 1080, 1920)
+    assert result is clip
+
+
+def test_fit_vertical_zero_height_returns_clip_unchanged() -> None:
+    """RE-NI002: clip.h=0 → ZeroDivisionError 없이 원본 클립 반환."""
+    from shorts_maker_v2.pipeline.render_effects import RenderEffectsMixin as RenderEffects
+
+    clip = _make_fake_clip()
+    clip.w = 1080
+    clip.h = 0
+    result = RenderEffects._fit_vertical(clip, 1080, 1920)
+    assert result is clip
+
+
+def test_zoom_crop_nan_scale_fn_falls_back_to_1() -> None:
+    """RE-NI003: scale_fn이 NaN 반환해도 PIL 크래시 없이 1.0 scale로 폴백."""
+    import numpy as np
+    from moviepy import ImageClip
+
+    from shorts_maker_v2.pipeline.render_effects import _zoom_crop
+
+    src = ImageClip((np.ones((1920, 1080, 3)) * 128).astype("uint8")).with_duration(1.0)
+    result = _zoom_crop(src, 1080, 1920, lambda p: float("nan"))
+    frame = result.get_frame(0.5)
+    assert frame.shape == (1920, 1080, 3)

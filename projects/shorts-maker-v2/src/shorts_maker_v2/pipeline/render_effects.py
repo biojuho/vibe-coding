@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import random
 from typing import TYPE_CHECKING, Any
 
@@ -40,7 +41,8 @@ def _zoom_crop(clip: Any, target_width: int, target_height: int, scale_fn: Any) 
 
     def make_frame(get_frame: Any, t: float) -> Any:
         frame = get_frame(t)
-        scale = max(float(scale_fn(t / dur)), 1.0)
+        _s = float(scale_fn(t / dur))
+        scale = _s if math.isfinite(_s) and _s >= 1.0 else 1.0
         # resize(s) 후 중심 target 크롭 == 중심 (target/s) 크롭 후 target 으로 resize
         crop_w = min(float(src_w), target_width / scale)
         crop_h = min(float(src_h), target_height / scale)
@@ -250,6 +252,8 @@ class RenderEffectsMixin:
 
     @staticmethod
     def _fit_vertical(clip: Any, target_width: int, target_height: int) -> Any:
+        if not clip.w or not clip.h:
+            return clip
         scale = max(target_width / clip.w, target_height / clip.h)
         resized = clip.resized(scale)
         x1 = max(0, (resized.w - target_width) / 2)
