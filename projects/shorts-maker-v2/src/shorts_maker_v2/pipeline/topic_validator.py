@@ -7,6 +7,7 @@ with a single cheap LLM call.
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass, field
 
 from shorts_maker_v2.providers.llm_router import LLMRouter
@@ -120,7 +121,8 @@ def _parse_result(data: dict) -> TopicValidation:
     """Parse LLM JSON response into TopicValidation."""
     try:
         is_valid = bool(data.get("is_valid", False))
-        confidence = max(0.0, min(1.0, float(data.get("confidence", 0.5))))
+        _conf = float(data.get("confidence", 0.5))
+        confidence = max(0.0, min(1.0, _conf)) if math.isfinite(_conf) else 0.5
         reason = str(data.get("reason", "No reason provided."))
 
         raw_suggestions = data.get("suggestions", [])
@@ -136,7 +138,12 @@ def _parse_result(data: dict) -> TopicValidation:
         for key in score_keys:
             val = data.get(key)
             if val is not None:
-                scores[key] = max(1, min(10, int(round(float(val)))))
+                try:
+                    _f = float(val)
+                    if math.isfinite(_f):
+                        scores[key] = max(1, min(10, int(round(_f))))
+                except (TypeError, ValueError, OverflowError):
+                    pass
 
         return TopicValidation(
             is_valid=is_valid,

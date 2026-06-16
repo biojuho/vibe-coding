@@ -134,3 +134,65 @@ class TestTopicValidation:
         assert tv.is_valid is True
         assert tv.suggestions == []
         assert tv.scores == {}
+
+
+# ── _parse_result NaN/Inf 회귀 테스트 (TV-NI 시리즈) ────────────────────────
+
+
+class TestParseResultNanInf:
+    """_parse_result 이 NaN/Inf LLM 출력에도 크래시 없이 안전 폴백해야 함."""
+
+    def test_nan_confidence_becomes_0_5(self):
+        """TV-NI001: confidence=nan → 0.5 (최대 신뢰도 1.0 둔갑 방지)."""
+        import math
+
+        result = _parse_result({"is_valid": True, "confidence": float("nan"), "reason": "ok"})
+        assert not math.isnan(result.confidence)
+        assert result.confidence == 0.5
+
+    def test_inf_confidence_becomes_0_5(self):
+        """TV-NI002: confidence=inf → 0.5 (1.0 클램핑이 아닌 안전 기본값)."""
+        result = _parse_result({"is_valid": True, "confidence": float("inf"), "reason": "ok"})
+        assert result.confidence == 0.5
+
+    def test_inf_score_does_not_raise(self):
+        """TV-NI003: 점수에 inf가 와도 OverflowError 없이 해당 키 무시."""
+        result = _parse_result(
+            {
+                "is_valid": True,
+                "confidence": 0.8,
+                "reason": "ok",
+                "visual_feasibility": float("inf"),
+                "fact_verifiability": 7,
+            }
+        )
+        assert "visual_feasibility" not in result.scores
+        assert result.scores.get("fact_verifiability") == 7
+
+    def test_nan_score_does_not_raise(self):
+        """TV-NI004: 점수에 nan이 와도 OverflowError/ValueError 없이 키 무시."""
+        result = _parse_result(
+            {
+                "is_valid": True,
+                "confidence": 0.9,
+                "reason": "ok",
+                "visual_feasibility": float("nan"),
+                "channel_relevance": 8,
+            }
+        )
+        assert "visual_feasibility" not in result.scores
+        assert result.scores.get("channel_relevance") == 8
+
+    def test_string_inf_score_does_not_raise(self):
+        """TV-NI005: 'inf' 문자열 점수에 OverflowError 없음."""
+        result = _parse_result(
+            {
+                "is_valid": False,
+                "confidence": 0.7,
+                "reason": "test",
+                "format_suitability": "inf",
+                "channel_relevance": 6,
+            }
+        )
+        assert "format_suitability" not in result.scores
+        assert result.scores.get("channel_relevance") == 6
