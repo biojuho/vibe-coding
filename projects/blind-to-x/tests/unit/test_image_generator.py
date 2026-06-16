@@ -162,10 +162,10 @@ class TestValidateImage:
         return ImageGenerator._validate_image(path)
 
     def test_valid_image(self, tmp_path):
-        import numpy as np
+        numpy = pytest.importorskip("numpy", reason="_validate_image requires numpy")
         from PIL import Image
 
-        img = Image.fromarray(np.random.randint(0, 255, (512, 512, 3), dtype="uint8"))
+        img = Image.fromarray(numpy.random.randint(0, 255, (512, 512, 3), dtype="uint8"))
         p = tmp_path / "ok.png"
         img.save(str(p))
         valid, reason = self._call(str(p))
@@ -173,6 +173,7 @@ class TestValidateImage:
         assert reason == ""
 
     def test_too_small(self, tmp_path):
+        pytest.importorskip("numpy", reason="_validate_image gracefully degrades to True without numpy")
         from PIL import Image
 
         img = Image.new("RGB", (100, 100), color="red")
@@ -183,6 +184,7 @@ class TestValidateImage:
         assert "too_small" in reason
 
     def test_uniform_image(self, tmp_path):
+        pytest.importorskip("numpy", reason="_validate_image gracefully degrades to True without numpy")
         from PIL import Image
 
         img = Image.new("RGB", (512, 512), color=(128, 128, 128))
@@ -193,6 +195,7 @@ class TestValidateImage:
         assert "too_uniform" in reason
 
     def test_nonexistent_file(self):
+        pytest.importorskip("numpy", reason="_validate_image gracefully degrades to True without numpy")
         valid, reason = self._call("/nonexistent/path.png")
         assert valid is False
         assert "open_failed" in reason
@@ -273,7 +276,7 @@ class TestGenerateImage:
 
     @pytest.mark.asyncio
     async def test_pollinations_success(self, tmp_path, monkeypatch):
-        import numpy as np
+        np = pytest.importorskip("numpy", reason="needs numpy for valid image creation")
         from PIL import Image
 
         # Create a valid image file to return
