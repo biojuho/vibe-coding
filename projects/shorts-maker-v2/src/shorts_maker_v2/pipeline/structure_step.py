@@ -14,6 +14,7 @@ Gate 2 검증:
 from __future__ import annotations
 
 import logging
+import math
 from typing import Any
 
 from shorts_maker_v2.config import AppConfig
@@ -239,6 +240,11 @@ class StructureStep:
             # cta를 closing으로 자동 변환
             if role == "cta":
                 role = "closing"
+            try:
+                _ts = float(raw.get("target_sec", 5.0))
+                target_sec = _ts if math.isfinite(_ts) and _ts > 0 else 5.0
+            except (TypeError, ValueError, OverflowError):
+                target_sec = 5.0
             scenes.append(
                 SceneOutline(
                     scene_id=idx,
@@ -246,7 +252,7 @@ class StructureStep:
                     intent=str(raw.get("intent", "")).strip(),
                     visual_direction=str(raw.get("visual_direction", "")).strip(),
                     emotional_beat=str(raw.get("emotional_beat", "")).strip(),
-                    target_sec=float(raw.get("target_sec", 5.0)),
+                    target_sec=target_sec,
                 )
             )
 

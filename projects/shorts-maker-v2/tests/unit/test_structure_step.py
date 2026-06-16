@@ -357,3 +357,89 @@ class TestStructureOutlinePromptBlock:
         assert "Scene 2 [body]" in block
         assert "Scene 3 [closing]" in block
         assert "lingering thought" in block
+
+
+# ── _parse_outline NaN/Inf target_sec 회귀 (SS-NI 시리즈) ─────────────────────
+
+import math  # noqa: E402
+
+
+class TestParseOutlineNanInf:
+    """_parse_outline 이 NaN/Inf target_sec 에 안전 폴백해야 함.
+
+    duration gate bypass 방지: sum([..., nan, ...]) = nan 이 되면
+    total_sec < dur_min - 10 비교가 False 가 되어 검증이 무력화된다.
+    """
+
+    def _step(self, _config):
+        return StructureStep(config=_config, llm_router=MagicMock())
+
+    def _outline(self, target_sec_value):
+        return {
+            "narrative_arc": "quiet_storytelling",
+            "scenes": [
+                {
+                    "role": "hook",
+                    "intent": "hook",
+                    "visual_direction": "dark bg",
+                    "emotional_beat": "curiosity",
+                    "target_sec": target_sec_value,
+                },
+                {
+                    "role": "closing",
+                    "intent": "linger",
+                    "visual_direction": "calm",
+                    "emotional_beat": "contemplation",
+                    "target_sec": 5.0,
+                },
+            ],
+        }
+
+    def test_nan_target_sec_becomes_5(_self, _config):
+        """SS-NI001: target_sec=nan → 5.0 (duration gate bypass 방지)."""
+        step = _self._step(_config)
+        outline = step._parse_outline(_self._outline(float("nan")))
+        assert all(math.isfinite(s.target_sec) for s in outline.scenes)
+        assert outline.scenes[0].target_sec == 5.0
+
+    def test_inf_target_sec_becomes_5(_self, _config):
+        """SS-NI002: target_sec=inf → 5.0."""
+        step = _self._step(_config)
+        outline = step._parse_outline(_self._outline(float("inf")))
+        assert outline.scenes[0].target_sec == 5.0
+
+    def test_neg_inf_target_sec_becomes_5(_self, _config):
+        """SS-NI003: target_sec=-inf → 5.0."""
+        step = _self._step(_config)
+        outline = step._parse_outline(_self._outline(float("-inf")))
+        assert outline.scenes[0].target_sec == 5.0
+
+    def test_string_inf_target_sec_becomes_5(_self, _config):
+        """SS-NI004: target_sec='inf' 문자열 → OverflowError 없이 5.0."""
+        step = _self._step(_config)
+        outline = step._parse_outline(_self._outline("inf"))
+        assert outline.scenes[0].target_sec == 5.0
+
+    def test_zero_target_sec_becomes_5(_self, _config):
+        """SS-NI005: target_sec=0 → 5.0 (0은 의미 없는 값)."""
+        step = _self._step(_config)
+        outline = step._parse_outline(_self._outline(0))
+        assert outline.scenes[0].target_sec == 5.0
+
+    def test_negative_target_sec_becomes_5(_self, _config):
+        """SS-NI006: target_sec=-3 → 5.0 (음수는 유효하지 않음)."""
+        step = _self._step(_config)
+        outline = step._parse_outline(_self._outline(-3.0))
+        assert outline.scenes[0].target_sec == 5.0
+
+    def test_total_sec_is_finite_even_with_nan_input(_self, _config):
+        """total_estimated_sec 도 NaN 이 되지 않아야 한다."""
+        step = _self._step(_config)
+        outline = step._parse_outline(_self._outline(float("nan")))
+        assert math.isfinite(outline.total_estimated_sec)
+
+    def test_normal_target_sec_unaffected(_self, _config):
+        """NaN 방어가 정상 값을 바꾸지 않는다."""
+        step = _self._step(_config)
+        outline = step._parse_outline(_self._outline(8.0))
+        assert outline.scenes[0].target_sec == 8.0
