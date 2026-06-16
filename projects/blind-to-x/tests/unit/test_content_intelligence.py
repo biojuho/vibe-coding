@@ -717,6 +717,73 @@ class TestNormalizeCalibrationWeights:
 # ── utils 순수 함수 단위 테스트 ─────────────────────────────────────────────
 
 
+class TestEditorialReasonLabels:
+    """_build_editorial_reason_labels: 점수 임계값 기반 레이블 생성."""
+
+    def setup_method(self):
+        from pipeline.content_intelligence.scoring_editorial import _build_editorial_reason_labels
+
+        self._fn = _build_editorial_reason_labels
+
+    def _dims(self, **overrides):
+        base = {"reader_desire": 0.0, "empathy_fun": 0.0, "spinoff": 0.0, "specificity": 0.0, "workplace_fit": 0.0}
+        base.update(overrides)
+        return base
+
+    def test_all_above_threshold_gives_five_labels(self):
+        dims = self._dims(reader_desire=75, empathy_fun=75, spinoff=70, specificity=70, workplace_fit=75)
+        labels = self._fn(dims, 90.0)
+        assert len(labels) == 5
+
+    def test_all_below_threshold_with_score_55_gives_fallback_label(self):
+        labels = self._fn(self._dims(), 55.0)
+        assert labels == ["반응 포인트는 있으나 편집 보강이 필요함"]
+
+    def test_all_below_threshold_with_score_below_55_gives_empty(self):
+        assert self._fn(self._dims(), 50.0) == []
+
+    def test_reader_desire_exactly_at_70_threshold(self):
+        labels = self._fn(self._dims(reader_desire=70), 90.0)
+        assert "직장인이 바로 눌러볼 만한 주제" in labels
+
+    def test_spinoff_exactly_at_65_threshold(self):
+        labels = self._fn(self._dims(spinoff=65), 90.0)
+        assert "댓글과 파생 대화로 이어질 각이 있음" in labels
+
+    def test_below_threshold_by_one_not_included(self):
+        labels = self._fn(self._dims(reader_desire=69.9, spinoff=64.9), 90.0)
+        assert "직장인이 바로 눌러볼 만한 주제" not in labels
+        assert "댓글과 파생 대화로 이어질 각이 있음" not in labels
+
+
+class TestWeightedEditorialScore:
+    """_weighted_editorial_score: 5축 가중 평균 — 가중치 합 검증."""
+
+    def setup_method(self):
+        from pipeline.content_intelligence.scoring_editorial import _weighted_editorial_score
+
+        self._fn = _weighted_editorial_score
+
+    def test_all_100_gives_100(self):
+        dims = {"reader_desire": 100, "empathy_fun": 100, "spinoff": 100, "specificity": 100, "workplace_fit": 100}
+        assert self._fn(dims) == 100.0
+
+    def test_all_zero_gives_zero(self):
+        dims = {"reader_desire": 0, "empathy_fun": 0, "spinoff": 0, "specificity": 0, "workplace_fit": 0}
+        assert self._fn(dims) == 0.0
+
+    def test_weights_sum_to_one(self):
+        # Verify total weight = 0.30+0.25+0.20+0.15+0.10 = 1.0
+        # If all dims = 50.0, weighted avg = 50.0
+        dims = {"reader_desire": 50, "empathy_fun": 50, "spinoff": 50, "specificity": 50, "workplace_fit": 50}
+        assert self._fn(dims) == 50.0
+
+    def test_reader_desire_has_highest_weight(self):
+        # reader_desire at 100, all others at 0 → 0.30*100 = 30.0
+        dims = {"reader_desire": 100, "empathy_fun": 0, "spinoff": 0, "specificity": 0, "workplace_fit": 0}
+        assert self._fn(dims) == 30.0
+
+
 class TestCalculatePerformanceScore:
     """calculate_performance_score: 역사적 예시 가중치 기반 성과 점수."""
 
