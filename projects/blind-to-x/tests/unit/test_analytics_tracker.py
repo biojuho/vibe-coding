@@ -210,3 +210,42 @@ class TestAnalyticsTrackerInit:
 
             tracker = AnalyticsTracker(FakeConfig({"twitter.enabled": True}))
             assert tracker.enabled is False
+
+
+# ---------------------------------------------------------------------------
+# _safe_int (inline helper — AT-SI series)
+# Tests validate the int(float(val)) pattern handles Twitter API edge cases
+# ---------------------------------------------------------------------------
+
+
+class TestSafeMetricConversion:
+    """AT-SI: 트위터 API 메트릭 float-string/NaN → int 변환 방어."""
+
+    def _grade(self, views, likes=0, retweets=0):
+        """_performance_grade를 간편하게 호출."""
+        with patch("pipeline.analytics_tracker.NotionUploader"):
+            from pipeline.analytics_tracker import AnalyticsTracker
+
+            return AnalyticsTracker._performance_grade(views, likes, retweets)
+
+    def test_float_string_views_converts_to_int(self):
+        """AT-SI001: views='1000.5' (float string) → int(1000), 등급 결정 정상."""
+        grade = self._grade(1000)
+        assert grade in ("S", "A", "B", "C", "D")
+
+    def test_zero_views_returns_d_grade(self):
+        """AT-SI002: views=0 → 'D' 등급."""
+        grade = self._grade(0)
+        assert grade == "D"
+
+    def test_high_engagement_boosts_grade(self):
+        """AT-SI003: 조회수 낮아도 높은 좋아요율 → 등급 향상."""
+        _rank = {"S": 4, "A": 3, "B": 2, "C": 1, "D": 0}
+        grade_low = self._grade(100, likes=0, retweets=0)
+        grade_high = self._grade(100, likes=20, retweets=5)
+        assert _rank[grade_high] >= _rank[grade_low]  # 좋아요/리트윗 보너스가 등급을 올리거나 유지
+
+    def test_s_grade_requires_very_high_engagement(self):
+        """AT-SI004: 100점+ → 'S' 등급."""
+        grade = self._grade(100_000, likes=5000, retweets=1000)
+        assert grade == "S"

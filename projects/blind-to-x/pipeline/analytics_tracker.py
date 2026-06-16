@@ -183,14 +183,20 @@ class AnalyticsTracker:
                     if not page_id:
                         continue
 
-                    views = metrics.get("impression_count", 0) or 0
-                    likes = metrics.get("like_count", 0) or 0
-                    retweets = metrics.get("retweet_count", 0) or 0
+                    def _safe_int(val) -> int:
+                        try:
+                            return max(0, int(float(val or 0)))
+                        except (TypeError, ValueError, OverflowError):
+                            return 0
+
+                    views = _safe_int(metrics.get("impression_count", 0))
+                    likes = _safe_int(metrics.get("like_count", 0))
+                    retweets = _safe_int(metrics.get("retweet_count", 0))
                     update_payload = {
                         "views": views,
                         "likes": likes,
                         "retweets": retweets,
-                        "performance_grade": self._performance_grade(int(views), int(likes), int(retweets)),
+                        "performance_grade": self._performance_grade(views, likes, retweets),
                     }
                     success = await self.notion_uploader.update_page_properties(
                         page_id,
