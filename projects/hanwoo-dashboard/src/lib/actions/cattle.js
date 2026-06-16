@@ -203,7 +203,7 @@ export async function updateCattle(id, data) {
 					id,
 					"status_change",
 					new Date(),
-					`상태 변경: ${existing.status} → ${data.status}`,
+					`상태 변경: ${existing.status} → ${payload.status}`,
 					{
 						from: existing.status,
 						to: payload.status,
@@ -217,7 +217,7 @@ export async function updateCattle(id, data) {
 					id,
 					"weight",
 					new Date(),
-					`체중 변경: ${existing.weight}kg → ${data.weight}kg`,
+					`체중 변경: ${existing.weight}kg → ${payload.weight}kg`,
 					{
 						from: existing.weight,
 						to: payload.weight,
@@ -235,7 +235,7 @@ export async function updateCattle(id, data) {
 					id,
 					"movement",
 					new Date(),
-					`이동: ${existing.buildingId} ${existing.penNumber}번 → ${data.buildingId} ${data.penNumber}번`,
+					`이동: ${existing.buildingId} ${existing.penNumber}번 → ${payload.buildingId} ${payload.penNumber}번`,
 					{
 						fromBuilding: existing.buildingId,
 						fromPen: existing.penNumber,

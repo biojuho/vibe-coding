@@ -173,7 +173,7 @@ export function useCattlePagination(options = {}) {
 				}
 			}
 		},
-		[isLoading, hasMore, pageInfo],
+		[hasMore, pageInfo],
 	);
 
 	return { items, setItems, pageInfo, isLoading, hasMore, loadMore, loadError };

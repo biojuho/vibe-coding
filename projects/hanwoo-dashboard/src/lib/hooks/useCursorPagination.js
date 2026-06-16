@@ -158,7 +158,7 @@ export function useCursorPagination(options = {}) {
 				}
 			}
 		},
-		[isLoading, hasMore, pageInfo, endpoint],
+		[hasMore, pageInfo, endpoint],
 	);
 
 	return { items, setItems, pageInfo, isLoading, hasMore, loadMore };
