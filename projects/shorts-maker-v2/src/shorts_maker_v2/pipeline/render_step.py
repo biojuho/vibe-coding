@@ -964,6 +964,11 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
 
     @staticmethod
     def _log_render_benchmark(*, hw_codec: str, video_duration: float, render_elapsed: float) -> None:
+        try:
+            _dur = float(video_duration) if video_duration is not None else 0.0
+        except (TypeError, ValueError):
+            _dur = 0.0
+        video_duration = _dur
         speed_ratio = video_duration / max(render_elapsed, 0.001)
         logger.info(
             "[BENCHMARK] render complete | codec=%s | video=%.1fs | render=%.1fs | speed=%.2fx (%s)",
