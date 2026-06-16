@@ -15,6 +15,7 @@ Usage:
 from __future__ import annotations
 
 import logging
+import math
 import time
 from dataclasses import dataclass, field
 
@@ -263,9 +264,9 @@ Examples:
                 continue
 
             try:
-                viral_score = float(item.get("viral_score", 5.0))
-                viral_score = max(0.0, min(10.0, viral_score))
-            except (TypeError, ValueError):
+                _vs = float(item.get("viral_score", 5.0))
+                viral_score = max(0.0, min(10.0, _vs)) if math.isfinite(_vs) else 5.0
+            except (TypeError, ValueError, OverflowError):
                 viral_score = 5.0
 
             angles.append(

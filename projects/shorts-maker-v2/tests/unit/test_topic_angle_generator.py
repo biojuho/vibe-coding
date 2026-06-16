@@ -296,3 +296,62 @@ class TestRun:
         gen.run(many, "ai_tech", n=5)
         # LLM은 정확히 1번만 호출되어야 함
         assert mock_llm_router.generate_json.call_count == 1
+
+
+# ── _parse_angles NaN/Inf viral_score 회귀 (TAG-NI 시리즈) ──────────────────
+
+
+class TestParseAnglesNanInf:
+    """_parse_angles 가 NaN/Inf viral_score 에도 안전 폴백해야 함."""
+
+    def _gen(self, mock_config, mock_llm_router):
+        return TopicAngleGenerator(mock_config, llm_router=mock_llm_router)
+
+    def _parse(self, gen, viral_score_value):
+        return gen._parse_angles(
+            {
+                "angles": [
+                    {
+                        "topic": "테스트 주제",
+                        "title": "테스트 제목",
+                        "viral_score": viral_score_value,
+                    }
+                ]
+            },
+            "ai_tech",
+        )
+
+    def test_nan_viral_score_becomes_5(self, mock_config, mock_llm_router):
+        """TAG-NI001: viral_score=nan → 5.0 (최대값 10 둔갑 방지)."""
+        gen = self._gen(mock_config, mock_llm_router)
+        angles = self._parse(gen, float("nan"))
+        assert len(angles) == 1
+        assert angles[0].viral_score == 5.0
+
+    def test_inf_viral_score_becomes_5(self, mock_config, mock_llm_router):
+        """TAG-NI002: viral_score=inf → 5.0."""
+        gen = self._gen(mock_config, mock_llm_router)
+        angles = self._parse(gen, float("inf"))
+        assert len(angles) == 1
+        assert angles[0].viral_score == 5.0
+
+    def test_neg_inf_viral_score_becomes_5(self, mock_config, mock_llm_router):
+        """TAG-NI003: viral_score=-inf → 5.0."""
+        gen = self._gen(mock_config, mock_llm_router)
+        angles = self._parse(gen, float("-inf"))
+        assert len(angles) == 1
+        assert angles[0].viral_score == 5.0
+
+    def test_string_inf_viral_score_becomes_5(self, mock_config, mock_llm_router):
+        """TAG-NI004: viral_score='inf' 문자열 → OverflowError 없이 5.0."""
+        gen = self._gen(mock_config, mock_llm_router)
+        angles = self._parse(gen, "inf")
+        assert len(angles) == 1
+        assert angles[0].viral_score == 5.0
+
+    def test_normal_viral_score_unaffected(self, mock_config, mock_llm_router):
+        """NaN 방어가 정상 점수를 바꾸지 않는다."""
+        gen = self._gen(mock_config, mock_llm_router)
+        angles = self._parse(gen, 8.0)
+        assert len(angles) == 1
+        assert angles[0].viral_score == 8.0
