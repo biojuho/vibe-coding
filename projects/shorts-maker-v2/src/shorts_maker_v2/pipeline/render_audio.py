@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import random
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -256,14 +257,16 @@ class RenderAudioMixin:
             rms_values = []
             for i in range(n_windows):
                 chunk = nar_array[i * window_samples : (i + 1) * window_samples]
-                rms = float(np.sqrt(float(np.mean(chunk**2))))
-                rms_values.append(rms)
+                _rms = float(np.sqrt(float(np.mean(chunk**2))))
+                if math.isfinite(_rms):
+                    rms_values.append(_rms)
 
             # RMS 임계값: 평균의 30%를 기준으로 음성 구간 판별
             if not rms_values:
                 return bgm_clip.with_effects([MultiplyVolume(base_vol)])
 
-            rms_threshold = float(np.mean(rms_values)) * 0.3
+            _mean_rms = float(np.mean(rms_values))
+            rms_threshold = (_mean_rms if math.isfinite(_mean_rms) else 0.0) * 0.3
             speech_count = sum(1 for r in rms_values if r > rms_threshold)
 
             # 음성 구간 비율로 전체 BGM 볼륨 결정 (chunk 분할 대신 간단한 접근)

@@ -247,3 +247,53 @@ class TestPickBgmByMood:
         rs = _MinimalRenderStep()
         with pytest.raises(ValueError):
             rs._pick_bgm_by_mood([], "블랙홀")
+
+
+# ── _apply_rms_ducking NaN/Inf 가드 (RA-NI 시리즈) ──────────────────────────
+
+
+class TestApplyRmsDuckingNanInf:
+    """RA-NI: corrupt audio(NaN/Inf RMS) 가 오디오 ducking을 완전히 깨뜨리지 않음."""
+
+    def _make_nar(self, samples: np.ndarray, fps: int = 44100) -> MagicMock:
+        nar = MagicMock()
+        nar.duration = len(samples) / fps
+        nar.fps = fps
+        nar.to_soundarray.return_value = samples
+        return nar
+
+    def _make_bgm(self) -> MagicMock:
+        bgm = MagicMock()
+        bgm.with_effects.return_value = bgm
+        return bgm
+
+    def test_nan_audio_samples_return_base_vol_ducking(self) -> None:
+        """RA-NI001: NaN 샘플 → rms_values 빈 리스트 → base_vol 적용, 크래시 없음."""
+        samples = np.full(44100, float("nan"), dtype=np.float32)
+        nar = self._make_nar(samples)
+        bgm = self._make_bgm()
+
+        result = RenderAudioMixin._apply_rms_ducking(nar, bgm, base_vol=0.12)
+        assert result is bgm
+        bgm.with_effects.assert_called_once()
+
+    def test_inf_audio_samples_do_not_crash(self) -> None:
+        """RA-NI002: Inf 샘플 → 폴백, 크래시 없음."""
+        samples = np.full(44100, float("inf"), dtype=np.float32)
+        nar = self._make_nar(samples)
+        bgm = self._make_bgm()
+
+        result = RenderAudioMixin._apply_rms_ducking(nar, bgm, base_vol=0.12)
+        assert result is bgm
+
+    def test_valid_samples_use_ducking(self) -> None:
+        """RA-NI003: 정상 샘플 → ducking 적용됨 (결과 클립 반환)."""
+        # 1초짜리 0.5 진폭 sine wave (유효 RMS)
+        t = np.linspace(0, 1, 44100, dtype=np.float32)
+        samples = np.sin(2 * np.pi * 440 * t) * 0.5
+        nar = self._make_nar(samples)
+        bgm = self._make_bgm()
+
+        result = RenderAudioMixin._apply_rms_ducking(nar, bgm, base_vol=0.12)
+        assert result is bgm
+        bgm.with_effects.assert_called_once()

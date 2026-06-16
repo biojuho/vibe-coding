@@ -214,3 +214,58 @@ class TestVisualStyleSelection:
     def test_empty_styles_uses_prefix_fallback(self) -> None:
         step = _make_step(visual_styles=[], image_style_prefix="neon cyberpunk")
         assert step._visual_style == "neon cyberpunk"
+
+
+# ── _read_audio_duration NaN/Inf 가드 (MS-NI 시리즈) ─────────────────────────
+
+
+class TestReadAudioDurationNanInf:
+    """MS-NI: mutagen이 Inf/NaN duration 반환 시 fallback_sec으로 안전 복귀."""
+
+    def test_inf_duration_falls_back(self, tmp_path) -> None:
+        """MS-NI001: mutagen.length=inf → fallback_sec 반환."""
+        import math
+        from unittest.mock import MagicMock, patch
+
+        fake_info = MagicMock()
+        fake_info.length = float("inf")
+        fake_mp3 = MagicMock()
+        fake_mp3.info = fake_info
+
+        with patch("shorts_maker_v2.pipeline.media_step.MP3", return_value=fake_mp3):
+            result = MediaStep._read_audio_duration(tmp_path / "x.mp3", fallback_sec=5.0)
+
+        assert math.isfinite(result)
+        assert result == 5.0
+
+    def test_nan_duration_falls_back(self, tmp_path) -> None:
+        """MS-NI002: mutagen.length=NaN → fallback_sec 반환."""
+        import math
+        from unittest.mock import MagicMock, patch
+
+        fake_info = MagicMock()
+        fake_info.length = float("nan")
+        fake_mp3 = MagicMock()
+        fake_mp3.info = fake_info
+
+        with patch("shorts_maker_v2.pipeline.media_step.MP3", return_value=fake_mp3):
+            result = MediaStep._read_audio_duration(tmp_path / "x.mp3", fallback_sec=3.5)
+
+        assert math.isfinite(result)
+        assert result == 3.5
+
+    def test_valid_duration_passes_through(self, tmp_path) -> None:
+        """MS-NI003: 정상 duration=42.0 → 그대로 반환."""
+        import math
+        from unittest.mock import MagicMock, patch
+
+        fake_info = MagicMock()
+        fake_info.length = 42.0
+        fake_mp3 = MagicMock()
+        fake_mp3.info = fake_info
+
+        with patch("shorts_maker_v2.pipeline.media_step.MP3", return_value=fake_mp3):
+            result = MediaStep._read_audio_duration(tmp_path / "x.mp3", fallback_sec=5.0)
+
+        assert math.isfinite(result)
+        assert result == 42.0

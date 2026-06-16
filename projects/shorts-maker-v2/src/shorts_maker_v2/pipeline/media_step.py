@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import random
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -107,7 +108,9 @@ class MediaStep(MediaAudioMixin, MediaVisualMixin, MediaFallbackMixin):
                 return float(fallback_sec)
             audio = MP3(str(audio_path))
             if audio.info and audio.info.length > 0:
-                return float(audio.info.length)
+                dur = float(audio.info.length)
+                if math.isfinite(dur):
+                    return dur
         except Exception as exc:
             logger.debug("[MediaStep] MP3 duration 파싱 실패 (fallback 사용): %s", exc)
         return float(fallback_sec)
