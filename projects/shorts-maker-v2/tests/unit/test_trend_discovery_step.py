@@ -363,3 +363,78 @@ class TestRunBranches:
             candidates = step.run(channel_key="ai_tech", n=10)
         assert len(candidates) == 1
         assert candidates[0].keyword == "RSS주제"
+
+
+# ---------------------------------------------------------------------------
+# NaN/Inf score guard (TD-NI series)
+# ---------------------------------------------------------------------------
+
+
+class TestTrendCandidateNanInf:
+    """TD-NI: NaN/Inf score → 0.5 폴백, 최종 TrendCandidate 점수 유한값 보장."""
+
+    def test_llm_brainstorm_nan_score_falls_back(self, step):
+        """TD-NI001: LLM brainstorm score=NaN → 0.5 폴백."""
+        import math
+
+        step.llm_router.generate_json.return_value = {
+            "candidates": [{"keyword": "AI 트렌드", "score": float("nan"), "rationale": "test"}]
+        }
+        with (
+            patch.object(step, "_from_youtube_rss", return_value=[]),
+            patch.object(step, "_from_google_trends", return_value=[]),
+        ):
+            candidates = step.run(channel_key="ai_tech", n=5)
+        assert len(candidates) >= 1
+        for c in candidates:
+            assert math.isfinite(c.score), f"score={c.score} is not finite"
+
+    def test_llm_brainstorm_inf_score_falls_back(self, step):
+        """TD-NI002: LLM brainstorm score=inf → 0.5 폴백."""
+        import math
+
+        step.llm_router.generate_json.return_value = {
+            "candidates": [{"keyword": "구조조정", "score": float("inf"), "rationale": "viral"}]
+        }
+        with (
+            patch.object(step, "_from_youtube_rss", return_value=[]),
+            patch.object(step, "_from_google_trends", return_value=[]),
+        ):
+            candidates = step.run(channel_key="ai_tech", n=5)
+        for c in candidates:
+            assert math.isfinite(c.score)
+            assert c.score == 0.5
+
+    def test_llm_brainstorm_out_of_range_score_falls_back(self, step):
+        """TD-NI003: LLM brainstorm score=5.0 (범위 초과) → 0.5 폴백."""
+        import math
+
+        step.llm_router.generate_json.return_value = {
+            "candidates": [{"keyword": "연봉협상", "score": 5.0, "rationale": "popular"}]
+        }
+        with (
+            patch.object(step, "_from_youtube_rss", return_value=[]),
+            patch.object(step, "_from_google_trends", return_value=[]),
+        ):
+            candidates = step.run(channel_key="ai_tech", n=5)
+        for c in candidates:
+            assert math.isfinite(c.score)
+            assert c.score == 0.5  # out-of-range → fallback
+
+    def test_valid_score_passes_through(self, step):
+        """TD-NI004: 유효한 score=0.8 → 그대로 사용."""
+        import math
+
+        step.llm_router.generate_json.return_value = {
+            "candidates": [{"keyword": "이직", "score": 0.8, "rationale": "high traffic"}]
+        }
+        with (
+            patch.object(step, "_from_youtube_rss", return_value=[]),
+            patch.object(step, "_from_google_trends", return_value=[]),
+        ):
+            candidates = step.run(channel_key="ai_tech", n=5)
+        assert len(candidates) >= 1
+        ai_candidate = next((c for c in candidates if c.keyword == "이직"), None)
+        assert ai_candidate is not None
+        assert math.isfinite(ai_candidate.score)
+        assert ai_candidate.score == 0.8

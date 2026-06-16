@@ -13,6 +13,7 @@ Usage:
 from __future__ import annotations
 
 import logging
+import math
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -267,7 +268,11 @@ Rules:
                 if top_queries is not None and not top_queries.empty:
                     for _, row in top_queries.iterrows():
                         query = str(row.get("query", "")).strip()
-                        value = float(row.get("value", 50))
+                        try:
+                            _v = float(row.get("value", 50))
+                            value = _v if math.isfinite(_v) else 50.0
+                        except (TypeError, ValueError, OverflowError):
+                            value = 50.0
                         if query:
                             candidates.append(
                                 TrendCandidate(
@@ -325,11 +330,16 @@ Rules:
                 kw = str(item.get("keyword", "")).strip()
                 if not kw:
                     continue
+                try:
+                    _s = float(item.get("score", 0.5))
+                    _score = _s if math.isfinite(_s) and 0.0 <= _s <= 1.0 else 0.5
+                except (TypeError, ValueError, OverflowError):
+                    _score = 0.5
                 candidates.append(
                     TrendCandidate(
                         keyword=kw,
                         source="llm_brainstorm",
-                        score=float(item.get("score", 0.5)),
+                        score=_score,
                         channel=channel_key,
                     )
                 )
