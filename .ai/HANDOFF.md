@@ -6,10 +6,20 @@
 
 | Field | Value |
 |---|---|
-| Date | 2026-06-14 |
+| Date | 2026-06-16 |
+| Tool | Claude Code |
+| Work | **자율 품질 루프 3차 — 구조적·프로덕션 버그 9건 수정 (2 commits, fb717608, 912f9975)**. shorts-maker-v2: planning `blocking=True→False` (주석과 일치), ResearchStep에 항상 실제 `llm_router` 전달, QC Gate4 `ffprobe` 미설치 시 false-positive HOLD 방지, fallback `closing` 씬 `scene_id` 중복(scene_count≤2), thumbnail 임시 파일 누수 수정 + QC4-FP001/002 + SS-SID001~003. blind-to-x: tweet URL 하드코딩 `/user/`→`/i/status/`, quality_gate `None` 진입 방어, dedup `strict=True` ValueError→`0.0`, editorial `avg_score` CT axes 이중계산, process.py `ERROR_FILTERED_EDITORIAL` upload 분모 왜곡 수정 + DEDUP-DIM001/002 + QG-ND001 + PROC-EF001/002 + TP-URL001. shorts-maker-v2 1936+ green, blind-to-x 3078 passed. |
+| Next Priorities | (1) 자율 품질 루프 계속 — 미수정 medium 버그: editorial `review_and_polish` CT 이중계산 test gap, draft_generator Best-of-N ProviderFallbackError 진단 정보 손실, generate_review_stage retry 실패 dict가 성공으로 흐르는 문제. (2) 다음 스캔 영역: tts_step, subtitle_step, bgm_step, notion_upload. |
+
+| Date | 2026-06-14 (2차) |
+| Tool | Claude Code |
+| Work | **자율 품질 루프 — NaN/Inf 방어 2차 강화 (8 commits, e6c4cc80..c1337514)**. `trend_discovery_step.py`: LLM 브레인스토밍 mock dict format 수정 + TD-NI001~004 (4 tests). `blind-to-x scoring_6d.py`: `_safe_db_float()` 헬퍼 신설, per-field NaN 폴백 + `_pearson` 7 unit tests (PC-001~007) + S6D-NI001~004. `publish_optimizer.py`/`feedback_loop.py`: `_sf()` 헬퍼, NaN views/likes/scores 가드. `render_effects.py`: `_fit_vertical` 0-dimension guard + `_zoom_crop` NaN scale + RE-NI001~003. `media_step.py`: mutagen Inf duration 폴백 + MS-NI001~003. `render_audio.py`: RMS NaN/Inf 필터링 + RA-NI001~003. `performance_prompt_adapter.py`: `_sf()`/`_safe_rate()` 헬퍼, NaN impression/sort + PPA-NI001~003. `render_step.py`: BGM 0.5s minimum guard (OOM 방지), video_duration None guard. `growth/feedback_loop.py`: watch_quality NaN/Inf + FL-NI001~002. shorts-maker-v2 1936 passed, blind-to-x 3063 passed. |
+| Next Priorities | (1) 백그라운드 에이전트 (ac7ff2c8c50797f35) 스캔 완료 대기 — orchestrator/script/tts/subtitle/bgm/qc (s-m-v2) + publisher/draft_quality_gate/content_generator/notion_upload/x_publisher (btx). (2) non-NaN 버그 (silent data loss, empty list guard, 잘못된 boolean, 미닫힌 리소스) 수정 후 커밋. (3) .ai/HANDOFF.md/TASKS.md 업데이트 커밋. |
+
+| Date | 2026-06-14 (1차) |
 | Tool | Claude Code |
 | Work | **자율 품질 루프 — NaN/Inf 방어 강화 (5 commits, 8e04dbd1..bc579c4e)**. `structure_step.py`: LLM NaN target_sec → duration gate bypass 수정 + 8 regression tests. `blind-to-x` 6파일: viral_filter `_clamp()` midpoint 폴백, ab_feedback_loop `_safe_float()`, style_bandit reward, scoring_6d likes/comments, scoring_performance views + 10 tests. `script_prompts.py`: tts_speed NaN/Inf fix + 4 tests. `scoring_6d.py`: 29 unit tests 신설 (first coverage). `render_captions.py`: font_candidates null guard. `render_step.py`: BGM `_load_audio_clip()` try-except 래핑. `express_draft.py`: cost_usd NaN/Inf guard. |
-| Next Priorities | (1) 자율 품질 루프 계속 — 다음 취약 영역 스캔: hanwoo-dashboard AI Insight 기능, 미커버 파이프라인 단계, 추가 NaN/Inf 취약점. (2) blind-to-x 3048 passed, shorts-maker-v2 1949 tests green. 두 프로젝트 QC 양호. |
+| Next Priorities | (계속 진행 중) |
 
 | Field | Value |
 |---|---|
@@ -178,13 +188,6 @@
 | Tool | Codex |
 | Work | **T-2701 code review risk source summary**. Continued the auto-research loop under the dirty-handoff boundary after T-2700. Found that the launch checklist first-screen `Code review gate` representative line used launch-audit summary risk (`0.4`), while `Code review gate reasons` used the detail artifact reason (`risk_score 0.60`), creating an apparent contradiction. Patched `refresh_current_evidence.py` so `Code review gate count sources` also reports `risk score launch/detail` when the two sources differ. Updated focused regression coverage in `workspace/tests/test_auto_research_refresh_current_evidence.py`. |
 | Next Priorities | Verification passed focused refresh-current-evidence pytest (`137 passed` with `-o addopts=`), Ruff, `py_compile`, full `refresh_current_evidence.py --root . --timeout 360 --json` (`all steps ok`; debug inventory exit `1` expected), scoped authorization menu check (`rendered_matches=true`, `exact_rendered_matches=true`, `coverage_stale=false`), path-limited diff-check with CRLF warnings only, and A/B `adopt_candidate` (`score_delta=0.5714285714285714`, `.tmp/ab-decision-t2701-code-review-risk-source-summary.json`). Current checklist now shows `Code review gate count sources: ... risk score launch/detail 0.4/0.6`, explaining the launch summary vs detail reason risk values. Completion remains incomplete and selector remains `blocked / dirty_worktree_handoff_current`; no stage, commit, push, revert, product source edit, live Prisma/T-251 retry, cleanup apply, or `update_goal` was performed. |
-
-| Field | Value |
-|---|---|
-| Date | 2026-06-15 |
-| Tool | Codex |
-| Work | **T-2700 completion action approval token**. Continued the auto-research loop under the dirty-handoff boundary after T-2699. Found that `Target blocker actions` already mapped Shorts Maker V2 dirty source cleanup to `APPROVE_SHORTS_MAKER_V2_CURRENT_SOURCE_DIRTY`, but the higher `Completion blocker actions` line still used only generic `clear target dirty paths` wording. Patched `refresh_current_evidence.py` so the Shorts Maker V2 completion blocker action also appends `via APPROVE_SHORTS_MAKER_V2_CURRENT_SOURCE_DIRTY`, aligning both first-screen summaries. Updated focused regression coverage in `workspace/tests/test_auto_research_refresh_current_evidence.py`. |
-| Next Priorities | Verification passed focused refresh-current-evidence pytest (`137 passed` with `-o addopts=`), Ruff, `py_compile`, full `refresh_current_evidence.py --root . --timeout 360 --json` (`all steps ok`; debug inventory exit `1` expected), scoped authorization menu check (`rendered_matches=true`, `exact_rendered_matches=true`, `coverage_stale=false`), path-limited diff-check with CRLF warnings only, and A/B `adopt_candidate` (`score_delta=0.5714285714285714`, `.tmp/ab-decision-t2700-completion-action-approval-token.json`). Current checklist now maps both `Completion blocker actions` and `Target blocker actions` for Shorts Maker V2 to `APPROVE_SHORTS_MAKER_V2_CURRENT_SOURCE_DIRTY`. Completion remains incomplete and selector remains `blocked / dirty_worktree_handoff_current`; no stage, commit, push, revert, product source edit, live Prisma/T-251 retry, cleanup apply, or `update_goal` was performed. |
 
 > T-1570 relay note: `f3f376a6` is the verified code baseline before this documentation relay. After this relay is committed, use live `python execution/session_orient.py --json` for the exact current HEAD/ahead count; the remaining boundaries should still be publish/current-head Actions plus user-owned Hanwoo T-251.
 
