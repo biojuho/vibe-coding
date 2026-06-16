@@ -230,12 +230,23 @@ def _fetch_calibration_rows(db: Any, cutoff: str) -> list[Any]:
         ).fetchall()
 
 
+def _safe_db_float(val: Any, default: float) -> float:
+    """DB 값에서 NaN/Inf-안전한 float 변환. `or 0` 은 NaN(truthy)을 통과시키므로 사용 금지."""
+    try:
+        f = float(val) if val is not None else default
+        return f if math.isfinite(f) else default
+    except (TypeError, ValueError, OverflowError):
+        return default
+
+
 def _engagement_values(rows: list[Any]) -> list[float]:
     result = []
     for row in rows:
         try:
-            result.append(float(row[3] or 0) + math.log1p(float(row[4] or 0)) * 0.1)
-        except (ValueError, TypeError, IndexError):
+            eng = _safe_db_float(row[3], 0.0)
+            views = _safe_db_float(row[4], 0.0)
+            result.append(eng + math.log1p(views) * 0.1)
+        except (IndexError, ValueError):
             result.append(0.0)
     return result
 
@@ -244,10 +255,10 @@ def _dimension_proxies(rows: list[Any]) -> dict[str, list[float]]:
     hooks, virals, audiences = [], [], []
     for row in rows:
         try:
-            hooks.append(float(row[0] or 5))
-            virals.append(float(row[1] or 5))
-            audiences.append(float(row[2] or 5))
-        except (ValueError, TypeError, IndexError):
+            hooks.append(_safe_db_float(row[0], 5.0))
+            virals.append(_safe_db_float(row[1], 5.0))
+            audiences.append(_safe_db_float(row[2], 5.0))
+        except IndexError:
             pass
     return {"hook": hooks, "viral": virals, "audience": audiences}
 

@@ -888,18 +888,27 @@ class TestScoring6DEdgeCases(unittest.TestCase):
         self.assertGreaterEqual(score, 0.0)
 
     def test_engagement_values_bad_row_skipped(self):
-        """T-AB053: DB row에 비숫자 or 짧은 행이 있어도 크래시 없음."""
+        """T-AB053: DB row에 비숫자 or 짧은 행이 있어도 크래시 없음.
+
+        _safe_db_float로 각 필드를 독립 처리하므로:
+        - row[1]: engagement_rate="bad"→0.0, yt_views=50.0은 유효 → log1p(50)*0.1 > 0
+        - row[2]: too short → IndexError → 0.0
+        """
+        import math as _math
+
         from pipeline.content_intelligence.scoring_6d import _engagement_values
 
         rows = [
             (1.0, 2.0, 3.0, 100.0, 50.0),  # valid
-            (1.0, 2.0, 3.0, "bad", 50.0),  # bad type
+            (1.0, 2.0, 3.0, "bad", 50.0),  # bad engagement_rate; yt_views still valid
             (1.0, 2.0),  # too short
         ]
         result = _engagement_values(rows)
-        self.assertEqual(len(result), 3)  # all rows produce a value (bad → 0.0)
+        self.assertEqual(len(result), 3)
         self.assertGreater(result[0], 0.0)
-        self.assertEqual(result[1], 0.0)
+        # eng=0.0(fallback) + log1p(50.0)*0.1 > 0 — 필드별 독립 폴백, 행 전체 폐기 아님
+        self.assertAlmostEqual(result[1], _math.log1p(50.0) * 0.1, places=10)
+        self.assertTrue(_math.isfinite(result[1]))
         self.assertEqual(result[2], 0.0)
 
 

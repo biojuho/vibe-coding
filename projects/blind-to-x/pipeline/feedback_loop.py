@@ -277,7 +277,14 @@ class FeedbackLoop:
         emotion_c = Counter(r.get("emotion_axis", "공감") for r in winners)
         style_c = Counter(r.get("chosen_draft_type") or r.get("recommended_draft_type") or "공감형" for r in winners)
 
-        scores = [float(r.get("final_rank_score", 0) or 0) for r in winners]
+        def _sf(v: Any, d: float = 0.0) -> float:
+            try:
+                f = float(v) if v is not None else d
+                return f if math.isfinite(f) else d
+            except (TypeError, ValueError, OverflowError):
+                return d
+
+        scores = [_sf(r.get("final_rank_score", 0)) for r in winners]
         avg_score = sum(scores) / len(scores) if scores else 0
 
         # 인사이트 자동 생성
@@ -391,6 +398,13 @@ class FeedbackLoop:
         pages = await self.notion_uploader.get_recent_pages(days=days, limit=100)
         records = [self.notion_uploader.extract_page_record(page) for page in pages]
 
+        def _sf_rec(v: Any, d: float = 0.0) -> float:
+            try:
+                f = float(v) if v is not None else d
+                return f if math.isfinite(f) and f >= 0 else d
+            except (TypeError, ValueError, OverflowError):
+                return d
+
         totals = Counter()
         topic_counter = Counter()
         hook_counter = Counter()
@@ -410,9 +424,9 @@ class FeedbackLoop:
                 totals["published"] += 1
 
             metric_score = (
-                float(record.get("views", 0) or 0)
-                + float(record.get("likes", 0) or 0) * 2.0
-                + float(record.get("retweets", 0) or 0) * 3.0
+                _sf_rec(record.get("views", 0))
+                + _sf_rec(record.get("likes", 0)) * 2.0
+                + _sf_rec(record.get("retweets", 0)) * 3.0
             )
 
             topic_counter.update([record.get("topic_cluster", "기타")])

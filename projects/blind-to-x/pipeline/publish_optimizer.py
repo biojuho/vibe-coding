@@ -8,6 +8,7 @@ analytics_tracker.py.
 from __future__ import annotations
 
 import logging
+import math
 from collections import defaultdict
 from typing import Any
 
@@ -49,15 +50,23 @@ class PublishOptimizer:
                 ...
             }
         """
+
+        def _sf(v: Any, d: float = 0.0) -> float:
+            try:
+                f = float(v) if v is not None else d
+                return f if math.isfinite(f) and f >= 0 else d
+            except (TypeError, ValueError, OverflowError):
+                return d
+
         slot_data: dict[str, list[dict[str, float]]] = defaultdict(list)
 
         for r in records:
             slot = _extract_time_slot(r)
             if not slot:
                 continue
-            views = float(r.get("views", 0) or 0)
-            likes = float(r.get("likes", 0) or 0)
-            retweets = float(r.get("retweets", 0) or 0)
+            views = _sf(r.get("views", 0))
+            likes = _sf(r.get("likes", 0))
+            retweets = _sf(r.get("retweets", 0))
             if views <= 0:
                 continue
             slot_data[slot].append(

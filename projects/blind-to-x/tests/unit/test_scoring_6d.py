@@ -11,6 +11,8 @@ from __future__ import annotations
 import math
 from unittest.mock import patch
 
+import pytest
+
 
 from pipeline.content_intelligence.scoring_6d import (
     DEFAULT_6D_WEIGHTS,
@@ -251,3 +253,51 @@ class TestCalculate6dScore:
     def test_defaults_in_dimension_keys(self):
         """DIMENSION_KEYS must match DEFAULT_6D_WEIGHTS."""
         assert set(DIMENSION_KEYS) == set(DEFAULT_6D_WEIGHTS.keys())
+
+
+# ── _safe_db_float / NaN 전파 방지 (S6D-NI 시리즈) ───────────────────────────
+
+
+class TestSafeDbFloatNanPropagation:
+    """S6D-NI: DB NaN이 6D 보정 가중치를 오염시키지 않는지 확인."""
+
+    def _eng_vals(self, rows):
+        from pipeline.content_intelligence.scoring_6d import _engagement_values
+
+        return _engagement_values(rows)
+
+    def _dim_proxies(self, rows):
+        from pipeline.content_intelligence.scoring_6d import _dimension_proxies
+
+        return _dimension_proxies(rows)
+
+    def test_nan_engagement_rate_falls_back_to_zero(self):
+        """S6D-NI001: DB row에 engagement_rate=NaN → 0.0 폴백, 리스트에 NaN 없음."""
+        rows = [(5.0, 4.0, 3.0, float("nan"), 1000.0)]
+        vals = self._eng_vals(rows)
+        assert len(vals) == 1
+        assert math.isfinite(vals[0])
+        assert vals[0] == pytest.approx(math.log1p(1000.0) * 0.1)
+
+    def test_inf_yt_views_falls_back_to_zero(self):
+        """S6D-NI002: yt_views=inf → log1p(0)*0.1=0, 리스트에 Inf 없음."""
+        rows = [(5.0, 4.0, 3.0, 0.5, float("inf"))]
+        vals = self._eng_vals(rows)
+        assert math.isfinite(vals[0])
+
+    def test_nan_hook_score_falls_back_to_default_5(self):
+        """S6D-NI003: hook_score=NaN → 5.0 폴백, _dimension_proxies에 NaN 없음."""
+        rows = [(float("nan"), 6.0, 7.0, 0.3, 500.0)]
+        proxies = self._dim_proxies(rows)
+        assert proxies["hook"] == [5.0]
+        assert proxies["viral"] == [6.0]
+        assert proxies["audience"] == [7.0]
+
+    def test_all_nan_row_still_produces_finite_values(self):
+        """S6D-NI004: row 전체 NaN → 폴백값만 남고 목록에 NaN/Inf 없음."""
+        rows = [(float("nan"), float("nan"), float("nan"), float("nan"), float("nan"))]
+        vals = self._eng_vals(rows)
+        proxies = self._dim_proxies(rows)
+        assert all(math.isfinite(v) for v in vals)
+        for key in ("hook", "viral", "audience"):
+            assert all(math.isfinite(v) for v in proxies[key])
