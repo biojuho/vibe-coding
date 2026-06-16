@@ -133,6 +133,51 @@ class TestCompareResults:
         assert d["winner"] == "B"
 
 
+class TestCompareResultsNanInf:
+    """IAB-NI: NaN/Inf 메트릭이 winner 선정 오염 방지."""
+
+    def _tester(self):
+        return ImageABTester()
+
+    def test_nan_likes_does_not_corrupt_winner(self):
+        """IAB-NI001: likes=NaN → 0.0 폴백, winner 결정 오류 없음."""
+        import math
+
+        t = self._tester()
+        result = t.compare_results(
+            {
+                "A": {"views": 1000, "likes": float("nan"), "retweets": 10},
+                "B": {"views": 1000, "likes": 100, "retweets": 30},
+            }
+        )
+        assert result.winner == "B"
+        for score in (result.metrics or {}).values():
+            if isinstance(score, float):
+                assert math.isfinite(score)
+
+    def test_inf_views_treated_as_zero_engagement(self):
+        """IAB-NI002: views=inf → 0.0 폴백 (NaN guard), score=0.0."""
+        t = self._tester()
+        result = t.compare_results(
+            {
+                "A": {"views": float("inf"), "likes": 1000, "retweets": 500},
+                "B": {"views": 1000, "likes": 50, "retweets": 10},
+            }
+        )
+        assert result.winner == "B"
+
+    def test_nan_views_falls_back_to_zero_score(self):
+        """IAB-NI003: views=NaN → 0.0 폴백 → score=0.0, 정상 variant가 위너."""
+        t = self._tester()
+        result = t.compare_results(
+            {
+                "A": {"views": float("nan"), "likes": 99999, "retweets": 99999},
+                "B": {"views": 500, "likes": 100, "retweets": 20},
+            }
+        )
+        assert result.winner == "B" or result.winner is None
+
+
 class TestStyleReport:
     def _tester(self):
         return ImageABTester()

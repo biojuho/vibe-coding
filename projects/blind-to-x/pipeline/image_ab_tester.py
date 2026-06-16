@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import random
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -224,11 +225,18 @@ class ImageABTester:
 
         # 참여율 기반 위너 결정
         # engagement_rate = (likes + retweets * 2) / views * 100
+        def _safe_metric(v: Any) -> float:
+            try:
+                f = float(v or 0)
+                return f if math.isfinite(f) and f >= 0 else 0.0
+            except (TypeError, ValueError, OverflowError):
+                return 0.0
+
         scores: dict[str, float] = {}
         for vid, m in variant_metrics.items():
-            views = float(m.get("views") or 0)
-            likes = float(m.get("likes") or 0)
-            retweets = float(m.get("retweets") or 0)
+            views = _safe_metric(m.get("views"))
+            likes = _safe_metric(m.get("likes"))
+            retweets = _safe_metric(m.get("retweets"))
             if views > 0:
                 scores[vid] = (likes + retweets * 2) / views * 100
             else:
