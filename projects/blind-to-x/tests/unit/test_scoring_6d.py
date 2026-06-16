@@ -258,6 +258,62 @@ class TestCalculate6dScore:
 # ── _safe_db_float / NaN 전파 방지 (S6D-NI 시리즈) ───────────────────────────
 
 
+class TestPearsonCorrelation:
+    """_pearson 단위 테스트 — 6D 보정 가중치의 핵심 계산."""
+
+    def _r(self, x, y):
+        from pipeline.content_intelligence.scoring_6d import _pearson
+
+        return _pearson(x, y)
+
+    def test_empty_lists_return_zero(self):
+        """PC-001: 빈 입력 → 0.0."""
+        assert self._r([], []) == 0.0
+
+    def test_single_element_returns_zero(self):
+        """PC-002: 원소 1개 → 분산=0 → 0.0."""
+        assert self._r([5.0], [3.0]) == 0.0
+
+    def test_perfect_positive_correlation(self):
+        """PC-003: 완전 양의 상관 → 1.0."""
+        x = [1.0, 2.0, 3.0, 4.0]
+        y = [2.0, 4.0, 6.0, 8.0]
+        r = self._r(x, y)
+        assert abs(r - 1.0) < 1e-9
+
+    def test_perfect_negative_correlation(self):
+        """PC-004: 완전 음의 상관 → -1.0."""
+        x = [1.0, 2.0, 3.0]
+        y = [6.0, 4.0, 2.0]
+        r = self._r(x, y)
+        assert abs(r - (-1.0)) < 1e-9
+
+    def test_no_correlation(self):
+        """PC-005: 무상관 → r = 0 (직교 패턴: cov=0)."""
+        # [1,2,1,2] vs [1,1,2,2]: covariance = 0, 두 변수가 독립
+        x = [1.0, 2.0, 1.0, 2.0]
+        y = [1.0, 1.0, 2.0, 2.0]
+        r = self._r(x, y)
+        assert abs(r) < 1e-9
+
+    def test_constant_x_returns_zero(self):
+        """PC-006: x가 상수 → sx=0 → 결과 0.0 (1e-10 가드)."""
+        r = self._r([5.0, 5.0, 5.0], [1.0, 2.0, 3.0])
+        assert r == pytest.approx(0.0, abs=1e-6)
+
+    def test_result_bounded_minus1_to_plus1(self):
+        """PC-007: 어떤 입력도 |r| <= 1.0."""
+        import random
+
+        random.seed(42)
+        for _ in range(20):
+            n = random.randint(2, 20)
+            x = [random.gauss(0, 10) for _ in range(n)]
+            y = [random.gauss(0, 10) for _ in range(n)]
+            r = self._r(x, y)
+            assert abs(r) <= 1.0 + 1e-9
+
+
 class TestSafeDbFloatNanPropagation:
     """S6D-NI: DB NaN이 6D 보정 가중치를 오염시키지 않는지 확인."""
 

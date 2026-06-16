@@ -362,8 +362,16 @@ class PerformancePromptAdapter:
         if not posts:
             return []
 
-        # impression_rate 내림차순 정렬
-        sorted_posts = sorted(posts, key=lambda p: p.get("impression_rate", 0.0), reverse=True)
+        # impression_rate 내림차순 정렬 (NaN 가드: NaN은 0.0으로 처리해 안정적 정렬)
+        def _safe_rate(p: dict, key: str) -> float:
+            v = p.get(key, 0.0)
+            try:
+                f = float(v) if v is not None else 0.0
+                return f if math.isfinite(f) else 0.0
+            except (TypeError, ValueError):
+                return 0.0
+
+        sorted_posts = sorted(posts, key=lambda p: _safe_rate(p, "impression_rate"), reverse=True)
         top_posts = sorted_posts[: TOP_N_PATTERNS * 2]  # 여유 있게 수집 후 dedup
 
         patterns: list[HookPattern] = []
@@ -397,7 +405,11 @@ class PerformancePromptAdapter:
         hour_scores: dict[int, list[float]] = {}
         for post in posts:
             hour = post.get("published_hour")
-            eng = float(post.get("engagement_rate", 0.0))
+            try:
+                _eng = float(post.get("engagement_rate", 0.0))
+                eng = _eng if math.isfinite(_eng) else 0.0
+            except (TypeError, ValueError):
+                eng = 0.0
             if hour is not None and 0 <= int(hour) < 24:
                 hour_scores.setdefault(int(hour), []).append(eng)
 
@@ -405,6 +417,7 @@ class PerformancePromptAdapter:
             return []
 
         avg_by_hour = {h: statistics.mean(scores) for h, scores in hour_scores.items() if scores}
+        # NaN-safe sort: avg_by_hour values are already finite (eng guarded above)
         return sorted(avg_by_hour, key=lambda h: avg_by_hour[h], reverse=True)[:5]
 
     def _compute_optimal_length(self, posts: list[dict]) -> int:
