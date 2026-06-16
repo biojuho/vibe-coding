@@ -331,6 +331,22 @@ class TestFreshnessScore:
         result = self._fn({"scraped_at": time.time() - 7 * 24 * 3600})
         assert result < 10.0
 
+    def test_utc_aware_iso_string_gives_high_score_for_recent_post(self):
+        # Bug fix: datetime.now() was local time (KST+9) but UTC ISO string caused
+        # up to 9-hour wrong age on Korean servers. Now uses datetime.now(timezone.utc).
+        import datetime
+
+        now_utc = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        result = self._fn({"scraped_at": now_utc})
+        assert result > 90.0, f"UTC-aware 'now' gave low freshness {result} — timezone bug?"
+
+    def test_utc_aware_iso_string_old_post_gives_low_score(self):
+        import datetime
+
+        old_utc = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=7)).isoformat()
+        result = self._fn({"scraped_at": old_utc})
+        assert result < 10.0
+
 
 # ── get_time_context 직접 단위 테스트 ─────────────────────────────────────────
 
@@ -459,3 +475,35 @@ class TestOrphanedTopicLabelsRemoved:
 
         orphans = MEDIUM_TREND_TOPICS - self._VALID_CLASSIFICATION_LABELS
         assert not orphans, f"MEDIUM_TREND_TOPICS에 dead label 존재: {orphans}"
+
+
+# ── _social_signal_score 바닥 보장 회귀 테스트 ────────────────────────────────
+
+
+class TestSocialSignalScoreFloor:
+    """_social_signal_score는 raw_social > 0인 경우에도 반드시 5.0 이상 반환해야 함.
+    Bug fix: 이전엔 0 < raw_social < 0.365 범위에서 max(5.0) 미적용 → 반환값 < 5.0 가능."""
+
+    def setup_method(self):
+        from pipeline.content_intelligence.scoring_6d import _social_signal_score
+
+        self._fn = _social_signal_score
+
+    def test_zero_engagement_returns_floor(self):
+        assert self._fn(0, 0) == 5.0
+
+    def test_one_like_returns_at_least_floor(self):
+        result = self._fn(1, 0)
+        assert result >= 5.0
+
+    def test_fractional_input_returns_at_least_floor(self):
+        # Defensive: float inputs should never go below 5.0
+        result = self._fn(0.1, 0)
+        assert result >= 5.0
+
+    def test_high_engagement_returns_high_score(self):
+        result = self._fn(500, 100)
+        assert result > 90.0
+
+    def test_score_never_exceeds_100(self):
+        assert self._fn(10_000, 5_000) == 100.0

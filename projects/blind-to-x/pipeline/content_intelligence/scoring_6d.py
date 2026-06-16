@@ -77,7 +77,10 @@ def _freshness_score(post_data: dict[str, Any]) -> float:
             age_hours = (time.time() - scraped_at) / 3600
         else:
             ts = _dt.datetime.fromisoformat(str(scraped_at))
-            age_hours = (_dt.datetime.now() - ts.replace(tzinfo=None)).total_seconds() / 3600
+            if ts.tzinfo is not None:
+                age_hours = (_dt.datetime.now(_dt.timezone.utc) - ts).total_seconds() / 3600
+            else:
+                age_hours = (_dt.datetime.now() - ts).total_seconds() / 3600
         return max(5.0, 100.0 * math.exp(-age_hours / 24.0))
     except Exception as exc:
         logger.debug("freshness_score: failed to parse scraped_at=%r: %s", scraped_at, exc)
@@ -86,7 +89,7 @@ def _freshness_score(post_data: dict[str, Any]) -> float:
 
 def _social_signal_score(likes: float, comments: float) -> float:
     raw_social = likes + comments * 2.0
-    return min(100.0, math.log1p(raw_social) / math.log1p(500) * 100) if raw_social > 0 else 5.0
+    return max(5.0, min(100.0, math.log1p(raw_social) / math.log1p(500) * 100)) if raw_social > 0 else 5.0
 
 
 def _hook_strength_score(title: str, hook_type: str) -> float:
