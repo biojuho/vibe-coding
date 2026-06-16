@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -26,7 +27,12 @@ def calculate_performance_score(
     rationale: list[str] = []
 
     for example in historical_examples:
-        weight = 1.0 + min(float(example.get("views", 0) or 0) / 10000.0, 2.0)
+        try:
+            _v = float(example.get("views", 0) or 0)
+            views_f = _v if math.isfinite(_v) and _v >= 0 else 0.0
+        except (TypeError, ValueError, OverflowError):
+            views_f = 0.0
+        weight = 1.0 + min(views_f / 10000.0, 2.0)
         total_weight += weight
 
         if example.get("topic_cluster") == topic_cluster:

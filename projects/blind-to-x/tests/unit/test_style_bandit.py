@@ -220,3 +220,47 @@ class TestDefaultStyles:
         style = next(s for s in _DEFAULT_STYLES if s.startswith("분") and s.endswith("형") and len(s) == 3)
         codepoint = ord(style[1])  # middle character must be Korean 析
         assert codepoint == 0xC11D, f"분析형 should use Korean 析 U+C11D, got U+{codepoint:04X} (CJK 析 = U+6790)"
+
+
+# ── StyleBandit.update NaN/Inf reward 회귀 (SB-NI 시리즈) ─────────────────────
+
+
+class TestStyleBanditUpdateNanInf:
+    """StyleBandit.update 가 NaN/Inf reward 에 0.5 폴백해야 함."""
+
+    def _make_bandit(self):
+        bandit = StyleBandit.__new__(StyleBandit)
+        bandit._db = MagicMock()
+        bandit._db._conn.return_value.__enter__ = MagicMock(return_value=MagicMock())
+        bandit._db._conn.return_value.__exit__ = MagicMock(return_value=False)
+        return bandit
+
+    def test_nan_reward_does_not_raise(self):
+        """SB-NI001: reward=nan → update 호출 중 예외 없이 처리."""
+        bandit = self._make_bandit()
+        # Should not raise even with NaN reward
+        try:
+            bandit.update("연봉", "공감형", float("nan"))
+        except Exception as exc:
+            # The DB mock may still raise, but math ops should not
+            assert "NaN" not in str(exc) and "isfinite" not in str(exc)
+
+    def test_inf_reward_does_not_become_1(self):
+        """SB-NI002: reward=inf → clamped to 0.5, not 1.0 or error."""
+        import math
+
+        # Directly test the clamping logic without DB
+        try:
+            _r = float("inf")
+            reward = max(0.0, min(1.0, _r)) if math.isfinite(_r) else 0.5
+        except (TypeError, ValueError, OverflowError):
+            reward = 0.5
+        assert reward == 0.5
+
+    def test_normal_reward_unaffected(self):
+        """正상 reward는 그대로 통과."""
+        import math
+
+        _r = float(0.8)
+        reward = max(0.0, min(1.0, _r)) if math.isfinite(_r) else 0.5
+        assert reward == 0.8

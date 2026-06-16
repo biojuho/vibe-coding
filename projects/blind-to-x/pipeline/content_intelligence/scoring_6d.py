@@ -187,12 +187,14 @@ def calculate_6d_score(
     title = str(post_data.get("title", "") or "")
     content = str(post_data.get("content", "") or "")
     try:
-        likes = float(post_data.get("likes", 0) or 0)
-    except (ValueError, TypeError):
+        _l = float(post_data.get("likes", 0) or 0)
+        likes = _l if math.isfinite(_l) and _l >= 0 else 0.0
+    except (ValueError, TypeError, OverflowError):
         likes = 0.0
     try:
-        comments = float(post_data.get("comments", 0) or 0)
-    except (ValueError, TypeError):
+        _c = float(post_data.get("comments", 0) or 0)
+        comments = _c if math.isfinite(_c) and _c >= 0 else 0.0
+    except (ValueError, TypeError, OverflowError):
         comments = 0.0
     dims = {
         "freshness_score": _round_score(_freshness_score(post_data)),

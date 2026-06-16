@@ -122,9 +122,14 @@ def _match_first(text: str, rules: list[tuple[str, tuple[str, ...]]], default: s
 
 
 def _engagement_signal(post_data: dict[str, Any]) -> float:
-    likes = float(post_data.get("likes", 0) or 0)
-    comments = float(post_data.get("comments", 0) or 0)
-    raw = likes + comments * 1.5
+    def _safe(v) -> float:
+        try:
+            f = float(v or 0)
+            return f if math.isfinite(f) and f >= 0 else 0.0
+        except (TypeError, ValueError, OverflowError):
+            return 0.0
+
+    raw = _safe(post_data.get("likes")) + _safe(post_data.get("comments")) * 1.5
     if raw <= 0:
         return 0.0
     return min(20.0, math.log1p(raw) * 4.8)

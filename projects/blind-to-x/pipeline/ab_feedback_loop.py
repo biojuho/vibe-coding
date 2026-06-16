@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import os
 import sys
 from collections import defaultdict
@@ -32,10 +33,11 @@ CACHE_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "t
 
 
 def _safe_float(value, default: float = 0.0) -> float:
-    """Convert a Notion field value to float, returning default on non-numeric strings."""
+    """Convert a Notion field value to float, returning default on non-numeric or non-finite."""
     try:
-        return float(value or 0)
-    except (ValueError, TypeError):
+        f = float(value or 0)
+        return f if math.isfinite(f) else default
+    except (ValueError, TypeError, OverflowError):
         return default
 
 

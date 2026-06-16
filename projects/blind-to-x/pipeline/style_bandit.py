@@ -20,6 +20,7 @@ Reward conventions:
 from __future__ import annotations
 
 import logging
+import math
 import random
 import threading
 from collections.abc import Sequence
@@ -149,7 +150,11 @@ class StyleBandit:
         α tracks positive outcomes (reward proportional update).
         β tracks negative outcomes ((1-reward) proportional update).
         """
-        reward = max(0.0, min(1.0, float(reward)))
+        try:
+            _r = float(reward)
+            reward = max(0.0, min(1.0, _r)) if math.isfinite(_r) else 0.5
+        except (TypeError, ValueError, OverflowError):
+            reward = 0.5
         alpha_inc = reward
         beta_inc = 1.0 - reward
 

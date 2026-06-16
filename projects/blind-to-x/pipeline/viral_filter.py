@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import math
 import os
 from dataclasses import dataclass
 
@@ -132,7 +133,11 @@ class ViralFilter:
         data = json.loads(response.text.strip())
 
         def _clamp(v, lo=0.0, hi=10.0):
-            return max(lo, min(hi, float(v)))
+            try:
+                f = float(v)
+                return max(lo, min(hi, f)) if math.isfinite(f) else (lo + hi) / 2
+            except (TypeError, ValueError, OverflowError):
+                return (lo + hi) / 2
 
         hook = _clamp(data.get("hook_strength", 5))
         relate = _clamp(data.get("relatability", 5))
