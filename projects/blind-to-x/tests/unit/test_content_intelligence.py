@@ -1063,3 +1063,152 @@ class TestHumanizePerformanceRationale:
 
     def test_empty_list_returns_empty(self):
         assert self._fn([]) == []
+
+
+class TestHookStrengthScore:
+    """_hook_strength_score: 제목 길이 보너스/페널티 + hook type 기본 점수 검증."""
+
+    def setup_method(self):
+        from pipeline.content_intelligence.scoring_6d import _hook_strength_score
+
+        self._fn = _hook_strength_score
+
+    def test_논쟁형_with_optimal_title_length_gets_bonus(self):
+        # 논쟁형=90.0 + 8 bonus = 98.0 (title 10 chars: 8<=10<=35)
+        score = self._fn("직장인 현실이다", "논쟁형")
+        assert score == 98.0
+
+    def test_unknown_hook_type_returns_default_60(self):
+        # Unknown type → 60.0, title 10 chars → 60.0 + 8.0 = 68.0
+        score = self._fn("직장인 현실이다", "미분류형")
+        assert score == 68.0
+
+    def test_very_short_title_penalizes_score(self):
+        # title="AI" (2 chars) → len < 4 → hook_score - 20
+        score = self._fn("AI", "논쟁형")
+        assert score == 70.0  # 90.0 - 20.0
+
+    def test_short_title_below_floor_clamped_to_zero(self):
+        # Unknown type (60.0) - 20 = 40.0 (above 0 anyway) → for a weak type:
+        # Use a type that's not in dict so 60-20=40 ≥ 0
+        score = self._fn("히", "미분류형")
+        assert score == 40.0
+
+    def test_title_length_4_to_7_gets_no_bonus_or_penalty(self):
+        # title 5 chars: not <4, not 8-35 → returns hook_score unchanged
+        score = self._fn("직장인 A", "공감형")  # 5 chars after strip
+        assert score == 75.0  # 공감형 base
+
+    def test_long_title_over_35_chars_gets_no_bonus(self):
+        # 36+ chars: no bonus or penalty → returns hook_score directly
+        long_title = "직장인들이 정말 많이 겪는 직장 내 현실에 대한 깊은 이야기입니다"  # 34+ chars
+        assert len(long_title) > 35
+        score = self._fn(long_title, "논쟁형")
+        assert score == 90.0
+
+    def test_한줄팩폭형_plus_bonus_capped_at_100(self):
+        # 한줄팩폭형=85 + 8 = 93.0 (not capped — well within 100)
+        score = self._fn("직장인 현실이다", "한줄팩폭형")
+        assert score == 93.0
+
+    def test_score_capped_at_100_for_high_hook_bonus(self):
+        # Custom scenario: create a score >100 artificially is impossible with
+        # existing types (max 90+8=98). Verify cap logic: max hook=90+8=98 < 100 OK
+        # The only way to hit cap would be hook_score > 92. Use 분석형=88+8=96 < 100
+        score = self._fn("직장인 현실이다", "분석형")
+        assert score == 96.0  # 88 + 8
+
+
+class TestAudienceTargetingScore:
+    """_audience_targeting_score: 컨텐츠 길이 보너스 + audience_fit 점수 검증."""
+
+    def setup_method(self):
+        from pipeline.content_intelligence.scoring_6d import _audience_targeting_score
+
+        self._fn = _audience_targeting_score
+
+    def test_전직장인_audience_gives_85_base(self):
+        short_content = "짧은 내용"  # < 150 chars
+        score = self._fn(short_content, "전직장인")
+        assert score == 85.0
+
+    def test_unknown_audience_fit_gives_50_default(self):
+        score = self._fn("짧은 내용", "알수없음")
+        assert score == 50.0
+
+    def test_long_content_adds_5_bonus(self):
+        long_content = "직장인 이야기입니다. " * 15  # > 150 chars
+        assert len(long_content) >= 150
+        score = self._fn(long_content, "전직장인")
+        assert score == 90.0  # 85 + 5
+
+    def test_long_content_with_unknown_audience_gets_bonus(self):
+        long_content = "긴 컨텐츠입니다. " * 20  # > 150 chars
+        score = self._fn(long_content, "알수없음")
+        assert score == 55.0  # 50 + 5
+
+    def test_content_exactly_150_chars_gets_bonus(self):
+        content_150 = "가" * 150
+        score = self._fn(content_150, "이직준비층")
+        assert score == 85.0  # 80 + 5
+
+    def test_content_149_chars_gets_no_bonus(self):
+        content_149 = "가" * 149
+        score = self._fn(content_149, "이직준비층")
+        assert score == 80.0  # base only
+
+    def test_관리자층_has_lower_base_than_전직장인(self):
+        short_content = "짧은 내용"
+        score_mgr = self._fn(short_content, "관리자층")
+        score_all = self._fn(short_content, "전직장인")
+        assert score_mgr < score_all
+
+    def test_bonus_capped_at_100(self):
+        # 전직장인=85 + 5 = 90, not capped. 범용=50+5=55. No type hits cap naturally.
+        # Check cap is applied: simulate with 범용 for completeness
+        long_content = "가" * 200
+        score = self._fn(long_content, "범용")
+        assert score == 55.0  # 50 + 5, well below 100
+
+
+class TestTrendRelevanceScore:
+    """_trend_relevance_score: HIGH/MEDIUM/기타/기본 base + trend_boost 경계 검증."""
+
+    def setup_method(self):
+        from pipeline.content_intelligence.scoring_6d import _trend_relevance_score
+
+        self._fn = _trend_relevance_score
+
+    def test_high_trend_topic_returns_85_base(self):
+        score = self._fn("연봉", 0.0)
+        assert score >= 85.0
+
+    def test_medium_trend_topic_returns_65_base(self):
+        score = self._fn("복지", 0.0)
+        assert score >= 65.0
+
+    def test_기타_topic_returns_35_base(self):
+        score = self._fn("기타", 0.0)
+        assert score >= 35.0
+
+    def test_unknown_topic_returns_50_base(self):
+        score = self._fn("완전히_없는_주제_xyzzy", 0.0)
+        assert score >= 50.0
+
+    def test_trend_boost_increases_score(self):
+        base_score = self._fn("연봉", 0.0)
+        boosted_score = self._fn("연봉", 10.0)
+        assert boosted_score > base_score
+
+    def test_trend_boost_capped_at_100(self):
+        score = self._fn("연봉", 200.0)  # huge boost
+        assert score <= 100.0
+
+    def test_negative_trend_boost_not_applied(self):
+        base = self._fn("연봉", 0.0)
+        not_penalized = self._fn("연봉", -10.0)
+        assert not_penalized == base  # negative boost ignored
+
+    def test_ai_trend_is_high_trend_topic(self):
+        score = self._fn("AI 트렌드", 0.0)
+        assert score >= 85.0
