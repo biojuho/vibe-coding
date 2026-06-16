@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -144,7 +145,8 @@ class ExpressDraftPipeline:
             result.success = bool(result.draft_x)
             result.generation_time_sec = round(time.time() - start, 2)
             result.provider_used = raw_response.get("_provider", "unknown")
-            result.cost_usd = float(raw_response.get("_cost", 0.0))
+            _cost = float(raw_response.get("_cost", 0.0))
+            result.cost_usd = _cost if math.isfinite(_cost) and _cost >= 0 else 0.0
 
             logger.info(
                 "ExpressDraft: 생성 완료 (%.1f초, provider=%s, perf_insight=%s)",

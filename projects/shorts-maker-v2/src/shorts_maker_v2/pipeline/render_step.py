@@ -833,11 +833,15 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
                 topic=topic or title,
             )
             if lyria_bgm:
-                bgm_clip = self._load_audio_clip(lyria_bgm)
-                original_bgm_clip = bgm_clip
-                if bgm_clip.duration and bgm_clip.duration > target_dur:
-                    bgm_clip = bgm_clip.subclipped(0, target_dur)
-                logger.info("[BGM] Lyria AI BGM used: %s", lyria_bgm.name)
+                try:
+                    bgm_clip = self._load_audio_clip(lyria_bgm)
+                    original_bgm_clip = bgm_clip
+                    if bgm_clip.duration and bgm_clip.duration > target_dur:
+                        bgm_clip = bgm_clip.subclipped(0, target_dur)
+                    logger.info("[BGM] Lyria AI BGM used: %s", lyria_bgm.name)
+                except Exception as exc:
+                    logger.warning("[BGM] Lyria BGM 로드 실패, 건너뜀: %s", exc)
+                    bgm_clip = None
 
         if bgm_clip is None and final_video.audio is not None:
             bgm_dir = (run_dir.parent.parent / self.config.audio.bgm_dir).resolve()
@@ -845,15 +849,19 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
                 bgm_files = self._collect_bgm_files(bgm_dir)
                 if bgm_files:
                     bgm_path = self._pick_bgm_by_mood(bgm_files, topic or title)
-                    bgm_clip = self._load_audio_clip(bgm_path)
-                    original_bgm_clip = bgm_clip
-                    if bgm_clip.duration and bgm_clip.duration < target_dur:
-                        repeats = int(target_dur / bgm_clip.duration) + 1
-                        from moviepy import concatenate_audioclips
+                    try:
+                        bgm_clip = self._load_audio_clip(bgm_path)
+                        original_bgm_clip = bgm_clip
+                        if bgm_clip.duration and bgm_clip.duration < target_dur:
+                            repeats = int(target_dur / bgm_clip.duration) + 1
+                            from moviepy import concatenate_audioclips
 
-                        bgm_clip = concatenate_audioclips([bgm_clip] * repeats)
-                    bgm_clip = bgm_clip.subclipped(0, target_dur)
-                    logger.info("[BGM] local file used: %s", bgm_path.name)
+                            bgm_clip = concatenate_audioclips([bgm_clip] * repeats)
+                        bgm_clip = bgm_clip.subclipped(0, target_dur)
+                        logger.info("[BGM] local file used: %s", bgm_path.name)
+                    except Exception as exc:
+                        logger.warning("[BGM] 로컬 BGM 로드 실패 (%s), 건너뜀: %s", bgm_path.name, exc)
+                        bgm_clip = None
 
         return bgm_clip, original_bgm_clip
 
