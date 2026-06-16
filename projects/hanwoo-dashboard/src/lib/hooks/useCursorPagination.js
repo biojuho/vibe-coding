@@ -47,6 +47,7 @@ export function useCursorPagination(options = {}) {
 	const [isLoading, setIsLoading] = useState(false);
 	const abortRef = useRef(null);
 	const mountedRef = useRef(true);
+	const loadInFlightRef = useRef(false);
 
 	const hasMore = pageInfo?.hasMore ?? false;
 
@@ -65,7 +66,8 @@ export function useCursorPagination(options = {}) {
 	const loadMore = useCallback(
 		async (extraParams = {}) => {
 			const safeExtraParams = normalizePaginationParams(extraParams);
-			if (isLoading || !hasMore) return;
+			if (loadInFlightRef.current || isLoading || !hasMore) return;
+			loadInFlightRef.current = true;
 
 			// Abort 이전 요청
 			if (abortRef.current) abortRef.current.abort();
@@ -150,6 +152,7 @@ export function useCursorPagination(options = {}) {
 						window.clearTimeout(timeoutId);
 					} catch {}
 				}
+				loadInFlightRef.current = false;
 				if (abortRef.current === controller) {
 					abortRef.current = null;
 				}

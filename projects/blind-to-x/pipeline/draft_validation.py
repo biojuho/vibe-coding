@@ -86,9 +86,21 @@ class DraftValidationMixin:
         fenced = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", response_text, re.DOTALL | re.IGNORECASE)
         if fenced:
             candidates.append(fenced.group(1))
-        inline = re.search(r"(\{.*?\})", response_text, re.DOTALL)
-        if inline:
-            candidates.append(inline.group(1))
+        # Non-greedy r"(\{.*?\})" stops at the FIRST closing brace, which may be
+        # inside a string value (e.g. {"x": "rate {3.5%}"}).  Use a balanced-brace
+        # scan to capture the outermost complete JSON object instead.
+        depth = 0
+        start = -1
+        for i, ch in enumerate(response_text):
+            if ch == "{":
+                if depth == 0:
+                    start = i
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0 and start != -1:
+                    candidates.append(response_text[start : i + 1])
+                    break
 
         for candidate in candidates:
             try:

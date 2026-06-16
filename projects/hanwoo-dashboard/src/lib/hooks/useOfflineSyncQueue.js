@@ -22,7 +22,7 @@ export function useOfflineSyncQueue(isOnline, notify) {
 			try {
 				const { synced, failed, deadLettered, reused } =
 					await syncOfflineQueue();
-				if (cancelled || reused || (synced === 0 && deadLettered === 0)) {
+				if (cancelled || reused || (synced === 0 && deadLettered === 0 && failed === 0)) {
 					return;
 				}
 				notify({

@@ -78,3 +78,33 @@ test("shared cursor pagination preserves timeout protection when scheduling fail
 	assert.doesNotMatch(hookSource, /const timeoutId = window\.setTimeout/);
 	assert.doesNotMatch(hookSource, /finally \{\s+window\.clearTimeout\(timeoutId\);/);
 });
+
+test("HW-CP001: useCursorPagination has loadInFlightRef to prevent concurrent loadMore calls", () => {
+	// Without a ref guard, two rapid loadMore calls both see isLoading===false (stale closure)
+	// and fire duplicate fetches → duplicate rows appended.
+	const hookSource = readSource("lib/hooks/useCursorPagination.js");
+
+	// Ref must be declared
+	assert.match(hookSource, /const loadInFlightRef = useRef\(false\);/);
+	// Guard must be the first check in loadMore
+	assert.match(hookSource, /if \(loadInFlightRef\.current \|\| isLoading \|\| !hasMore\) return;/);
+	// Ref must be set to true immediately after guard
+	assert.match(hookSource, /loadInFlightRef\.current = true;/);
+	// Ref must be reset to false in the finally block
+	assert.match(hookSource, /loadInFlightRef\.current = false;/);
+});
+
+test("HW-OS001: useOfflineSyncQueue early-return includes failed === 0 so transient failures reach notify", () => {
+	// Before fix: (synced===0 && deadLettered===0) was true even when failed>0 → silent exit.
+	// After fix: failed===0 must also be in the condition.
+	const hookSource = readSource("lib/hooks/useOfflineSyncQueue.js");
+
+	assert.match(
+		hookSource,
+		/synced === 0 && deadLettered === 0 && failed === 0/,
+	);
+	assert.doesNotMatch(
+		hookSource,
+		/synced === 0 && deadLettered === 0\)/,
+	);
+});
