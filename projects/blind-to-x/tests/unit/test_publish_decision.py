@@ -216,3 +216,122 @@ class TestDecisionCardLines:
             metrics={},
         )
         assert not any("결정 근거:" in line for line in decision_card_lines(d))
+
+
+# ── rubric 서브 함수 직접 단위 테스트 ────────────────────────────────────────
+
+
+class TestHasValueFrame:
+    """_has_value_frame: killer_sentence 매칭 우선, FRAME_RE 폴백."""
+
+    def setup_method(self):
+        from pipeline.publish_decision import _has_value_frame
+
+        self._fn = _has_value_frame
+
+    def test_killer_sentence_in_text_returns_true(self):
+        assert self._fn(
+            "이건 윗사람을 공격하자는 게 아니라 권한에는 책임이 따른다는 말입니다.",
+            {"killer_sentence": "이건 윗사람을 공격하자는 게 아니라 권한에는 책임이 따른다는 말입니다"},
+        )
+
+    def test_killer_sentence_absent_falls_back_to_frame_re(self):
+        # _FRAME_RE: "이건 X가 아니라 Y입니다"
+        assert self._fn(
+            "이건 개인의 문제가 아니라 조직 구조의 문제입니다.",
+            {"killer_sentence": "전혀 다른 문장"},
+        )
+
+    def test_no_killer_and_no_frame_returns_false(self):
+        assert not self._fn(
+            "직장인들이 많이 고민하는 이야기입니다.",
+            {},
+        )
+
+    def test_empty_text_returns_false(self):
+        assert not self._fn("", {"killer_sentence": "뭔가"})
+
+
+class TestHasUniversalReduction:
+    """_has_universal_reduction: universal_value 매칭 우선, 키워드 폴백."""
+
+    def setup_method(self):
+        from pipeline.publish_decision import _has_universal_reduction
+
+        self._fn = _has_universal_reduction
+
+    def test_universal_value_in_text_returns_true(self):
+        assert self._fn(
+            "권한에는 책임이 따른다는 원칙이 있습니다.",
+            {"universal_value": "권한에는 책임이 따른다"},
+        )
+
+    def test_keyword_fallback_책임_returns_true(self):
+        assert self._fn("조직의 책임 문제입니다.", {})
+
+    def test_keyword_fallback_기준_returns_true(self):
+        assert self._fn("기준이 명확해야 합니다.", {})
+
+    def test_no_match_returns_false(self):
+        assert not self._fn("그냥 일상적인 이야기입니다.", {})
+
+
+class TestHasOperatorVoice:
+    """_has_operator_voice: 공손체 AND 구어체 마커 둘 다 필요."""
+
+    def setup_method(self):
+        from pipeline.publish_decision import _has_operator_voice
+
+        self._fn = _has_operator_voice
+
+    def test_polite_and_conversational_returns_true(self):
+        assert self._fn("참 이상한 기준이에요. 책임의 문제거든요.")
+
+    def test_only_polite_returns_false(self):
+        # 공손체만 있고 구어체 없음
+        assert not self._fn("이것은 조직의 책임 문제입니다.")
+
+    def test_only_conversational_returns_false(self):
+        # 구어체 마커("결국", "근데")는 있지만 공손체 어미("요"/"습니다") 없음 — 반말체
+        assert not self._fn("결국 근데 이게 문제야. 다들 그렇게 생각한다.")
+
+    def test_empty_text_returns_false(self):
+        assert not self._fn("")
+
+
+class TestEndingMatches:
+    """_ending_matches: open/closed closure 분기."""
+
+    def setup_method(self):
+        from pipeline.publish_decision import _ending_matches
+
+        self._fn = _ending_matches
+
+    def test_open_closure_with_정답은_token(self):
+        assert self._fn(
+            "정답은 회사마다 다를 수 있습니다.",
+            {"closure": "open"},
+        )
+
+    def test_open_closure_with_남습니다_token(self):
+        assert self._fn("기준은 남습니다.", {"closure": "open"})
+
+    def test_open_closure_missing_tokens_returns_false(self):
+        assert not self._fn("잘 생각해야 합니다.", {"closure": "open"})
+
+    def test_closed_closure_with_명확한_종결어미(self):
+        assert self._fn(
+            "이건 반드시 해야 합니다.",
+            {"closure": "closed"},
+        )
+
+    def test_closed_closure_ending_with_question_returns_false(self):
+        # 닫힌 결말인데 의문문으로 끝나면 실패
+        assert not self._fn(
+            "어떻게 생각해야 할까요?",
+            {"closure": "closed"},
+        )
+
+    def test_default_closure_treated_as_open(self):
+        # closure 키 없으면 "open" 기본값
+        assert self._fn("정답은 없습니다.", {})
