@@ -17,6 +17,7 @@ Recommended follow-up runtime packages for the real metrics adapter:
 
 from __future__ import annotations
 
+import math
 from collections import defaultdict
 from collections.abc import Sequence
 from datetime import datetime
@@ -243,6 +244,7 @@ class GrowthLoopEngine:
             return 0.0
 
         engagement_rate = (total_likes + total_comments) / total_views
-        watch_quality = max(0.0, min(average_view_percentage / 100.0, 1.0))
+        _wq = average_view_percentage / 100.0
+        watch_quality = max(0.0, min(_wq if math.isfinite(_wq) else 0.0, 1.0))
         sample_bonus = min(total_views / 5000.0, 1.0)
         return (engagement_rate * 0.45) + (watch_quality * 0.35) + (sample_bonus * 0.20)

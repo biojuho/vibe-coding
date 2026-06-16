@@ -852,7 +852,7 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
                     try:
                         bgm_clip = self._load_audio_clip(bgm_path)
                         original_bgm_clip = bgm_clip
-                        if bgm_clip.duration and bgm_clip.duration < target_dur:
+                        if bgm_clip.duration and bgm_clip.duration >= 0.5 and bgm_clip.duration < target_dur:
                             repeats = int(target_dur / bgm_clip.duration) + 1
                             from moviepy import concatenate_audioclips
 

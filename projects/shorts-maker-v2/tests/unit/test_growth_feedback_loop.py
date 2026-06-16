@@ -110,6 +110,38 @@ def test_analyze_variants_ranks_better_combo_first(tmp_path: Path) -> None:
     assert rankings[0].score > rankings[1].score
 
 
+def test_score_variant_nan_avg_pct_returns_finite(tmp_path: Path) -> None:
+    """FL-NI001: average_view_percentage=NaN → watch_quality=0.0 폴백, 점수 finite."""
+    import math
+
+    from shorts_maker_v2.growth.feedback_loop import GrowthLoopEngine
+
+    score = GrowthLoopEngine._score_variant(
+        total_views=10000,
+        total_likes=200,
+        total_comments=50,
+        average_view_percentage=float("nan"),
+    )
+    assert math.isfinite(score)
+    assert score >= 0.0
+
+
+def test_score_variant_inf_avg_pct_returns_finite(tmp_path: Path) -> None:
+    """FL-NI002: average_view_percentage=inf → watch_quality=0.0 폴백, 점수 finite."""
+    import math
+
+    from shorts_maker_v2.growth.feedback_loop import GrowthLoopEngine
+
+    score = GrowthLoopEngine._score_variant(
+        total_views=10000,
+        total_likes=200,
+        total_comments=50,
+        average_view_percentage=float("inf"),
+    )
+    assert math.isfinite(score)
+    assert 0.0 <= score <= 1.0
+
+
 def test_generate_report_recommends_series_followup(tmp_path: Path) -> None:
     tracker = StyleTracker(tmp_path, db_path=tmp_path / "style.db")
     engine = GrowthLoopEngine(output_dir=tmp_path, style_tracker=tracker, series_engine=_SeriesStub())
