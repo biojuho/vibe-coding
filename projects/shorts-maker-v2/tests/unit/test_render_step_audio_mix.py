@@ -175,6 +175,56 @@ def test_classify_mood_gpt_then_keyword_fallback() -> None:
 # ─── SFX 테스트 ──────────────────────────────────────────────────────────────
 
 
+def test_generate_bgm_clip_short_clip_gets_looped(tmp_path: Path) -> None:
+    """RS-BGM001: BGM clip.duration < target_dur (even < 0.5s) → concatenate_audioclips called.
+
+    Previously a >= 0.5 guard prevented looping very short clips, leaving audio gaps.
+    Now any clip shorter than target_dur is looped regardless of its duration.
+    """
+    step = _make_render_step()
+    step.config.audio.bgm_provider = "local"
+
+    bgm_dir = tmp_path / "project" / "assets" / "bgm"
+    bgm_dir.mkdir(parents=True)
+    bgm_file = bgm_dir / "bgm_calm_01.mp3"
+    bgm_file.write_bytes(b"\x00" * 10)
+
+    short_bgm_clip = MagicMock()
+    short_bgm_clip.duration = 0.3  # 0.3s — below the old 0.5s guard
+
+    target_dur = 5.0
+    final_video = MagicMock()
+    final_video.duration = target_dur
+    final_video.audio = MagicMock()
+
+    run_dir = tmp_path / "project" / "runs" / "run1"
+    run_dir.mkdir(parents=True)
+
+    looped_clip = MagicMock()
+    looped_clip.duration = 6.0  # looped, longer than target
+    subclipped = MagicMock()
+    looped_clip.subclipped = MagicMock(return_value=subclipped)
+
+    with (
+        patch.object(step, "_collect_bgm_files", return_value=[bgm_file]),
+        patch.object(step, "_pick_bgm_by_mood", return_value=bgm_file),
+        patch.object(step, "_load_audio_clip", return_value=short_bgm_clip),
+        patch(
+            "moviepy.concatenate_audioclips",
+            return_value=looped_clip,
+        ) as mock_concat,
+    ):
+        bgm_clip, original = step._generate_bgm_clip(
+            final_video=final_video,
+            run_dir=run_dir,
+            title="테스트",
+            topic="테스트 주제",
+        )
+
+    mock_concat.assert_called_once()  # loop must have been triggered
+    assert bgm_clip is not None
+
+
 def test_load_sfx_files_categorizes(tmp_path: Path) -> None:
     """SFX 파일을 역할별로 분류한다."""
     step = _make_render_step()

@@ -83,7 +83,7 @@ class RenderCaptionsMixin:
         ext = path.suffix.lower()
         if ext in (".mp4", ".mov", ".avi", ".webm"):
             clip = self._load_video_clip(path, audio=False)  # type: ignore[attr-defined]
-            clip = clip.subclipped(0, min(clip.duration, duration))
+            clip = clip.subclipped(0, min(clip.duration or duration, duration))
         elif ext in (".png", ".jpg", ".jpeg", ".webp"):
             clip = self._load_image_clip(path, duration=duration)  # type: ignore[attr-defined]
         else:

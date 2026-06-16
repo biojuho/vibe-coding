@@ -252,3 +252,30 @@ def test_render_static_caption_hook_with_channel_text_engine_fails(
         )
     mock_fn.assert_called_once()
     assert result == output
+
+
+def test_build_bookend_clip_none_duration_does_not_raise(tmp_path: Path) -> None:
+    """RC-BBC001: bookend video clip.duration=None → min() does not raise TypeError.
+
+    Previously min(clip.duration, duration) with clip.duration=None crashed;
+    now uses clip.duration or duration as the left operand.
+    """
+    step = _make_render_step()
+
+    video_path = tmp_path / "intro.mp4"
+    video_path.write_bytes(b"\x00" * 10)
+
+    null_clip = MagicMock()
+    null_clip.duration = None
+    null_clip.subclipped = MagicMock(return_value=null_clip)
+
+    fitted_clip = MagicMock()
+
+    with (
+        patch.object(step, "_load_video_clip", return_value=null_clip),
+        patch.object(step, "_fit_vertical", return_value=fitted_clip),
+    ):
+        result = step._build_bookend_clip(str(video_path), duration=3.0, target_width=1080, target_height=1920)
+
+    assert result is fitted_clip
+    null_clip.subclipped.assert_called_once_with(0, 3.0)

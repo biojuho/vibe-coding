@@ -329,7 +329,7 @@ class RenderAudioMixin:
         sfx_clips: list[Any] = []
         volume = config.audio.sfx_volume
         cursor = 0.0
-        for i, (role, dur) in enumerate(zip(scene_roles, scene_durations, strict=False)):
+        for i, (role, dur) in enumerate(zip(scene_roles, scene_durations, strict=True)):
             # Hook 씬 시작에 임팩트 SFX
             if role == "hook" and sfx_files.get("hook"):
                 sfx_path = random.choice(sfx_files["hook"])

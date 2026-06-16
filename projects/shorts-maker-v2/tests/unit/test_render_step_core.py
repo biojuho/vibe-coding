@@ -645,6 +645,28 @@ def test_build_base_clip_video_none_duration_does_not_raise() -> None:
     assert result is null_clip
 
 
+def test_build_base_clip_video_none_duration_calls_with_duration() -> None:
+    """RS-BBC001: video clip.duration=None → with_duration(target) called to fix unset duration.
+
+    Previously the elif-not-base.duration branch was missing; the clip was returned without
+    a duration set, causing downstream timing issues.
+    """
+    step = _make_render_step()
+    null_clip = _DummyClip("null_dur", duration=None)  # type: ignore[arg-type]
+    null_clip.duration = None
+
+    with (
+        patch.object(step, "_load_video_clip", return_value=null_clip),
+        patch.object(step, "_fit_vertical", return_value=null_clip),
+    ):
+        asset = MagicMock()
+        asset.visual_type = "video"
+        asset.visual_path = "dummy.mp4"
+        step._build_base_clip(asset, duration_sec=5.0, target_width=1080, target_height=1920)
+
+    assert null_clip.duration == 5.0, "with_duration should have been called to set clip duration"
+
+
 def test_attach_audio_none_duration_does_not_raise() -> None:
     """SMV2-RS001: 오디오 파일이 duration=None 이면 TypeError 없이 원본 길이 그대로 유지."""
     step = _make_render_step()

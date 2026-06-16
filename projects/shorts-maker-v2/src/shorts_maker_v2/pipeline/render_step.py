@@ -344,6 +344,8 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
                 base = base.with_effects([vfx.Loop(duration=duration_sec)])
             elif base.duration and base.duration > duration_sec:
                 base = base.subclipped(0, duration_sec)
+            elif not base.duration:
+                base = base.with_duration(duration_sec)
         else:
             base = self._load_image_clip(asset.visual_path, duration=duration_sec)
         return self._fit_vertical(base, target_width, target_height)
@@ -792,7 +794,7 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
         caption_clips_to_close: list[Any],
     ) -> None:
         last_effect = ""
-        for plan, asset in zip(scene_plans, scene_assets, strict=False):
+        for plan, asset in zip(scene_plans, scene_assets, strict=True):
             role = plan.structure_role
             scene_roles.append(role)
             base, last_effect = self._render_single_scene(
@@ -852,7 +854,7 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
                     try:
                         bgm_clip = self._load_audio_clip(bgm_path)
                         original_bgm_clip = bgm_clip
-                        if bgm_clip.duration and bgm_clip.duration >= 0.5 and bgm_clip.duration < target_dur:
+                        if bgm_clip.duration and bgm_clip.duration < target_dur:
                             repeats = int(target_dur / bgm_clip.duration) + 1
                             from moviepy import concatenate_audioclips
 
@@ -1071,6 +1073,9 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
             fade_in=0.4,
             label="Outro",
         )
+
+        if not all_clips:
+            raise ValueError("[RenderStep] No video clips to concatenate — scene rendering produced no output")
 
         output_path = output_dir / output_filename
         final_video = self._concatenate_scene_clips(all_clips, fps=self.config.video.fps)

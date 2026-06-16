@@ -366,3 +366,19 @@ class TestBuildSfxClips:
         assert any(abs(t - 4.85) < 0.01 for t in transition_times), (
             f"Expected transition at ~4.85, got: {transition_times}"
         )
+
+    def test_sfx_mismatched_lengths_raises_value_error(self):
+        """RA-SFX003: scene_roles/scene_durations 길이 불일치 → ValueError (strict=True).
+
+        렌더 파이프라인 상류에서 씬 수가 맞지 않으면 silent 데이터 드롭 대신
+        즉시 ValueError 가 발생해야 한다.
+        """
+        step = self._make_step()
+        step._load_audio_clip = MagicMock(return_value=self._fake_clip())
+
+        with pytest.raises(ValueError):
+            step._build_sfx_clips(
+                scene_roles=["hook", "body", "closing"],
+                scene_durations=[5.0, 4.0],  # 길이 불일치 (3 vs 2)
+                sfx_files={"hook": [MagicMock()], "transition": [MagicMock()]},
+            )
