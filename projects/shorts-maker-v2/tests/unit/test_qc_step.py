@@ -131,6 +131,36 @@ def test_gate4_final_hold_reports_multiple_media_issues(tmp_path: Path, monkeypa
     assert any("Audio peak 0.0dBFS" in issue for issue in report.issues)
 
 
+def test_gate4_ffprobe_unavailable_does_not_pollute_issues_list(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """QC-G4-001: ffprobe 사용 불가 시 issues 리스트에 인프라 메시지가 추가되지 않아야 한다.
+
+    Probe availability is intentionally excluded from the gate (design comment in
+    qc_step.py). Infrastructure failures must not appear in issues so that
+    verdict=PASS is not contradicted by a non-empty issues list.
+    """
+    output_path = _write_bytes(tmp_path / "valid.mp4", 20 * 1024 * 1024)  # 20 MB — passes size check
+    manifest = JobManifest(
+        job_id="job-ffprobe",
+        topic="topic",
+        status="done",
+        total_duration_sec=45.0,
+        failed_steps=[],
+    )
+
+    monkeypatch.setattr(QCStep, "_probe_video", staticmethod(lambda path: None))
+    monkeypatch.setattr(QCStep, "_check_audio_peak", staticmethod(lambda path: None))
+
+    report = QCStep.gate4_final(manifest, output_path=output_path, target_duration=(38, 52))
+
+    assert report.verdict == GateVerdict.PASS.value, f"Expected PASS, got {report.verdict}: {report.issues}"
+    assert not any("ffprobe" in issue.lower() for issue in report.issues), (
+        "Infrastructure probe message leaked into issues list"
+    )
+    assert not any("volumedetect" in issue.lower() for issue in report.issues)
+
+
 def test_probe_video_parses_ffprobe_output(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     video_path = _write_bytes(tmp_path / "video.mp4", 32)
 
@@ -523,10 +553,11 @@ def test_gate4_final_passes_when_media_probes_are_unavailable(tmp_path: Path, mo
     # Probe-availability flags must NOT be in checks — they're infrastructure, not quality
     assert "video_probe_ok" not in report.checks
     assert "audio_peak_probe_ok" not in report.checks
-    # Informational issues are allowed (ffprobe not available warning)
-    assert any("ffprobe" in issue for issue in report.issues)
-    assert any("ffmpeg" in issue for issue in report.issues)
-    # But the gate itself should PASS — all actual quality checks passed
+    # Infrastructure probe failures must NOT appear in issues list (they are logged as warnings)
+    # so that verdict=PASS is not contradicted by a non-empty issues list.
+    assert not any("ffprobe" in issue.lower() for issue in report.issues)
+    assert not any("ffmpeg" in issue.lower() for issue in report.issues)
+    # The gate itself must PASS — all actual quality checks passed
     assert report.verdict == GateVerdict.PASS.value
 
 

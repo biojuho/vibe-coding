@@ -89,8 +89,10 @@ export function filterDashboard(
 				(typeof repo.language === "string" &&
 					repo.language.toLowerCase().includes(lowerTerm)),
 		),
-		notebooklm: data.notebooklm.filter((nb) =>
-			nb.title.toLowerCase().includes(lowerTerm),
+		notebooklm: data.notebooklm.filter(
+			(nb) =>
+				typeof nb.title === "string" &&
+				nb.title.toLowerCase().includes(lowerTerm),
 		),
 	};
 }
@@ -117,7 +119,7 @@ export function computeLanguageStats(
 	const sortedLangs = Object.entries(languages).sort(([, a], [, b]) => b - a);
 	const classifiedCount = sortedLangs.reduce((sum, [, count]) => sum + count, 0);
 	const totalSources = notebooklm.reduce(
-		(acc, nb) => acc + nb.source_count,
+		(acc, nb) => acc + Number(nb.source_count),
 		0,
 	);
 	return { sortedLangs, classifiedCount, totalSources };

@@ -192,3 +192,19 @@ def test_whitespace_only_text_raises(tmp_path):
             role="body",
             channel_key="ch",
         )
+
+
+def test_unknown_provider_raises_value_error_with_name(tmp_path, monkeypatch):
+    """TTS-UNK001: 알 수 없는 provider 명 → ValueError (provider 이름 포함)."""
+    monkeypatch.setattr(tts_factory, "_provider_specs", lambda: {})
+    with pytest.raises(ValueError, match="Unknown TTS provider"):
+        TTSFactory.generate_tts_with_fallback(
+            _config(),
+            "invalid_tts_provider",
+            "text",
+            tmp_path / "out.wav",
+            tmp_path / "out_words.json",
+            voice="voice",
+            role="body",
+            channel_key="ch",
+        )

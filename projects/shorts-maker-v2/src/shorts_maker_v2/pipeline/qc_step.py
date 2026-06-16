@@ -438,7 +438,7 @@ class QCStep:
             if not fps_ok:
                 issues.append(f"FPS {fps}, expected ~30")
         elif output_exists:
-            issues.append("Could not inspect video metadata with ffprobe")
+            logger.warning("[QC Gate 4] ffprobe unavailable — skipping resolution/FPS check")
 
         # Check 5: 오디오 피크 (ffprobe volumedetect)
         peak_db = QCStep._check_audio_peak(output_path) if output_exists else None
@@ -449,7 +449,7 @@ class QCStep:
             if not peak_ok:
                 issues.append(f"Audio peak {peak_db:.1f}dBFS, too loud")
         elif output_exists:
-            issues.append("Could not inspect audio peak with ffmpeg volumedetect")
+            logger.warning("[QC Gate 4] ffmpeg volumedetect unavailable — skipping audio peak check")
 
         # Gate 4 verdict: HOLD (not FAIL_RETRY — 렌더 후 자동 재생성 안함)
         if all(checks.values()):

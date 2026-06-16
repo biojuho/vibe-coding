@@ -55,6 +55,8 @@ class TTSFactory:
             return TTSFactory._try_provider_with_edge_fallback(tts_provider, request)
         if tts_provider == "edge-tts":
             return TTSFactory._generate_edge_tts_request(request)
+        if tts_provider != "openai":
+            raise ValueError(f"Unknown TTS provider: {tts_provider!r}")
         if openai_client is None:
             raise ValueError("OpenAI client is required for OpenAI TTS provider")
         return openai_client.generate_tts(

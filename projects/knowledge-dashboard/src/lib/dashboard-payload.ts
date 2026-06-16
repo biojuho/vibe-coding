@@ -24,7 +24,13 @@ export function isDashboardDataPayload(value: unknown): value is DashboardData {
 		isObject(value) &&
 		typeof value.last_updated === "string" &&
 		Array.isArray(value.github) &&
-		Array.isArray(value.notebooklm)
+		Array.isArray(value.notebooklm) &&
+		(value.notebooklm as unknown[]).every(
+			(nb) =>
+				isObject(nb) &&
+				typeof nb.title === "string" &&
+				isNumber(nb.source_count),
+		)
 	);
 }
 
