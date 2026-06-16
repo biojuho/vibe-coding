@@ -6,10 +6,16 @@
 
 | Field | Value |
 |---|---|
-| Date | 2026-06-17 |
+| Date | 2026-06-17 (5차) |
+| Tool | Claude Code |
+| Work | **자율 품질 루프 5차 — 렌더 파이프라인 7건 + hanwoo 4건 수정 (commits f9de0935, 341a4759)**. shorts-maker-v2: bookend clip.duration=None → min() TypeError (RC-BBC001). video clip.duration=None 시 with_duration() 미호출 (RS-BBC001). BGM 0.5초 미만 클립 루프 누락 (>= 0.5 조건 제거). all_clips 비었을 때 concat 전 조기 ValueError. zip(scene_plans, scene_assets) strict=False → True. zip(scene_roles, scene_durations) strict=False → True. 회귀 테스트 4건 (RC-BBC001, RS-BBC001, RS-BGM001, RA-SFX003). hanwoo-dashboard: cattle.js 이력 문자열 data.* → payload.* (3곳). useCattlePagination/useSalesPagination/useCursorPagination isLoading useCallback deps 제거. |
+| Next Priorities | (1) knowledge-dashboard, blind-to-x 남은 버그 수정 계속. (2) 자율 루프 유지 — 다음 스캔 배치 시작. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-17 (4차) |
 | Tool | Claude Code |
 | Work | **자율 품질 루프 4차 — HIGH/MED 버그 8건 수정 (commit d365e94c)**. shorts-maker-v2: `media_step._process_one_scene` audio/image 실패 시 `raise` → `(None, failures)` 반환 (구조적 실패정보 보존); `run()` None asset 감지 후 raise; `run_parallel` None asset 처리. `script_step` `channel_duration_override=0` 거짓 판단 수정 (`is not None`). `render_effects._pan_horizontal` x1 우측 경계 overflow 클램프. `orchestrator` Gate3 미디어 QC 실패 → `manifest.degraded_steps` 추가. `audio_mixin` pending warnings에 `scene_id` 키 추가. `fallback_mixin` `scene_id` str→int. blind-to-x: `persist_stage` `update_page_properties()` 반환값 캡처 + errors[] 갱신. `notion/_cache` url_prop 접근 try 블록 내부로 이동 (KeyError→None). `notion/_query` `_db_properties[prop_name]` → `.get()` 기본값 "select". 회귀 테스트 6개(MS-ANA001/002/003, SS-CDO001, NQM-PBS001, NC-IDC001). shorts-maker-v2 1982 green, blind-to-x 3083 passed. |
-| Next Priorities | (1) 백그라운드 스캔 에이전트 (a18df4b3a6d0f437c) 완료 대기 — 다음 버그 배치 확인. (2) render_step, subtitle_step, bgm_step, providers/ 영역 품질 개선 계속. |
 
 | Field | Value |
 |---|---|
@@ -181,13 +187,6 @@
 | Tool | Codex |
 | Work | **T-2703 GitHub inventory authorization source wording**. Continued the auto-research loop under the dirty-handoff boundary after T-2702. Found that T-2702 fixed the top-level launch checklist `GitHub recommendations` summary, but the detailed launch-audit blocker under `Find GitHub-related projects...` still inherited the source `github_project_inventory.py` recommendation text `stage and commit only files owned by the current experiment` without the explicit scoped authorization precondition. Patched the source GitHub inventory recommendation to say `after explicit scoped authorization, stage and commit...`, and updated focused inventory/launch-audit regression coverage. |
 | Next Priorities | Verification passed focused pytest (`91 passed` with `-o addopts=`), Ruff, `py_compile`, full `refresh_current_evidence.py --root . --timeout 360 --json` (`all steps ok`; debug inventory exit `1` expected), scoped authorization menu check (`rendered_matches=true`, `exact_rendered_matches=true`, `coverage_stale=false`), path-limited diff-check with CRLF warnings only, and A/B `adopt_candidate` (`score_delta=0.7142857142857143`, `.tmp/ab-decision-t2703-github-inventory-authorization-source.json`). Current checklist now shows both the top-level GitHub recommendation and the detailed blocker evidence with `after explicit scoped authorization`. Completion remains incomplete and selector remains `blocked / dirty_worktree_handoff_current`; no stage, commit, push, revert, product source edit, live Prisma/T-251 retry, cleanup apply, or `update_goal` was performed. |
-
-| Field | Value |
-|---|---|
-| Date | 2026-06-15 |
-| Tool | Codex |
-| Work | **T-2702 GitHub recommendation authorization guardrail**. Continued the auto-research loop under the dirty-handoff boundary after T-2701. Found that the launch checklist `GitHub recommendations` line still surfaced generic inventory guidance, `stage and commit only files owned by the current experiment`, without the current session's explicit authorization precondition. Patched `refresh_current_evidence.py` so the rendered GitHub recommendation says `after explicit scoped authorization, stage and commit...` while preserving dirty-group rewriting. Added focused regression coverage, including a no-duplication case for recommendations that already include the authorization wording. |
-| Next Priorities | Verification passed focused refresh-current-evidence pytest (`138 passed` with `-o addopts=`), Ruff, `py_compile`, full `refresh_current_evidence.py --root . --timeout 360 --json` (`all steps ok`; debug inventory exit `1` expected), scoped authorization menu check (`rendered_matches=true`, `exact_rendered_matches=true`, `coverage_stale=false`), path-limited diff-check with CRLF warnings only, and A/B `adopt_candidate` (`score_delta=0.42857142857142855`, `.tmp/ab-decision-t2702-github-recommendation-authorization-guardrail.json`). Current checklist now shows `GitHub recommendations: Worktree is dirty; after explicit scoped authorization, stage and commit only files owned by the current experiment...`. Completion remains incomplete and selector remains `blocked / dirty_worktree_handoff_current`; no stage, commit, push, revert, product source edit, live Prisma/T-251 retry, cleanup apply, or `update_goal` was performed. |
 
 > T-1570 relay note: `f3f376a6` is the verified code baseline before this documentation relay. After this relay is committed, use live `python execution/session_orient.py --json` for the exact current HEAD/ahead count; the remaining boundaries should still be publish/current-head Actions plus user-owned Hanwoo T-251.
 
