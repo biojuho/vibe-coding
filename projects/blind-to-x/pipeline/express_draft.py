@@ -290,22 +290,39 @@ class ExpressDraftPipeline:
 
         text = str(raw.get("response", ""))
 
-        # JSON 블록 추출 — first-{ to last-} slice handles nested braces inside
-        # string values (the previous r"\{[^{}]*\}" regex only matched flat
-        # objects, so {"x": "use {curly}", ...} caused a JSONDecodeError).
-        start = text.find("{")
-        end = text.rfind("}")
-        if start != -1 and end > start:
-            try:
-                return json.loads(text[start : end + 1])
-            except json.JSONDecodeError:
-                pass
+        # 1차: 전체 텍스트가 이미 유효한 JSON인지 시도 (가장 빠른 경로)
+        stripped = text.strip()
+        try:
+            parsed = json.loads(stripped)
+            if isinstance(parsed, dict):
+                return {k: str(v) for k, v in parsed.items() if v}
+        except json.JSONDecodeError:
+            pass
+
+        # 2차: balanced-brace 스캔 — 첫 번째 완전한 외부 JSON 객체 추출
+        # last-rfind("{") 방식은 JSON 뒤에 중괄호가 있는 trailing text에서 실패.
+        # non-greedy r"\{.*?\}" 방식은 값 안의 중괄호에서 일찍 종료.
+        depth = 0
+        start = -1
+        for i, ch in enumerate(text):
+            if ch == "{":
+                if depth == 0:
+                    start = i
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0 and start != -1:
+                    try:
+                        parsed = json.loads(text[start : i + 1])
+                        if isinstance(parsed, dict):
+                            return {k: str(v) for k, v in parsed.items() if v}
+                    except json.JSONDecodeError:
+                        pass
+                    start = -1
 
         # 파싱 실패 시 전체 텍스트를 X 초안으로 사용
         cleaned = text.strip()
         if cleaned:
-            x_draft = cleaned[:280]
-            threads_draft = cleaned[:500]
-            return {"x": x_draft, "threads": threads_draft}
+            return {"x": cleaned[:280], "threads": cleaned[:500]}
 
         return {"x": "", "threads": ""}

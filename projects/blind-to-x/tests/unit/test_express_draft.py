@@ -238,6 +238,19 @@ class TestExpressDraftPipeline:
         parsed = ExpressDraftPipeline._parse_response(raw)
         assert parsed["x"] == ""
 
+    def test_parse_response_curly_braces_in_value(self):
+        """ED-BAL001: JSON 값 안에 중괄호가 있어도 올바르게 파싱 (balanced-brace 스캔)."""
+        raw = {"response": '{"x": "연봉 {3.5%} 못 받는 현실", "threads": "스레드 내용"}'}
+        parsed = ExpressDraftPipeline._parse_response(raw)
+        assert "{3.5%}" in parsed["x"]
+        assert "threads" in parsed
+
+    def test_parse_response_json_with_trailing_braces(self):
+        """ED-BAL002: JSON 뒤에 중괄호 포함 텍스트가 있어도 올바른 JSON 추출."""
+        raw = {"response": '{"x": "트윗"} 참고로 {이 부분}은 설명입니다.'}
+        parsed = ExpressDraftPipeline._parse_response(raw)
+        assert parsed["x"] == "트윗"
+
     def test_build_user_prompt_includes_context(self):
         """사용자 프롬프트에 소스, 속도점수, 제목, 내용이 포함."""
         pipeline = self._make_pipeline()
