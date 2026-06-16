@@ -297,3 +297,72 @@ class TestApplyRmsDuckingNanInf:
         result = RenderAudioMixin._apply_rms_ducking(nar, bgm, base_vol=0.12)
         assert result is bgm
         bgm.with_effects.assert_called_once()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 5. _build_sfx_clips — SFX timing regression tests
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class TestBuildSfxClips:
+    def _make_step(self, sfx_vol: float = 0.5):
+        step = _MinimalRenderStep()
+        step.config.audio.sfx_volume = sfx_vol
+        # _build_sfx_clips calls self._load_audio_clip — add as mock method
+        step._load_audio_clip = MagicMock()
+        return step
+
+    def _fake_clip(self):
+        clip = MagicMock()
+        effected = MagicMock()
+        effected.with_start = MagicMock(return_value=MagicMock())
+        clip.with_effects = MagicMock(return_value=effected)
+        return clip
+
+    def test_sfx_transition_not_placed_when_scene_too_short(self):
+        """RA-SFX001: dur < 150ms 씬의 transition SFX 는 scene start 와 겹치지 않아야 한다."""
+        step = self._make_step()
+
+        # Use distinct clip per _load_audio_clip call so hook vs transition are distinguishable
+        hook_clip = self._fake_clip()
+        transition_clip = self._fake_clip()
+        call_count = [0]
+
+        def _side_effect(_path):
+            i = call_count[0]
+            call_count[0] += 1
+            return [hook_clip, transition_clip][min(i, 1)]
+
+        step._load_audio_clip.side_effect = _side_effect
+
+        step._build_sfx_clips(
+            scene_roles=["hook", "body"],
+            scene_durations=[0.10, 5.0],  # scene 0 is 100ms — below 150ms threshold
+            sfx_files={"hook": [MagicMock()], "transition": [MagicMock()]},
+        )
+
+        # For dur=0.10: transition_t = 0 + max(0.0, 0.10 - 0.15) = 0.0
+        # 0.0 is NOT > cursor + 0.05 (0.05) → transition clip must NOT have with_start called
+        (
+            transition_clip.with_effects.return_value.with_start.assert_not_called(),
+            ("Transition SFX must not be placed when scene dur < 150ms"),
+        )
+
+    def test_sfx_transition_placed_at_end_of_long_scene(self):
+        """RA-SFX002: dur > 150ms 씬의 transition SFX 는 씬 끝 부근에 배치돼야 한다."""
+        step = self._make_step()
+        fake_clip = self._fake_clip()
+        step._load_audio_clip.return_value = fake_clip
+
+        step._build_sfx_clips(
+            scene_roles=["hook", "body"],
+            scene_durations=[5.0, 3.0],
+            sfx_files={"hook": [MagicMock()], "transition": [MagicMock()]},
+        )
+
+        # transition_t = 0 + max(0, 5.0 - 0.15) = 4.85; must be > 0 + 0.05 → placed
+        start_calls = fake_clip.with_effects.return_value.with_start.call_args_list
+        transition_times = [c.args[0] for c in start_calls if c.args[0] > 0.05]
+        assert any(abs(t - 4.85) < 0.01 for t in transition_times), (
+            f"Expected transition at ~4.85, got: {transition_times}"
+        )

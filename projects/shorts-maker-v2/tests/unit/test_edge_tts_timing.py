@@ -702,3 +702,57 @@ def test_role_prosody_hook_all_channels() -> None:
         rate, pitch = _get_role_prosody("hook", channel_key=channel)
         assert rate == "+15%"
         assert "Hz" in pitch
+
+
+# ── ETC-WTL: mutagen 실패 시 WARNING 로깅 ────────────────────────────────────
+
+
+def test_approximate_word_timings_logs_warning_on_mutagen_failure(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """ETC-WTL001: mutagen 실패 시 DEBUG 아닌 WARNING 수준으로 기록돼야 한다."""
+    import logging
+
+    dummy_mp3 = tmp_path / "dummy.mp3"
+    dummy_mp3.write_bytes(b"\x00" * 10)  # non-valid MP3 → mutagen will fail
+
+    with caplog.at_level(logging.WARNING, logger="shorts_maker_v2.providers.edge_tts_client"):
+        result = _approximate_word_timings("안녕 세계", dummy_mp3)
+
+    assert result == [], "mutagen failure should return empty list"
+    warning_msgs = [r.message for r in caplog.records if r.levelno == logging.WARNING]
+    assert any("word timings lost" in m for m in warning_msgs), (
+        f"Expected WARNING about word timings lost, got: {warning_msgs}"
+    )
+
+
+# ── ETC-ZBA: 0-byte 오디오 조기 에러 ─────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_generate_async_raises_when_audio_chunks_empty(tmp_path: Path) -> None:
+    """ETC-ZBA001: edge-tts 스트림이 0 바이트 반환 시 즉시 RuntimeError 로 조기 종료해야 한다."""
+    from shorts_maker_v2.providers.edge_tts_client import _generate_async_with_timing
+
+    output_mp3 = tmp_path / "out.mp3"
+    words_json = tmp_path / "out_words.json"
+
+    async def _empty_stream(communicate):
+        return [], []  # no audio chunks, no word boundaries
+
+    with (
+        patch(
+            "shorts_maker_v2.providers.edge_tts_client._collect_edge_stream",
+            side_effect=_empty_stream,
+        ),
+        patch("edge_tts.Communicate"),
+    ):
+        with pytest.raises(RuntimeError, match="No audio data received"):
+            await _generate_async_with_timing(
+                text="안녕하세요",
+                voice="ko-KR-SunHiNeural",
+                rate="+0%",
+                pitch="+0Hz",
+                output_path=output_mp3,
+                words_json_path=words_json,
+            )

@@ -193,7 +193,7 @@ def _approximate_word_timings(text: str, audio_path: Path) -> list[dict]:
 
         audio_dur = MP3(str(audio_path)).info.length
     except Exception as exc:
-        logger.debug("edge_tts: mutagen MP3 duration probe failed for %s: %s", audio_path, exc)
+        logger.warning("edge_tts: mutagen unavailable or failed, word timings lost for %s: %s", audio_path, exc)
         return []
 
     if audio_dur <= 0:
@@ -375,6 +375,8 @@ async def _generate_async_with_timing(
     communicate = edge_tts.Communicate(text, voice=voice, rate=rate, pitch=pitch)
     audio_chunks, words = await _collect_edge_stream(communicate)
     _save_audio_chunks(output_path, audio_chunks)
+    if not audio_chunks:
+        raise RuntimeError("No audio data received from edge-tts stream")
 
     if words:
         _write_word_timings(words_json_path, words, "EdgeTTS: %d word timings saved to %s")

@@ -198,7 +198,7 @@ class RenderAudioMixin:
 
             client = GoogleMusicClient.from_env()
             # Lyria 생성: 영상 길이 + 2초 여유
-            coro = client.generate_music_file(
+            coro_fn = lambda: client.generate_music_file(  # noqa: E731
                 prompt=prompt,
                 output_path=bgm_path,
                 duration_sec=min(duration_sec + 2, 120),
@@ -206,14 +206,14 @@ class RenderAudioMixin:
                 temperature=1.0,
             )
             try:
-                asyncio.run(coro)
+                asyncio.run(coro_fn())
             except RuntimeError as exc:
                 if "event loop" not in str(exc).lower() and "running" not in str(exc).lower():
                     raise
                 import concurrent.futures
 
                 with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                    future = executor.submit(asyncio.run, coro)
+                    future = executor.submit(asyncio.run, coro_fn())
                     future.result()
 
             if bgm_path.exists() and bgm_path.stat().st_size > 0:
@@ -348,7 +348,8 @@ class RenderAudioMixin:
                 sfx_path = random.choice(sfx_files["transition"])
                 clip = self._load_audio_clip(sfx_path)  # type: ignore[attr-defined]
                 clip = clip.with_effects([MultiplyVolume(volume)])
-                transition_t = max(0, cursor + dur - 0.15)
-                sfx_clips.append(clip.with_start(transition_t))
+                transition_t = cursor + max(0.0, dur - 0.15)
+                if transition_t > cursor + 0.05:
+                    sfx_clips.append(clip.with_start(transition_t))
             cursor += dur
         return sfx_clips

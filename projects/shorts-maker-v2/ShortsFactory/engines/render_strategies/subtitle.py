@@ -20,6 +20,7 @@ def render_subtitle(
     output_path: Path | None = None,
 ) -> Path:
     """텍스트와 키워드 하이라이트를 적용한 자막 이미지를 생성합니다."""
+    _tmp_created = output_path is None
     if output_path is None:
         _fd, _tmp = tempfile.mkstemp(suffix=".png")
         os.close(_fd)
@@ -93,7 +94,12 @@ def render_subtitle(
     final_w = max(1, img_w // scale)
     final_h = max(1, img_h // scale)
     image = image.resize((final_w, final_h), Image.LANCZOS)
-    image.save(output_path, format="PNG")
+    try:
+        image.save(output_path, format="PNG")
+    except Exception:
+        if _tmp_created:
+            output_path.unlink(missing_ok=True)
+        raise
     logger.debug("[TextEngine] 자막 렌더: %s (%d×%d)", output_path.name, final_w, final_h)
     return output_path
 
@@ -109,6 +115,7 @@ def render_subtitle_with_glow(
     output_path: Path | None = None,
 ) -> Path:
     """네온 글로우 효과가 적용된 자막 이미지를 생성합니다."""
+    _tmp_created = output_path is None
     if output_path is None:
         _fd, _tmp = tempfile.mkstemp(suffix=".png")
         os.close(_fd)
@@ -164,6 +171,11 @@ def render_subtitle_with_glow(
     final_w = max(1, img_w // scale)
     final_h = max(1, img_h // scale)
     result = result.resize((final_w, final_h), Image.LANCZOS)
-    result.save(output_path, format="PNG")
+    try:
+        result.save(output_path, format="PNG")
+    except Exception:
+        if _tmp_created:
+            output_path.unlink(missing_ok=True)
+        raise
     logger.debug("[TextEngine] 글로우 자막 렌더: %s", output_path.name)
     return output_path
