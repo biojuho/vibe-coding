@@ -335,3 +335,68 @@ class TestEndingMatches:
     def test_default_closure_treated_as_open(self):
         # closure 키 없으면 "open" 기본값
         assert self._fn("정답은 없습니다.", {})
+
+
+# ── _coerce_score / _quality_score 경계 조건 테스트 ─────────────────────────
+
+
+class TestCoerceScore:
+    """_coerce_score: 0-10 자동 스케일업 + 경계 조건."""
+
+    def setup_method(self):
+        from pipeline.publish_decision import _coerce_score
+
+        self._fn = _coerce_score
+
+    def test_none_returns_none(self):
+        assert self._fn(None) is None
+
+    def test_empty_string_returns_none(self):
+        assert self._fn("") is None
+
+    def test_non_numeric_returns_none(self):
+        assert self._fn("excellent") is None
+
+    def test_score_in_0_to_10_range_is_scaled_to_100(self):
+        # LLM often returns 0-10 scale; coerce multiplies by 10
+        assert self._fn(7.5) == 75.0
+
+    def test_score_exactly_10_becomes_100(self):
+        assert self._fn(10) == 100.0
+
+    def test_score_above_10_treated_as_0_to_100_scale(self):
+        # 85 is clearly in 0-100 range — no multiplication
+        assert self._fn(85) == 85.0
+
+    def test_score_is_clamped_at_100(self):
+        assert self._fn(1000) == 100.0
+
+    def test_score_is_clamped_at_zero(self):
+        assert self._fn(-5) == 0.0
+
+    def test_string_numeric_is_accepted(self):
+        assert self._fn("9") == 90.0
+
+
+class TestQualityScore:
+    """_quality_score: dict averaging + single-value passthrough."""
+
+    def setup_method(self):
+        from pipeline.publish_decision import _quality_score
+
+        self._fn = _quality_score
+
+    def test_single_100_scale_value_returns_directly(self):
+        assert self._fn(90.0) == 90.0
+
+    def test_dict_averages_numeric_values(self):
+        # 8.0 → 80.0, 9.0 → 90.0 → average = 85.0
+        assert self._fn({"twitter": 8.0, "instagram": 9.0}) == 85.0
+
+    def test_dict_with_all_none_returns_none(self):
+        assert self._fn({"twitter": None, "instagram": ""}) is None
+
+    def test_dict_skips_none_in_average(self):
+        # Only 9.0 (→90.0) is numeric; None is skipped
+        result = self._fn({"twitter": 9.0, "x": None})
+        assert result == 90.0
