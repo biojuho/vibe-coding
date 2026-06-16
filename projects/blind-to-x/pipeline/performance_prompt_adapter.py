@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import statistics
 import time
 from dataclasses import dataclass, field
@@ -133,10 +134,17 @@ def _normalize_x_analytics_row(tweet: dict, snapshot: dict | None) -> dict | Non
     if snapshot is None:
         return None
 
-    impressions = snapshot.get("impressions", 0) or 0
-    likes = snapshot.get("likes", 0) or 0
-    retweets = snapshot.get("retweets", 0) or 0
-    replies = snapshot.get("replies", 0) or 0
+    def _sf(v: Any, d: float = 0.0) -> float:
+        try:
+            f = float(v) if v is not None else d
+            return f if math.isfinite(f) and f >= 0 else d
+        except (TypeError, ValueError, OverflowError):
+            return d
+
+    impressions = _sf(snapshot.get("impressions", 0))
+    likes = _sf(snapshot.get("likes", 0))
+    retweets = _sf(snapshot.get("retweets", 0))
+    replies = _sf(snapshot.get("replies", 0))
 
     # impression_rate: impressions per 1000 followers — 여기선 절댓값으로 근사
     # engagement_rate: (likes + retweets + replies) / max(impressions, 1)

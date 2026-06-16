@@ -337,3 +337,50 @@ class TestExpressDraftIntegration:
 
         assert "적당한 제목" in prompt
         assert "성과 기반 가이드" not in prompt  # 데이터 없으면 미포함
+
+
+# ── _normalize_x_analytics_row NaN/Inf 가드 (PPA-NI 시리즈) ─────────────────
+
+
+class TestNormalizeXAnalyticsRowNanInf:
+    """PPA-NI: NaN/Inf 스냅샷 메트릭이 impression/engagement rate를 오염시키지 않음."""
+
+    def test_nan_impressions_falls_back_to_zero(self):
+        """PPA-NI001: impressions=NaN → 0.0 폴백, impression_rate=0.0."""
+        import math
+
+        tweet = {"id": 1, "text_preview": "테스트", "published_at": "2026-04-01 09:00:00"}
+        snapshot = {"impressions": float("nan"), "likes": 50, "retweets": 10, "replies": 5}
+        result = _normalize_x_analytics_row(tweet, snapshot)
+        assert result is not None
+        assert math.isfinite(result["impression_rate"])
+        assert math.isfinite(result["engagement_rate"])
+        assert result["impression_rate"] == 0.0
+
+    def test_inf_likes_falls_back_to_zero(self):
+        """PPA-NI002: likes=inf → 0.0 폴백, engagement_rate still finite."""
+        import math
+
+        tweet = {"id": 1, "text_preview": "테스트", "published_at": "2026-04-01 09:00:00"}
+        snapshot = {"impressions": 1000, "likes": float("inf"), "retweets": 10, "replies": 5}
+        result = _normalize_x_analytics_row(tweet, snapshot)
+        assert result is not None
+        assert math.isfinite(result["engagement_rate"])
+
+    def test_all_nan_snapshot_produces_zero_rates(self):
+        """PPA-NI003: 모든 메트릭 NaN → 0.0 폴백, rates=0.0."""
+        import math
+
+        tweet = {"id": 1, "text_preview": "테스트", "published_at": "2026-04-01 09:00:00"}
+        snapshot = {
+            "impressions": float("nan"),
+            "likes": float("nan"),
+            "retweets": float("nan"),
+            "replies": float("nan"),
+        }
+        result = _normalize_x_analytics_row(tweet, snapshot)
+        assert result is not None
+        assert math.isfinite(result["impression_rate"])
+        assert math.isfinite(result["engagement_rate"])
+        assert result["impression_rate"] == 0.0
+        assert result["engagement_rate"] == 0.0
