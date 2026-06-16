@@ -510,3 +510,70 @@ class TestResearchFailed:
 
     def test_dict_with_value_reduction_failed_string_false_returns_false(self):
         assert self._fn({"universal_value": "공정한 기준", "value_reduction_failed": "false"}) is False
+
+
+# ── _has_forbidden_tone 테스트 (BTX-FT 시리즈) ────────────────────────────────
+
+
+class TestHasForbiddenTone:
+    """_has_forbidden_tone: 금지 어휘 패턴 감지 (BTX-FT 시리즈)."""
+
+    def setup_method(self):
+        from pipeline.publish_decision import _has_forbidden_tone
+
+        self._fn = _has_forbidden_tone
+
+    def test_clean_text_returns_empty_list(self):
+        """BTX-FT001: 금지 어휘 없는 텍스트 → 빈 리스트."""
+        assert self._fn("직장인이 회사에서 겪는 갑질 문제를 봤어요") == []
+
+    def test_empty_text_returns_empty_list(self):
+        """BTX-FT002: 빈 문자열 → 빈 리스트."""
+        assert self._fn("") == []
+
+    def test_끝판왕_detected(self):
+        """BTX-FT003: '끝판왕' 감지."""
+        result = self._fn("이 방법이 끝판왕이에요")
+        assert "끝판왕" in result
+
+    def test_팩폭_detected(self):
+        """BTX-FT004: '팩폭' 감지."""
+        result = self._fn("이건 팩폭이죠")
+        assert "팩폭" in result
+
+    def test_어질어질_detected(self):
+        """BTX-FT005: '어질어질' 감지."""
+        result = self._fn("연봉 격차가 어질어질해요")
+        assert "어질어질" in result
+
+    def test_의_감각_pattern_detected(self):
+        """BTX-FT006: '~의 감각' 패턴 감지."""
+        result = self._fn("리더의 감각이 중요합니다")
+        assert "~의 감각" in result
+
+    def test_의_민낯_pattern_detected(self):
+        """BTX-FT007: '~의 민낯' 패턴 감지."""
+        result = self._fn("직장의 민낯을 봤어요")
+        assert "~의 민낯" in result
+
+    def test_현실_자각_타임_with_space_detected(self):
+        """BTX-FT008: '현실 자각 타임' (공백 포함) 감지."""
+        result = self._fn("이제 현실 자각 타임입니다")
+        assert "현실 자각 타임" in result
+
+    def test_현실자각타임_without_space_detected(self):
+        """BTX-FT009: '현실자각타임' (공백 없음)도 감지 (\\s* 패턴)."""
+        result = self._fn("현실자각타임이에요")
+        assert "현실 자각 타임" in result
+
+    def test_multiple_forbidden_returns_all(self):
+        """BTX-FT010: 여러 금지 어휘 동시 포함 → 모두 반환."""
+        result = self._fn("끝판왕 팩폭 어질어질")
+        assert "끝판왕" in result
+        assert "팩폭" in result
+        assert "어질어질" in result
+
+    def test_기절할뻔_with_space_detected(self):
+        """BTX-FT011: '기절할 뻔' (공백 있음) 감지."""
+        result = self._fn("기절할 뻔 했어요")
+        assert "기절할 뻔" in result
