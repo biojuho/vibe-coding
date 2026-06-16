@@ -1738,3 +1738,32 @@ class TestExtractRetryAfterSeconds:
 
     def test_negative_seconds_clamped_to_zero(self):
         assert self._call("-5") == 0
+
+
+# ── NC-IDC: is_duplicate fallback KeyError regression (2026-06-16) ──────────
+
+
+@pytest.mark.asyncio
+async def test_is_duplicate_fallback_missing_url_prop_returns_none():
+    """NC-IDC001: is_duplicate API fallback must NOT raise KeyError when props["url"] absent in _db_properties."""
+    from pipeline.notion._cache import NotionCacheMixin
+
+    class _H(NotionCacheMixin):
+        props = {"url": "URL_FIELD"}
+        _db_properties: dict = {}  # empty — "URL_FIELD" key absent
+        _url_cache = None
+        last_error_code = None
+        last_error_message = None
+
+        async def ensure_schema(self):
+            return True
+
+        async def _ensure_url_cache(self):
+            return False  # force fallback API path
+
+        async def query_collection(self, **kwargs):
+            return {"results": []}
+
+    result = await _H().is_duplicate("https://example.com/article")
+    # Must not raise KeyError; should return None or bool
+    assert result is None or isinstance(result, bool)

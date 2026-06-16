@@ -642,8 +642,9 @@ def test_process_one_scene_stamps_scene_id_on_failures(tmp_path: Path) -> None:
     assert {f["step"] for f in failures} == {"image_imagen3", "image_gemini"}
 
 
-def test_process_one_scene_audio_failure_logs_and_raises(tmp_path: Path) -> None:
+def test_process_one_scene_audio_failure_logs_and_returns_none(tmp_path: Path) -> None:
     step = _make_step()
+    step._pending_audio_warnings = []
     audio_dir = tmp_path / "audio"
     image_dir = tmp_path / "images"
     video_dir = tmp_path / "videos"
@@ -656,9 +657,8 @@ def test_process_one_scene_audio_failure_logs_and_raises(tmp_path: Path) -> None
         patch("shorts_maker_v2.pipeline.media_step.retry_with_backoff", side_effect=_run_retry),
         patch.object(step, "_generate_audio", side_effect=RuntimeError("tts failed")),
         patch.object(step, "_generate_best_image", return_value=(str(tmp_path / "img.png"), "image", [])),
-        pytest.raises(RuntimeError, match="tts failed"),
     ):
-        step._process_one_scene(
+        asset, failures = step._process_one_scene(
             _scene(),
             audio_dir,
             image_dir,
@@ -667,11 +667,14 @@ def test_process_one_scene_audio_failure_logs_and_raises(tmp_path: Path) -> None
             logger=logger,
         )
 
+    assert asset is None, "audio failure must return None asset (not raise)"
+    assert any(f["step"] == "audio" for f in failures)
     logger.error.assert_called_once()
 
 
-def test_process_one_scene_paid_visual_waits_for_audio_before_generation(tmp_path: Path) -> None:
+def test_process_one_scene_paid_visual_not_called_when_audio_fails(tmp_path: Path) -> None:
     step = _make_step()
+    step._pending_audio_warnings = []
     audio_dir = tmp_path / "audio"
     image_dir = tmp_path / "images"
     video_dir = tmp_path / "videos"
@@ -684,9 +687,8 @@ def test_process_one_scene_paid_visual_waits_for_audio_before_generation(tmp_pat
         patch("shorts_maker_v2.pipeline.media_step.retry_with_backoff", side_effect=_run_retry),
         patch.object(step, "_generate_audio", side_effect=RuntimeError("tts failed")),
         patch.object(step, "_generate_best_image") as best_image,
-        pytest.raises(RuntimeError, match="tts failed"),
     ):
-        step._process_one_scene(
+        asset, failures = step._process_one_scene(
             _scene(role="hook"),
             audio_dir,
             image_dir,
@@ -695,6 +697,7 @@ def test_process_one_scene_paid_visual_waits_for_audio_before_generation(tmp_pat
             logger=logger,
         )
 
+    assert asset is None
     best_image.assert_not_called()
 
 
@@ -793,3 +796,82 @@ def test_regenerate_scene_removes_visual_files_and_stock_variant(tmp_path: Path)
     assert not (video_dir / "scene_01.mp4").exists()
     assert not (video_dir / "scene_01_stock.mp4").exists()
     process.assert_called_once()
+
+
+# ── MS-ANA: _process_one_scene audio/None-asset regression (2026-06-16) ─────
+
+
+def test_process_one_scene_returns_none_on_audio_failure(tmp_path: Path) -> None:
+    """MS-ANA001: audio TTS failure returns (None, failures) — must NOT raise."""
+    step = _make_step()
+    step._pending_audio_warnings = []
+    audio_dir = tmp_path / "audio"
+    image_dir = tmp_path / "images"
+    video_dir = tmp_path / "video"
+    audio_dir.mkdir()
+    image_dir.mkdir()
+    video_dir.mkdir()
+
+    with patch.object(step, "_generate_audio", side_effect=RuntimeError("TTS provider down")):
+        asset, failures = step._process_one_scene(
+            _scene(1, role="hook"),  # hook → sequential (no parallelize)
+            audio_dir,
+            image_dir,
+            video_dir,
+            _make_cost_guard(),
+            parallelize_provider_io=False,
+        )
+
+    assert asset is None, "must return None asset on audio failure"
+    assert any(f["step"] == "audio" for f in failures)
+    assert any("TTS provider down" in f["message"] for f in failures)
+
+
+def test_run_raises_runtime_error_when_asset_is_none(tmp_path: Path) -> None:
+    """MS-ANA002: run() raises RuntimeError when _process_one_scene returns None asset."""
+    step = _make_step()
+    step._pending_audio_warnings = []
+
+    failure_info = [{"step": "audio", "code": "RuntimeError", "message": "TTS down"}]
+    with (
+        patch.object(step, "_process_one_scene", return_value=(None, failure_info)),
+        pytest.raises(RuntimeError, match="asset generation failed"),
+    ):
+        step.run([_scene(1)], tmp_path, _make_cost_guard())
+
+
+def test_run_parallel_handles_none_asset_as_degraded(tmp_path: Path) -> None:
+    """MS-ANA003: run_parallel treats None asset as degraded — continues other scenes, populates all_failures."""
+    step = _make_step()
+    step._pending_audio_warnings = []
+
+    good_asset = MagicMock()
+    good_asset.scene_id = 2
+    good_asset.visual_type = "image"
+    good_asset.visual_path = str(tmp_path / "scene_02.png")
+    good_asset.audio_path = str(tmp_path / "scene_02.mp3")
+    good_asset.duration_sec = 5.0
+
+    call_count = [0]
+
+    def _fake_process(scene, *args, **kwargs):
+        call_count[0] += 1
+        if scene.scene_id == 1:
+            return None, [{"step": "audio", "code": "RuntimeError", "message": "fail"}]
+        return good_asset, []
+
+    with (
+        patch.object(step, "_process_one_scene", side_effect=_fake_process),
+        patch.object(step, "_prepare_dirs", return_value=(tmp_path, tmp_path, tmp_path)),
+        patch.object(step, "_extract_palette", return_value=""),
+    ):
+        assets, failures = step.run_parallel(
+            [_scene(1, role="hook"), _scene(2, role="body")],
+            tmp_path,
+            _make_cost_guard(),
+        )
+
+    assert [a.scene_id for a in assets] == [2], "only scene 2 asset returned"
+    assert any(f.get("scene_id") == 1 or f.get("step") == "scene_1" for f in failures), (
+        f"scene 1 failure not recorded; failures={failures}"
+    )

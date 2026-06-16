@@ -389,7 +389,7 @@ class MediaFallbackMixin:
                 {
                     "step": "visual_all_failed",
                     "code": "PlaceholderFallback",
-                    "scene_id": str(getattr(scene, "scene_id", "?")),
+                    "scene_id": getattr(scene, "scene_id", "?"),
                     "message": f"모든 이미지 생성 실패 → placeholder 사용 (scene_id={getattr(scene, 'scene_id', '?')})",
                 }
             )

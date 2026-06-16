@@ -378,3 +378,20 @@ async def test_search_pages_by_title_handles_query_failure_and_fetch_recent_reco
 
     records = await host.fetch_recent_records(lookback_days=14, limit=10)
     assert records[0]["text"] == "mapped"
+
+
+# ── NQM-PBS: get_pages_by_status KeyError regression (2026-06-16) ──────────
+
+
+@pytest.mark.asyncio
+async def test_get_pages_by_status_missing_prop_in_db_properties_uses_default():
+    """NQM-PBS001: _db_properties missing the semantic prop falls back to "select" instead of KeyError."""
+    host = FakeQueryHost()
+    # "status" maps correctly but its type entry is absent from _db_properties
+    host._db_properties = {}  # completely empty → .get() must not raise
+    host.query_response = {"results": [_page_with_properties()]}
+
+    pages = await host.get_pages_by_status("Approved", limit=5)
+
+    # Should return results (query succeeded) rather than raising KeyError
+    assert isinstance(pages, list)

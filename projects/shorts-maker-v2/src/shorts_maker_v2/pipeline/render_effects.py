@@ -178,8 +178,8 @@ class RenderEffectsMixin:
             frame = get_frame(t)
             progress = t / dur - 0.5
             cx = zw / 2 + direction * max_shift * progress
-            x1 = int(max(0, cx - target_width / 2))
-            y1 = int(max(0, y_center - target_height / 2))
+            x1 = int(max(0, min(cx - target_width / 2, zw - target_width)))
+            y1 = int(max(0, min(y_center - target_height / 2, zh - target_height)))
             return frame[y1 : y1 + target_height, x1 : x1 + target_width]
 
         return zoomed.transform(make_frame).with_duration(clip.duration)

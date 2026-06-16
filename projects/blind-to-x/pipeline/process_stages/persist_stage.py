@@ -381,7 +381,7 @@ async def run_persist_stage(
             post_data["x_published_at"] = datetime.now().astimezone().isoformat()
             post_data["x_publish_status"] = "Published"
             if ctx.notion_page_id:
-                await notion_uploader.update_page_properties(
+                ok = await notion_uploader.update_page_properties(
                     ctx.notion_page_id,
                     {
                         "x_publish_status": "Published",
@@ -390,25 +390,31 @@ async def run_persist_stage(
                         "status": "발행완료",
                     },
                 )
+                if not ok:
+                    errors.append("Notion status sync failed after publish (tweet was posted)")
         elif twitter_poster and twitter_poster.enabled:
             errors.append("Twitter post failed")
             post_data["x_publish_status"] = "Blocked"
             post_data["x_publish_error"] = "Twitter post failed"
             if ctx.notion_page_id:
-                await notion_uploader.update_page_properties(
+                ok = await notion_uploader.update_page_properties(
                     ctx.notion_page_id,
                     {
                         "x_publish_status": "Blocked",
                         "x_publish_error": "Twitter post failed",
                     },
                 )
+                if not ok:
+                    errors.append("Notion status sync failed after Twitter block")
     elif ctx.notion_page_id:
-        await notion_uploader.update_page_properties(
+        ok = await notion_uploader.update_page_properties(
             ctx.notion_page_id,
             {
                 "status": ctx.decision.get("status", "검토필요"),
             },
         )
+        if not ok:
+            errors.append("Notion status update failed")
 
     _record_persisted_draft_event(ctx, post_data, profile, drafts, chosen_draft_type)
 

@@ -1032,6 +1032,14 @@ class PipelineOrchestrator:
                     issues=gate3_report.issues,
                 )
                 status.fail("gate3_media_qc", detail="; ".join(gate3_report.issues[:2]))
+                manifest.degraded_steps.append(
+                    {
+                        "step": "gate3_media_qc",
+                        "message": "; ".join(gate3_report.issues[:3]),
+                        "error_type": gate3_report.verdict,
+                        "blocking": False,
+                    }
+                )
 
             # ── Retention Hints (optional, non-blocking) ──
             try:

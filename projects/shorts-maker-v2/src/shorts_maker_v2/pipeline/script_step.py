@@ -259,7 +259,7 @@ class ScriptStep(ScriptPromptsMixin, ScriptReviewMixin):
         else:
             scene_count = self.config.project.default_scene_count
         # 채널별 duration 오버라이드 적용
-        if self.channel_duration_override:
+        if self.channel_duration_override is not None:
             # 채널 목표 ±5초 범위 (예: 45초 → [40, 50])
             ch_dur = self.channel_duration_override
             duration_range = (max(20, ch_dur - 5), ch_dur + 5)

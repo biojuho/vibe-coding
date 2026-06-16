@@ -85,6 +85,7 @@ class MediaAudioMixin:
                     pending.append(
                         {
                             "step": "whisperx_align",
+                            "scene_id": scene_id,
                             "code": type(exc).__name__,
                             "message": f"scene {scene_id}: WhisperX 정렬 실패 — {str(exc)[:120]}",
                             "error_type": "sync_loss",
@@ -112,6 +113,7 @@ class MediaAudioMixin:
                     pending.append(
                         {
                             "step": "whisper_sync",
+                            "scene_id": scene_id,
                             "code": type(exc).__name__,
                             "message": f"scene {scene_id}: Whisper sync 실패 — {str(exc)[:120]}",
                             "error_type": "sync_loss",

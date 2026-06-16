@@ -154,9 +154,9 @@ class NotionCacheMixin:
             return url_value in self._url_cache
 
         # fallback: 기존 개별 API 조회
-        url_prop = self.props["url"]
-        url_prop_type = self._db_properties[url_prop]["type"]
         try:
+            url_prop = self.props["url"]
+            url_prop_type = self._db_properties[url_prop]["type"]
             if url_prop_type == "url":
                 duplicate_filter = {"property": url_prop, "url": {"equals": url_value}}
             else:

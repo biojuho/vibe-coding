@@ -337,7 +337,7 @@ class NotionQueryMixin:
         prop_name = self.props.get(semantic_key)
         if not prop_name:
             return []
-        prop_type = self._db_properties[prop_name]["type"]
+        prop_type = self._db_properties.get(prop_name, {}).get("type", "select")
         resolved_status = self._resolve_status_filter_value(status_name)
         if prop_type == "status":
             filter_payload = {"property": prop_name, "status": {"equals": resolved_status}}

@@ -174,9 +174,10 @@ def test_run_parallel_handles_scene_failure(tmp_path) -> None:
     assert any("RuntimeError" in f.get("code", "") for f in failures)
 
 
-def test_parallel_image_error_propagates(tmp_path) -> None:
-    """T-SV001: 병렬 경로(parallelize_provider_io=True)에서 이미지 오류가 re-raise됨."""
+def test_parallel_image_error_returns_none_with_failure(tmp_path) -> None:
+    """T-SV001: 병렬 경로(parallelize_provider_io=True)에서 이미지 오류는 (None, failures)를 반환 — raise 아님."""
     step = _make_media_step()
+    step._pending_audio_warnings = []
     scene = _make_scene_plans(1)[0]
     audio_dir = tmp_path / "audio"
     image_dir = tmp_path / "images"
@@ -195,17 +196,18 @@ def test_parallel_image_error_propagates(tmp_path) -> None:
         patch.object(MediaStep, "_generate_audio", return_value=fake_audio),
         patch.object(MediaStep, "_generate_best_image", side_effect=RuntimeError("Image API error")),
     ):
-        import pytest
+        asset, failures = step._process_one_scene(
+            scene,
+            audio_dir,
+            image_dir,
+            video_dir,
+            cost_guard,
+            parallelize_provider_io=True,
+        )
 
-        with pytest.raises(RuntimeError, match="Image API error"):
-            step._process_one_scene(
-                scene,
-                audio_dir,
-                image_dir,
-                video_dir,
-                cost_guard,
-                parallelize_provider_io=True,
-            )
+    assert asset is None, "image failure must return None asset (not raise)"
+    assert any(f["step"] == "image" for f in failures), f"failures should include image step; got: {failures}"
+    assert any("Image API error" in f.get("message", "") for f in failures)
 
 
 def test_cost_guard_thread_safety() -> None:

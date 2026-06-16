@@ -270,7 +270,7 @@ class MediaStep(MediaAudioMixin, MediaVisualMixin, MediaFallbackMixin):
                 except Exception as exc:
                     failures.append({"step": "audio", "code": type(exc).__name__, "message": str(exc)})
                     self._log(logger, "error", "audio_failed", scene_id=scene.scene_id, error=str(exc))
-                    raise
+                    return None, failures
 
             # 이미지 결과 수집
             try:
@@ -278,14 +278,14 @@ class MediaStep(MediaAudioMixin, MediaVisualMixin, MediaFallbackMixin):
             except Exception as exc:
                 failures.append({"step": "image", "code": type(exc).__name__, "message": str(exc)})
                 self._log(logger, "error", "image_failed", scene_id=scene.scene_id, error=str(exc))
-                raise
+                return None, failures
         else:
             try:
                 audio_path = _get_audio()
             except Exception as exc:
                 failures.append({"step": "audio", "code": type(exc).__name__, "message": str(exc)})
                 self._log(logger, "error", "audio_failed", scene_id=scene.scene_id, error=str(exc))
-                raise
+                return None, failures
 
             visual_path_str, visual_type, img_failures = _get_visual()
 
@@ -331,12 +331,14 @@ class MediaStep(MediaAudioMixin, MediaVisualMixin, MediaFallbackMixin):
                 logger,
                 color_hint=palette_hint,
             )
-            assets.append(asset)
             all_failures.extend(failures)
             # silent-fail 버퍼(Whisper word-sync 등) 도 같이 흘려보낸다.
             if self._pending_audio_warnings:
                 all_failures.extend(self._pending_audio_warnings)
                 self._pending_audio_warnings = []
+            if asset is None:
+                raise RuntimeError(f"[MediaStep] Scene {scene.scene_id} asset generation failed")
+            assets.append(asset)
             # Hook 씬 처리 후 색상 팔레트 추출 → 이후 씬에 주입
             if scene.structure_role == "hook" and not palette_hint and asset.visual_type == "image":
                 palette_hint = self._extract_palette(Path(asset.visual_path))
@@ -398,8 +400,21 @@ class MediaStep(MediaAudioMixin, MediaVisualMixin, MediaFallbackMixin):
                     scene_id = futures[future]
                     try:
                         asset, failures = future.result()
-                        results[scene_id] = asset
                         all_failures.extend(failures)
+                        if asset is not None:
+                            results[scene_id] = asset
+                        else:
+                            all_failures.append(
+                                {
+                                    "step": f"scene_{scene_id}",
+                                    "scene_id": scene_id,
+                                    "code": "AssetGenFailed",
+                                    "message": "scene asset generation returned None",
+                                }
+                            )
+                            self._log(
+                                logger, "error", "parallel_scene_failed", scene_id=scene_id, error="asset is None"
+                            )
                     except Exception as exc:
                         all_failures.append(
                             {
