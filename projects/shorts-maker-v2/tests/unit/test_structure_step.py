@@ -443,3 +443,39 @@ class TestParseOutlineNanInf:
         step = _self._step(_config)
         outline = step._parse_outline(_self._outline(8.0))
         assert outline.scenes[0].target_sec == 8.0
+
+
+# ── Fallback outline scene_id uniqueness (SS-SID) ────────────────────────────
+
+
+class TestFallbackOutlineSceneIdUniqueness:
+    """SS-SID: _fallback_outline 의 모든 씬은 고유한 scene_id 를 가져야 한다."""
+
+    def _step(self, config) -> StructureStep:
+        llm = MagicMock()
+        llm.generate_json.return_value = None
+        return StructureStep(config=config, llm_router=llm)
+
+    def test_scene_count_2_no_duplicate_ids(self, _config) -> None:
+        """SS-SID001: scene_count=2 일 때 closing 이 body 와 동일한 scene_id 를 갖지 않는다."""
+        _config.project.default_scene_count = 2
+        step = self._step(_config)
+        outline = step._fallback_outline(topic="AI 도구", production_plan=None)
+        ids = [s.scene_id for s in outline.scenes]
+        assert len(ids) == len(set(ids)), f"Duplicate scene_ids: {ids}"
+
+    def test_scene_count_3_no_duplicate_ids(self, _config) -> None:
+        """SS-SID002: scene_count=3 도 고유."""
+        _config.project.default_scene_count = 3
+        step = self._step(_config)
+        outline = step._fallback_outline(topic="AI 도구", production_plan=None)
+        ids = [s.scene_id for s in outline.scenes]
+        assert len(ids) == len(set(ids)), f"Duplicate scene_ids: {ids}"
+
+    def test_scene_count_7_no_duplicate_ids(self, _config) -> None:
+        """SS-SID003: scene_count=7 (정상 케이스) 도 고유."""
+        _config.project.default_scene_count = 7
+        step = self._step(_config)
+        outline = step._fallback_outline(topic="AI 도구", production_plan=None)
+        ids = [s.scene_id for s in outline.scenes]
+        assert len(ids) == len(set(ids)), f"Duplicate scene_ids: {ids}"

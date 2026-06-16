@@ -586,6 +586,7 @@ class ThumbnailStep:
                 )
         except Exception as exc:
             logger.warning("[Thumbnail] Gemini Imagen 실패 → DALL-E 폴백: %s", exc)
+            bg_path.unlink(missing_ok=True)
             return self._run_dalle(title, topic, output_path, channel_key, bg_image_path=bg_image_path)
 
         try:

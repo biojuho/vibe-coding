@@ -187,11 +187,10 @@ class PipelineOrchestrator:
         # Research Step (config.research.enabled=True 시 활성화)
         if config.research.enabled:
             research_google = google_client if config.research.provider == "gemini" else None
-            research_llm = llm_router if config.research.provider == "llm" or not research_google else llm_router
             self.research_step: ResearchStep | None = ResearchStep(
                 config=config,
                 google_client=research_google,
-                llm_router=research_llm,
+                llm_router=llm_router,
             )
         else:
             self.research_step = None
@@ -574,7 +573,7 @@ class PipelineOrchestrator:
                 except Exception as exc:
                     # Planning은 실패해도 계속 진행 (optional enhancement)
                     step_timings["planning"] = round(time.perf_counter() - _t0, 2)
-                    record_degraded_step("planning", exc, blocking=True)
+                    record_degraded_step("planning", exc, blocking=False)
                     production_plan = None
 
                 # ── Research Step (활성화 시) ──

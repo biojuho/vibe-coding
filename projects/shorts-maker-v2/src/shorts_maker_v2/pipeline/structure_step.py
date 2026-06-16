@@ -526,7 +526,7 @@ class StructureStep:
         )
         scenes.append(
             SceneOutline(
-                scene_id=scene_count,
+                scene_id=len(scenes) + 1,
                 role="closing",
                 intent=closing_intent,
                 visual_direction=closing_visual,

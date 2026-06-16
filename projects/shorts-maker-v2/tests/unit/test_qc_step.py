@@ -500,7 +500,13 @@ def test_gate4_final_missing_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     assert any("Output file missing" in i for i in report.issues)
 
 
-def test_gate4_final_holds_when_media_probes_are_unavailable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_gate4_final_passes_when_media_probes_are_unavailable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """QC4-FP002: ffprobe/ffmpeg 미설치 시 다른 체크가 모두 OK면 PASS 여야 한다.
+
+    Probe 가용성은 인프라 상태이지 영상 품질 지표가 아니다.
+    ffprobe 없는 환경(CI, 일부 프로덕션)에서 모든 정상 영상을 HOLD 처리하면
+    자동 발행 파이프라인이 완전히 멈춘다.
+    """
     out = _write_bytes(tmp_path / "out.mp4", 5 * 1024 * 1024)
     manifest = JobManifest(
         job_id="probe-miss",
@@ -514,11 +520,14 @@ def test_gate4_final_holds_when_media_probes_are_unavailable(tmp_path: Path, mon
 
     report = QCStep.gate4_final(manifest, output_path=out)
 
-    assert report.verdict == GateVerdict.HOLD.value
-    assert report.checks["video_probe_ok"] is False
-    assert report.checks["audio_peak_probe_ok"] is False
+    # Probe-availability flags must NOT be in checks — they're infrastructure, not quality
+    assert "video_probe_ok" not in report.checks
+    assert "audio_peak_probe_ok" not in report.checks
+    # Informational issues are allowed (ffprobe not available warning)
     assert any("ffprobe" in issue for issue in report.issues)
     assert any("ffmpeg" in issue for issue in report.issues)
+    # But the gate itself should PASS — all actual quality checks passed
+    assert report.verdict == GateVerdict.PASS.value
 
 
 # ── 강화된 씬별 QC: 정합성/CTA 변형/cps 회귀 테스트 ────────────────────────────
@@ -1289,3 +1298,33 @@ class TestCoerceInt:
 
     def test_valid_string_int(self) -> None:
         assert SemanticQCStep._coerce_int("7") == 7
+
+
+# ── QC Gate 4 probe-availability false-positive guard (QC4-FP) ─────────────────
+
+
+def test_gate4_ffprobe_unavailable_does_not_hold_otherwise_valid_video(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """QC4-FP001: _probe_video=None (ffprobe 없음)이어도 다른 체크가 OK면 PASS."""
+    output_path = str(_write_bytes(tmp_path / "out.mp4", size=3_000_000))  # 3MB > _FINAL_MIN_SIZE_MB
+    manifest = JobManifest(
+        job_id="fp-001",
+        topic="AI 도구",
+        status="ok",
+        total_duration_sec=45.0,
+        failed_steps=[],
+    )
+
+    monkeypatch.setattr(QCStep, "_probe_video", staticmethod(lambda path: None))
+    monkeypatch.setattr(QCStep, "_check_audio_peak", staticmethod(lambda path: None))
+
+    report = QCStep.gate4_final(manifest, output_path=output_path, target_duration=(40, 50))
+
+    # HOLD only if actual quality checks (resolution, fps, audio peak) fail.
+    # When probe is unavailable those checks are simply skipped.
+    assert report.verdict == GateVerdict.PASS.value, f"Expected PASS but got {report.verdict}. Issues: {report.issues}"
+    # Probe-availability keys must NOT appear in the gate checks dict
+    assert "video_probe_ok" not in report.checks
+    assert "audio_peak_probe_ok" not in report.checks

@@ -424,7 +424,7 @@ class QCStep:
 
         # Check 4: 해상도/FPS (ffprobe 사용, 실패 시 skip)
         probe = QCStep._probe_video(output_path) if output_exists else None
-        checks["video_probe_ok"] = probe is not None
+        # Probe availability is infrastructure, not video quality — exclude from gate
         if probe:
             w, h = probe.get("width", 0), probe.get("height", 0)
             res_ok = w == 1080 and h == 1920
@@ -442,7 +442,7 @@ class QCStep:
 
         # Check 5: 오디오 피크 (ffprobe volumedetect)
         peak_db = QCStep._check_audio_peak(output_path) if output_exists else None
-        checks["audio_peak_probe_ok"] = peak_db is not None
+        # Probe availability is infrastructure, not audio quality — exclude from gate
         if peak_db is not None:
             peak_ok = peak_db <= -1.0  # -1dBFS 이하
             checks["audio_peak_ok"] = peak_ok
