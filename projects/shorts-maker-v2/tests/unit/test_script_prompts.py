@@ -187,3 +187,38 @@ class TestScriptPromptsMixinCounters:
         for name, guide in ScriptPromptsMixin.TONE_PRESETS:
             assert isinstance(name, str) and name
             assert isinstance(guide, str) and guide
+
+
+# ── estimate_narration_duration_sec NaN/Inf tts_speed 회귀 (SP-NI) ───────────
+
+
+import math as _math
+
+
+class TestNarrationDurationTtsSpeedNanInf:
+    """estimate_narration_duration_sec 가 NaN/Inf tts_speed 에 폴백해야 함."""
+
+    def test_nan_speed_returns_finite(self):
+        """SP-NI001: tts_speed=NaN → 예외 없이 유한한 값 반환."""
+        result = ScriptPromptsMixin.estimate_narration_duration_sec(
+            "AI 도입했더니 야근이 늘었다.", tts_speed=float("nan")
+        )
+        assert _math.isfinite(result)
+        assert result > 0
+
+    def test_inf_speed_returns_finite(self):
+        """SP-NI002: tts_speed=inf → 유한한 값 반환 (0으로 나누기 방지)."""
+        result = ScriptPromptsMixin.estimate_narration_duration_sec("테스트 문장입니다.", tts_speed=float("inf"))
+        assert _math.isfinite(result)
+
+    def test_string_tts_speed_returns_finite(self):
+        """SP-NI003: tts_speed='fast' → 기본 속도 1.0으로 폴백."""
+        result = ScriptPromptsMixin.estimate_narration_duration_sec("테스트 문장입니다.", tts_speed="fast")
+        assert _math.isfinite(result)
+        assert result > 0
+
+    def test_normal_speed_unaffected(self):
+        """정상 속도 1.0은 그대로 동작한다."""
+        result1 = ScriptPromptsMixin.estimate_narration_duration_sec("안녕하세요", tts_speed=1.0)
+        result2 = ScriptPromptsMixin.estimate_narration_duration_sec("안녕하세요", tts_speed=2.0)
+        assert result1 > result2  # 빠른 속도는 짧은 추정 시간

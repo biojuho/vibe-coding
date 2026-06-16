@@ -469,7 +469,11 @@ class ScriptPromptsMixin:
         weighted_units = hangul_chars + (latin_tokens * 2.2)
         spoken_sec = weighted_units / ScriptPromptsMixin.duration_estimate_chars_per_sec
         pause_sec = punctuation_pauses * 0.22
-        speed = max(0.7, float(tts_speed))
+        try:
+            _spd = float(tts_speed)
+            speed = max(0.7, _spd) if math.isfinite(_spd) else 1.0
+        except (TypeError, ValueError, OverflowError):
+            speed = 1.0
 
         estimated = (spoken_sec + pause_sec) / speed
         if language.lower().startswith("ko"):
