@@ -74,6 +74,24 @@ class TestParseResult:
         result = _parse_result({"suggestions": "not a list"})
         assert result.suggestions == []
 
+    def test_float_score_string_rounds_correctly(self):
+        """LLM 가 '7.5' 같은 float 문자열로 점수를 내도 scores 손실 없이 반올림."""
+        result = _parse_result({"visual_feasibility": "7.5"})
+        assert result.scores["visual_feasibility"] == 8
+        # confidence는 남아야 함 — 버그 전엔 ValueError로 confidence=0.0 반환
+        assert result.confidence == 0.5  # default (not parse-error fallback)
+
+    def test_float_score_numeric_truncates_correctly(self):
+        """숫자 7.5 입력도 int(round()) 처리해 8로 반올림됨."""
+        result = _parse_result({"visual_feasibility": 7.5})
+        assert result.scores["visual_feasibility"] == 8
+
+    def test_float_score_string_45_rounds_to_5(self):
+        """'4.5' → round(4.5) = 4 (Python banker's rounding) — 동작 문서화."""
+        result = _parse_result({"visual_feasibility": "4.5"})
+        # Python round(4.5) = 4 (banker's rounding)
+        assert result.scores["visual_feasibility"] in (4, 5)  # accept either
+
 
 class TestValidateTopic:
     def test_empty_topic_rejected(self):

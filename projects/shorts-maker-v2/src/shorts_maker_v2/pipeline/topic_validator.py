@@ -136,7 +136,7 @@ def _parse_result(data: dict) -> TopicValidation:
         for key in score_keys:
             val = data.get(key)
             if val is not None:
-                scores[key] = max(1, min(10, int(val)))
+                scores[key] = max(1, min(10, int(round(float(val)))))
 
         return TopicValidation(
             is_valid=is_valid,
