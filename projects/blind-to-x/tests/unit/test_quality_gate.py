@@ -210,3 +210,25 @@ def test_source_fidelity(mock_get_rule):
         )
         assert res.passed  # fidelity just adds warnings in current logic
         assert any("potential_fabrication" in w for w in res.warnings)
+
+
+# ── QG-ND: None in recent_drafts does not disable quality gate ────────────────
+
+
+def test_quality_gate_none_in_recent_drafts_does_not_crash():
+    """QG-ND001: recent_drafts에 None 항목 (json.loads('null')) 있어도 AttributeError로 gate 비활성화 안 됨."""
+    gate = QualityGate()
+
+    # Directly test the for-loop guard by calling _check_semantic_similarity
+    # DraftCache is imported inline, so patch at its source module
+    from pipeline.quality_gate import GateResult
+
+    gr = GateResult()
+    with patch("pipeline.draft_cache.DraftCache") as mock_dc_cls:
+        mock_cache = MagicMock()
+        mock_cache.get_recent_drafts.return_value = [None, {"twitter": "old draft text here"}]
+        mock_dc_cls.return_value = mock_cache
+        gate._check_semantic_similarity("완전히 새로운 문장입니다", "twitter", gr)
+
+    # Must not raise AttributeError — gate result is valid
+    assert isinstance(gr.passed, bool)

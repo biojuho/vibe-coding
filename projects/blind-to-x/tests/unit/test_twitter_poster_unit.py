@@ -208,3 +208,25 @@ class TestPostTweet:
             result = await poster.post_tweet("hello", image_path="/tmp/img.png")
 
         assert result is None
+
+
+# ── TP-URL: tweet URL must use /i/status/ not /user/status/ ──────────────────
+
+
+@pytest.mark.asyncio
+async def test_post_tweet_url_uses_canonical_id_path():
+    """TP-URL001: 반환 URL은 /i/status/{id} 형식이어야 한다 (하드코딩 /user/ 아님)."""
+    poster = TwitterPoster.__new__(TwitterPoster)
+    poster.enabled = True
+    poster.api_v1 = MagicMock()
+    poster.client_v2 = MagicMock()
+
+    mock_response = SimpleNamespace(data={"id": "98765"})
+
+    with patch("asyncio.to_thread", new_callable=AsyncMock) as mock_thread:
+        mock_thread.return_value = mock_response
+        result = await poster.post_tweet("테스트 트윗")
+
+    assert result is not None, "Expected a URL, got None"
+    assert "/i/status/98765" in result, f"Expected /i/status/ path, got: {result}"
+    assert "/user/" not in result, f"Hardcoded /user/ found in URL: {result}"

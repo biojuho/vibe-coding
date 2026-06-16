@@ -80,7 +80,7 @@ class TwitterPoster:
                     timeout=30,
                 )
                 tweet_id = response.data["id"]
-                tweet_url = f"https://x.com/user/status/{tweet_id}"
+                tweet_url = f"https://x.com/i/status/{tweet_id}"
                 logger.info("Successfully posted to Twitter: %s", tweet_url)
                 return tweet_url
 

@@ -374,7 +374,16 @@ class TestCheckCrossSourceDuplicates:
         assert len(result) <= 5
 
 
-def test_cosine_similarity_mismatched_lengths_raises():
-    """zip(strict=True) 계약: 길이 다른 벡터는 ValueError."""
-    with pytest.raises(ValueError):
-        _cosine_similarity([1.0, 2.0], [1.0, 2.0, 3.0])
+def test_cosine_similarity_mismatched_lengths_returns_zero():
+    """DEDUP-DIM001: 길이 다른 벡터는 0.0 반환 (임베딩 모델 롤오버 시 ValueErro 크래시 방지).
+
+    이전 strict=True 계약은 dedup 단계를 무력화해 중복 Notion 항목을 유발했다.
+    """
+    result = _cosine_similarity([1.0, 2.0], [1.0, 2.0, 3.0])
+    assert result == 0.0
+
+
+def test_cosine_similarity_same_vector_returns_one():
+    """DEDUP-DIM002: 동일 벡터끼리는 유사도 1.0."""
+    v = [1.0, 2.0, 3.0]
+    assert abs(_cosine_similarity(v, v) - 1.0) < 1e-9

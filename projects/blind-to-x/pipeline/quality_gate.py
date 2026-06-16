@@ -352,6 +352,8 @@ class QualityGate:
         similar_text = ""
 
         for past_dict in recent_drafts:
+            if not isinstance(past_dict, dict):
+                continue
             # 해당 플랫폼의 과거 캡션 추출
             past_text = past_dict.get(platform, "")
             if not past_text:

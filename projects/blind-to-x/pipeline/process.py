@@ -11,6 +11,7 @@ from typing import Any
 from config import (
     ERROR_DUPLICATE_CONTENT,
     ERROR_DUPLICATE_URL,
+    ERROR_FILTERED_EDITORIAL,
     ERROR_FILTERED_LOW_QUALITY,
     ERROR_FILTERED_SHORT,
     ERROR_FILTERED_SPAM,
@@ -217,7 +218,8 @@ def calculate_run_metrics(results, dry_run=False):
     filtered_skips = [
         item
         for item in results
-        if item.get("error_code") in (ERROR_FILTERED_SHORT, ERROR_FILTERED_SPAM, ERROR_FILTERED_LOW_QUALITY)
+        if item.get("error_code")
+        in (ERROR_FILTERED_SHORT, ERROR_FILTERED_SPAM, ERROR_FILTERED_LOW_QUALITY, ERROR_FILTERED_EDITORIAL)
     ]
     filtered_low_quality = [item for item in results if item.get("error_code") == ERROR_FILTERED_LOW_QUALITY]
     schema_mismatches = [item for item in results if item.get("error_code") == ERROR_NOTION_SCHEMA_MISMATCH]

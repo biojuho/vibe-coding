@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from config import ERROR_DUPLICATE_URL, ERROR_NOTION_SCHEMA_MISMATCH, ERROR_SCRAPE_FAILED
+from config import ERROR_DUPLICATE_URL, ERROR_FILTERED_EDITORIAL, ERROR_NOTION_SCHEMA_MISMATCH, ERROR_SCRAPE_FAILED
 from pipeline.process import calculate_run_metrics, process_single_post
 
 
@@ -206,3 +206,31 @@ async def test_process_timeout_marks_running_stage_failed():
     assert res["error_code"] == "PROCESS_TIMEOUT"
     assert res["failure_reason"] == "process_timeout"
     assert res["failure_stage"] == "pipeline"
+
+
+# ── PROC-EF: ERROR_FILTERED_EDITORIAL must not inflate upload attempt count ───
+
+
+def test_calculate_run_metrics_editorial_skip_not_in_attempts():
+    """PROC-EF001: editorial 필터 항목은 live_upload_attempts 분모에서 제외되어야 한다."""
+    results = [
+        {"success": True, "error_code": None},  # 정상 업로드
+        {"success": False, "error_code": ERROR_FILTERED_EDITORIAL, "notion_url": "(skipped-filtered)"},
+    ]
+    metrics = calculate_run_metrics(results, dry_run=False)
+
+    # Without the fix: live_upload_attempts = 2 - 0 = 2, success_rate = 0.5
+    # With the fix:    live_upload_attempts = 2 - 1 = 1, success_rate = 1.0
+    assert metrics["live_upload_attempts"] == 1, (
+        f"Editorial skip must be excluded from attempts, got {metrics['live_upload_attempts']}"
+    )
+
+
+def test_calculate_run_metrics_editorial_skip_counted_in_filtered():
+    """PROC-EF002: editorial 필터 항목은 filtered_skips 리스트에 포함되어야 한다."""
+    results = [
+        {"success": False, "error_code": ERROR_FILTERED_EDITORIAL},
+        {"success": False, "error_code": "FILTERED_SHORT"},
+    ]
+    metrics = calculate_run_metrics(results, dry_run=False)
+    assert len(metrics["filtered_skips"]) == 2

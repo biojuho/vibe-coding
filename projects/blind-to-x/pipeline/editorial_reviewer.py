@@ -605,7 +605,10 @@ class EditorialReviewer:
 
         result.scores = all_scores
         result.suggestions = all_suggestions
-        result.avg_score = sum(all_scores.values()) / max(len(all_scores), 1) if all_scores else 0.0
+        # avg_score uses only base axes to avoid double-counting CT axes
+        # (CT axes are also stored in result.comment_trigger_scores and blended separately)
+        base_scores = {k: v for k, v in all_scores.items() if any(k.endswith(f"_{ax}") for ax in _BASE_REVIEW_AXES)}
+        result.avg_score = sum(base_scores.values()) / max(len(base_scores), 1) if base_scores else 0.0
 
         # ── 텍스트 후처리: 맞춤법 + 띄어쓰기 교정 (kiwipiepy) ────────
         # twitter/threads는 구어체·비격식 톤이 핵심이므로 polisher 적용하지 않음
