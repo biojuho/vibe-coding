@@ -105,6 +105,66 @@ class TestPerformanceTracker(unittest.TestCase):
         self.assertEqual(len(records), 1)
         self.assertEqual(records[0].notion_page_id, "p1")
 
+    def test_corrupt_string_metric_value_skipped_not_crash(self):
+        """BTX-PT001: metrics에 문자열 값이 있어도 _load_records가 TypeError로 죽지 않아야 함.
+
+        PerformanceRecord._calculate_engagement()에서 str * float → TypeError.
+        except 절이 (KeyError, JSONDecodeError)만 잡으면 이 에러가 캐시까지 오염시킨다.
+        """
+        import json
+
+        corrupt_line = json.dumps(
+            {
+                "notion_page_id": "p_corrupt",
+                "platform": "threads",
+                "metrics": {"likes": "많아요"},  # string value, not numeric
+                "topic_cluster": "연봉",
+                "emotion_axis": "",
+                "recorded_at": "2026-06-16T00:00:00",
+            },
+            ensure_ascii=False,
+        )
+        good_line = json.dumps(
+            {
+                "notion_page_id": "p_good",
+                "platform": "threads",
+                "metrics": {"likes": 10},
+                "topic_cluster": "이직",
+                "emotion_axis": "",
+                "recorded_at": "2026-06-16T00:00:00",
+            },
+            ensure_ascii=False,
+        )
+        records_file = self.tracker.records_file
+        records_file.write_text(corrupt_line + "\n" + good_line + "\n", encoding="utf-8")
+        self.tracker._records_cache = None  # invalidate
+
+        records = self.tracker.get_records()
+        # corrupt 행은 스킵되고, good 행만 로드돼야 함
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0].notion_page_id, "p_good")
+
+    def test_corrupt_none_metric_value_skipped(self):
+        """metrics 값이 None인 경우도 TypeError로 죽지 않음."""
+        import json
+
+        corrupt_line = json.dumps(
+            {
+                "notion_page_id": "p_none",
+                "platform": "twitter",
+                "metrics": {"likes": None},
+                "topic_cluster": "",
+                "emotion_axis": "",
+                "recorded_at": "2026-06-16T00:00:00",
+            }
+        )
+        records_file = self.tracker.records_file
+        records_file.write_text(corrupt_line + "\n", encoding="utf-8")
+        self.tracker._records_cache = None
+
+        records = self.tracker.get_records()
+        self.assertEqual(len(records), 0)  # skipped, not crashed
+
 
 # ═══════════════════════════════════════════════════════════════════
 # 3. classification_rules.yaml 플랫폼 확장 검증

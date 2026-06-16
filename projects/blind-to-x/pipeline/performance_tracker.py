@@ -176,7 +176,7 @@ class PerformanceTracker:
                                 recorded_at=data.get("recorded_at"),
                             )
                         )
-                    except (json.JSONDecodeError, KeyError) as e:
+                    except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
                         logger.warning("성과 기록 파싱 실패: %s", e)
 
         self._records_cache = records
