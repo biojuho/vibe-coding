@@ -599,3 +599,116 @@ class TestRecommendDraftType:
 
     def test_default_공감형_hook_and_emotion_returns_공감형(self):
         assert self._fn("공감형", "통찰") == "공감형"
+
+
+# ── 6D 가중치 보정 순수 함수 단위 테스트 ──────────────────────────────────────
+
+
+class TestPearson:
+    """_pearson: 기본 통계 함수 경계 조건 — 칼리브레이션 핵심."""
+
+    def setup_method(self):
+        from pipeline.content_intelligence.scoring_6d import _pearson
+
+        self._fn = _pearson
+
+    def test_empty_lists_return_zero(self):
+        assert self._fn([], []) == 0.0
+
+    def test_perfect_positive_correlation(self):
+        result = self._fn([1.0, 2.0, 3.0], [1.0, 2.0, 3.0])
+        assert abs(result - 1.0) < 1e-9
+
+    def test_perfect_negative_correlation(self):
+        result = self._fn([1.0, 2.0, 3.0], [3.0, 2.0, 1.0])
+        assert abs(result + 1.0) < 1e-9
+
+    def test_constant_y_returns_zero(self):
+        # sy=0 → guarded by 1e-10, so result ≈ 0
+        result = self._fn([1.0, 2.0, 3.0], [2.0, 2.0, 2.0])
+        assert abs(result) < 1e-6
+
+    def test_constant_x_returns_zero(self):
+        result = self._fn([2.0, 2.0, 2.0], [1.0, 2.0, 3.0])
+        assert abs(result) < 1e-6
+
+    def test_single_element_returns_zero(self):
+        assert self._fn([5.0], [5.0]) == 0.0
+
+
+class TestEngagementValues:
+    """_engagement_values: engagement_rate + log1p(yt_views)*0.1 변환."""
+
+    def setup_method(self):
+        from pipeline.content_intelligence.scoring_6d import _engagement_values
+
+        self._fn = _engagement_values
+
+    def test_empty_rows_returns_empty(self):
+        assert self._fn([]) == []
+
+    def test_valid_row_computes_engagement_plus_log_views(self):
+        import math
+
+        rows = [(0, 0, 0, 0.5, 1000)]  # engagement_rate=0.5, yt_views=1000
+        result = self._fn(rows)
+        expected = 0.5 + math.log1p(1000) * 0.1
+        assert abs(result[0] - expected) < 1e-9
+
+    def test_invalid_value_returns_zero(self):
+        rows = [(0, 0, 0, "invalid", "bad")]
+        result = self._fn(rows)
+        assert result == [0.0]
+
+    def test_none_values_treated_as_zero(self):
+        import math
+
+        rows = [(0, 0, 0, None, None)]
+        result = self._fn(rows)
+        assert result[0] == math.log1p(0) * 0.1  # == 0.0
+
+
+class TestNormalizeCalibrationWeights:
+    """_normalize_calibration_weights: 클램핑 + 정규화 불변식."""
+
+    def setup_method(self):
+        from pipeline.content_intelligence.scoring_6d import DIMENSION_KEYS, _normalize_calibration_weights
+
+        self._fn = _normalize_calibration_weights
+        self._keys = DIMENSION_KEYS
+
+    def _uniform_corr(self, value: float = 0.15) -> dict:
+        return {k: value for k in self._keys}
+
+    def test_weights_sum_approximately_to_one(self):
+        # Values are rounded to 4 decimal places → max rounding error ≈ N × 0.5e-4
+        weights = self._fn(self._uniform_corr())
+        assert abs(sum(weights.values()) - 1.0) < 0.01  # 6 × 0.1667 = 1.0002 is fine
+
+    def test_all_keys_present(self):
+        weights = self._fn(self._uniform_corr())
+        assert set(weights) == set(self._keys)
+
+    def test_uniform_correlations_give_uniform_weights(self):
+        weights = self._fn(self._uniform_corr(0.20))
+        expected = round(1.0 / len(self._keys), 4)
+        for w in weights.values():
+            assert abs(w - expected) < 0.01
+
+    def test_zero_total_correlation_gives_valid_weights(self):
+        # When all correlations are 0, total_corr guard kicks in → uniform distribution
+        weights = self._fn(self._uniform_corr(0.0))
+        assert abs(sum(weights.values()) - 1.0) < 0.01
+        for w in weights.values():
+            assert w > 0.0
+
+    def test_dominant_dimension_gets_higher_share_after_normalization(self):
+        # The 0.40 pre-normalization clamp does NOT cap the final weight:
+        # after renormalization the dominant dim can exceed 0.40.
+        # This test documents the actual behavior (not a bug, just a known
+        # side-effect of the two-step clamp+renormalize approach).
+        corr = {k: 0.01 for k in self._keys}
+        corr["social"] = 100.0  # artificially dominant
+        weights = self._fn(corr)
+        # social should dominate all other dimensions
+        assert weights["social"] == max(weights.values())
