@@ -102,7 +102,7 @@ class RenderCaptionsMixin:
 
         font_size = 38
         font = None
-        for fp in config.captions.font_candidates:
+        for fp in config.captions.font_candidates or []:
             p = Path(fp)
             if p.exists():
                 try:
