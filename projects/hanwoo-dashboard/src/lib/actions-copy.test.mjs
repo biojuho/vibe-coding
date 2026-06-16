@@ -70,6 +70,23 @@ test("server action user-facing failures use Korean product copy", () => {
 	assert.doesNotMatch(systemActions, /Invalid model name/);
 });
 
+test("cattle createCattle history copy uses validated payload (not raw data)", () => {
+	const cattleActions = readSource("lib/actions/cattle.js");
+
+	// HW-ACT001: createCattle history description must use payload.name / payload.tagNumber
+	// (validated), not data.name / data.tagNumber (raw input that bypasses Zod coercion).
+	assert.match(
+		cattleActions,
+		/신규 등록: \$\{payload\.name\} \(\$\{payload\.tagNumber\}\)/,
+		"createCattle history must reference payload.name and payload.tagNumber",
+	);
+	assert.doesNotMatch(
+		cattleActions,
+		/신규 등록: \$\{data\.name\}/,
+		"createCattle history must NOT use raw data.name",
+	);
+});
+
 test("sales history copy uses validated payload values", () => {
 	const salesActions = readSource("lib/actions/sales.js");
 

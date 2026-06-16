@@ -127,7 +127,7 @@ export async function createCattle(data) {
 				row.id,
 				"purchase",
 				new Date(),
-				`신규 등록: ${data.name} (${data.tagNumber})`,
+				`신규 등록: ${payload.name} (${payload.tagNumber})`,
 				{
 					purchasePrice: payload.purchasePrice,
 				},
