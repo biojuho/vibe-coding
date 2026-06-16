@@ -1,6 +1,14 @@
 import pytest
 
-from pipeline.publish_decision import DROP, HOLD, PUBLISH, decide_publish
+from pipeline.publish_decision import (
+    DROP,
+    HOLD,
+    PUBLISH,
+    PublishDecision,
+    decide_publish,
+    decision_card_lines,
+    evaluate_position_rubric,
+)
 
 RESEARCH = {
     "source_frame": "상사와 직원의 감정 싸움",
@@ -116,3 +124,95 @@ def test_high_conflict_without_value_reduction_drops():
 
     assert decision.action == DROP
     assert decision.reason == "high conflict risk without universal value reduction"
+
+
+# ── evaluate_position_rubric 직접 단위 테스트 ───────────────────────────────
+
+
+class TestEvaluatePositionRubric:
+    """evaluate_position_rubric: 5개 축(position/reduction/tone/voice/ending) 독립 검증."""
+
+    def test_all_pass_gives_ceiling_100(self):
+        result = evaluate_position_rubric(GOOD_DRAFT, RESEARCH)
+        assert result["quality_ceiling"] == 100.0
+        assert result["zero_items"] == []
+        assert result["forbidden_tone"] == []
+
+    def test_score_is_average_of_five_items(self):
+        result = evaluate_position_rubric(GOOD_DRAFT, RESEARCH)
+        expected = sum(result["items"].values()) / len(result["items"])
+        assert result["score"] == expected
+
+    def test_forbidden_tone_sets_ceiling_to_zero(self):
+        result = evaluate_position_rubric(GOOD_DRAFT + " 이것이 조직의 민낯입니다.", RESEARCH)
+        assert result["quality_ceiling"] == 0.0
+        assert "tone" in result["zero_items"]
+        assert result["forbidden_tone"]
+
+    def test_missing_position_sets_ceiling_to_84(self):
+        no_position = (
+            "개인 감정으로 끝낼 일이 아니라, 같은 기준을 설명하는 책임의 문제거든요. "
+            "정답은 회사마다 달라질 수 있어도 기준은 남습니다."
+        )
+        result = evaluate_position_rubric(no_position, RESEARCH)
+        assert result["quality_ceiling"] == 84.0
+        assert "position" in result["zero_items"]
+
+    def test_items_keys_are_exactly_five_axes(self):
+        result = evaluate_position_rubric(GOOD_DRAFT, RESEARCH)
+        assert set(result["items"]) == {"position", "reduction", "tone", "voice", "ending"}
+
+
+# ── decision_card_lines 직접 단위 테스트 ────────────────────────────────────
+
+
+class TestDecisionCardLines:
+    """decision_card_lines: PublishDecision/dict/None 세 경로 검증."""
+
+    def _make(self, action=PUBLISH, score=90.0):
+        return PublishDecision(
+            action=action,
+            reason="all gates passed",
+            x_publish_status="Ready to Post",
+            quality_score=score,
+            quality_ceiling=100.0,
+            reasons=["ok"],
+            metrics={"weighted_length": 120, "hashtags": 0},
+        )
+
+    def test_publish_decision_instance_emits_action_and_score(self):
+        lines = decision_card_lines(self._make())
+        combined = "\n".join(lines)
+        assert f"결정: {PUBLISH}" in combined
+        assert "90.0" in combined
+
+    def test_dict_payload_emits_action_and_reason(self):
+        payload = {
+            "action": HOLD,
+            "reason": "quality_score_below_threshold",
+            "quality_score": 80.0,
+            "metrics": {"weighted_length": 150},
+            "reasons": ["quality_score_below_threshold"],
+        }
+        lines = decision_card_lines(payload)
+        combined = "\n".join(lines)
+        assert f"결정: {HOLD}" in combined
+        assert "quality_score_below_threshold" in combined
+
+    def test_none_payload_uses_hold_fallback(self):
+        lines = decision_card_lines(None)
+        combined = "\n".join(lines)
+        assert f"결정: {HOLD}" in combined
+        assert "publish decision missing" in combined
+
+    def test_empty_metrics_omits_detail_line(self):
+        d = PublishDecision(
+            action=PUBLISH,
+            reason="ok",
+            x_publish_status="Ready to Post",
+            quality_score=90.0,
+            quality_ceiling=100.0,
+            reasons=[],
+            metrics={},
+        )
+        assert not any("결정 근거:" in line for line in decision_card_lines(d))
