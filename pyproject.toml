@@ -5,6 +5,7 @@ requires-python = ">=3.11"
 dependencies = [
     "rich>=13.7.0",
     "pip-audit>=2.7.3",
+    "deptry>=0.23.0",
 ]
 
 [tool.uv.workspace]

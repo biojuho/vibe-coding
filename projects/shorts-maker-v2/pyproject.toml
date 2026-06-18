@@ -113,9 +113,11 @@ extend_exclude = ["archive", "ShortsFactory"]
 [tool.deptry.per_rule_ignores]
 # DEP001: optional voice/ML backends behind try/except (CosyVoice2,
 # Chatterbox, MeloTTS, OpenVoice, WhisperX, Torch) — opt-in, not hard deps.
-DEP001 = ["chatterbox", "cosyvoice", "melo", "openvoice", "torch", "torchaudio", "whisperx"]
+# defusedxml: optional secure-XML parser; trend_discovery_step.py falls back to
+# stdlib xml when it is absent, so it is intentionally never declared/installed.
+DEP001 = ["chatterbox", "cosyvoice", "defusedxml", "melo", "openvoice", "torch", "torchaudio", "whisperx"]
 # DEP003: transitive imports accepted (provided via moviepy/openai/google).
-DEP003 = ["defusedxml", "httpx", "numpy", "pydantic", "tqdm"]
+DEP003 = ["httpx", "numpy", "pydantic", "tqdm"]
 # DEP004: pydub is an OPTIONAL audio-postprocess backend, imported only under
 # try/except in render/providers (graceful degradation), so keeping it in the
 # dev group is intentional rather than a production-required dependency.

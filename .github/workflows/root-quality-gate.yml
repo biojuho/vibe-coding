@@ -38,7 +38,7 @@ jobs:
       - name: Install quality dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pytest ruff requests python-dotenv croniter Pillow
+          python -m pip install pytest ruff requests python-dotenv croniter Pillow deptry
 
       - name: Check directive mapping
         run: python workspace/scripts/check_mapping.py
@@ -109,3 +109,11 @@ jobs:
           .agents/skills/auto-research/scripts/launch_objective_audit.py
           .agents/skills/auto-research/scripts/next_experiment_selector.py
           .agents/skills/auto-research/scripts/release_authorization_packet.py
+
+      # Dependency hygiene (deptry): declared-vs-imported correctness across the
+      # Python projects. Advisory — surfaces drift in logs without blocking the
+      # gate (same policy as dependency_security_audit / code_review_gate). Flip
+      # to blocking by removing `continue-on-error` or adding `--strict`.
+      - name: Dependency hygiene audit (advisory)
+        continue-on-error: true
+        run: python execution/dependency_hygiene_audit.py

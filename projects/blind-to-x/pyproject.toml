@@ -72,3 +72,45 @@ ignore_missing_imports = true
 # Hub modules with full type coverage — kept strict so regressions surface.
 module = ["pipeline.draft_contract", "pipeline.harness_guard"]
 strict = true
+
+# ── deptry: dependency hygiene (declared-vs-imported) ──────────────────────────
+# Run via: python execution/dependency_hygiene_audit.py --project blind-to-x
+[tool.deptry]
+# Local sibling modules imported via sys.path / cross-project bootstrap.
+known_first_party = [
+    "execution",
+    "blind_to_x_cost_db",
+    "browser_pool",
+    "harness_sandbox",
+    "harness_security_checklist",
+]
+# The `dev` optional-dependencies group is tooling-only.
+pep621_dev_dependency_groups = ["dev"]
+
+# Correct package->module mappings so installed deps are not mis-flagged.
+# Without these, deptry assumes module name == package name and reports
+# `beautifulsoup4` as unused while flagging its real import `bs4` as missing.
+[tool.deptry.package_module_name_map]
+beautifulsoup4 = ["bs4"]
+"google-genai" = ["google"]
+
+[tool.deptry.per_rule_ignores]
+# DEP001: optional integrations behind try/except (queue, ML, telemetry,
+# anti-bot) + kiwipiepy's companion model package — graceful-degradation, not
+# hard dependencies.
+DEP001 = [
+    "celery",
+    "kiwipiepy_model",
+    "langgraph",
+    "opentelemetry",
+    "patchright",
+    "playwright_stealth",
+    "redis",
+    "sklearn",
+    "transformers",
+]
+# DEP002: pytest/pytest-asyncio are declared in the runtime set by legacy
+# choice; they are test-only and intentionally retained.
+DEP002 = ["pytest", "pytest-asyncio"]
+# DEP003: transitive imports accepted (provided via Pillow/openai/requests).
+DEP003 = ["PIL", "certifi", "numpy", "typing_extensions"]

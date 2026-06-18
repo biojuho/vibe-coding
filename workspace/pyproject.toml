@@ -18,6 +18,8 @@ dependencies = [
     "Pillow>=10.2.0",
     "streamlit>=1.58.0",
     "plotly>=6.8.0",
+    "PyYAML>=6.0",
+    "pydantic>=2.0.0",
 ]
 
 [project.optional-dependencies]
@@ -27,7 +29,6 @@ dev = [
     "ruff>=0.9.0,<1.0.0",
     "fastapi>=0.110.0",
     "uvicorn>=0.29.0",
-    "pydantic>=2.0.0",
 ]
 
 [tool.ruff]
@@ -66,3 +67,37 @@ line-length = 120
 [tool.pytest.ini_options]
 testpaths = ["tests", "execution/tests"]
 addopts = "--cov=execution --cov-report=term-missing"
+
+# ── deptry: dependency hygiene (declared-vs-imported) ──────────────────────────
+# Run via: python execution/dependency_hygiene_audit.py --project workspace
+# This block encodes intentional patterns so residual findings are trustworthy.
+[tool.deptry]
+# Local sibling modules imported via sys.path bootstrap (not PyPI packages).
+known_first_party = [
+    "_path_bootstrap",
+    "ai_batch_runner",
+    "daily_report",
+    "scrapers",
+    "shorts_maker_v2",
+    "telegram_notifier",
+]
+# The `dev` optional-dependencies group is tooling-only, not runtime.
+pep621_dev_dependency_groups = ["dev"]
+# Test code legitimately imports pytest; exclude from production-import checks.
+extend_exclude = ["execution/tests"]
+
+# google-api-python-client is imported as the `googleapiclient` module; without
+# this map deptry double-reports it (DEP002 unused + DEP001 googleapiclient missing).
+[tool.deptry.package_module_name_map]
+"google-api-python-client" = ["googleapiclient"]
+
+[tool.deptry.per_rule_ignores]
+# DEP001: optional integrations imported under try/except for graceful
+# degradation — intentionally NOT hard dependencies of the control plane.
+DEP001 = ["anthropic", "curl_cffi", "langfuse", "langgraph", "pandas", "pdfplumber", "pytesseract"]
+# DEP002: ddgs is wired through dynamic/optional search paths; keep declared.
+DEP002 = ["ddgs"]
+# DEP003: transitive imports accepted (provided via heavier deps). anthropic and
+# pandas are the optional integrations above (DEP001) that also resolve
+# transitively in this env — keep undeclared per the optional-only stance.
+DEP003 = ["anthropic", "google", "httpx", "pandas", "typing_extensions"]
