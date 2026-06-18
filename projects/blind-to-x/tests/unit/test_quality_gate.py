@@ -54,6 +54,22 @@ def test_length_limits(mock_get_rule):
 
 
 @patch("pipeline.quality_gate.get_rule_section")
+def test_twitter_cjk_weighting(mock_get_rule):
+    """QG-CJK001: 160자 한국어 트윗은 가중치 320자로 too_long 판정돼야 함.
+
+    이전 코드는 len(text)=160 < 280 이라 통과. CJK x2 가중치 적용 후 320 > 280이라 탈락.
+    """
+    mock_get_rule.return_value = {}
+    gate = QualityGate()
+    # 160 Korean characters × 2 CJK weight = 320 weighted chars > 280 Twitter limit
+    text_160_korean = "가" * 160
+    res = gate.check(text_160_korean, platform="twitter")
+    assert any("too_long" in f for f in res.failures), (
+        f"160 Korean chars (320 weighted) should be too_long, but got: {res.failures}"
+    )
+
+
+@patch("pipeline.quality_gate.get_rule_section")
 def test_toxic_patterns(mock_get_rule):
     mock_get_rule.return_value = {}
     gate = QualityGate()
@@ -106,6 +122,35 @@ def test_forbidden(mock_forbidden, mock_cliches):
     )
     assert not res.passed
     assert any("forbidden_expression" in f for f in res.failures)
+
+
+def test_phrase_matches_wildcard_and_literal():
+    # '~' expands to a bounded same-line wildcard; literal phrases still match.
+    assert qg._phrase_matches("이상으로 마치겠습니다", "그래서 이상으로 마치겠습니다") is True
+    assert qg._phrase_matches("오늘은 ~에 대해 이야기해보겠습니다", "오늘은 연봉에 대해 이야기해보겠습니다") is True
+    assert qg._phrase_matches("~라고 할 수 있겠네요", "결국 같은 거라고 할 수 있겠네요") is True
+    # good content must NOT match
+    assert qg._phrase_matches("오늘은 ~에 대해 이야기해보겠습니다", "세후 450만원이면 빠듯하지") is False
+    # wildcard is bounded — must not bridge a newline or a long (>20-char) gap
+    assert qg._phrase_matches("오늘은~이야기", "오늘은\n다른 줄 이야기") is False
+    assert qg._phrase_matches("오늘은~이야기", "오늘은 " + "가" * 30 + " 이야기") is False
+
+
+@patch("pipeline.quality_gate._load_cliches")
+@patch("pipeline.quality_gate._load_forbidden")
+def test_forbidden_wildcard_expression_now_fires(mock_forbidden, mock_cliches):
+    # Regression: '~' wildcard forbidden phrases used to be silently dead (literal `in`),
+    # so canned AI-tell openings/closings slipped through the generation gate.
+    mock_forbidden.return_value = ["오늘은 ~에 대해 이야기해보겠습니다", "~라고 할 수 있겠네요"]
+    mock_cliches.return_value = []
+    gate = QualityGate()
+
+    bad = gate.check("오늘은 연봉에 대해 이야기해보겠습니다. 다들 비슷하다고 할 수 있겠네요.", platform="twitter")
+    assert not bad.passed
+    assert any("forbidden_expression" in f for f in bad.failures)
+
+    good = gate.check("세후 450만원이면 빠듯하지. 근데 다들 그렇게 버티네.", platform="twitter")
+    assert not any("forbidden_expression" in f for f in good.failures)
 
 
 @patch("pipeline.quality_gate.get_rule_section")

@@ -19,6 +19,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
+from pipeline.regulation_checker import x_weighted_character_count
 from pipeline.rules_loader import get_rule_section, load_rules
 
 logger = logging.getLogger(__name__)
@@ -71,6 +72,25 @@ def _load_forbidden() -> list[str]:
     """Load forbidden expressions from brand voice."""
     brand_voice = get_rule_section("brand_voice", {})
     return list(brand_voice.get("forbidden_expressions", []))
+
+
+def _phrase_matches(phrase: str, text: str) -> bool:
+    """Substring match, treating ``~`` in the phrase as a bounded wildcard run.
+
+    ``forbidden_expressions`` use ``~`` as a placeholder (e.g.
+    ``"오늘은 ~에 대해 이야기해보겠습니다"``). A literal ``phrase in text`` check never
+    matches real content like ``"오늘은 연봉에 대해 이야기해보겠습니다"`` because the ``~``
+    byte isn't present — so every wildcard entry was silently dead. Expand ``~`` to a
+    short, same-line wildcard so these canned AI-tell phrases actually fire.
+    """
+    if "~" not in phrase:
+        return phrase in text
+    pattern = r"[^\n]{0,20}".join(re.escape(part) for part in phrase.split("~"))
+    try:
+        return re.search(pattern, text) is not None
+    except re.error:
+        # Degrade to the original literal check rather than raise on a bad pattern.
+        return phrase in text
 
 
 class QualityGate:
@@ -131,7 +151,9 @@ class QualityGate:
     def _check_length(self, text: str, platform: str, result: GateResult) -> None:
         """플랫폼별 길이 제한 검사."""
         limits = _PLATFORM_LIMITS.get(platform, _PLATFORM_LIMITS["default"])
-        text_len = len(text)
+        # Twitter counts CJK/emoji as 2 chars; len() always returns 1 per code-point.
+        # A 160-char Korean draft is 320 weighted chars — over the 280 limit.
+        text_len = x_weighted_character_count(text) if platform == "twitter" else len(text)
         result.metrics["text_length"] = float(text_len)
 
         if text_len < limits["min_len"]:
@@ -158,8 +180,8 @@ class QualityGate:
                 result.warnings.append(f"cliche_detected: {', '.join(found)}")
 
     def _check_forbidden(self, text: str, result: GateResult) -> None:
-        """금지 표현 사용 감지."""
-        found = [f for f in self._forbidden if f in text]
+        """금지 표현 사용 감지 ('~'는 와일드카드)."""
+        found = [f for f in self._forbidden if _phrase_matches(f, text)]
         if found:
             result.failures.append(f"forbidden_expression: {', '.join(found[:3])}")
 
