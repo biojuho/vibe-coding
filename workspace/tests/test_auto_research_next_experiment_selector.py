@@ -224,7 +224,10 @@ def test_ahead_current_head_actions_are_push_authorization_boundary() -> None:
     assert "release_authorization_packet.py --json" in result["selected"]["required_gates"]
     assert "explicit push authorization or user push" in result["selected"]["required_gates"]
     assert any("release authorization packet" in item for item in result["selected"]["evidence"])
-    assert any("Do not push without explicit user authorization" in item for item in result["selected"]["guardrails"])
+    assert any(
+        "Do not push without explicit push authorization or user push." in item
+        for item in result["selected"]["guardrails"]
+    )
     assert any("root-quality-gate" in item for item in result["selected"]["evidence"])
 
 
@@ -246,6 +249,10 @@ def test_dirty_ahead_branch_routes_to_worktree_handoff_before_publish_authorizat
     assert next_experiment_selector.PRODUCT_READINESS_GATE in result["selected"]["required_gates"]
     assert "dirty groups: ai-context=1, auto-research=1" in result["selected"]["evidence"]
     assert all(candidate["kind"] != "current_head_release_checks_unproven" for candidate in result["ranked_candidates"])
+    assert any(
+        "Do not push without explicit push authorization or user push." in item
+        for item in result["selected"]["guardrails"]
+    )
 
 
 def test_current_dirty_handoff_plan_blocks_repeated_handoff_generation() -> None:
@@ -265,11 +272,23 @@ def test_current_dirty_handoff_plan_blocks_repeated_handoff_generation() -> None
     assert result["summary"]["adoptable_candidate_count"] == 0
     assert result["selected"]["kind"] == "dirty_worktree_handoff_current"
     assert result["selected"]["blocked"] is True
+    assert result["selected"]["action"] == (
+        "Wait for explicit scoped staging/commit authorization via APPROVE_AI_CONTEXT_RELAY_UPDATE "
+        "or keep the current dirty handoff plan."
+    )
     assert next_experiment_selector.DIRTY_HANDOFF_PLAN_GATE in result["selected"]["required_gates"]
     assert next_experiment_selector.DEBUG_INVENTORY_COMPLETION_BLOCKED_GATE in result["selected"]["required_gates"]
     assert any("handoff plan freshness=current" in item for item in result["selected"]["evidence"])
     assert any("handoff plan signature=test-signature" in item for item in result["selected"]["evidence"])
-    assert any("explicit scoped staging/commit authorization" in item for item in result["selected"]["blockers"])
+    assert any(
+        "explicit scoped staging/commit authorization via APPROVE_AI_CONTEXT_RELAY_UPDATE" in item
+        for item in result["selected"]["blockers"]
+    )
+    assert any(
+        "Do not stage, commit, or revert without explicit scoped authorization; "
+        "do not push without explicit push authorization or user push." in item
+        for item in result["selected"]["guardrails"]
+    )
     assert any("exit code 1" in item for item in result["selected"]["guardrails"])
     expectation = result["selected"]["gate_expectations"][0]
     assert expectation["gate"] == next_experiment_selector.DEBUG_INVENTORY_COMPLETION_BLOCKED_GATE

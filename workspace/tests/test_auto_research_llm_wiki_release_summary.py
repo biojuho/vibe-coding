@@ -27,7 +27,10 @@ def _packet(*, evidence_status: str = "pass", head_matches: bool | None = True) 
     return {
         "status": "blocked_dirty_worktree",
         "summary": {"branch": "main", "head_short": "abc12345"},
-        "blockers": ["dirty worktree paths: 3", "external/user-owned blocker(s): T-251"],
+        "blockers": [
+            "dirty worktree paths: 3 until APPROVE_AI_CONTEXT_RELAY_UPDATE scoped authorization",
+            "external/user-owned blocker(s): T-251",
+        ],
         "llm_wiki_strict_evidence": {
             "available": evidence_status != "missing",
             "path": ".tmp/llm-wiki-strict-audit-current.json",

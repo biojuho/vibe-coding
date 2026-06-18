@@ -514,9 +514,16 @@ def _selector_selection(
     selected = {
         "kind": kind,
         "project": project,
-        "action": "Wait for user-owned external blocker(s): T-251."
-        if kind == "external_user_blocker"
-        else "Resolve local launch blocker",
+        "action": (
+            "Wait for user-owned external blocker(s): T-251."
+            if kind == "external_user_blocker"
+            else (
+                "Wait for explicit scoped staging/commit authorization via APPROVE_AI_CONTEXT_RELAY_UPDATE "
+                "or keep the current dirty handoff plan."
+            )
+            if kind == "dirty_worktree_handoff_current"
+            else "Resolve local launch blocker"
+        ),
         "blocked": blocked,
         "blockers": ["1 external/user-owned blocker(s): T-251"] if blocked else [],
         "guardrails": guardrails
@@ -550,7 +557,7 @@ def _release_packet(
         blockers
         if blockers is not None
         else [
-            "current-head Actions unavailable until push authorization/user push",
+            "current-head Actions unavailable until explicit push authorization or user push",
             "external/user-owned blocker(s): T-251",
         ]
     )
@@ -606,7 +613,7 @@ def _release_packet(
             "suggested_command": "git push origin main" if ahead_count and not dirty_count else None,
             "post_push_gates": ["root-quality-gate", "active-project-matrix"],
             "guardrails": [
-                "Do not push without explicit user authorization.",
+                "Do not push without explicit push authorization or user push.",
                 "Do not retry external T-251 until Supabase credentials were reset.",
             ],
         },
@@ -656,7 +663,9 @@ def test_github_item_prefers_current_dirty_handoff_groups(tmp_path: Path) -> Non
     github_inventory["git"]["dirty_count"] = 4
     github_inventory["recommendations"] = [
         (
-            "Worktree is dirty; stage and commit only files owned by the current experiment. "
+            "Worktree is dirty; after explicit scoped authorization using APPROVE_AI_CONTEXT_RELAY_UPDATE, "
+            "stage and commit only files owned "
+            "by the current experiment. "
             "Dirty groups: project:blind-to-x=182, workspace-dashboard=72, root=58."
         )
     ]
@@ -671,7 +680,9 @@ def test_github_item_prefers_current_dirty_handoff_groups(tmp_path: Path) -> Non
     github_item = next(item for item in manifest["items"] if item["requirement"].startswith("Find GitHub-related"))
 
     assert (
-        "Worktree is dirty; stage and commit only files owned by the current experiment. "
+        "Worktree is dirty; after explicit scoped authorization using APPROVE_AI_CONTEXT_RELAY_UPDATE, "
+        "stage and commit only files owned "
+        "by the current experiment. "
         "Dirty groups: auto-research=2, project:blind-to-x=1, workspace=1."
     ) in github_item["blockers"]
     assert all("workspace-dashboard=72" not in blocker for blocker in github_item["blockers"])
@@ -882,7 +893,7 @@ def test_release_authorization_packet_synced_state_does_not_block_manifest(tmp_p
     assert result["status"] == "complete"
 
 
-def test_release_authorization_packet_requires_explicit_user_authorization_guard(tmp_path: Path) -> None:
+def test_release_authorization_packet_requires_explicit_push_authorization_guard(tmp_path: Path) -> None:
     _write_required_skill(tmp_path)
     _write_ai_relay(tmp_path)
 
@@ -904,7 +915,9 @@ def test_release_authorization_packet_requires_explicit_user_authorization_guard
     )
 
     assert packet_item["coverage"] == "complete"
-    assert packet_item["blockers"] == ["release authorization packet did not enforce explicit user authorization."]
+    assert packet_item["blockers"] == [
+        "release authorization packet did not enforce explicit push authorization or user push."
+    ]
     assert result["status"] == "incomplete"
 
 
@@ -913,7 +926,8 @@ def test_release_authorization_packet_item_helper_contracts() -> None:
         "release authorization packet is ready, but explicit push authorization and current-head Actions are still required."
     ]
     assert launch_objective_audit._release_packet_status_blockers("blocked_dirty_worktree", dirty_count=3) == [
-        "release authorization packet blocked by dirty worktree paths: 3."
+        "release authorization packet blocked by dirty worktree paths: "
+        "3 until APPROVE_AI_CONTEXT_RELAY_UPDATE scoped authorization."
     ]
     assert launch_objective_audit._llm_wiki_strict_evidence_blockers({"available": False}) == [
         "release authorization packet is missing LLM Wiki strict release evidence."
@@ -1379,7 +1393,8 @@ def test_selector_item_direct_dirty_handoff_current_contract() -> None:
             blocked=True,
             project="workspace",
             guardrails=[
-                "Do not stage, commit, push, or revert without explicit user authorization.",
+                "Do not stage, commit, or revert without explicit scoped authorization; "
+                "do not push without explicit push authorization or user push.",
                 "Do not retry T-251 until Supabase credentials are reset.",
             ],
             required_gates=["python execution/session_orient.py --json"],
@@ -1392,7 +1407,17 @@ def test_selector_item_direct_dirty_handoff_current_contract() -> None:
         "status=blocked, kind=dirty_worktree_handoff_current, project=workspace"
     ]
     assert any("Selector reports local follow-up work" in evidence for evidence in selector_item["evidence"])
+    assert any(
+        "Selected action: Wait for explicit scoped staging/commit authorization via "
+        "APPROVE_AI_CONTEXT_RELAY_UPDATE or keep the current dirty handoff plan." in evidence
+        for evidence in selector_item["evidence"]
+    )
     assert any("Selector guardrails:" in evidence for evidence in selector_item["evidence"])
+    assert any(
+        "Selector guardrails: Do not stage, commit, or revert without explicit scoped authorization; "
+        "do not push without explicit push authorization or user push." in evidence
+        for evidence in selector_item["evidence"]
+    )
     assert any(
         "Selector required gates: python execution/session_orient.py --json." in evidence
         for evidence in selector_item["evidence"]
@@ -1677,7 +1702,7 @@ def test_selector_current_head_publish_boundary_has_complete_coverage_with_block
             kind="current_head_release_checks_unproven",
             blocked=True,
             project="workspace",
-            guardrails=["Do not push without explicit user authorization."],
+            guardrails=["Do not push without explicit push authorization or user push."],
             required_gates=["current-head root-quality-gate success"],
         ),
     )
@@ -2670,6 +2695,34 @@ def test_ab_manifest_helpers_report_task_id_collisions_without_changing_selectio
 
     assert artifacts == [".tmp/ab-manifest-t2525-latest.json"]
     assert any("task id collision detected for T-2523" in line for line in evidence)
+    assert any("Latest A/B task id T-2525 is collision-free with 1 manifest file." == line for line in evidence)
+    assert blockers == []
+
+
+def test_ab_manifest_evidence_reports_latest_task_collision_files(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+    first = _write_ab_manifest(
+        tmp_path,
+        name="ab-manifest-t2525-first.json",
+        experiment="T-2525 first duplicate",
+    )
+    second = _write_ab_manifest(
+        tmp_path,
+        name="ab-manifest-t2525-second.json",
+        experiment="T-2525 second duplicate",
+    )
+    os.utime(first, (1_700_000_000, 1_700_000_000))
+    os.utime(second, (1_700_000_100, 1_700_000_100))
+
+    artifacts, evidence, blockers = launch_objective_audit._ab_manifest_evidence(tmp_path)
+
+    assert artifacts == [".tmp/ab-manifest-t2525-second.json"]
+    assert any(
+        "Latest A/B task id T-2525 has 2 manifest files: "
+        ".tmp/ab-manifest-t2525-first.json, .tmp/ab-manifest-t2525-second.json." == line
+        for line in evidence
+    )
     assert blockers == []
 
 

@@ -61,6 +61,30 @@ def test_inventory_accepts_project_root_readme(tmp_path: Path) -> None:
     assert not any("root README.md" in recommendation for recommendation in summary["recommendations"])
 
 
+def test_dirty_worktree_recommendation_requires_explicit_scoped_authorization() -> None:
+    summary = {
+        "git": {
+            "dirty_count": 3,
+            "dirty_path_groups": [
+                {"key": "ai-context", "path_count": 2},
+                {"key": "project:shorts-maker-v2", "path_count": 1},
+            ],
+        },
+        "projects": [],
+        "workflows": ["root-quality-gate.yml"],
+        "dependabot_files": [".github/dependabot.yml"],
+        "open_prs": {"available": True, "count": 0, "items": []},
+    }
+
+    recommendations = inventory._recommendations(summary)
+
+    assert recommendations == [
+        "Worktree is dirty; after explicit scoped authorization using APPROVE_AI_CONTEXT_RELAY_UPDATE, "
+        "stage and commit only files owned "
+        "by the current experiment. Dirty groups: ai-context=2, project:shorts-maker-v2=1."
+    ]
+
+
 def test_inventory_detects_node_colocated_tests_and_test_script(tmp_path: Path) -> None:
     root = tmp_path
     projects_dir = root / "projects"

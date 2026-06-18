@@ -292,6 +292,97 @@ def test_main_rewrites_one_line_options_without_zero_dirty_staging_tokens(tmp_pa
     assert summary["one_line_options_removed_count"] == 1
 
 
+def test_main_promotes_dirty_covering_verified_options_before_stop(tmp_path: Path) -> None:
+    current_product = tmp_path / "approve-current-product.pathspec"
+    current_tooling = tmp_path / "approve-current-tooling.pathspec"
+    current_existing = tmp_path / "approve-current-existing.pathspec"
+    deferred = tmp_path / "approve-deferred.pathspec"
+    current_product.write_text("projects/shorts-maker-v2/src/current.py\n", encoding="utf-8")
+    current_tooling.write_text(".agents/skills/auto-research/scripts/tool.py\n", encoding="utf-8")
+    current_existing.write_text("workspace/tests/current_existing.py\n", encoding="utf-8")
+    deferred.write_text("projects/blind-to-x/pipeline/deferred.py\n", encoding="utf-8")
+    menu = _menu()
+    menu["one_line_user_options"] = [
+        "APPROVE_EXAMPLE",
+        "APPROVE_DEFERRED",
+        "STOP",
+    ]
+    menu["also_available"] = [
+        {
+            "token": "APPROVE_SHORTS_CURRENT",
+            "pathspec": str(current_product),
+            "classification": "verified_current_dirty_product_source_packet",
+            "reason": "Current dirty source packet.",
+        },
+        {
+            "token": "APPROVE_AUTO_RESEARCH_CURRENT",
+            "pathspec": str(current_tooling),
+            "classification": "verified_auto_research_handoff_planning_packet",
+            "reason": "Current dirty tooling packet.",
+        },
+        {
+            "token": "APPROVE_EXISTING_CURRENT",
+            "pathspec": str(current_existing),
+            "classification": "verified_existing_packet",
+            "reason": "Current dirty existing packet.",
+        },
+        {
+            "token": "APPROVE_DEFERRED",
+            "pathspec": str(deferred),
+            "classification": "deferred_patch_packet_revalidate_first",
+            "reason": "Deferred packet.",
+        },
+    ]
+    menu_json = tmp_path / "menu.json"
+    coverage_json = tmp_path / "coverage.json"
+    handoff_json = tmp_path / "handoff.json"
+    output_md = tmp_path / "menu.md"
+    menu_json.write_text(json.dumps(menu), encoding="utf-8")
+    coverage_json.write_text(json.dumps({}), encoding="utf-8")
+    handoff_json.write_text(
+        json.dumps(
+            {
+                "dirty_signature": {
+                    "input": {
+                        "dirty_paths": [
+                            "projects/shorts-maker-v2/src/current.py",
+                            ".agents/skills/auto-research/scripts/tool.py",
+                            "workspace/tests/current_existing.py",
+                        ],
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    code = scoped_authorization_menu.main(
+        [
+            "--menu-json",
+            str(menu_json),
+            "--coverage-json",
+            str(coverage_json),
+            "--handoff-json",
+            str(handoff_json),
+            "--output-md",
+            str(output_md),
+            "--rewrite-menu-json",
+            "--json",
+        ]
+    )
+
+    assert code == 0
+    rewritten = json.loads(menu_json.read_text(encoding="utf-8"))
+    assert rewritten["one_line_user_options"] == [
+        "APPROVE_EXAMPLE",
+        "APPROVE_DEFERRED",
+        "APPROVE_SHORTS_CURRENT",
+        "APPROVE_AUTO_RESEARCH_CURRENT",
+        "APPROVE_EXISTING_CURRENT",
+        "STOP",
+    ]
+
+
 def test_main_reports_markdown_atomic_write_failure_without_overwriting(tmp_path: Path, capsys) -> None:
     menu_json = tmp_path / "menu.json"
     coverage_json = tmp_path / "coverage.json"
@@ -452,11 +543,15 @@ def test_main_prefers_current_ai_context_handoff_group_over_stale_pathspec(tmp_p
     menu["generated_at"] = "2026-06-11T00:00:00Z"
     menu["recommended"]["token"] = "APPROVE_AI_CONTEXT_RELAY_UPDATE"
     menu["recommended"]["files"] = ["stale-context.md"]
+    menu["recommended"]["reason"].append(
+        "Current completion audit is incomplete: 15 items, 6 complete, 15 issues, 9 blocked."
+    )
     pathspec = tmp_path / "approve-ai-context.pathspec"
     menu["recommended"]["pathspec"] = str(pathspec)
     menu_json = tmp_path / "menu.json"
     coverage_json = tmp_path / "coverage.json"
     handoff_json = tmp_path / "handoff.json"
+    completion_json = tmp_path / "completion.json"
     output_md = tmp_path / "menu.md"
     pathspec.write_text(".ai/HANDOFF.md\n.ai/archive/HANDOFF_archive_2026-06-12.md\n", encoding="utf-8")
     menu_json.write_text(json.dumps(menu), encoding="utf-8")
@@ -497,6 +592,20 @@ def test_main_prefers_current_ai_context_handoff_group_over_stale_pathspec(tmp_p
         ),
         encoding="utf-8",
     )
+    completion_json.write_text(
+        json.dumps(
+            {
+                "status": "incomplete",
+                "summary": {
+                    "item_count": 15,
+                    "complete_count": 8,
+                    "issue_count": 11,
+                    "blocked_count": 7,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
 
     code = scoped_authorization_menu.main(
         [
@@ -506,6 +615,8 @@ def test_main_prefers_current_ai_context_handoff_group_over_stale_pathspec(tmp_p
             str(coverage_json),
             "--handoff-json",
             str(handoff_json),
+            "--completion-json",
+            str(completion_json),
             "--output-md",
             str(output_md),
             "--rewrite-menu-json",
@@ -521,10 +632,13 @@ def test_main_prefers_current_ai_context_handoff_group_over_stale_pathspec(tmp_p
     assert "3 .ai relay/context/decision/archive dirty paths only" in markdown
     assert "score 90, local blockers 1, publish blockers 1, external blockers 1" in markdown
     assert "score 92" not in markdown
+    assert "15 items, 8 complete, 11 issues, 7 blocked" in markdown
+    assert "15 items, 6 complete, 15 issues, 9 blocked" not in markdown
     rewritten = json.loads(menu_json.read_text(encoding="utf-8"))
     assert rewritten["generated_at"] == "2026-06-13T10:35:40Z"
     assert ".ai/archive/HANDOFF_archive_2026-06-13.md" in rewritten["recommended"]["files"]
     assert rewritten["recommended"]["reason"][0].startswith("Still the least destructive")
+    assert any("15 items, 8 complete, 11 issues, 7 blocked" in item for item in rewritten["recommended"]["reason"])
     summary = json.loads(capsys.readouterr().out)
     assert summary["pathspec_synced_file_count"] == 2
     assert summary["handoff_synced_file_count"] == 3

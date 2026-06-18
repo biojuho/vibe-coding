@@ -419,7 +419,9 @@ def _recommendations(summary: dict[str, Any]) -> list[str]:
         group_summary = ", ".join(f"{group['key']}={group['path_count']}" for group in groups[:5])
         suffix = f" Dirty groups: {group_summary}." if group_summary else ""
         recommendations.append(
-            "Worktree is dirty; stage and commit only files owned by the current experiment." + suffix
+            "Worktree is dirty; after explicit scoped authorization using APPROVE_AI_CONTEXT_RELAY_UPDATE, "
+            "stage and commit only files owned "
+            "by the current experiment." + suffix
         )
     missing_readme = [project["path"] for project in summary["projects"] if not project.get("has_readme")]
     if missing_readme:

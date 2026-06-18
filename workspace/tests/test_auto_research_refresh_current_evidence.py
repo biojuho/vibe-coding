@@ -162,6 +162,7 @@ def test_refresh_current_evidence_writes_bom_free_current_json(monkeypatch, tmp_
                             "score": 92,
                             "state": "blocked",
                             "blockers": {"workspace": 1, "local": 1, "publish": 0, "external": 0},
+                            "agent_task_count": 0,
                         },
                         "projects": [
                             {
@@ -418,7 +419,7 @@ def test_refresh_current_evidence_writes_bom_free_current_json(monkeypatch, tmp_
                             {
                                 "requirement": "Research current dependency/code freshness.",
                                 "evidence": [
-                                    "code_review_gate status=warn, risk_score=0.6, changed_files=426, test_gaps=662.",
+                                    "code_review_gate status=warn, risk_score=0.4, changed_files=426, test_gaps=662.",
                                 ],
                             },
                         ],
@@ -492,7 +493,7 @@ def test_refresh_current_evidence_writes_bom_free_current_json(monkeypatch, tmp_
                             "allowed_without_explicit_user_authorization": False,
                             "post_push_gates": ["root-quality-gate", "active-project-matrix"],
                             "guardrails": [
-                                "Do not push without explicit user authorization.",
+                                "Do not push without explicit push authorization or user push.",
                                 "Wait for required workflows on the exact current HEAD.",
                             ],
                         },
@@ -554,10 +555,25 @@ def test_refresh_current_evidence_writes_bom_free_current_json(monkeypatch, tmp_
                             "value": "abcdef123456",
                             "input": {
                                 "dirty_count": 3,
+                                "dirty_paths": [
+                                    ".ai/HANDOFF.md",
+                                    ".agents/skills/auto-research/scripts/dirty_worktree_handoff_plan.py",
+                                    "workspace/tests/test_dirty_worktree_handoff_plan.py",
+                                ],
                                 "staged": 0,
                                 "dirty_path_groups": [{"key": "ai-context"}, {"key": "auto-research"}],
                             },
                         },
+                        "group_order": [
+                            {"key": "ai-context", "paths": [".ai/HANDOFF.md"]},
+                            {
+                                "key": "auto-research",
+                                "paths": [
+                                    ".agents/skills/auto-research/scripts/dirty_worktree_handoff_plan.py",
+                                    "workspace/tests/test_dirty_worktree_handoff_plan.py",
+                                ],
+                            },
+                        ],
                     },
                 ),
             )
@@ -659,11 +675,12 @@ def test_refresh_current_evidence_writes_bom_free_current_json(monkeypatch, tmp_
                     {
                         "summary": {
                             "completion_allowed": False,
+                            "actionable_item_count": 0,
                             "blocked_item_count": 5,
                             "completion_blockers": [
                                 {
                                     "title": "Dirty Handoff Boundary Blocks New Product Edits",
-                                    "next_action": "Wait for explicit scoped staging/commit authorization.",
+                                    "next_action": "Wait for explicit scoped staging/commit authorization via APPROVE_AI_CONTEXT_RELAY_UPDATE.",
                                 },
                                 {
                                     "title": "Hanwoo T-251 Live Prisma CRUD Remains User-Owned External Blocker",
@@ -738,6 +755,10 @@ def test_refresh_current_evidence_writes_bom_free_current_json(monkeypatch, tmp_
     assert debug_step["returncode"] == 1
     assert debug_step["expected_returncode"] is True
     assert any(step["name"] == "debug_loop_completion_exit_contract" for step in summary["steps"])
+    step_names = [step["name"] for step in summary["steps"]]
+    assert "ai_context_relay_pathspec" in step_names
+    assert "dirty_handoff_plan_pathspec" in step_names
+    assert "shorts_current_source_pathspec" not in step_names
     assert any(step["name"] == "release_authorization_packet" for step in summary["steps"])
     assert any(step["name"] == "github_project_inventory" for step in summary["steps"])
     assert any(step["name"] == "browser_qa_inventory" for step in summary["steps"])
@@ -757,6 +778,7 @@ def test_refresh_current_evidence_writes_bom_free_current_json(monkeypatch, tmp_
     )
     menu = json.loads((root / ".tmp" / "next-scoped-authorization-menu-current.json").read_text(encoding="utf-8"))
     assert any(item["token"] == "APPROVE_SESSION_LOG_ROTATOR" for item in menu["also_available"])
+    assert any(item["token"] == "APPROVE_SHORTS_MAKER_V2_CURRENT_SOURCE_DIRTY" for item in menu["also_available"])
     assert any(step["name"] == "launch_prompt_artifact_checklist" for step in summary["steps"])
     check_step = next(step for step in summary["steps"] if step["name"] == "scoped_authorization_menu_check")
     assert check_step["returncode"] == 0
@@ -796,7 +818,9 @@ def test_refresh_current_evidence_writes_bom_free_current_json(monkeypatch, tmp_
     assert "APPROVE_AI_CONTEXT_RELAY_UPDATE->recommended" in checklist
     assert "Authorization options omitted:" not in checklist
     assert (
-        "Authorization option coverage: APPROVE_AI_CONTEXT_RELAY_UPDATE=3/3; APPROVE_SESSION_LOG_ROTATOR=n/a."
+        "Authorization option coverage: APPROVE_AI_CONTEXT_RELAY_UPDATE=3/3; "
+        "APPROVE_SESSION_LOG_ROTATOR=n/a; APPROVE_AUTO_RESEARCH_DIRTY_HANDOFF_PLAN=n/a; "
+        "APPROVE_SHORTS_MAKER_V2_CURRENT_SOURCE_DIRTY=n/a."
     ) in checklist
     assert (
         "One-line user options: APPROVE_AI_CONTEXT_RELAY_UPDATE, APPROVE_SESSION_LOG_ROTATOR, STOP (shown 3/3)."
@@ -829,7 +853,8 @@ def test_refresh_current_evidence_writes_bom_free_current_json(monkeypatch, tmp_
     assert "Approval phase references: phase0_context_relay=3; unique coverage 3/3, overlap refs 0." in checklist
     assert "Approval phase tokens: phase0_context_relay: APPROVE_AI_CONTEXT_RELAY_UPDATE." in checklist
     assert (
-        "Debug blockers: 5 blocked, completion_allowed false, top Dirty Handoff Boundary Blocks New Product Edits."
+        "Debug blockers: 0 actionable, 5 blocked, completion_allowed false, "
+        "top Dirty Handoff Boundary Blocks New Product Edits."
     ) in checklist
     assert (
         "Debug blocker titles: Dirty Handoff Boundary Blocks New Product Edits; "
@@ -839,7 +864,7 @@ def test_refresh_current_evidence_writes_bom_free_current_json(monkeypatch, tmp_
     ) in checklist
     assert (
         "Debug blocker next actions: Dirty Handoff Boundary Blocks New Product Edits -> "
-        "Wait for explicit scoped staging/commit authorization; "
+        "Wait for explicit scoped staging/commit authorization via APPROVE_AI_CONTEXT_RELAY_UPDATE; "
         "Hanwoo T-251 Live Prisma CRUD Remains User-Owned External Blocker -> User resets Supabase credentials; "
         "Current-HEAD GitHub Actions Cannot Be Proven Locally -> Explicit push authorization or user push; "
         "Launch Completion Audit Remains Incomplete -> Keep blocked evidence current."
@@ -884,15 +909,16 @@ def test_refresh_current_evidence_writes_bom_free_current_json(monkeypatch, tmp_
         "projects/knowledge-dashboard eslint@10 -> defer major migration until upstream peer support "
         "(latest-supported 0, still-blocked 3, unavailable 0)."
     ) in checklist
-    assert "Code review gate: status=warn, risk_score=0.6, changed_files=426, test_gaps=662." in checklist
+    assert "Code review gate: status=warn, risk_score=0.4, changed_files=426, test_gaps=662." in checklist
     assert (
         "Code review gate detail: affected flows 0; changed top shown 4/4: .ai/CONTEXT.md, "
         ".ai/HANDOFF.md, .ai/SESSION_LOG.md, .ai/TASKS.md; gap files shown 2/2: "
         "execution/llm_wiki_objective_audit.py, execution/mcp_diagnostic.py."
     ) in checklist
     assert (
-        "Code review gate count sources: launch audit counts changed/test gaps 426/662; "
-        "detail artifact rows changed/test gaps/unique gap files 4/3/2."
+        "Code review gate count sources: primary launch-audit counts changed/test gaps 426/662; "
+        "reference detail artifact rows changed/test gaps/unique gap files 4/3/2; "
+        "primary/reference risk score 0.4/0.6."
     ) in checklist
     assert (
         "Code review gate reasons: shown 3/4: risk_score 0.60 >= warn-threshold 0.30; "
@@ -924,6 +950,9 @@ def test_refresh_current_evidence_writes_bom_free_current_json(monkeypatch, tmp_
     ) in checklist
     assert "Code review gate artifact: utf8_bom false, first bytes 7B 0A 20 20." in checklist
     assert (
+        "Product readiness: score 92, state blocked, workspace/local/publish/external blockers 1/1/0/0, agent tasks 0."
+    ) in checklist
+    assert (
         "Recommended next scope: APPROVE_AI_CONTEXT_RELAY_UPDATE / phase0_context_relay - "
         "Context relay first. (3 dirty paths, 1 tokens)."
     ) in checklist
@@ -943,8 +972,8 @@ def test_refresh_current_evidence_writes_bom_free_current_json(monkeypatch, tmp_
         "current-head Actions 0/2, missing root-quality-gate, active-project-matrix."
     ) in checklist
     assert (
-        "Release packet blockers: dirty worktree paths 3; "
-        "current-head Actions unavailable until explicit push/user push."
+        "Release packet blockers: dirty worktree paths 3 until APPROVE_AI_CONTEXT_RELAY_UPDATE scoped authorization; "
+        "current-head Actions unavailable until explicit push authorization or user push."
     ) in checklist
     assert (
         "LLM Wiki strict release evidence: available true, status pass, "
@@ -968,7 +997,7 @@ def test_refresh_current_evidence_writes_bom_free_current_json(monkeypatch, tmp_
         "Release authorization guardrails: push_required true, "
         "allowed_without_explicit_user_authorization false, "
         "post-push gates root-quality-gate, active-project-matrix, guardrails 2, "
-        "shown 2/2: Do not push without explicit user authorization.; "
+        "shown 2/2: Do not push without explicit push authorization or user push.; "
         "Wait for required workflows on the exact current HEAD."
     ) in checklist
     assert (
@@ -985,7 +1014,8 @@ def test_refresh_current_evidence_writes_bom_free_current_json(monkeypatch, tmp_
     ) in checklist
     assert (
         "Target blocker actions: blind-to-x -> clear target dirty paths and keep project QC/readiness evidence current; "
-        "shorts-maker-v2 -> clear target dirty paths and keep project QC/readiness evidence current; "
+        "shorts-maker-v2 -> clear target dirty paths and keep project QC/readiness evidence current "
+        "via APPROVE_SHORTS_MAKER_V2_CURRENT_SOURCE_DIRTY; "
         "hanwoo-dashboard -> wait for Supabase credential reset before live Prisma CRUD retry; "
         "knowledge-dashboard -> refresh target readiness evidence and resolve score/state blockers."
     ) in checklist
@@ -993,7 +1023,8 @@ def test_refresh_current_evidence_writes_bom_free_current_json(monkeypatch, tmp_
         "Project QC: 4/4 PASS, checks passed 4776, failed 0, skipped 21, stale 0, head-stale 0, missing checks 0."
     ) in checklist
     assert (
-        "Blocker actions: dirty_worktree_handoff_current -> user_or_operator / APPROVE_AI_CONTEXT_RELAY_UPDATE"
+        "Blocker actions: dirty_worktree_handoff_current -> user_or_operator / APPROVE_AI_CONTEXT_RELAY_UPDATE "
+        "(dirty one-line tokens 1/3: APPROVE_AI_CONTEXT_RELAY_UPDATE)"
     ) in checklist
     assert "current_head_release_checks_unproven -> user_or_operator / explicit_push_or_user_push" in checklist
     assert "hanwoo_t251_external_supabase_credentials -> user / external_credential_reset" in checklist
@@ -1051,9 +1082,12 @@ def test_completion_blocker_action_summary_maps_boundaries_with_limit():
     assert (
         refresh_current_evidence._completion_blocker_action_summary(completion, limit=3)
         == "Find GitHub-related projects and PR/workflow surfaces before choosing improvements -> "
-        "resolve dirty worktree boundary or keep GitHub inventory evidence current; "
+        "resolve dirty worktree boundary via explicit scoped authorization "
+        "using APPROVE_AI_CONTEXT_RELAY_UPDATE, "
+        "or keep GitHub inventory evidence current; "
         "Generate a no-push release authorization packet before any clean-ahead publish -> "
-        "keep no-push packet current until explicit stage/commit/push authorization; "
+        "keep no-push packet current until stage/commit via APPROVE_AI_CONTEXT_RELAY_UPDATE "
+        "and explicit push authorization or user push; "
         "Separate externally blocked live checks from local product-polish completion -> "
         "user resets Supabase credentials, then rerun the live Prisma check once; omitted 1: "
         "Prove blind-to-x target product launch readiness with direct project evidence -> "
@@ -1083,11 +1117,33 @@ def test_completion_blocker_action_summary_lists_current_full_scale_by_default()
 
     assert summary.startswith(
         "Find GitHub-related projects and PR/workflow surfaces before choosing improvements -> "
-        "resolve dirty worktree boundary or keep GitHub inventory evidence current; "
+        "resolve dirty worktree boundary via explicit scoped authorization "
+        "using APPROVE_AI_CONTEXT_RELAY_UPDATE, "
+        "or keep GitHub inventory evidence current; "
     )
+    assert (
+        "Run the deterministic next-experiment selector and confirm no local auto-research candidate remains -> "
+        "clear the dirty handoff boundary via explicit scoped authorization "
+        "using APPROVE_AI_CONTEXT_RELAY_UPDATE, "
+        "or keep selector/debug evidence current"
+    ) in summary
+    assert (
+        "Verify local product-readiness gates before claiming launch readiness -> "
+        "clear local/workspace blockers and keep direct readiness evidence current"
+    ) in summary
+    assert (
+        "Generate a no-push release authorization packet before any clean-ahead publish -> "
+        "keep no-push packet current until stage/commit via APPROVE_AI_CONTEXT_RELAY_UPDATE "
+        "and explicit push authorization or user push"
+    ) in summary
     assert (
         "Prove knowledge-dashboard target product launch readiness with direct project evidence -> "
         "clear target dirty paths and keep project QC/readiness evidence current."
+    ) in summary
+    assert (
+        "Prove shorts-maker-v2 target product launch readiness with direct project evidence -> "
+        "clear target dirty paths and keep project QC/readiness evidence current "
+        "via APPROVE_SHORTS_MAKER_V2_CURRENT_SOURCE_DIRTY"
     ) in summary
     assert "omitted" not in summary
 
@@ -1256,8 +1312,9 @@ def test_code_review_gate_detail_summary_default_expands_omitted_preview():
 
 def test_code_review_gate_count_alignment_summary_reports_source_mismatch():
     summary = refresh_current_evidence._code_review_gate_count_alignment_summary(
-        "status=warn, risk_score=0.6, changed_files=426, test_gaps=662.",
+        "status=warn, risk_score=0.4, changed_files=426, test_gaps=662.",
         {
+            "risk_score": 0.6,
             "changed_files": [".ai/CONTEXT.md", ".ai/HANDOFF.md"],
             "test_gaps": [
                 "_manifest_context :: C:\\Users\\owner\\Desktop\\Vibe coding\\execution\\llm_wiki_objective_audit.py",
@@ -1268,8 +1325,9 @@ def test_code_review_gate_count_alignment_summary_reports_source_mismatch():
     )
 
     assert (
-        summary == "launch audit counts changed/test gaps 426/662; "
-        "detail artifact rows changed/test gaps/unique gap files 2/3/2."
+        summary == "primary launch-audit counts changed/test gaps 426/662; "
+        "reference detail artifact rows changed/test gaps/unique gap files 2/3/2; "
+        "primary/reference risk score 0.4/0.6."
     )
 
 
@@ -1791,6 +1849,13 @@ def test_target_blocker_action_summary_maps_external_dirty_and_readiness_actions
                 "dirty_paths": ["b"],
             },
             {
+                "name": "shorts-maker-v2",
+                "score": 96,
+                "state": "ready",
+                "tasks": [],
+                "dirty_paths": ["c", "d"],
+            },
+            {
                 "name": "knowledge-dashboard",
                 "score": 92,
                 "state": "ready",
@@ -1804,6 +1869,8 @@ def test_target_blocker_action_summary_maps_external_dirty_and_readiness_actions
         refresh_current_evidence._target_blocker_action_summary(readiness)
         == "hanwoo-dashboard -> wait for Supabase credential reset before live Prisma CRUD retry; "
         "blind-to-x -> clear target dirty paths and keep project QC/readiness evidence current; "
+        "shorts-maker-v2 -> clear target dirty paths and keep project QC/readiness evidence current "
+        "via APPROVE_SHORTS_MAKER_V2_CURRENT_SOURCE_DIRTY; "
         "knowledge-dashboard -> refresh target readiness evidence and resolve score/state blockers"
     )
 
@@ -1890,7 +1957,8 @@ def test_github_recommendation_summary_lists_actionable_inventory_recommendation
 
     assert (
         refresh_current_evidence._github_recommendation_summary(inventory)
-        == "Worktree is dirty; stage and commit only files owned by the current experiment; "
+        == "Worktree is dirty; after explicit scoped authorization using APPROVE_AI_CONTEXT_RELAY_UPDATE, "
+        "stage and commit only files owned by the current experiment; "
         "Keep current-head release gates visible; omitted 1 more."
     )
 
@@ -1919,6 +1987,44 @@ def test_github_recommendation_summary_rewrites_stale_dirty_group_clause():
     assert "project:shorts-maker-v2=28" in summary
     assert "project:hanwoo-dashboard=2" in summary
     assert "Dirty groups: project:blind-to-x=182, workspace-dashboard=72, root=58" not in summary
+    assert (
+        "after explicit scoped authorization using APPROVE_AI_CONTEXT_RELAY_UPDATE, "
+        "stage and commit only files owned by the current experiment"
+    ) in summary
+
+
+def test_github_recommendation_summary_adds_token_to_existing_authorization_clause():
+    inventory = {
+        "recommendations": [
+            (
+                "Worktree is dirty; after explicit scoped authorization, stage and commit only files owned "
+                "by the current experiment."
+            ),
+        ],
+    }
+
+    assert (
+        refresh_current_evidence._github_recommendation_summary(inventory)
+        == "Worktree is dirty; after explicit scoped authorization using APPROVE_AI_CONTEXT_RELAY_UPDATE, "
+        "stage and commit only files owned by the current experiment."
+    )
+
+
+def test_github_recommendation_summary_preserves_existing_authorization_token_clause():
+    inventory = {
+        "recommendations": [
+            (
+                "Worktree is dirty; after explicit scoped authorization using APPROVE_AI_CONTEXT_RELAY_UPDATE, "
+                "stage and commit only files owned by the current experiment."
+            ),
+        ],
+    }
+
+    assert (
+        refresh_current_evidence._github_recommendation_summary(inventory)
+        == "Worktree is dirty; after explicit scoped authorization using APPROVE_AI_CONTEXT_RELAY_UPDATE, "
+        "stage and commit only files owned by the current experiment."
+    )
 
 
 def test_dirty_groups_evidence_rewrites_stale_github_detail_clause():
@@ -1942,6 +2048,7 @@ def test_dirty_groups_evidence_rewrites_stale_github_detail_clause():
     assert "workspace-code-review-gate=1" in rewritten[0]
     assert "project:shorts-maker-v2=28" in rewritten[0]
     assert "project:hanwoo-dashboard=2" in rewritten[0]
+    assert "explicit scoped authorization using APPROVE_AI_CONTEXT_RELAY_UPDATE" in rewritten[0]
     assert "Dirty groups: project:blind-to-x=182, workspace-dashboard=72, root=58" not in rewritten[0]
 
 
@@ -2025,7 +2132,7 @@ def test_debug_blocker_next_action_summary_lists_actions_with_limit():
         "items": [
             {
                 "title": "Dirty Handoff Boundary Blocks New Product Edits",
-                "next_action": "Wait for explicit scoped staging/commit authorization.",
+                "next_action": "Wait for explicit scoped staging/commit authorization via APPROVE_AI_CONTEXT_RELAY_UPDATE.",
             },
             {
                 "title": "Hanwoo T-251 Live Prisma CRUD Remains User-Owned External Blocker",
@@ -2045,7 +2152,7 @@ def test_debug_blocker_next_action_summary_lists_actions_with_limit():
     assert (
         refresh_current_evidence._debug_blocker_next_action_summary(debug_loop)
         == "Dirty Handoff Boundary Blocks New Product Edits -> "
-        "Wait for explicit scoped staging/commit authorization; "
+        "Wait for explicit scoped staging/commit authorization via APPROVE_AI_CONTEXT_RELAY_UPDATE; "
         "Hanwoo T-251 Live Prisma CRUD Remains User-Owned External Blocker -> User resets Supabase credentials; "
         "Current-HEAD GitHub Actions Cannot Be Proven Locally -> Explicit push authorization or user push; "
         "Launch Completion Audit Remains Incomplete -> Keep blocked evidence current."
@@ -2057,7 +2164,7 @@ def test_debug_blocker_next_action_summary_preserves_explicit_omission_limit():
         "items": [
             {
                 "title": "Dirty Handoff Boundary Blocks New Product Edits",
-                "next_action": "Wait for explicit scoped staging/commit authorization.",
+                "next_action": "Wait for explicit scoped staging/commit authorization via APPROVE_AI_CONTEXT_RELAY_UPDATE.",
             },
             {
                 "title": "Hanwoo T-251 Live Prisma CRUD Remains User-Owned External Blocker",
@@ -2077,7 +2184,7 @@ def test_debug_blocker_next_action_summary_preserves_explicit_omission_limit():
     assert (
         refresh_current_evidence._debug_blocker_next_action_summary(debug_loop, limit=3)
         == "Dirty Handoff Boundary Blocks New Product Edits -> "
-        "Wait for explicit scoped staging/commit authorization; "
+        "Wait for explicit scoped staging/commit authorization via APPROVE_AI_CONTEXT_RELAY_UPDATE; "
         "Hanwoo T-251 Live Prisma CRUD Remains User-Owned External Blocker -> User resets Supabase credentials; "
         "Current-HEAD GitHub Actions Cannot Be Proven Locally -> Explicit push authorization or user push; "
         "omitted 1 more."
@@ -2202,7 +2309,8 @@ def test_release_packet_blocker_summary_combines_dirty_actions_and_external_boun
 
     assert (
         refresh_current_evidence._release_packet_blocker_summary(release_summary, {})
-        == "dirty worktree paths 457; current-head Actions unavailable until explicit push/user push; "
+        == "dirty worktree paths 457 until APPROVE_AI_CONTEXT_RELAY_UPDATE scoped authorization; "
+        "current-head Actions unavailable until explicit push authorization or user push; "
         "external/user-owned blocker(s) T-251."
     )
 
@@ -2288,7 +2396,7 @@ def test_release_authorization_guardrail_summary_previews_guardrail_text():
             "allowed_without_explicit_user_authorization": False,
             "post_push_gates": ["root-quality-gate", "active-project-matrix"],
             "guardrails": [
-                "Do not push without explicit user authorization.",
+                "Do not push without explicit push authorization or user push.",
                 "Wait for required workflows on the exact current HEAD.",
                 "Do not retry external T-251 until credentials are reset.",
             ],
@@ -2298,7 +2406,7 @@ def test_release_authorization_guardrail_summary_previews_guardrail_text():
     assert summary == (
         "push_required true, allowed_without_explicit_user_authorization false, "
         "post-push gates root-quality-gate, active-project-matrix, guardrails 3, "
-        "shown 3/3: Do not push without explicit user authorization.; "
+        "shown 3/3: Do not push without explicit push authorization or user push.; "
         "Wait for required workflows on the exact current HEAD.; "
         "Do not retry external T-251 until credentials are reset."
     )
@@ -2311,7 +2419,7 @@ def test_release_authorization_guardrail_summary_preserves_explicit_omission_lim
             "allowed_without_explicit_user_authorization": False,
             "post_push_gates": ["root-quality-gate", "active-project-matrix"],
             "guardrails": [
-                "Do not push without explicit user authorization.",
+                "Do not push without explicit push authorization or user push.",
                 "Wait for required workflows on the exact current HEAD.",
                 "Do not retry external T-251 until credentials are reset.",
             ],
@@ -2322,7 +2430,7 @@ def test_release_authorization_guardrail_summary_preserves_explicit_omission_lim
     assert summary == (
         "push_required true, allowed_without_explicit_user_authorization false, "
         "post-push gates root-quality-gate, active-project-matrix, guardrails 3, "
-        "shown 2/3: Do not push without explicit user authorization.; "
+        "shown 2/3: Do not push without explicit push authorization or user push.; "
         "Wait for required workflows on the exact current HEAD., omitted 1."
     )
 
@@ -2619,6 +2727,113 @@ def test_approval_phase_token_summary_lists_visible_phase_tokens():
         "phase1_loop_tooling: APPROVE_AUTO_RESEARCH_SCOPED_AUTHORIZATION_MENU; "
         "omitted 2 phases"
     )
+
+
+def test_approval_phase_token_summary_previews_omitted_tokens():
+    approval = {
+        "status": "ok",
+        "pathspec_results": [
+            {
+                "pathspec": ".tmp/approve-ai-context-relay-update.pathspec",
+                "unique_path_count": 3,
+                "covered_dirty_count": 3,
+            },
+            {
+                "pathspec": ".tmp/approve-auto-research-scoped-authorization-menu.pathspec",
+                "unique_path_count": 2,
+                "covered_dirty_count": 2,
+            },
+            {
+                "pathspec": ".tmp/approve-auto-research-dirty-handoff-plan.pathspec",
+                "unique_path_count": 2,
+                "covered_dirty_count": 2,
+            },
+            {
+                "pathspec": ".tmp/approve-auto-research-debug-loop-inventory.pathspec",
+                "unique_path_count": 1,
+                "covered_dirty_count": 1,
+            },
+            {
+                "pathspec": ".tmp/approve-auto-research-approval-pathspec-consistency.pathspec",
+                "unique_path_count": 1,
+                "covered_dirty_count": 1,
+            },
+            {
+                "pathspec": ".tmp/approve-auto-research-release-packet.pathspec",
+                "unique_path_count": 1,
+                "covered_dirty_count": 1,
+            },
+        ],
+    }
+
+    summary = refresh_current_evidence._approval_phase_token_summary(
+        approval,
+        "2026-06-14T00:00:00Z",
+        token_limit=2,
+        omitted_token_limit=2,
+    )
+
+    assert summary == (
+        "phase0_context_relay: APPROVE_AI_CONTEXT_RELAY_UPDATE; "
+        "phase1_loop_tooling: APPROVE_AUTO_RESEARCH_SCOPED_AUTHORIZATION_MENU, "
+        "APPROVE_AUTO_RESEARCH_DIRTY_HANDOFF_PLAN, omitted 3: "
+        "APPROVE_AUTO_RESEARCH_DEBUG_LOOP_INVENTORY, "
+        "APPROVE_AUTO_RESEARCH_APPROVAL_PATHSPEC_CONSISTENCY, "
+        "APPROVE_AUTO_RESEARCH_RELEASE_PACKET"
+    )
+
+
+def test_approval_phase_token_summary_keeps_omitted_more_for_long_tails():
+    approval = {
+        "status": "ok",
+        "pathspec_results": [
+            {
+                "pathspec": ".tmp/approve-ai-context-relay-update.pathspec",
+                "unique_path_count": 3,
+                "covered_dirty_count": 3,
+            },
+            {
+                "pathspec": ".tmp/approve-auto-research-scoped-authorization-menu.pathspec",
+                "unique_path_count": 2,
+                "covered_dirty_count": 2,
+            },
+            {
+                "pathspec": ".tmp/approve-auto-research-dirty-handoff-plan.pathspec",
+                "unique_path_count": 2,
+                "covered_dirty_count": 2,
+            },
+            {
+                "pathspec": ".tmp/approve-auto-research-debug-loop-inventory.pathspec",
+                "unique_path_count": 1,
+                "covered_dirty_count": 1,
+            },
+            {
+                "pathspec": ".tmp/approve-auto-research-approval-pathspec-consistency.pathspec",
+                "unique_path_count": 1,
+                "covered_dirty_count": 1,
+            },
+            {
+                "pathspec": ".tmp/approve-auto-research-release-packet.pathspec",
+                "unique_path_count": 1,
+                "covered_dirty_count": 1,
+            },
+            {
+                "pathspec": ".tmp/approve-auto-research-refresh-current-evidence.pathspec",
+                "unique_path_count": 1,
+                "covered_dirty_count": 1,
+            },
+        ],
+    }
+
+    summary = refresh_current_evidence._approval_phase_token_summary(
+        approval,
+        "2026-06-14T00:00:00Z",
+        token_limit=2,
+        omitted_token_limit=2,
+    )
+
+    assert "omitted 4: " in summary
+    assert "APPROVE_AUTO_RESEARCH_APPROVAL_PATHSPEC_CONSISTENCY, omitted-more 2" in summary
 
 
 def test_release_commit_preview_summary_default_uses_packet_preview_depth():
@@ -3422,6 +3637,36 @@ def test_authorization_option_tokens_list_all_current_tokens_before_omitting():
     assert refresh_current_evidence._authorization_option_omission_summary(menu, approval) == ""
 
 
+def test_one_line_dirty_authorization_summary_lists_dirty_covering_options():
+    menu = {
+        "one_line_user_options": [
+            "APPROVE_AI_CONTEXT_RELAY_UPDATE",
+            "APPROVE_TMP_CLEANUP",
+            "APPROVE_SHORTS_MAKER_V2_CURRENT_SOURCE_DIRTY",
+            "APPROVE_AUTO_RESEARCH_DIRTY_HANDOFF_PLAN",
+            "APPROVE_AUTO_RESEARCH_SCOPED_AUTHORIZATION_MENU",
+            "STOP",
+        ],
+    }
+    approval = {
+        "pathspec_results": [
+            {"pathspec": "approve-ai-context-relay-update.pathspec", "covered_dirty_count": 5},
+            {"pathspec": "cleanup-approve-tmp-cleanup.pathspec", "covered_dirty_count": 0},
+            {"pathspec": "approve-shorts-maker-v2-current-source-dirty.pathspec", "covered_dirty_count": 2},
+            {"pathspec": "approve-auto-research-dirty-handoff-plan.pathspec", "covered_dirty_count": 2},
+            {"pathspec": "approve-auto-research-scoped-authorization-menu.pathspec", "covered_dirty_count": 2},
+        ],
+    }
+
+    summary = refresh_current_evidence._one_line_dirty_authorization_summary(menu, approval)
+
+    assert summary == (
+        "dirty one-line tokens 4/6: APPROVE_AI_CONTEXT_RELAY_UPDATE, "
+        "APPROVE_SHORTS_MAKER_V2_CURRENT_SOURCE_DIRTY, APPROVE_AUTO_RESEARCH_DIRTY_HANDOFF_PLAN, "
+        "APPROVE_AUTO_RESEARCH_SCOPED_AUTHORIZATION_MENU"
+    )
+
+
 def test_authorization_option_omissions_report_zero_dirty_tokens():
     menu = {
         "recommended": {"token": "APPROVE_AI_CONTEXT_RELAY_UPDATE", "pathspec": ".tmp/approve-ai-context.pathspec"},
@@ -3927,6 +4172,184 @@ def test_approval_matrix_and_burndown_markdown_include_uncovered_source_paths(tm
         assert f"`{path}`" in burndown_text
 
 
+def test_ai_context_relay_packet_syncs_pathspec_from_menu_scope(monkeypatch, tmp_path):
+    root = tmp_path
+    (root / ".tmp").mkdir()
+    menu_json = root / ".tmp" / "next-scoped-authorization-menu-current.json"
+    coverage_json = root / ".tmp" / "authorization-coverage-current.json"
+    selector_json = root / ".tmp" / "next-experiment-current.json"
+    packet_json = root / ".tmp" / "ai-context-aic1-scoped-authorization-current.json"
+    packet_md = root / ".tmp" / "ai-context-aic1-scoped-authorization-current.md"
+    pathspec = root / ".tmp" / "approve-ai-context-relay-update.pathspec"
+    scope = [
+        ".ai/HANDOFF.md",
+        ".ai/SESSION_LOG.md",
+        ".ai/TASKS.md",
+        ".ai/archive/HANDOFF_archive_2026-06-15.md",
+        ".ai/archive/SESSION_LOG_before_2026-06-08.md",
+    ]
+    pathspec.write_text(".ai/HANDOFF.md\n", encoding="utf-8")
+    menu_json.write_bytes(
+        _json_bytes(
+            {
+                "recommended": {
+                    "token": "APPROVE_AI_CONTEXT_RELAY_UPDATE",
+                    "pathspec": ".tmp/approve-ai-context-relay-update.pathspec",
+                    "files": scope,
+                },
+            },
+        ),
+    )
+    coverage_json.write_bytes(
+        _json_bytes(
+            {
+                "status": "needs_refresh",
+                "dirty_count": 10,
+                "covered_dirty_count": 6,
+                "uncovered_dirty_count": 4,
+            },
+        ),
+    )
+    selector_json.write_bytes(
+        _json_bytes(
+            {
+                "status": "blocked",
+                "summary": {
+                    "selected_kind": "dirty_worktree_handoff_current",
+                    "adoptable_candidate_count": 0,
+                    "blocked_candidate_count": 2,
+                },
+            },
+        ),
+    )
+
+    def fake_git_with_index(_root, _index_path, argv, **_kwargs):
+        if argv[1:] == ["diff", "--cached", "--name-only"]:
+            return subprocess.CompletedProcess(argv, 0, pathspec.read_bytes(), b"")
+        if argv[1:] == ["diff", "--cached", "--shortstat"]:
+            return subprocess.CompletedProcess(argv, 0, b" 5 files changed, 5 insertions(+)\n", b"")
+        return subprocess.CompletedProcess(argv, 0, b"", b"")
+
+    def fake_git_without_index(_root, argv, **_kwargs):
+        return subprocess.CompletedProcess(argv, 0, b"", b"")
+
+    monkeypatch.setattr(refresh_current_evidence, "_git_with_index", fake_git_with_index)
+    monkeypatch.setattr(refresh_current_evidence, "_git_without_index", fake_git_without_index)
+
+    result = refresh_current_evidence._write_ai_context_relay_packet(
+        root=root,
+        menu_json=menu_json,
+        coverage_json=coverage_json,
+        selector_json=selector_json,
+        packet_json=packet_json,
+        packet_md=packet_md,
+        timeout=5,
+    )
+
+    packet = json.loads(packet_json.read_text(encoding="utf-8"))
+    assert result.status == "ok"
+    assert pathspec.read_text(encoding="utf-8").splitlines() == scope
+    assert packet["scope"] == scope
+    assert packet["current_scope_validation"]["scope_path_count"] == 5
+    assert packet["current_scope_validation"]["scope_dirty_path_count"] == 5
+    assert packet["current_scope_validation"]["all_scope_paths_currently_dirty"] is True
+    assert packet["current_scope_validation"]["blocked_candidate_count"] == 2
+    assert (
+        "Do not stage, commit, or revert without explicit APPROVE_AI_CONTEXT_RELAY_UPDATE authorization."
+        in packet["guardrails"]
+    )
+    assert "Do not push without explicit push authorization or user push." in packet["guardrails"]
+    assert packet["virtual_index"]["names"] == scope
+    markdown = packet_md.read_text(encoding="utf-8")
+    assert ".ai/archive/SESSION_LOG_before_2026-06-08.md" in markdown
+    assert "Selector: `blocked` / `dirty_worktree_handoff_current` / adoptable `0` / blocked `2`" in markdown
+    assert "Do not stage, commit, or revert without explicit APPROVE_AI_CONTEXT_RELAY_UPDATE authorization." in markdown
+    assert "Do not push without explicit push authorization or user push." in markdown
+
+
+def test_dirty_handoff_plan_pathspec_and_menu_option_use_auto_research_scope(tmp_path):
+    root = tmp_path
+    (root / ".tmp").mkdir()
+    menu_json = root / ".tmp" / "next-scoped-authorization-menu-current.json"
+    pathspec = root / ".tmp" / "approve-auto-research-dirty-handoff-plan.pathspec"
+    dirty_handoff_plan = {
+        "group_order": [
+            {
+                "key": "auto-research",
+                "paths": [
+                    ".agents/skills/auto-research/scripts/dirty_worktree_handoff_plan.py",
+                    ".agents/skills/auto-research/scripts/refresh_current_evidence.py",
+                    "workspace/tests/test_dirty_worktree_handoff_plan.py",
+                ],
+            },
+        ],
+    }
+    menu_json.write_bytes(_json_bytes({"recommended": {"token": "APPROVE_AI_CONTEXT_RELAY_UPDATE"}}))
+
+    scope = refresh_current_evidence._dirty_handoff_plan_scope(dirty_handoff_plan)
+    pathspec_result = refresh_current_evidence._write_scope_pathspec(
+        pathspec,
+        scope,
+        name="dirty_handoff_plan_pathspec",
+    )
+    menu_result = refresh_current_evidence._upsert_dirty_handoff_plan_menu_option(menu_json)
+
+    assert pathspec_result is not None
+    assert pathspec_result.status == "ok"
+    assert pathspec.read_text(encoding="utf-8").splitlines() == [
+        ".agents/skills/auto-research/scripts/dirty_worktree_handoff_plan.py",
+        "workspace/tests/test_dirty_worktree_handoff_plan.py",
+    ]
+    assert menu_result.status == "ok"
+    menu = json.loads(menu_json.read_text(encoding="utf-8"))
+    assert menu["also_available"] == [
+        {
+            "token": "APPROVE_AUTO_RESEARCH_DIRTY_HANDOFF_PLAN",
+            "pathspec": ".tmp/approve-auto-research-dirty-handoff-plan.pathspec",
+            "classification": "verified_auto_research_handoff_planning_packet",
+            "reason": ("Covers the dirty handoff plan helper and focused regression test without authorizing staging."),
+        },
+    ]
+
+
+def test_current_uncovered_dirty_handoff_pathspec_keeps_only_residual_dirty_paths(tmp_path):
+    root = tmp_path
+    tmp = root / ".tmp"
+    tmp.mkdir()
+    (tmp / "approve-ai-context-relay-update.pathspec").write_text(".ai/HANDOFF.md\n", encoding="utf-8")
+    (tmp / "approve-auto-research-dirty-handoff-plan.pathspec").write_text(
+        ".agents/skills/auto-research/scripts/dirty_worktree_handoff_plan.py\n"
+        "workspace/tests/test_dirty_worktree_handoff_plan.py\n",
+        encoding="utf-8",
+    )
+    target = tmp / "approve-current-uncovered-dirty-handoff.pathspec"
+    target.write_text(
+        ".ai/HANDOFF.md\n.agents/skills/auto-research/scripts/dirty_worktree_handoff_plan.py\nnature-skills\n",
+        encoding="utf-8",
+    )
+    dirty_handoff_plan = {
+        "dirty_signature": {
+            "input": {
+                "dirty_paths": [
+                    ".ai/HANDOFF.md",
+                    ".agents/skills/auto-research/scripts/dirty_worktree_handoff_plan.py",
+                    "workspace/tests/test_dirty_worktree_handoff_plan.py",
+                    "nature-skills",
+                ],
+            },
+        },
+    }
+
+    result = refresh_current_evidence._write_current_uncovered_dirty_handoff_pathspec(
+        root=root,
+        dirty_handoff_plan=dirty_handoff_plan,
+        pathspec=target,
+    )
+
+    assert result.status == "ok"
+    assert target.read_text(encoding="utf-8").splitlines() == ["nature-skills"]
+
+
 def test_ai_context_relay_packet_write_reports_atomic_write_failure(monkeypatch, tmp_path):
     root = tmp_path
     (root / ".tmp").mkdir()
@@ -4009,7 +4432,11 @@ def test_session_log_rotator_packet_writes_pathspec_and_virtual_index_proof(monk
         _json_bytes(
             {
                 "status": "blocked",
-                "summary": {"selected_kind": "dirty_worktree_handoff_current", "adoptable_candidate_count": 0},
+                "summary": {
+                    "selected_kind": "dirty_worktree_handoff_current",
+                    "adoptable_candidate_count": 0,
+                    "blocked_candidate_count": 2,
+                },
             },
         ),
     )
@@ -4051,10 +4478,19 @@ def test_session_log_rotator_packet_writes_pathspec_and_virtual_index_proof(monk
     assert packet["authorized_by_this_artifact"] is False
     assert packet["current_scope_validation"]["all_scope_paths_currently_dirty"] is True
     assert packet["current_scope_validation"]["real_staged_count"] == 0
+    assert packet["current_scope_validation"]["blocked_candidate_count"] == 2
+    assert (
+        "Do not stage, commit, or revert without explicit APPROVE_SESSION_LOG_ROTATOR authorization."
+        in packet["guardrails"]
+    )
+    assert "Do not push without explicit push authorization or user push." in packet["guardrails"]
     assert packet["virtual_index"]["cached_diff_check_exit"] == 0
     markdown = packet_md.read_text(encoding="utf-8")
     assert "APPROVE_SESSION_LOG_ROTATOR" in markdown
     assert "Authorized by this artifact: false" in markdown
+    assert "Selector: `blocked` / `dirty_worktree_handoff_current` / adoptable `0` / blocked `2`" in markdown
+    assert "Do not stage, commit, or revert without explicit APPROVE_SESSION_LOG_ROTATOR authorization." in markdown
+    assert "Do not push without explicit push authorization or user push." in markdown
 
 
 def test_session_log_rotator_menu_option_upserts_without_duplicates(tmp_path):
@@ -4080,6 +4516,55 @@ def test_session_log_rotator_menu_option_upserts_without_duplicates(tmp_path):
     assert matches[0]["packet"] == ".tmp/session-log-rotator-authorization-current.md"
     assert matches[0]["pathspec"] == ".tmp/approve-session-log-rotator.pathspec"
     assert "virtual index" in matches[0]["reason"]
+    assert any(item["token"] == "APPROVE_OTHER" for item in menu["also_available"])
+
+
+def test_shorts_current_source_pathspec_and_menu_option_use_handoff_group(tmp_path):
+    pathspec = tmp_path / "approve-shorts-maker-v2-current-source-dirty.pathspec"
+    scope = [
+        "projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/qc_step.py",
+        "projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/thumbnail_step.py",
+    ]
+    dirty_handoff_plan = {
+        "group_order": [
+            {"key": "ai-context", "paths": [".ai/HANDOFF.md"]},
+            {"key": "project:shorts-maker-v2", "paths": scope},
+        ],
+    }
+
+    result = refresh_current_evidence._write_scope_pathspec(
+        pathspec,
+        refresh_current_evidence._handoff_group_scope(dirty_handoff_plan, "project:shorts-maker-v2"),
+        name="shorts_current_source_pathspec",
+    )
+
+    assert result is not None
+    assert result.status == "ok"
+    assert pathspec.read_text(encoding="utf-8").splitlines() == scope
+
+    menu_json = tmp_path / "menu.json"
+    menu_json.write_bytes(
+        _json_bytes(
+            {
+                "recommended": {"token": "APPROVE_AI_CONTEXT_RELAY_UPDATE"},
+                "also_available": [
+                    {"token": "APPROVE_OTHER", "reason": "Keep existing option."},
+                    {"token": "APPROVE_SHORTS_MAKER_V2_CURRENT_SOURCE_DIRTY", "reason": "stale"},
+                ],
+            },
+        ),
+    )
+
+    menu_result = refresh_current_evidence._upsert_shorts_current_source_menu_option(menu_json)
+
+    assert menu_result.status == "ok"
+    menu = json.loads(menu_json.read_text(encoding="utf-8"))
+    matches = [
+        item for item in menu["also_available"] if item["token"] == "APPROVE_SHORTS_MAKER_V2_CURRENT_SOURCE_DIRTY"
+    ]
+    assert len(matches) == 1
+    assert matches[0]["pathspec"] == ".tmp/approve-shorts-maker-v2-current-source-dirty.pathspec"
+    assert "current Shorts Maker V2 dirty source pair" in matches[0]["reason"]
     assert any(item["token"] == "APPROVE_OTHER" for item in menu["also_available"])
 
 

@@ -391,8 +391,8 @@ def test_packet_status_blocker_and_summary_helpers_preserve_contract() -> None:
         llm_wiki_evidence={"available": False, "path": ".tmp/llm-wiki.json"},
     )
     assert blockers == [
-        "dirty worktree paths: 1",
-        "current-head Actions unavailable until push authorization/user push",
+        "dirty worktree paths: 1 until APPROVE_AI_CONTEXT_RELAY_UPDATE scoped authorization",
+        "current-head Actions unavailable until explicit push authorization or user push",
         "external/user-owned blocker(s): T-251",
         "LLM Wiki strict release evidence artifact missing: .tmp/llm-wiki.json",
     ]
@@ -425,6 +425,7 @@ def test_packet_status_blocker_and_summary_helpers_preserve_contract() -> None:
     assert authorization["allowed_without_explicit_user_authorization"] is False
     assert authorization["suggested_command"] == "git push origin main"
     assert authorization["post_push_gates"] == list(release_authorization_packet.DEFAULT_REQUIRED_WORKFLOWS)
+    assert "Do not push without explicit push authorization or user push." in authorization["guardrails"]
 
     summary = release_authorization_packet._packet_summary(
         git_info={"branch": "main", "head_sha": "abcdef123456"},
@@ -604,7 +605,9 @@ def test_dirty_worktree_blocks_push_command(tmp_path: Path) -> None:
     assert packet["status"] == "blocked_dirty_worktree"
     assert packet["authorization"]["suggested_command"] is None
     assert packet["git"]["dirty_count"] == 1
-    assert packet["blockers"][0] == "dirty worktree paths: 1"
+    assert packet["blockers"][0] == (
+        "dirty worktree paths: 1 until APPROVE_AI_CONTEXT_RELAY_UPDATE scoped authorization"
+    )
 
 
 def test_synced_head_does_not_require_authorization(tmp_path: Path) -> None:

@@ -347,7 +347,7 @@ def _current_head_release_candidate(
             "Current HEAD GitHub Actions are unproven because the local branch is ahead of origin.",
         ],
         guardrails=[
-            "Do not push without explicit user authorization.",
+            "Do not push without explicit push authorization or user push.",
             "Preserve unrelated dirty-tree work.",
             "Do not retry external T-251 unless credentials were reset.",
         ],
@@ -486,7 +486,10 @@ def _dirty_worktree_candidate(
             kind="dirty_worktree_handoff_current",
             priority=15,
             project="workspace",
-            action="Wait for explicit scoped staging/commit authorization or keep the current dirty handoff plan.",
+            action=(
+                "Wait for explicit scoped staging/commit authorization via APPROVE_AI_CONTEXT_RELAY_UPDATE "
+                "or keep the current dirty handoff plan."
+            ),
             reason=(
                 "A machine-readable dirty handoff plan already matches the current dirty inventory, so the selector "
                 "should stop treating handoff generation as an adoptable experiment."
@@ -502,10 +505,12 @@ def _dirty_worktree_candidate(
             blocked=True,
             blockers=[
                 "Current dirty handoff plan matches the current dirty inventory; "
-                "explicit scoped staging/commit authorization is required before product changes."
+                "explicit scoped staging/commit authorization via APPROVE_AI_CONTEXT_RELAY_UPDATE "
+                "is required before product changes."
             ],
             guardrails=[
-                "Do not stage, commit, push, or revert without explicit user authorization.",
+                "Do not stage, commit, or revert without explicit scoped authorization; "
+                "do not push without explicit push authorization or user push.",
                 "Do not start unrelated product changes while the dirty handoff boundary remains current.",
                 "Do not retry T-251 until Supabase credentials are reset.",
                 "Treat the debug inventory fail gate exit code 1 as expected proof that completion is still blocked.",
@@ -541,7 +546,7 @@ def _dirty_worktree_candidate(
         guardrails=[
             "Commit only scoped work or record a handoff for unrelated dirty paths.",
             "Do not stage unrelated dirty work.",
-            "Do not push without explicit user authorization.",
+            "Do not push without explicit push authorization or user push.",
         ],
     )
 

@@ -13,9 +13,15 @@ from typing import Any
 DEFAULT_MENU_PATH = Path(".tmp/next-scoped-authorization-menu-current.json")
 DEFAULT_COVERAGE_PATH = Path(".tmp/authorization-coverage-current.json")
 DEFAULT_HANDOFF_PATH = Path(".tmp/scoped-dirty-worktree-handoff-plan-current.json")
+DEFAULT_COMPLETION_PATH = Path(".tmp/launch-objective-completion-audit-current.json")
 DEFAULT_MARKDOWN_PATH = Path(".tmp/next-scoped-authorization-menu-current.md")
 UNCOVERED_PATH_DISPLAY_LIMIT = 5
 ZERO_DIRTY_STAGING_CLASSIFICATIONS = {"verified_existing_packet"}
+ONE_LINE_DIRTY_CLASSIFICATIONS = {"verified_existing_packet"}
+ONE_LINE_DIRTY_CLASSIFICATION_PREFIXES = (
+    "verified_auto_research_",
+    "verified_current_dirty_",
+)
 _COVERAGE_GENERATED_RE = re.compile(r"(, generated `)[^`]+(`)")
 
 
@@ -193,7 +199,7 @@ def _handoff_group_paths(handoff: dict[str, Any], key: str) -> list[str]:
     return []
 
 
-def _sync_recommended_from_handoff(menu: dict[str, Any], handoff: dict[str, Any]) -> int:
+def _sync_recommended_from_handoff(menu: dict[str, Any], handoff: dict[str, Any], completion: dict[str, Any]) -> int:
     recommended = _as_dict(menu.get("recommended"))
     token = _str(recommended.get("token"))
     if token != "APPROVE_AI_CONTEXT_RELAY_UPDATE":
@@ -207,14 +213,32 @@ def _sync_recommended_from_handoff(menu: dict[str, Any], handoff: dict[str, Any]
     generated_at = _str(handoff.get("generated_at"))
     if generated_at:
         menu["generated_at"] = generated_at
-    _sync_ai_context_reason_lines(recommended, handoff, len(paths))
+    _sync_ai_context_reason_lines(recommended, handoff, completion, len(paths))
     return len(paths)
 
 
-def _sync_ai_context_reason_lines(recommended: dict[str, Any], handoff: dict[str, Any], path_count: int) -> None:
+def _completion_reason_line(completion: dict[str, Any]) -> str:
+    summary = _as_dict(completion.get("summary"))
+    if not summary:
+        return ""
+    status = _str(completion.get("status")) or "unknown"
+    return (
+        f"Current completion audit is {status}: "
+        f"{_int(summary.get('item_count'))} items, "
+        f"{_int(summary.get('complete_count'))} complete, "
+        f"{_int(summary.get('issue_count'))} issues, "
+        f"{_int(summary.get('blocked_count'))} blocked."
+    )
+
+
+def _sync_ai_context_reason_lines(
+    recommended: dict[str, Any], handoff: dict[str, Any], completion: dict[str, Any], path_count: int
+) -> None:
     current_reason: list[str] = []
     inserted_scope = False
     inserted_readiness = False
+    inserted_completion = False
+    completion_line = _completion_reason_line(completion)
     for item in _as_list(recommended.get("reason")):
         text = _str(item)
         if not text:
@@ -239,6 +263,11 @@ def _sync_ai_context_reason_lines(recommended: dict[str, Any], handoff: dict[str
             )
             inserted_readiness = True
             continue
+        if lowered.startswith("current completion audit is"):
+            if completion_line:
+                current_reason.append(completion_line)
+                inserted_completion = True
+            continue
         current_reason.append(text)
 
     if not inserted_scope:
@@ -257,6 +286,8 @@ def _sync_ai_context_reason_lines(recommended: dict[str, Any], handoff: dict[str
                 f"publish blockers {_int(readiness.get('publish_blocker_count'))}, "
                 f"external blockers {_int(readiness.get('external_blocker_count'))}."
             )
+    if completion_line and not inserted_completion:
+        current_reason.append(completion_line)
     recommended["reason"] = current_reason
 
 
@@ -396,6 +427,33 @@ def _is_zero_dirty_staging_option(item: dict[str, Any], root: Path | None, dirty
     return coverage == 0
 
 
+def _one_line_dirty_option_tokens(
+    menu: dict[str, Any],
+    root: Path | None,
+    dirty_paths: set[str] | None,
+) -> list[str]:
+    tokens: list[str] = []
+    seen: set[str] = set()
+    for item in _as_list(menu.get("also_available")):
+        if not isinstance(item, dict):
+            continue
+        token = _str(item.get("token"))
+        classification = _str(item.get("classification"))
+        if not token or token in seen:
+            continue
+        classification_promotable = classification in ONE_LINE_DIRTY_CLASSIFICATIONS or any(
+            classification.startswith(prefix) for prefix in ONE_LINE_DIRTY_CLASSIFICATION_PREFIXES
+        )
+        if not classification_promotable:
+            continue
+        coverage = _pathspec_dirty_coverage(item, root, dirty_paths)
+        if coverage is None or coverage <= 0:
+            continue
+        seen.add(token)
+        tokens.append(token)
+    return tokens
+
+
 def _available_lines(
     menu: dict[str, Any], handoff: dict[str, Any] | None = None, root: Path | None = None
 ) -> list[str]:
@@ -452,6 +510,17 @@ def _sync_one_line_options(menu: dict[str, Any], handoff: dict[str, Any], root: 
             continue
         seen.add(option)
         filtered.append(option)
+
+    dirty_option_tokens = _one_line_dirty_option_tokens(menu, root, dirty_paths)
+    if dirty_option_tokens:
+        stop_present = "STOP" in filtered
+        filtered_without_stop = [option for option in filtered if option != "STOP"]
+        for token in dirty_option_tokens:
+            if token in seen:
+                continue
+            seen.add(token)
+            filtered_without_stop.append(token)
+        filtered = [*filtered_without_stop, "STOP"] if stop_present else filtered_without_stop
 
     if filtered != options:
         menu["one_line_user_options"] = filtered
@@ -520,6 +589,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--menu-json", type=Path, default=DEFAULT_MENU_PATH)
     parser.add_argument("--coverage-json", type=Path, default=DEFAULT_COVERAGE_PATH)
     parser.add_argument("--handoff-json", type=Path)
+    parser.add_argument("--completion-json", type=Path)
     parser.add_argument("--output-md", type=Path, default=DEFAULT_MARKDOWN_PATH)
     parser.add_argument("--rewrite-menu-json", action="store_true")
     parser.add_argument("--check", action="store_true", help="Exit nonzero if rendered Markdown is not current.")
@@ -534,13 +604,16 @@ def main(argv: list[str] | None = None) -> int:
     coverage_json = _resolve_path(root, args.coverage_json)
     default_evidence_paths = args.menu_json == DEFAULT_MENU_PATH and args.coverage_json == DEFAULT_COVERAGE_PATH
     handoff_path = args.handoff_json or (DEFAULT_HANDOFF_PATH if default_evidence_paths else None)
+    completion_path = args.completion_json or (DEFAULT_COMPLETION_PATH if default_evidence_paths else None)
     handoff_json = _resolve_path(root, handoff_path) if handoff_path is not None else None
+    completion_json = _resolve_path(root, completion_path) if completion_path is not None else None
     output_md = _resolve_path(root, args.output_md)
     menu = _load_json(menu_json)
     coverage = _load_json(coverage_json)
     handoff = _load_json(handoff_json) if handoff_json is not None else {}
+    completion = _load_json(completion_json) if completion_json is not None else {}
     pathspec_synced_file_count = _sync_recommended_files_from_pathspec(menu, root) if menu else 0
-    handoff_synced_file_count = _sync_recommended_from_handoff(menu, handoff) if menu and handoff else 0
+    handoff_synced_file_count = _sync_recommended_from_handoff(menu, handoff, completion) if menu and handoff else 0
     one_line_options_removed_count = _sync_one_line_options(menu, handoff, root) if menu else 0
     staleness_reasons = _coverage_staleness_reasons(coverage, handoff)
     markdown = render_markdown(menu, coverage, handoff, root)
@@ -573,6 +646,7 @@ def main(argv: list[str] | None = None) -> int:
         "menu_json": menu_json.as_posix(),
         "coverage_json": coverage_json.as_posix(),
         "handoff_json": handoff_json.as_posix() if handoff_json is not None else "",
+        "completion_json": completion_json.as_posix() if completion_json is not None else "",
         "output_md": output_md.as_posix(),
         "check": bool(args.check),
         "rendered_matches": rendered_matches if args.check else None,

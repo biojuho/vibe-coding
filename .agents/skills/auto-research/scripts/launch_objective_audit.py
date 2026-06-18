@@ -394,6 +394,23 @@ def _ab_manifest_task_id_collision_warnings(root: Path, candidates: list[AbManif
     return warnings
 
 
+def _ab_manifest_task_file_summary(root: Path, task_id: tuple[int, str] | None) -> str:
+    if task_id is None:
+        return ""
+    tmp_dir = root / ".tmp"
+    if not tmp_dir.exists():
+        return ""
+    candidates, _errors = _ab_manifest_candidates(root, tmp_dir)
+    paths = sorted(_rel(root, candidate.path) for candidate in candidates if candidate.task_id == task_id)
+    if not paths:
+        return ""
+    task_number, task_suffix = task_id
+    task_label = f"T-{task_number}{task_suffix}"
+    if len(paths) == 1:
+        return f"Latest A/B task id {task_label} is collision-free with 1 manifest file."
+    return f"Latest A/B task id {task_label} has {len(paths)} manifest files: {', '.join(paths)}."
+
+
 def _run_json(root: Path, args: list[str], timeout: int) -> dict[str, Any]:
     try:
         completed = subprocess.run(
@@ -1494,7 +1511,10 @@ def _release_packet_status_blockers(status: str, *, dirty_count: int) -> list[st
             "release authorization packet is ready, but explicit push authorization and current-head Actions are still required."
         ]
     if status == "blocked_dirty_worktree":
-        return [f"release authorization packet blocked by dirty worktree paths: {dirty_count}."]
+        return [
+            "release authorization packet blocked by dirty worktree paths: "
+            f"{dirty_count} until APPROVE_AI_CONTEXT_RELAY_UPDATE scoped authorization."
+        ]
     if status == "git_unavailable":
         return ["release authorization packet could not inspect git state."]
     if status not in {"not_required", "already_verified"}:
@@ -1551,7 +1571,7 @@ def _release_authorization_packet_item(packet: dict[str, Any]) -> dict[str, Any]
 
     blockers = _release_packet_status_blockers(status, dirty_count=dirty_count)
     if allowed_without_authorization is not False:
-        blockers.append("release authorization packet did not enforce explicit user authorization.")
+        blockers.append("release authorization packet did not enforce explicit push authorization or user push.")
     if status == "ready_for_authorization" and ahead_count > 0 and not authorization.get("suggested_command"):
         blockers.append("release authorization packet omitted the suggested push command for a clean ahead head.")
     blockers.extend(_llm_wiki_strict_evidence_blockers(llm_wiki_evidence))
@@ -1733,8 +1753,12 @@ def _ab_manifest_evidence(
     passed_gate_count = len(required_gates) - len(failed_gates)
 
     evidence.append(f"Latest A/B manifest artifact: {manifest_path} ({experiment}).")
+    task_id_parts = _ab_manifest_task_id_parts(root / manifest_path, manifest)
     if task_id is not None:
         evidence.append(f"Latest A/B manifest selection used task id T-{task_id}.")
+    task_file_summary = _ab_manifest_task_file_summary(root, task_id_parts)
+    if task_file_summary:
+        evidence.append(task_file_summary)
     evidence.append(
         f"Latest A/B candidate metrics={len(metrics)}, required gates passed {passed_gate_count}/{len(required_gates)}."
     )

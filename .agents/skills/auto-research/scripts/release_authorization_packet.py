@@ -456,9 +456,11 @@ def _packet_blockers(
 ) -> list[str]:
     blockers: list[str] = []
     if dirty_paths:
-        blockers.append(f"dirty worktree paths: {len(dirty_paths)}")
+        blockers.append(
+            f"dirty worktree paths: {len(dirty_paths)} until APPROVE_AI_CONTEXT_RELAY_UPDATE scoped authorization"
+        )
     if ahead_count > 0 and unproven:
-        blockers.append("current-head Actions unavailable until push authorization/user push")
+        blockers.append("current-head Actions unavailable until explicit push authorization or user push")
     if external_task_ids:
         blockers.append("external/user-owned blocker(s): " + ", ".join(external_task_ids))
     if not llm_wiki_evidence.get("available"):
@@ -553,7 +555,7 @@ def _packet_authorization(
         "suggested_command": _packet_push_command(git_info, ahead_count=ahead_count, dirty_paths=dirty_paths),
         "post_push_gates": unproven or [workflow["name"] for workflow in workflows],
         "guardrails": [
-            "Do not push without explicit user authorization.",
+            "Do not push without explicit push authorization or user push.",
             "After push, wait for root-quality-gate and active-project-matrix on the exact current HEAD.",
             "Do not retry external T-251 until Supabase credentials were reset.",
         ],

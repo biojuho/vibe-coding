@@ -75,7 +75,7 @@ def _write_workspace(root: Path) -> None:
                 "selected": {
                     "kind": "dirty_worktree_handoff_current",
                     "guardrails": [
-                        "Do not push without explicit user authorization.",
+                        "Do not push without explicit push authorization or user push.",
                         "Do not retry T-251 until Supabase credentials are reset.",
                     ],
                 },
@@ -96,6 +96,12 @@ def test_build_audit_reports_aligned_but_blocked_boundary(tmp_path: Path) -> Non
     assert audit["summary"]["reference_count"] == 3
     assert audit["summary"]["selector_kind"] == "dirty_worktree_handoff_current"
     assert any("explicit scoped staging/commit authorization" in item for item in audit["critical_blockers"])
+    boundary_pillar = next(pillar for pillar in audit["pillars"] if pillar["key"] == "approval_and_release_boundaries")
+    assert any(
+        "explicit push authorization or user push" in check["evidence"]
+        for check in boundary_pillar["checks"]
+        if check["label"] == "selector keeps push/T-251 guardrails explicit"
+    )
     assert any(item["reference"] == "OpenAI Codex Web" for item in audit["external_comparison"])
     assert any(item["reference"] == "Cursor Plan Mode" for item in audit["external_comparison"])
     assert not any(item["reference"] == "Claude Code" for item in audit["external_comparison"])

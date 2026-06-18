@@ -519,7 +519,10 @@ def _dirty_handoff_root_cause() -> str:
 
 
 def _dirty_handoff_next_action() -> str:
-    return "Wait for explicit scoped staging/commit authorization, or keep handoff-only evidence current."
+    return (
+        "Wait for explicit scoped staging/commit authorization via APPROVE_AI_CONTEXT_RELAY_UPDATE, "
+        "or keep handoff-only evidence current."
+    )
 
 
 def _dirty_handoff_reproduction() -> list[str]:

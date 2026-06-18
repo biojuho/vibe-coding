@@ -127,6 +127,34 @@ def test_build_plan_records_group_order_boundaries_and_sources(tmp_path: Path) -
     }
 
 
+def test_build_plan_prioritizes_ai_context_before_code_groups(tmp_path: Path) -> None:
+    github_inventory = _github_inventory()
+    groups = github_inventory["git"]["dirty_path_groups"]
+    groups.append(
+        {
+            "key": "ai-context",
+            "owner_hint": "Codex/current-auto-research",
+            "path_count": 2,
+            "paths": [".ai/HANDOFF.md", ".ai/TASKS.md"],
+            "sample_truncated": False,
+        }
+    )
+    github_inventory["git"]["dirty_count"] = 5
+    github_inventory["git"]["dirty_paths"].extend([".ai/HANDOFF.md", ".ai/TASKS.md"])
+
+    plan = dirty_plan.build_plan(
+        root=tmp_path,
+        github_inventory=github_inventory,
+        session_orient=_session_orient(),
+        readiness=_readiness(),
+        code_review_gate=_gate(),
+    )
+
+    assert [group["key"] for group in plan["group_order"]] == ["ai-context", "auto-research", "llm-wiki"]
+    assert plan["group_order"][0]["order"] == 1
+    assert "First relay/context scope" in plan["group_order"][0]["commit_shape"]
+
+
 def test_build_plan_uses_session_dirty_count_when_inventory_claims_clean(tmp_path: Path) -> None:
     github_inventory = {"git": {"dirty_count": 0, "dirty_paths": [], "dirty_path_groups": []}, "open_prs": {}}
 

@@ -43,13 +43,13 @@ class _WriteFailure(Exception):
 
 
 GROUP_ORDER = [
+    "ai-context",
     "auto-research",
     "workspace-code-review-gate",
     "llm-wiki",
     "workspace-dashboard",
     "project:blind-to-x",
     "project:hanwoo-dashboard",
-    "ai-context",
 ]
 
 GROUP_RULES: dict[str, dict[str, Any]] = {
@@ -105,7 +105,7 @@ GROUP_RULES: dict[str, dict[str, Any]] = {
     },
     "ai-context": {
         "label": "AI shared context",
-        "commit_shape": "Final relay/context commit after code/documentation groups, or leave handoff-only.",
+        "commit_shape": "First relay/context scope when approval evidence recommends AI context before code groups, or leave handoff-only.",
         "pre_stage_gates": [
             "python execution/handoff_rotator.py",
             "python execution/tasks_done_rotator.py",

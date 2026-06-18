@@ -66,6 +66,10 @@ class EvidencePaths:
     scoped_authorization_menu_check: Path = Path(".tmp/next-scoped-authorization-menu-current.check.json")
     ai_context_relay_packet: Path = Path(".tmp/ai-context-aic1-scoped-authorization-current.json")
     ai_context_relay_packet_md: Path = Path(".tmp/ai-context-aic1-scoped-authorization-current.md")
+    ai_context_relay_pathspec: Path = Path(".tmp/approve-ai-context-relay-update.pathspec")
+    dirty_handoff_plan_pathspec: Path = Path(".tmp/approve-auto-research-dirty-handoff-plan.pathspec")
+    shorts_current_source_pathspec: Path = Path(".tmp/approve-shorts-maker-v2-current-source-dirty.pathspec")
+    current_uncovered_dirty_handoff_pathspec: Path = Path(".tmp/approve-current-uncovered-dirty-handoff.pathspec")
     session_log_rotator_pathspec: Path = Path(".tmp/approve-session-log-rotator.pathspec")
     session_log_rotator_packet: Path = Path(".tmp/session-log-rotator-authorization-current.json")
     session_log_rotator_packet_md: Path = Path(".tmp/session-log-rotator-authorization-current.md")
@@ -699,7 +703,7 @@ def _build_launch_blocker_burndown(
         },
         "blockers": [
             "current dirty handoff requires explicit scoped authorization before staging/commit",
-            "current-head Actions require explicit push/user push before release proof",
+            "current-head Actions require explicit push authorization or user push before release proof",
             "Hanwoo T-251 remains user-owned external Supabase credential reset",
         ],
         "blocker_actions": [
@@ -1041,6 +1045,20 @@ def _one_line_user_option_tokens(menu: dict[str, Any], *, limit: int = 8) -> tup
         seen.add(token)
         tokens.append(token)
     return tokens[:limit], len(tokens)
+
+
+def _one_line_dirty_authorization_summary(menu: dict[str, Any], approval: dict[str, Any], *, limit: int = 5) -> str:
+    token_coverage = _pathspec_coverage_by_token(approval)
+    tokens, total = _one_line_user_option_tokens(menu, limit=10_000)
+    dirty_tokens = [token for token in tokens if token_coverage.get(token, 0) > 0]
+    if not dirty_tokens:
+        return ""
+    shown = dirty_tokens[:limit]
+    summary = f"dirty one-line tokens {len(dirty_tokens)}/{total}: " + ", ".join(shown)
+    omitted = len(dirty_tokens) - len(shown)
+    if omitted > 0:
+        summary += f", omitted {omitted}"
+    return summary
 
 
 def _authorization_option_reason(value: Any) -> str:
@@ -1444,7 +1462,9 @@ def _release_packet_blocker_summary(
     blockers: list[str] = []
     dirty_count = _int(release_summary.get("dirty_count"))
     if dirty_count:
-        blockers.append(f"dirty worktree paths {dirty_count}")
+        blockers.append(
+            f"dirty worktree paths {dirty_count} until APPROVE_AI_CONTEXT_RELAY_UPDATE scoped authorization"
+        )
     run_count = _int(release_actions.get("run_count") or release_summary.get("current_head_run_count"))
     required_count = _int(
         release_actions.get("required_count") or release_summary.get("unproven_workflow_count"),
@@ -1453,7 +1473,7 @@ def _release_packet_blocker_summary(
         release_actions.get("required_success_count") or release_summary.get("current_head_required_success_count"),
     )
     if run_count == 0 and required_success < required_count:
-        blockers.append("current-head Actions unavailable until explicit push/user push")
+        blockers.append("current-head Actions unavailable until explicit push authorization or user push")
     external_ids = [
         str(blocker_id).strip()
         for blocker_id in (release_summary.get("external_blocker_ids") or [])
@@ -1775,6 +1795,7 @@ def _approval_phase_token_summary(
     *,
     phase_limit: int = 3,
     token_limit: int = 3,
+    omitted_token_limit: int = 3,
 ) -> str:
     matrix = _build_approval_execution_matrix(approval, generated_at=generated_at)
     phases = matrix.get("phases")
@@ -1802,8 +1823,17 @@ def _approval_phase_token_summary(
         if not token_names:
             continue
         shown = token_names[:token_limit]
-        omitted = len(token_names) - len(shown)
-        suffix = f", omitted {omitted}" if omitted > 0 else ""
+        omitted_tokens = token_names[token_limit:]
+        suffix = ""
+        if omitted_tokens:
+            preview_limit = omitted_token_limit
+            if len(omitted_tokens) - preview_limit == 1:
+                preview_limit += 1
+            omitted_preview = omitted_tokens[:preview_limit]
+            omitted_more = len(omitted_tokens) - len(omitted_preview)
+            suffix = f", omitted {len(omitted_tokens)}: {', '.join(omitted_preview)}"
+            if omitted_more > 0:
+                suffix += f", omitted-more {omitted_more}"
         rows.append(f"{name}: {', '.join(shown)}{suffix}")
     if not rows:
         return ""
@@ -1814,6 +1844,7 @@ def _approval_phase_token_summary(
 
 def _debug_blocker_summary(debug_loop: dict[str, Any]) -> str:
     summary = debug_loop.get("summary") if isinstance(debug_loop.get("summary"), dict) else {}
+    actionable_count = _int(summary.get("actionable_item_count"))
     blocked_count = _int(summary.get("blocked_item_count"))
     completion_allowed = summary.get("completion_allowed")
     blockers = summary.get("completion_blockers")
@@ -1821,9 +1852,12 @@ def _debug_blocker_summary(debug_loop: dict[str, Any]) -> str:
     if isinstance(blockers, list) and blockers:
         first = blockers[0] if isinstance(blockers[0], dict) else {}
         top = str(first.get("title") or "").strip()
-    if not blocked_count and not top and completion_allowed is None:
+    if not actionable_count and not blocked_count and not top and completion_allowed is None:
         return ""
-    return f"{blocked_count} blocked, completion_allowed {_bool_text(completion_allowed)}, top {top or 'unknown'}."
+    return (
+        f"{actionable_count} actionable, {blocked_count} blocked, "
+        f"completion_allowed {_bool_text(completion_allowed)}, top {top or 'unknown'}."
+    )
 
 
 def _debug_blocker_title_summary(debug_loop: dict[str, Any], *, limit: int = 5) -> str:
@@ -1909,6 +1943,8 @@ def _github_recommendation_summary(
         if not text:
             continue
         text = _rewrite_dirty_groups_clause(text, dirty_groups_summary)
+        text = _rewrite_stage_commit_authorization_clause(text)
+        text = _rewrite_stage_commit_authorization_token_clause(text)
         rows.append(text)
         if len(rows) >= limit:
             break
@@ -1917,6 +1953,36 @@ def _github_recommendation_summary(
     omitted_count = max(len([item for item in recommendations if str(item or "").strip()]) - len(rows), 0)
     suffix = f"; omitted {omitted_count} more" if omitted_count else ""
     return "; ".join(rows) + suffix + "."
+
+
+def _rewrite_stage_commit_authorization_clause(text: str) -> str:
+    if "stage and commit only files owned by the current experiment" not in text.lower():
+        return text
+    if "explicit" in text.lower() and "authorization" in text.lower():
+        return text
+    return re.sub(
+        r"stage and commit only files owned by the current experiment",
+        "after explicit scoped authorization, stage and commit only files owned by the current experiment",
+        text,
+        flags=re.IGNORECASE,
+    )
+
+
+def _rewrite_stage_commit_authorization_token_clause(text: str) -> str:
+    normalized = text.lower()
+    if "stage and commit only files owned by the current experiment" not in normalized:
+        return text
+    if "explicit scoped authorization" not in normalized:
+        return text
+    if "approve_ai_context_relay_update" in normalized:
+        return text
+    return re.sub(
+        r"explicit scoped authorization",
+        "explicit scoped authorization using APPROVE_AI_CONTEXT_RELAY_UPDATE",
+        text,
+        count=1,
+        flags=re.IGNORECASE,
+    )
 
 
 def _rewrite_dirty_groups_clause(text: str, dirty_groups_summary: str) -> str:
@@ -1932,7 +1998,13 @@ def _rewrite_dirty_groups_clause(text: str, dirty_groups_summary: str) -> str:
 
 
 def _rewrite_dirty_groups_evidence(entries: list[str], dirty_groups_summary: str) -> list[str]:
-    return [_rewrite_dirty_groups_clause(entry, dirty_groups_summary) for entry in entries]
+    rewritten: list[str] = []
+    for entry in entries:
+        text = _rewrite_stage_commit_authorization_clause(entry)
+        text = _rewrite_stage_commit_authorization_token_clause(text)
+        text = _rewrite_dirty_groups_clause(text, dirty_groups_summary)
+        rewritten.append(text)
+    return rewritten
 
 
 def _browser_qa_summary(browser_qa: dict[str, Any]) -> str:
@@ -2251,6 +2323,8 @@ def _target_blocker_action_summary(readiness: dict[str, Any], *, limit: int = 4)
             action = "wait for Supabase credential reset before live Prisma CRUD retry"
         elif dirty_paths:
             action = "clear target dirty paths and keep project QC/readiness evidence current"
+            if name == "shorts-maker-v2":
+                action = f"{action} via APPROVE_SHORTS_MAKER_V2_CURRENT_SOURCE_DIRTY"
         elif score < 100 or (state and state != "ready"):
             action = "refresh target readiness evidence and resolve score/state blockers"
         else:
@@ -2408,15 +2482,31 @@ def _completion_blocker_next_action(requirement: str) -> str:
     if "hanwoo" in normalized or "t-251" in normalized or "externally blocked" in normalized:
         return "user resets Supabase credentials, then rerun the live Prisma check once"
     if "release authorization" in normalized or "clean-ahead publish" in normalized:
-        return "keep no-push packet current until explicit stage/commit/push authorization"
-    if "blind-to-x" in normalized or "shorts-maker-v2" in normalized or "knowledge-dashboard" in normalized:
+        return (
+            "keep no-push packet current until stage/commit via APPROVE_AI_CONTEXT_RELAY_UPDATE "
+            "and explicit push authorization or user push"
+        )
+    if "shorts-maker-v2" in normalized:
+        return (
+            "clear target dirty paths and keep project QC/readiness evidence current "
+            "via APPROVE_SHORTS_MAKER_V2_CURRENT_SOURCE_DIRTY"
+        )
+    if "blind-to-x" in normalized or "knowledge-dashboard" in normalized:
         return "clear target dirty paths and keep project QC/readiness evidence current"
     if "product-readiness" in normalized or "launch readiness" in normalized:
         return "clear local/workspace blockers and keep direct readiness evidence current"
     if "next-experiment selector" in normalized or "auto-research candidate" in normalized:
-        return "clear the dirty handoff boundary or keep selector/debug evidence current"
+        return (
+            "clear the dirty handoff boundary via explicit scoped authorization "
+            "using APPROVE_AI_CONTEXT_RELAY_UPDATE, "
+            "or keep selector/debug evidence current"
+        )
     if "github-related" in normalized or "workflow" in normalized:
-        return "resolve dirty worktree boundary or keep GitHub inventory evidence current"
+        return (
+            "resolve dirty worktree boundary via explicit scoped authorization "
+            "using APPROVE_AI_CONTEXT_RELAY_UPDATE, "
+            "or keep GitHub inventory evidence current"
+        )
     return "keep blocker evidence current until the owning boundary is cleared"
 
 
@@ -2509,12 +2599,16 @@ def _code_review_gate_count_alignment_summary(code_review_summary: str, code_rev
         return ""
     changed_match = re.search(r"changed_files=(\d+)", code_review_summary)
     gaps_match = re.search(r"test_gaps=(\d+)", code_review_summary)
-    if not changed_match and not gaps_match:
+    risk_match = re.search(r"risk_score=([0-9]+(?:\.[0-9]+)?)", code_review_summary)
+    if not changed_match and not gaps_match and not risk_match:
         return ""
     summary_changed = int(changed_match.group(1)) if changed_match else 0
     summary_gaps = int(gaps_match.group(1)) if gaps_match else 0
+    summary_risk = float(risk_match.group(1)) if risk_match else None
     detail_changed = len(code_review_gate.get("changed_files") or [])
     test_gap_rows = len(code_review_gate.get("test_gaps") or [])
+    detail_risk = code_review_gate.get("risk_score")
+    detail_risk_value = float(detail_risk) if isinstance(detail_risk, int | float) else None
     unique_gap_files: set[str] = set()
     for gap in code_review_gate.get("test_gaps") or []:
         raw = str(gap or "")
@@ -2525,13 +2619,17 @@ def _code_review_gate_count_alignment_summary(code_review_summary: str, code_rev
             path = path.split(marker, 1)[1]
         if path:
             unique_gap_files.add(path)
-    if summary_changed == detail_changed and summary_gaps == test_gap_rows:
+    risk_matches = summary_risk is None or detail_risk_value is None or abs(summary_risk - detail_risk_value) < 0.000001
+    if summary_changed == detail_changed and summary_gaps == test_gap_rows and risk_matches:
         return ""
-    return (
-        "launch audit counts changed/test gaps "
-        f"{summary_changed}/{summary_gaps}; detail artifact rows changed/test gaps/unique gap files "
-        f"{detail_changed}/{test_gap_rows}/{len(unique_gap_files)}."
+    detail = (
+        "primary launch-audit counts changed/test gaps "
+        f"{summary_changed}/{summary_gaps}; reference detail artifact rows changed/test gaps/unique gap files "
+        f"{detail_changed}/{test_gap_rows}/{len(unique_gap_files)}"
     )
+    if not risk_matches:
+        detail += f"; primary/reference risk score {summary_risk:g}/{detail_risk_value:g}"
+    return detail + "."
 
 
 def _code_review_gate_reason_summary(code_review_gate: dict[str, Any], *, limit: int = 3) -> str:
@@ -2790,6 +2888,7 @@ def _render_prompt_artifact_checklist(
     authorization_tokens, authorization_token_count = _authorization_option_tokens(menu, approval=approval)
     one_line_tokens, one_line_token_count = _one_line_user_option_tokens(menu)
     one_line_detail_summary = _one_line_user_option_detail_summary(menu)
+    one_line_dirty_authorization = _one_line_dirty_authorization_summary(menu, approval)
     zero_dirty_authorization_omission_summary = _authorization_option_zero_dirty_omission_summary(menu, approval)
     authorization_omission_summary = _authorization_option_omission_summary(menu, approval)
     authorization_coverage_summary = _authorization_option_coverage_summary(menu, approval)
@@ -2921,7 +3020,8 @@ def _render_prompt_artifact_checklist(
             f"- Product readiness: score {_int(readiness_overall.get('score'))}, "
             f"state {readiness_overall.get('state', 'unknown')}, "
             "workspace/local/publish/external blockers "
-            f"{workspace_blockers}/{local_blockers}/{publish_blockers}/{external_blockers}."
+            f"{workspace_blockers}/{local_blockers}/{publish_blockers}/{external_blockers}, "
+            f"agent tasks {_int(readiness_overall.get('agent_task_count'))}."
         ),
         *([f"- Target readiness: {target_readiness_summary}."] if target_readiness_summary else []),
         *([f"- Target blockers: {target_blocker_detail_summary}."] if target_blocker_detail_summary else []),
@@ -3029,11 +3129,14 @@ def _render_prompt_artifact_checklist(
     if blocker_actions:
         action_summaries = []
         for action in blocker_actions[:3]:
-            action_summaries.append(
+            summary = (
                 f"{action.get('blocker') or 'unknown'} -> "
                 f"{action.get('owner') or 'unknown'} / "
                 f"{action.get('authorization') or 'unknown'}"
             )
+            if action.get("blocker") == "dirty_worktree_handoff_current" and one_line_dirty_authorization:
+                summary += f" ({one_line_dirty_authorization})"
+            action_summaries.append(summary)
         lines.append(f"- Blocker actions: {'; '.join(action_summaries)}.")
         if len(blocker_actions) > 3:
             lines.append(f"- Blocker actions omitted: {len(blocker_actions) - 3}.")
@@ -3319,6 +3422,7 @@ def _build_ai_context_relay_packet(
             "selector_status": str(selector.get("status") or "unknown"),
             "selector_kind": str(selector_summary.get("selected_kind") or selected.get("kind") or "unknown"),
             "adoptable_candidate_count": _int(selector_summary.get("adoptable_candidate_count")),
+            "blocked_candidate_count": _int(selector_summary.get("blocked_candidate_count")),
             "real_staged_count": _int(proof.get("real_staged_count_after")),
         },
         "virtual_index": proof,
@@ -3328,7 +3432,8 @@ def _build_ai_context_relay_packet(
             "Current completion remains blocked by dirty handoff, current-head Actions proof, and user-owned Hanwoo T-251.",
         ],
         "guardrails": [
-            "Do not stage, commit, push, or revert without explicit APPROVE_AI_CONTEXT_RELAY_UPDATE authorization.",
+            "Do not stage, commit, or revert without explicit APPROVE_AI_CONTEXT_RELAY_UPDATE authorization.",
+            "Do not push without explicit push authorization or user push.",
             "Do not bundle AIC1 with product/code scopes unless explicitly authorized.",
             "Do not retry T-251 until Supabase credentials are reset.",
             "Do not call update_goal while completion audit is incomplete.",
@@ -3371,7 +3476,8 @@ def _render_ai_context_relay_packet_md(packet: dict[str, Any]) -> str:
                 "- Selector: "
                 f"`{scope_validation.get('selector_status')}` / "
                 f"`{scope_validation.get('selector_kind')}` / "
-                f"adoptable `{scope_validation.get('adoptable_candidate_count')}`"
+                f"adoptable `{scope_validation.get('adoptable_candidate_count')}` / "
+                f"blocked `{scope_validation.get('blocked_candidate_count')}`"
             ),
             "- Current coverage JSON: `.tmp/authorization-coverage-current.json`",
             (
@@ -3435,6 +3541,7 @@ def _build_session_log_rotator_packet(
             "selector_status": str(selector.get("status") or "unknown"),
             "selector_kind": str(selector_summary.get("selected_kind") or selected.get("kind") or "unknown"),
             "adoptable_candidate_count": _int(selector_summary.get("adoptable_candidate_count")),
+            "blocked_candidate_count": _int(selector_summary.get("blocked_candidate_count")),
             "real_staged_count": _int(proof.get("real_staged_count_after")),
         },
         "virtual_index": proof,
@@ -3444,7 +3551,8 @@ def _build_session_log_rotator_packet(
             "Current completion remains blocked by dirty handoff, current-head Actions proof, and user-owned Hanwoo T-251.",
         ],
         "guardrails": [
-            "Do not stage, commit, push, or revert without explicit APPROVE_SESSION_LOG_ROTATOR authorization.",
+            "Do not stage, commit, or revert without explicit APPROVE_SESSION_LOG_ROTATOR authorization.",
+            "Do not push without explicit push authorization or user push.",
             "Do not bundle this scope with AI context relay or product scopes unless explicitly authorized.",
             "Do not retry T-251 until Supabase credentials are reset.",
             "Do not call update_goal while completion audit is incomplete.",
@@ -3487,7 +3595,8 @@ def _render_session_log_rotator_packet_md(packet: dict[str, Any]) -> str:
                 "- Selector: "
                 f"`{scope_validation.get('selector_status')}` / "
                 f"`{scope_validation.get('selector_kind')}` / "
-                f"adoptable `{scope_validation.get('adoptable_candidate_count')}`"
+                f"adoptable `{scope_validation.get('adoptable_candidate_count')}` / "
+                f"blocked `{scope_validation.get('blocked_candidate_count')}`"
             ),
             "- Current coverage JSON: `.tmp/authorization-coverage-current.json`",
             (
@@ -3561,6 +3670,186 @@ def _upsert_session_log_rotator_menu_option(menu_json: Path) -> StepResult:
         expected_returncode=True,
         output=menu_json,
         first_bytes=_first_bytes(menu_json),
+    )
+
+
+def _upsert_shorts_current_source_menu_option(menu_json: Path) -> StepResult:
+    menu = _load_json_file(menu_json)
+    if not menu:
+        return StepResult(
+            name="shorts_current_source_menu_option",
+            returncode=2,
+            expected_returncode=False,
+            output=menu_json,
+            first_bytes=_first_bytes(menu_json) if menu_json.exists() else None,
+            status="failed",
+            detail="menu JSON unavailable",
+        )
+    option = {
+        "token": "APPROVE_SHORTS_MAKER_V2_CURRENT_SOURCE_DIRTY",
+        "pathspec": ".tmp/approve-shorts-maker-v2-current-source-dirty.pathspec",
+        "classification": "verified_current_dirty_product_source_packet",
+        "reason": (
+            "Covers the current Shorts Maker V2 dirty source pair from the handoff plan without authorizing staging."
+        ),
+    }
+    available = menu.get("also_available") if isinstance(menu.get("also_available"), list) else []
+    updated: list[Any] = []
+    inserted = False
+    for item in available:
+        if isinstance(item, dict) and item.get("token") == option["token"]:
+            updated.append(option)
+            inserted = True
+        else:
+            updated.append(item)
+    if not inserted:
+        updated.append(option)
+    menu["also_available"] = updated
+    write_result = _atomic_write_bytes_step(
+        menu_json,
+        _json_text(menu).encode("utf-8"),
+        name="shorts_current_source_menu_option",
+        output=menu_json,
+    )
+    if write_result:
+        return write_result
+    return StepResult(
+        name="shorts_current_source_menu_option",
+        returncode=0,
+        expected_returncode=True,
+        output=menu_json,
+        first_bytes=_first_bytes(menu_json),
+    )
+
+
+def _upsert_dirty_handoff_plan_menu_option(menu_json: Path) -> StepResult:
+    menu = _load_json_file(menu_json)
+    if not menu:
+        return StepResult(
+            name="dirty_handoff_plan_menu_option",
+            returncode=2,
+            expected_returncode=False,
+            output=menu_json,
+            first_bytes=_first_bytes(menu_json) if menu_json.exists() else None,
+            status="failed",
+            detail="menu JSON unavailable",
+        )
+    option = {
+        "token": "APPROVE_AUTO_RESEARCH_DIRTY_HANDOFF_PLAN",
+        "pathspec": ".tmp/approve-auto-research-dirty-handoff-plan.pathspec",
+        "classification": "verified_auto_research_handoff_planning_packet",
+        "reason": ("Covers the dirty handoff plan helper and focused regression test without authorizing staging."),
+    }
+    available = menu.get("also_available") if isinstance(menu.get("also_available"), list) else []
+    updated: list[Any] = []
+    inserted = False
+    for item in available:
+        if isinstance(item, dict) and item.get("token") == option["token"]:
+            updated.append(option)
+            inserted = True
+        else:
+            updated.append(item)
+    if not inserted:
+        updated.append(option)
+    menu["also_available"] = updated
+    write_result = _atomic_write_bytes_step(
+        menu_json,
+        _json_text(menu).encode("utf-8"),
+        name="dirty_handoff_plan_menu_option",
+        output=menu_json,
+    )
+    if write_result:
+        return write_result
+    return StepResult(
+        name="dirty_handoff_plan_menu_option",
+        returncode=0,
+        expected_returncode=True,
+        output=menu_json,
+        first_bytes=_first_bytes(menu_json),
+    )
+
+
+def _handoff_group_scope(dirty_handoff_plan: dict[str, Any], key: str) -> list[str]:
+    for group in dirty_handoff_plan.get("group_order") or []:
+        if not isinstance(group, dict) or str(group.get("key") or "") != key:
+            continue
+        return [str(path) for path in group.get("paths") or [] if str(path)]
+    return []
+
+
+def _dirty_handoff_plan_scope(dirty_handoff_plan: dict[str, Any]) -> list[str]:
+    auto_research_paths = set(_handoff_group_scope(dirty_handoff_plan, "auto-research"))
+    scope = [
+        ".agents/skills/auto-research/scripts/dirty_worktree_handoff_plan.py",
+        "workspace/tests/test_dirty_worktree_handoff_plan.py",
+    ]
+    return [path for path in scope if path in auto_research_paths]
+
+
+def _write_scope_pathspec(pathspec: Path, scope: list[str], *, name: str) -> StepResult | None:
+    if not scope:
+        return None
+    write_result = _atomic_write_bytes_step(
+        pathspec,
+        ("\n".join(scope) + "\n").encode("utf-8"),
+        name=name,
+        output=pathspec,
+    )
+    if write_result:
+        return write_result
+    return StepResult(
+        name=name,
+        returncode=0,
+        expected_returncode=True,
+        output=pathspec,
+        first_bytes=_first_bytes(pathspec),
+    )
+
+
+def _read_pathspec_lines(pathspec: Path) -> list[str]:
+    for encoding in ("utf-8-sig", "utf-16"):
+        try:
+            return pathspec.read_text(encoding=encoding).splitlines()
+        except (OSError, UnicodeError):
+            continue
+    return []
+
+
+def _write_current_uncovered_dirty_handoff_pathspec(
+    *,
+    root: Path,
+    dirty_handoff_plan: dict[str, Any],
+    pathspec: Path,
+) -> StepResult:
+    signature = (
+        dirty_handoff_plan.get("dirty_signature") if isinstance(dirty_handoff_plan.get("dirty_signature"), dict) else {}
+    )
+    signature_input = signature.get("input") if isinstance(signature.get("input"), dict) else {}
+    dirty_paths = {str(path).replace("\\", "/") for path in signature_input.get("dirty_paths") or [] if str(path)}
+    covered_paths: set[str] = set()
+    for candidate in sorted(pathspec.parent.glob("approve-*.pathspec")):
+        if candidate.resolve() == pathspec.resolve():
+            continue
+        for entry in _read_pathspec_lines(candidate):
+            normalized = entry.replace("\\", "/").strip()
+            if normalized and not normalized.startswith("#"):
+                covered_paths.add(normalized)
+    residual = sorted(dirty_paths - covered_paths)
+    write_result = _atomic_write_bytes_step(
+        pathspec,
+        ("\n".join(residual) + ("\n" if residual else "")).encode("utf-8"),
+        name="current_uncovered_dirty_handoff_pathspec",
+        output=pathspec,
+    )
+    if write_result:
+        return write_result
+    return StepResult(
+        name="current_uncovered_dirty_handoff_pathspec",
+        returncode=0,
+        expected_returncode=True,
+        output=pathspec,
+        first_bytes=_first_bytes(pathspec),
+        detail=f"residual={len(residual)} root={root}",
     )
 
 
@@ -3671,6 +3960,7 @@ def _write_ai_context_relay_packet(
     selector = _load_json_file(selector_json)
     recommended = menu.get("recommended") if isinstance(menu.get("recommended"), dict) else {}
     pathspec = str(recommended.get("pathspec") or ".tmp/approve-ai-context-relay-update.pathspec")
+    scope = [str(path) for path in recommended.get("files") or []]
     if not menu or not coverage or not selector:
         return StepResult(
             name="ai_context_relay_packet",
@@ -3679,6 +3969,16 @@ def _write_ai_context_relay_packet(
             status="failed",
             detail="missing required current JSON inputs",
         )
+    if scope:
+        pathspec_path = _in_root(root, Path(pathspec))
+        pathspec_result = _atomic_write_bytes_step(
+            pathspec_path,
+            ("\n".join(scope) + "\n").encode("utf-8"),
+            name="ai_context_relay_packet",
+            output=pathspec_path,
+        )
+        if pathspec_result:
+            return pathspec_result
 
     index_path = root / ".tmp" / f"git-index-aic1-current-{uuid.uuid4().hex}"
     try:
@@ -3774,6 +4074,10 @@ def refresh_current_evidence(root: Path, *, timeout: int = 120) -> dict[str, Any
     scoped_authorization_menu_check = _in_root(root, paths.scoped_authorization_menu_check)
     ai_context_relay_packet = _in_root(root, paths.ai_context_relay_packet)
     ai_context_relay_packet_md = _in_root(root, paths.ai_context_relay_packet_md)
+    ai_context_relay_pathspec = _in_root(root, paths.ai_context_relay_pathspec)
+    dirty_handoff_plan_pathspec = _in_root(root, paths.dirty_handoff_plan_pathspec)
+    shorts_current_source_pathspec = _in_root(root, paths.shorts_current_source_pathspec)
+    current_uncovered_dirty_handoff_pathspec = _in_root(root, paths.current_uncovered_dirty_handoff_pathspec)
     session_log_rotator_pathspec = _in_root(root, paths.session_log_rotator_pathspec)
     session_log_rotator_packet = _in_root(root, paths.session_log_rotator_packet)
     session_log_rotator_packet_md = _in_root(root, paths.session_log_rotator_packet_md)
@@ -3883,6 +4187,40 @@ def refresh_current_evidence(root: Path, *, timeout: int = 120) -> dict[str, Any
         return _summary(results)
 
     results.append(_replace_markdown(dirty_handoff_plan_md_refresh, dirty_handoff_plan_md))
+    if results[-1].status != "ok":
+        return _summary(results)
+
+    dirty_handoff_plan_data = _load_json_file(dirty_handoff_plan)
+    for pathspec, scope, name in (
+        (
+            ai_context_relay_pathspec,
+            _handoff_group_scope(dirty_handoff_plan_data, "ai-context"),
+            "ai_context_relay_pathspec",
+        ),
+        (
+            dirty_handoff_plan_pathspec,
+            _dirty_handoff_plan_scope(dirty_handoff_plan_data),
+            "dirty_handoff_plan_pathspec",
+        ),
+        (
+            shorts_current_source_pathspec,
+            _handoff_group_scope(dirty_handoff_plan_data, "project:shorts-maker-v2"),
+            "shorts_current_source_pathspec",
+        ),
+    ):
+        pathspec_seed = _write_scope_pathspec(pathspec, scope, name=name)
+        if pathspec_seed:
+            results.append(pathspec_seed)
+            if pathspec_seed.status != "ok":
+                return _summary(results)
+
+    results.append(
+        _write_current_uncovered_dirty_handoff_pathspec(
+            root=root,
+            dirty_handoff_plan=dirty_handoff_plan_data,
+            pathspec=current_uncovered_dirty_handoff_pathspec,
+        ),
+    )
     if results[-1].status != "ok":
         return _summary(results)
 
@@ -4130,6 +4468,14 @@ def refresh_current_evidence(root: Path, *, timeout: int = 120) -> dict[str, Any
         return _summary(results)
 
     results.append(_upsert_session_log_rotator_menu_option(scoped_authorization_menu_json))
+    if results[-1].status != "ok":
+        return _summary(results)
+
+    results.append(_upsert_dirty_handoff_plan_menu_option(scoped_authorization_menu_json))
+    if results[-1].status != "ok":
+        return _summary(results)
+
+    results.append(_upsert_shorts_current_source_menu_option(scoped_authorization_menu_json))
     if results[-1].status != "ok":
         return _summary(results)
 

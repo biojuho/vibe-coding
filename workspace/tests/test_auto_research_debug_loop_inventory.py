@@ -208,7 +208,7 @@ def test_build_inventory_uses_current_dirty_handoff_values(tmp_path: Path) -> No
     assert inventory["summary"]["completion_allowed"] is False
     assert (
         inventory["summary"]["next_required_action"]
-        == "Wait for explicit scoped staging/commit authorization, or keep handoff-only evidence current."
+        == "Wait for explicit scoped staging/commit authorization via APPROVE_AI_CONTEXT_RELAY_UPDATE, or keep handoff-only evidence current."
     )
     expected_gate = inventory["summary"]["expected_failure_gates"][0]
     assert expected_gate["expected_exit_codes"] == [1]
@@ -231,11 +231,14 @@ def test_build_inventory_uses_current_dirty_handoff_values(tmp_path: Path) -> No
     assert "- Reproduction unclear: 0" in markdown
     assert "- Completion gate: blocked" in markdown
     assert "- Completion allowed: false" in markdown
-    assert "- Next required action: Wait for explicit scoped staging/commit authorization" in markdown
+    assert (
+        "- Next required action: Wait for explicit scoped staging/commit authorization via APPROVE_AI_CONTEXT_RELAY_UPDATE"
+        in markdown
+    )
     assert "- Completion blockers:" in markdown
     assert (
         "Dirty Handoff Boundary Blocks New Product Edits: "
-        "Wait for explicit scoped staging/commit authorization, or keep handoff-only evidence current."
+        "Wait for explicit scoped staging/commit authorization via APPROVE_AI_CONTEXT_RELAY_UPDATE, or keep handoff-only evidence current."
     ) in markdown
     assert "- Expected nonzero gates:" in markdown
     assert "expects exit code(s) `1`" in markdown
@@ -443,7 +446,10 @@ def test_render_markdown_derives_summary_when_summary_is_missing(tmp_path: Path)
     assert "- Reproduction unclear: 0" in markdown
     assert "- Completion gate: blocked" in markdown
     assert "- Completion allowed: false" in markdown
-    assert "- Next required action: Wait for explicit scoped staging/commit authorization" in markdown
+    assert (
+        "- Next required action: Wait for explicit scoped staging/commit authorization via APPROVE_AI_CONTEXT_RELAY_UPDATE"
+        in markdown
+    )
     assert "- Completion blockers:" in markdown
     assert "Hanwoo T-251 Live Prisma CRUD Remains User-Owned External Blocker" in markdown
     assert "- Items: unknown" not in markdown
@@ -889,7 +895,9 @@ def test_cli_fail_on_completion_blocked_returns_one_after_writing_outputs(
     assert output_json.exists()
     assert json.loads(captured.out)["summary"]["completion_allowed"] is False
     assert "completion blocked: blocked" in captured.err
-    assert "next_required_action=Wait for explicit scoped staging/commit authorization" in captured.err
+    assert (
+        "next_required_action=Wait for explicit scoped staging/commit authorization via APPROVE_AI_CONTEXT_RELAY_UPDATE"
+    ) in captured.err
     assert "expected_failure_gates=expected_exit_codes=1" in captured.err
     assert "not a source failure" in captured.err
 
@@ -1951,7 +1959,7 @@ def test_low_level_launch_and_project_boundary_fields_preserve_contract() -> Non
             "the current inventory; starting unrelated product edits would mix scopes without explicit staging/commit "
             "authorization."
         ),
-        "next_action": "Wait for explicit scoped staging/commit authorization, or keep handoff-only evidence current.",
+        "next_action": "Wait for explicit scoped staging/commit authorization via APPROVE_AI_CONTEXT_RELAY_UPDATE, or keep handoff-only evidence current.",
         "actionable": False,
         "blockers": ["Explicit scoped staging/commit authorization is required before product changes."],
     }
