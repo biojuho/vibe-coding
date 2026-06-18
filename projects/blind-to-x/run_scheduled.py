@@ -25,6 +25,30 @@ def _command_env() -> dict[str, str]:
     return env
 
 
+def build_preflight_tasks(python_executable: str) -> list[dict[str, object]]:
+    """Ensure the Playwright Chromium browser is present before scraping.
+
+    The scrapers launch headless Chromium via Playwright. If the browser binary
+    is missing — fresh machine, a Playwright upgrade that bumps the build number,
+    or a ``.tmp``/``ms-playwright`` cleanup — every scrape dies with
+    ``BrowserUnavailableError`` and nothing reaches Notion. That failure is
+    silent when Telegram alerts are unconfigured (it went unnoticed for ~7 days
+    once). ``playwright install chromium`` is idempotent and offline-safe when
+    the matching build already exists, so running it each cycle is cheap and
+    self-heals a missing browser. Keyed on ``sys.executable`` so it installs into
+    whatever interpreter actually runs the scrape.
+    """
+    return [
+        {
+            "name": "Playwright browser preflight",
+            "cmd": [python_executable, "-m", "playwright", "install", "chromium"],
+            "cwd": PROJECT_DIR,
+            "timeout": 300,
+            "fatal": False,
+        },
+    ]
+
+
 def build_primary_tasks(python_executable: str) -> list[dict[str, object]]:
     return [
         {
@@ -125,6 +149,10 @@ def main() -> None:
         write_log("=" * 50)
 
         fail_count = 0
+
+        # Self-heal a missing Playwright browser before scraping (non-fatal).
+        for task in build_preflight_tasks(PYTHON):
+            _run_logged_task(log, write_log, task, env=env)
 
         for task in build_primary_tasks(PYTHON):
             result_code = _run_logged_task(log, write_log, task, env=env)

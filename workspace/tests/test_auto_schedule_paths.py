@@ -34,6 +34,25 @@ def test_run_scheduled_uses_canonical_workspace_modules():
     assert follow_ups[1]["cwd"] == ROOT / "workspace"
 
 
+def test_run_scheduled_installs_playwright_browser_preflight():
+    """A missing Playwright browser silently zeroes out scraping → no Notion
+    publish; the scheduler must self-heal by (idempotently) installing Chromium
+    for the same interpreter that runs the scrape, before the scrape tasks."""
+    module = load_module(
+        "test_btx_run_scheduled_preflight",
+        ROOT / "projects" / "blind-to-x" / "run_scheduled.py",
+    )
+
+    preflight = module.build_preflight_tasks("python")
+    assert len(preflight) == 1
+    task = preflight[0]
+    # Keyed on the supplied interpreter so it installs into the runtime env.
+    assert task["cmd"] == ["python", "-m", "playwright", "install", "chromium"]
+    assert task["cwd"] == ROOT / "projects" / "blind-to-x"
+    # Non-fatal: a hiccup in the heal step must not block the scrape attempt.
+    assert task["fatal"] is False
+
+
 def test_n8n_bridge_defaults_use_canonical_paths(monkeypatch):
     monkeypatch.setenv("BRIDGE_TOKEN", "test-token")
     monkeypatch.delenv("BTX_DIR", raising=False)
