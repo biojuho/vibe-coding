@@ -1168,7 +1168,7 @@ export default function DashboardClient(options = {}) {
 			preloadForTab(nextTab);
 			resetDashboardScroll();
 		},
-		[preloadForTab],
+		[preloadForTab, setActiveTab],
 	);
 
 	useEffect(() => {
@@ -1209,6 +1209,7 @@ export default function DashboardClient(options = {}) {
 		},
 		[
 			preloadForTab,
+			setActiveTab,
 			setShowAddModal,
 			setSelectedBuildingId,
 			setSelectedPenId,

@@ -125,7 +125,7 @@ test("schedule form waits for async saves before re-enabling actions", () => {
 	);
 	assert.match(
 		scheduleSource,
-		/useEffect\(\(\) => \{\s+if \(quickActionIntent\?\.actionId === ["']add-schedule["']\) \{\s+setIsAdding\(true\);\s+\}\s+\}, \[quickActionIntent\?\.actionId, quickActionIntent\?\.nonce\]\);/,
+		/useEffect\(\(\) => \{\s+if \(quickActionIntent\?\.actionId === ["']add-schedule["']\) \{\s+queueMicrotask\(\(\) => setIsAdding\(true\)\);\s+\}\s+\}, \[quickActionIntent\?\.actionId, quickActionIntent\?\.nonce\]\);/,
 	);
 	assert.match(
 		scheduleSource,

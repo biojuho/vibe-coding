@@ -89,13 +89,22 @@ export default function LoginPage() {
 	useEffect(() => {
 		isMountedRef.current = true;
 		if (typeof window !== "undefined") {
-			setLegalRedirectTarget(
-				resolveLoginLegalRedirectTarget(window.location.href),
+			const legalRedirectTarget = resolveLoginLegalRedirectTarget(
+				window.location.href,
 			);
 			const params = new URLSearchParams(window.location.search);
-			if (params.get("registered") === "1") {
-				setRegistrationSuccess(true);
-			}
+			const justRegistered = params.get("registered") === "1";
+			// Defer setState out of the effect body (react-hooks/set-state-in-effect):
+			// synchronous setState here triggers cascading renders.
+			queueMicrotask(() => {
+				if (!isMountedRef.current) {
+					return;
+				}
+				setLegalRedirectTarget(legalRedirectTarget);
+				if (justRegistered) {
+					setRegistrationSuccess(true);
+				}
+			});
 		}
 		return () => {
 			isMountedRef.current = false;

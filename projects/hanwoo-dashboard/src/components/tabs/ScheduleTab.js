@@ -152,7 +152,7 @@ export default function ScheduleTab(options = {}) {
 
 	useEffect(() => {
 		if (quickActionIntent?.actionId === "add-schedule") {
-			setIsAdding(true);
+			queueMicrotask(() => setIsAdding(true));
 		}
 	}, [quickActionIntent?.actionId, quickActionIntent?.nonce]);
 

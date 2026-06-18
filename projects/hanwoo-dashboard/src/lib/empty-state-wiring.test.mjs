@@ -603,7 +603,7 @@ test("inventory create form waits for async saves before re-enabling submit", ()
 	);
 	assert.match(
 		source,
-		/useEffect\(\(\) => \{\s+if \(quickActionIntent\?\.actionId === ["']add-inventory["']\) \{\s+setIsAdding\(true\);\s+\}\s+\}, \[quickActionIntent\?\.actionId, quickActionIntent\?\.nonce\]\);/,
+		/useEffect\(\(\) => \{\s+if \(quickActionIntent\?\.actionId === ["']add-inventory["']\) \{\s+queueMicrotask\(\(\) => setIsAdding\(true\)\);\s+\}\s+\}, \[quickActionIntent\?\.actionId, quickActionIntent\?\.nonce\]\);/,
 	);
 	assert.match(
 		source,

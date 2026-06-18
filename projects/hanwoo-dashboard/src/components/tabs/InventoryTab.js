@@ -155,7 +155,7 @@ export default function InventoryTab(options = {}) {
 
 	useEffect(() => {
 		if (quickActionIntent?.actionId === "add-inventory") {
-			setIsAdding(true);
+			queueMicrotask(() => setIsAdding(true));
 		}
 	}, [quickActionIntent?.actionId, quickActionIntent?.nonce]);
 

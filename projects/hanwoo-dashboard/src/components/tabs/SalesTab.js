@@ -223,7 +223,7 @@ export default function SalesTab(options = {}) {
 
 	useEffect(() => {
 		if (quickActionIntent?.actionId === "record-sale") {
-			setIsAdding(true);
+			queueMicrotask(() => setIsAdding(true));
 		}
 	}, [quickActionIntent?.actionId, quickActionIntent?.nonce]);
 

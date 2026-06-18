@@ -251,7 +251,7 @@ test("login page operator eyebrow uses Korean product copy", () => {
 	);
 	assert.match(
 		source,
-		/setLegalRedirectTarget\(\s*resolveLoginLegalRedirectTarget\(window\.location\.href\),\s*\);/,
+		/const legalRedirectTarget = resolveLoginLegalRedirectTarget\(\s*window\.location\.href,\s*\);[\s\S]*?queueMicrotask\(\(\) => \{[\s\S]*?setLegalRedirectTarget\(legalRedirectTarget\);/,
 	);
 	assert.match(source, /href: ["']\/terms["'][\s\S]*?label: ["']이용약관["']/);
 	assert.match(

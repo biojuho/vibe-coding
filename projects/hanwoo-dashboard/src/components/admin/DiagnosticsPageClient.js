@@ -213,9 +213,11 @@ export default function DiagnosticsPageClient() {
 		}
 
 		if (!isDatabaseAvailable) {
-			setDataLoading(false);
-			setRawData(null);
-			setRawDataErrorMessage(DATABASE_UNAVAILABLE_RAW_DATA_MESSAGE);
+			deferDiagnosticsTask(() => {
+				setDataLoading(false);
+				setRawData(null);
+				setRawDataErrorMessage(DATABASE_UNAVAILABLE_RAW_DATA_MESSAGE);
+			});
 			return;
 		}
 

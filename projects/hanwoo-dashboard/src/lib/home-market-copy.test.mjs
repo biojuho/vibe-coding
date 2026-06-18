@@ -1790,7 +1790,7 @@ test("sales quick action opens and focuses the sale form", () => {
 	assert.match(source, /const saleDateRegistration = register\("saleDate"\);/);
 	assert.match(
 		source,
-		/useEffect\(\(\) => \{\s+if \(quickActionIntent\?\.actionId === ["']record-sale["']\) \{\s+setIsAdding\(true\);/,
+		/useEffect\(\(\) => \{\s+if \(quickActionIntent\?\.actionId === ["']record-sale["']\) \{\s+queueMicrotask\(\(\) => setIsAdding\(true\)\);/,
 	);
 	assert.match(
 		source,
