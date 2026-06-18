@@ -14,8 +14,21 @@ def _make_reviewer(thresholds: dict | None = None, brand_voice: dict | None = No
     obj._editorial_thresholds = thresholds
     obj.brand_voice = brand_voice or {}
     obj._api_key = None
-    obj._model = "gemini-2.0-flash"
+    obj._model = "gemini-2.5-flash"
     return obj
+
+
+def test_review_skipped_without_providers_surfaces_warning():
+    """No-provider editorial skip must be visible (surfaced suggestion), not a silent
+    pass-through — an all-provider outage otherwise bypasses the only LLM tone review."""
+    reviewer = _make_reviewer()
+    reviewer._providers = []
+    drafts = {"twitter": "본문 초안", "_meta": "ignored"}
+
+    result = asyncio.run(reviewer.review_and_polish(drafts, {"title": "t"}))
+
+    assert result.polished_drafts == drafts
+    assert any("건너뜀" in s for s in result.suggestions)
 
 
 # ── _get_threshold ───────────────────────────────────────────────────────────
