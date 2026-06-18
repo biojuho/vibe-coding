@@ -701,9 +701,9 @@ class NotionUploadMixin:
         if not analysis:
             return []
 
-        blocks = [
-            {"object": "block", "type": "divider", "divider": {}},
-            self._create_heading_block(2, "검토 요약"),
+        # 진단·점수·검증 요약은 첫 화면을 가리지 않도록 접힘 토글 안으로 내린다
+        # (사용자 지시 2026-06-18: 상단 노출은 'X 업로드 카드'와 '원문'만).
+        summary_children: list[dict[str, Any]] = [
             self._create_callout_block(
                 "\n".join(review_brief["action_steps"]),
                 "📝" if review_brief["has_publishable_draft"] else "⚠️",
@@ -712,7 +712,7 @@ class NotionUploadMixin:
         ]
 
         if review_brief["creator_take"]:
-            blocks.append(
+            summary_children.append(
                 self._create_callout_block(
                     f"한줄 해석: {review_brief['creator_take']}",
                     "🧭",
@@ -743,8 +743,12 @@ class NotionUploadMixin:
             summary_lines.append(f"초안 생성 오류: {self._truncate_for_brief(draft_generation_error, limit=140)}")
         summary_lines.extend(self._build_summary_metric_lines(post_data, analysis))
 
-        blocks.extend(self._create_bulleted_list_blocks(summary_lines))
-        return blocks
+        summary_children.extend(self._create_bulleted_list_blocks(summary_lines))
+        return [
+            {"object": "block", "type": "divider", "divider": {}},
+            self._create_heading_block(2, "검토 요약"),
+            self._create_toggle_block("검토 요약 펼치기", summary_children),
+        ]
 
     def _build_x_upload_card_blocks(self, drafts: Any, post_data: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         parts = self._extract_x_upload_parts(drafts)
@@ -800,7 +804,7 @@ class NotionUploadMixin:
         return [
             {"object": "block", "type": "divider", "divider": {}},
             self._create_heading_block(2, "보조 채널 초안"),
-            *draft_blocks,
+            self._create_toggle_block("보조 채널 초안 펼치기", draft_blocks),
         ]
 
     def _build_diagnostic_section_blocks(
@@ -873,10 +877,11 @@ class NotionUploadMixin:
         if not raw_children:
             return []
 
+        # 사용자 지시(2026-06-18): '원문'은 첫 화면에 펼친 상태로 노출 (토글 X).
         return [
             {"object": "block", "type": "divider", "divider": {}},
             self._create_heading_block(2, "원문"),
-            self._create_toggle_block("원문 펼치기", raw_children),
+            *raw_children,
         ]
 
     def _build_nlm_article_blocks(self, nlm_article: str) -> list[dict[str, Any]]:
@@ -1069,8 +1074,12 @@ class NotionUploadMixin:
         draft_generation_error: str,
         properties: dict[str, Any],
     ) -> list[dict[str, Any]]:
+        # 레이아웃 (사용자 지시 2026-06-18): 첫 화면에는 'X 업로드 카드'와 '원문'만
+        # 펼쳐 노출하고, 검토 요약·보조 채널 초안·진단·부가 산출물은 접힘 토글로 내린다.
         children = self._build_initial_upload_children(image_url)
         self._append_regulation_status_property(properties, post_data)
+        children.extend(self._build_x_upload_card_blocks(drafts, post_data))
+        children.extend(self._build_raw_source_section_blocks(post_data, screenshot_url))
         children.extend(
             self._build_summary_section_blocks(
                 post_data,
@@ -1080,10 +1089,8 @@ class NotionUploadMixin:
                 drafts,
             )
         )
-        children.extend(self._build_x_upload_card_blocks(drafts, post_data))
         children.extend(self._build_draft_section_blocks(drafts))
         children.extend(self._build_diagnostic_section_blocks(post_data, review_brief, analysis))
-        children.extend(self._build_raw_source_section_blocks(post_data, screenshot_url))
         children.extend(self._build_asset_section_blocks(post_data, properties))
         return children
 

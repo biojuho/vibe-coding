@@ -159,7 +159,10 @@ def _apply_source_quality_boost(rank_6d: float, source: str) -> float:
     if not source:
         return rank_6d
     source_hint = get_source_hint(source)
-    quality_boost = float(source_hint.get("quality_boost", 1.0))
+    # dict.get only uses the default when the key is ABSENT; a present null value
+    # returns None, making float(None) raise TypeError.
+    raw_qb = source_hint.get("quality_boost")
+    quality_boost = float(raw_qb) if raw_qb is not None else 1.0
     return _round_score(rank_6d * quality_boost)
 
 
@@ -267,9 +270,13 @@ def _pearson(x: list[float], y: list[float]) -> float:
     n = len(x)
     if n == 0:
         return 0.0
+    # Length mismatch can occur when _dimension_proxies skips a row (pass on IndexError)
+    # but _engagement_values appends 0.0.  strict=True would raise ValueError; return 0.0.
+    if len(x) != len(y):
+        return 0.0
     mx = sum(x) / n
     my = sum(y) / n
-    cov = sum((xi - mx) * (yi - my) for xi, yi in zip(x, y, strict=True))
+    cov = sum((xi - mx) * (yi - my) for xi, yi in zip(x, y))
     sx = math.sqrt(sum((xi - mx) ** 2 for xi in x)) or 1e-10
     sy = math.sqrt(sum((yi - my) ** 2 for yi in y)) or 1e-10
     return cov / (sx * sy)

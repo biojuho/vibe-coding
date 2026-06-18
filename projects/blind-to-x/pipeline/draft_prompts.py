@@ -544,7 +544,7 @@ class DraftPromptsMixin:
 
         lines = [
             "[성과 우수 레퍼런스]",
-            "아래는 높은 성과를 기록한 예시입니다. 말투, 훅, 마무리 질문 방식을 참고하세요.",
+            "아래는 높은 성과를 기록한 예시입니다. 말투, 훅, 느낌점 마무리 방식을 참고하세요 (질문·CTA로 끝내는 옛 예시는 따라하지 말 것).",
         ]
         for index, example in enumerate(merged, start=1):
             lines.extend(DraftPromptsMixin._format_example_reference_lines(index, example))
@@ -988,11 +988,11 @@ class DraftPromptsMixin:
             f"공감 앵커: {values['empathy_anchor']}",
             f"파생각: {values['spinoff_angle']}",
             "",
-            "[반드시 지킬 것]",
-            "1. 첫 문장은 장면, 대사, 숫자 중 하나로 시작할 것 (자극적 형용사 금지)",
-            "2. 본문 안에 같이 웃거나 같이 한숨 쉬게 하는 포인트를 분명히 넣을 것",
-            "3. 원문이 흥미로운 이유와 더 확장되는 이유를 분리해서 반영할 것",
-            '4. 마지막은 여운이 남는 한 줄로 조용히 끝맺을 것. 질문·CTA·"여러분 ~?"·"댓글로 ~"·"저장해두세요" 모두 금지',
+            "[반드시 지킬 것 — 쥬팍식 4단]",
+            "1. 4단 블록(훅 / 팩트 본문 / 요약 한 줄 / 느낌점)을 순서대로 빈 줄로 구분해 쓸 것",
+            "2. 훅·팩트 본문에 원문의 핵심 숫자·고유명사를 그대로 살릴 것 (추상화·일반화·반올림 금지)",
+            '3. 느낌점은 1인칭 직설 구어체, 마지막 줄은 펀치라인으로 끝낼 것. 질문·CTA·"여러분 ~?"·"댓글로 ~"·"저장해두세요" 모두 금지',
+            "4. 반말로 쓰고 '~다' 문어체 종결을 쓰지 말 것 (~음/~네/~지/~함). \"이건 ~가 아니라 ~입니다\" 식 동어반복 금지",
             '5. 인플루언서 어휘("시그널", "민낯", "끝판왕", "지뢰", "쓴맛", "기절할 뻔") 사용 금지',
             "6. 이모지는 기본 없음 — 정말 의미 있을 때만 1개 이하",
         ]
@@ -1047,15 +1047,15 @@ class DraftPromptsMixin:
 [오토리서치 컨텍스트 - 반드시 반영]
 - 원문 프레임: {values["source_frame"]}
 - 진짜 쟁점: {values["real_issue"]}
-- 보편 가치: {values["universal_value"]}
+- 핵심 사실: {values["universal_value"]}
 - 반드시 포함할 킬러 문장: {values["killer_sentence"]}
 - 결말 방식: {values["closure"]}
 - 근거 앵커: {values["anchor"]}{risk_note}
-작성 조건:
-1. X 본문에는 위 킬러 문장을 그대로 1회 포함하세요.
-2. 본문 중간에 "이건 ~가 아니라 ~입니다" 가치 선언을 반드시 넣으세요.
-3. 개인 사례를 보편 원칙으로 환원하세요.
-4. 결말 방식이 closed이면 단정형으로 닫고, open이면 정답이 하나가 아니라는 여지를 남기세요.
+작성 조건 (쥬팍식 4단):
+1. 위 킬러 문장의 핵심 사실(숫자·고유명사)을 팩트 본문 블록에 그대로 1회 살리세요.
+2. "이건 ~가 아니라 ~입니다" 식 가치 선언이나 같은 추상어("문제/기준/본질")를 반복하는 동어반복은 쓰지 마세요.
+3. 개인 사례를 보편 원칙으로 일반화하지 말고, 구체적 숫자·장면으로 남기세요.
+4. 느낌점은 1인칭 직설 구어체로, 마지막 줄은 펀치라인으로 끝내세요 (질문·CTA 금지).
 """
 
     @staticmethod
@@ -1231,22 +1231,22 @@ class DraftPromptsMixin:
     def _twitter_fallback_instruction_lines(values: dict[str, Any]) -> list[str]:
         """Return writing-instruction lines for the default X/Twitter fallback prompt."""
         return [
-            "[작성 지침]",
-            '1. 말투: 들려주듯 담담하게. AI 말투도, 인플루언서 톤("시그널/민낯/끝판왕/지뢰/쓴맛/기절할 뻔")도 모두 금지.',
-            "2. 훅(Hook): 첫 문장은 장면·짧은 인용·구체적 숫자 중 하나로 시작하세요. 자극적 형용사는 피하세요.",
-            f"3. 생략과 강조: 원문의 모든 내용을 담지 마세요. 가장 인상적인 지점 {values['empathy_anchor']} 하나에만 집중하세요.",
-            '4. 마무리: 여운이 남는 한 줄로 조용히 끝내세요. 질문·CTA·"여러분 ~?"·"댓글로 ~" 모두 금지.',
-            f"5. 형식: {values['max_length']}자 이내 (가능하면 200자 안으로). 출처 '{values['source']}' 표기는 선택 — 도입 강박 금지.",
+            "[작성 지침 — 쥬팍식 4단 구조]",
+            "1. 4개 블록을 순서대로 빈 줄로 구분: 훅(hot) / 팩트 본문(cold) / 요약 한 줄(cold) / 느낌점(hot). 블록 라벨은 쓰지 말 것.",
+            "2. 훅: 한 줄, 원문의 핵심 숫자·고유명사로 놀라움/반전. 팩트 본문: 결론 먼저, 한 줄에 정보 하나, 숫자·고유명사로(감정 배제).",
+            f"3. 원문 보존: 핵심 숫자·고유명사({values['empathy_anchor']})를 그대로 살리세요. 추상화·일반화·반올림 금지.",
+            '4. 느낌점: 3문장 이내 1인칭 직설 구어체, 마지막 줄은 펀치라인. 반말, \'~다\' 종결 금지. 질문·CTA·"여러분 ~?"·"댓글로 ~" 금지.',
+            f"5. 형식: X 가중 {values['max_length']}자 이내. 링크·해시태그는 본문에 넣지 말 것. 출처 '{values['source']}' 표기는 선택.",
         ]
 
     @staticmethod
     def _format_twitter_fallback_block(values: dict[str, Any]) -> str:
         """Format the default X/Twitter fallback prompt block."""
         instruction_block = "\n".join(DraftPromptsMixin._twitter_fallback_instruction_lines(values))
-        return f"""\n[트위터(X) 초안 — 들려주듯 조용히]
+        return f"""\n[트위터(X) 본문 — 쥬팍식 4단 구조]
 
-당신은 옆에 앉은 사람에게 담담히 이야기를 풀어주는 직장인 콘텐츠 큐레이터입니다.
-인플루언서 톤·자극적 명사화·과장은 모두 실패입니다.
+훅으로 멈추게 하고, 팩트는 차갑게(숫자·고유명사), 느낌점은 1인칭 직설 펀치라인으로.
+인플루언서 톤·자극적 명사화·과장·추상어 동어반복은 모두 실패입니다.
 
 {values["analysis_block"]}
 
@@ -1293,16 +1293,16 @@ class DraftPromptsMixin:
         )
 
     def _build_twitter_block_from_request(self, request: _OutputBlockRequest) -> str:
-        """Build the X/Twitter output instruction block from an output request."""
+        """Build the X/Twitter output instruction block from an output request.
+
+        X 본문은 쥬팍식 4단 단일 280자 포맷 하나만 생성한다. 스레드(thread)·단문
+        (short) 포맷은 폐기되었으므로 ``draft_format`` 과 무관하게 항상
+        standard(쥬팍 4단) 템플릿을 사용한다.
+        """
         if "twitter" not in request.output_formats:
             return ""
 
         twitter_templates = request.templates.get("twitter", {})
-        if request.draft_format == "thread" and "thread" in twitter_templates:
-            return twitter_templates["thread"].format(
-                source=request.source,
-                recommended_draft_type=request.recommended_draft_type,
-            )
         if "standard" in twitter_templates:
             return twitter_templates["standard"].format(
                 max_length=self.max_length,
@@ -2475,7 +2475,7 @@ class DraftPromptsMixin:
         "최소 길이": "글이 너무 짧습니다. 원문의 구체적인 사례, 숫자, 인용구를 추가하여 더 풍성하게 작성하세요.",
         "최대 글자 수": "글이 너무 깁니다. 불필요한 수식어와 반복을 제거하고 핵심만 남기세요.",
         "최대 길이": "글이 너무 깁니다. 불필요한 수식어와 반복을 제거하고 핵심만 남기세요.",
-        "CTA": "CTA 문장(질문/유도)을 제거하고 여운이 남는 한 줄로 대체하세요. 독자가 스스로 생각하게 두세요.",
+        "CTA": "CTA 문장(질문/유도)을 제거하고, 느낌점 마지막 줄을 1인칭 직설 펀치라인으로 끝내세요. 질문으로 끝내지 마세요.",
         "해시태그": "해시태그 수를 플랫폼 기준에 맞추세요. 핵심 키워드 중심으로 정리하세요.",
         "클리셰": "상투적 표현을 원문의 구체적인 디테일(숫자, 인용, 에피소드)로 대체하세요.",
         "한글 비율": "영어/특수문자 비율이 너무 높습니다. 한국어 문장을 자연스럽게 늘리세요.",

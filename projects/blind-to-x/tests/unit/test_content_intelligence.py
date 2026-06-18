@@ -475,6 +475,37 @@ class TestGetSourceHint:
         assert result["quality_boost"] == 1.0
 
 
+class TestApplySourceQualityBoost:
+    """CI-QB001: quality_boost: null → float(None) 크래시 방어."""
+
+    def test_null_quality_boost_does_not_crash(self):
+        """CI-QB001: source_hint에 quality_boost: null 있을 때 TypeError 없이 1.0 폴백."""
+        from unittest.mock import patch
+
+        from pipeline.content_intelligence.scoring_6d import _apply_source_quality_boost
+
+        with patch(
+            "pipeline.content_intelligence.scoring_6d.get_source_hint",
+            return_value={"quality_boost": None, "display_name": "테스트"},
+        ):
+            result = _apply_source_quality_boost(0.75, "test_source")
+        # None quality_boost → fallback 1.0 → score unchanged
+        assert result == 0.75
+
+    def test_normal_quality_boost_applied(self):
+        """CI-QB002: quality_boost 정상값은 곱셈 적용."""
+        from unittest.mock import patch
+
+        from pipeline.content_intelligence.scoring_6d import _apply_source_quality_boost
+
+        with patch(
+            "pipeline.content_intelligence.scoring_6d.get_source_hint",
+            return_value={"quality_boost": 1.2},
+        ):
+            result = _apply_source_quality_boost(0.5, "blind")
+        assert abs(result - 0.6) < 0.01
+
+
 # ── T-QC: scoring_6d 신규 감정축 + 데드 topic label 회귀 테스트 ─────────────
 
 

@@ -471,11 +471,14 @@ class TestResearchContextBlock:
         assert "[오토리서치 컨텍스트 - 반드시 반영]" in block
         assert "- 원문 프레임: source frame" in block
         assert "- 진짜 쟁점: real issue" in block
-        assert "- 보편 가치: universal value" in block
+        assert "- 핵심 사실: universal value" in block
         assert "- 반드시 포함할 킬러 문장: killer sentence" in block
         assert "- 결말 방식: closed" in block
         assert "- 근거 앵커: anchor text" in block
         assert "갈등 위험 높음" in block
+        # 쥬팍식: 가치 선언/동어반복은 강제가 아니라 금지로 전환됨
+        assert '"이건 ~가 아니라 ~입니다" 식 가치 선언' in block
+        assert "느낌점은 1인칭 직설 구어체로, 마지막 줄은 펀치라인으로 끝내세요" in block
 
     def test_research_conflict_risk_note_handles_high_invalid_and_boundary_values(self):
         assert DraftPromptsMixin._research_conflict_risk_note({"conflict_risk": 0.91}).startswith("\n-")
@@ -533,11 +536,11 @@ class TestResearchContextBlock:
 
         assert "- 원문 프레임: source" in block
         assert "- 진짜 쟁점: issue" in block
-        assert "- 보편 가치: value" in block
+        assert "- 핵심 사실: value" in block
         assert "- 반드시 포함할 킬러 문장: killer" in block
         assert "- 결말 방식: closed" in block
         assert "- 근거 앵커: anchor\n- risk note" in block
-        assert "결말 방식이 closed이면 단정형으로 닫고" in block
+        assert "느낌점은 1인칭 직설 구어체로, 마지막 줄은 펀치라인으로 끝내세요" in block
 
     def test_research_context_block_uses_defaults_and_ignores_bad_risk(self):
         block = DraftPromptsMixin._build_research_context_block({"research_context": {"conflict_risk": "bad"}})
@@ -2030,11 +2033,12 @@ class TestTwitterBlock:
 
         assert obj._build_twitter_block({}, ["threads"], "standard", "blind", "공감형", {}) == ""
 
-    def test_twitter_block_prefers_thread_template_for_thread_format(self):
+    def test_twitter_block_ignores_thread_format_and_uses_standard(self):
+        """스레드 포맷 폐기(2026-06-18): draft_format='thread' 여도 standard(쥬팍 4단)를 쓴다."""
         obj = self._make_instance()
 
         block = obj._build_twitter_block(
-            {"twitter": {"thread": "thread {source} {recommended_draft_type}"}},
+            {"twitter": {"standard": "standard {max_length} {source} {recommended_draft_type}"}},
             ["twitter"],
             "thread",
             "blind",
@@ -2042,7 +2046,7 @@ class TestTwitterBlock:
             {},
         )
 
-        assert block == "thread blind thread type"
+        assert block == "standard 280 blind thread type"
 
     def test_twitter_block_uses_standard_template_with_limits(self):
         obj = self._make_instance()
@@ -2204,7 +2208,7 @@ class TestTwitterBlock:
             {"empathy_anchor": "anchor point", "max_length": 280, "source": "blind"}
         )
 
-        assert lines[0] == "[작성 지침]"
+        assert lines[0] == "[작성 지침 — 쥬팍식 4단 구조]"
         assert "anchor point" in lines[3]
         assert "280자 이내" in lines[5]
         assert "출처 'blind' 표기는 선택" in lines[5]
@@ -2220,10 +2224,10 @@ class TestTwitterBlock:
             }
         )
 
-        assert block.startswith("\n[트위터(X) 초안 — 들려주듯 조용히]")
-        assert "\nanalysis\n\n[작성 지침]" in block
-        assert "가장 인상적인 지점 anchor point 하나에만 집중하세요." in block
-        assert "형식: 280자 이내" in block
+        assert block.startswith("\n[트위터(X) 본문 — 쥬팍식 4단 구조]")
+        assert "\nanalysis\n\n[작성 지침 — 쥬팍식 4단 구조]" in block
+        assert "핵심 숫자·고유명사(anchor point)를 그대로 살리세요" in block
+        assert "형식: X 가중 280자 이내" in block
         assert "출처 'blind' 표기는 선택" in block
         assert block.endswith("\nmisc\n")
 
@@ -2244,11 +2248,11 @@ class TestTwitterBlock:
             },
         )
 
-        assert "[트위터(X) 초안 — 들려주듯 조용히]" in block
+        assert "[트위터(X) 본문 — 쥬팍식 4단 구조]" in block
         assert "- 타겟 니즈: reader need" in block
         assert "- 감정선: quiet emotion" in block
-        assert "가장 인상적인 지점 anchor point 하나에만 집중하세요." in block
-        assert "형식: 280자 이내" in block
+        assert "핵심 숫자·고유명사(anchor point)를 그대로 살리세요" in block
+        assert "형식: X 가중 280자 이내" in block
         assert "추천 톤: '공감형'" in block
         assert "반드시 <twitter> 와 </twitter> 태그 안에만 작성." in block
 
@@ -2269,8 +2273,8 @@ class TestTwitterBlock:
         assert "- 타겟 니즈: reader need" in block
         assert "- 감정선: quiet emotion" in block
         assert "- 확장 가능성(Spinoff): follow-up angle" in block
-        assert "가장 인상적인 지점 anchor point 하나에만 집중하세요." in block
-        assert "형식: 280자 이내" in block
+        assert "핵심 숫자·고유명사(anchor point)를 그대로 살리세요" in block
+        assert "형식: X 가중 280자 이내" in block
         assert "출처 'blind' 표기는 선택" in block
 
 
@@ -3622,9 +3626,9 @@ class TestBuildPromptResearchContext:
         )
 
         assert "[오토리서치 컨텍스트 - 반드시 반영]" in prompt.anthropic_user_prompt
-        assert "보편 가치: 경계 존중" in prompt.anthropic_user_prompt
+        assert "핵심 사실: 경계 존중" in prompt.anthropic_user_prompt
         assert "갈등 위험 높음" in prompt.anthropic_user_prompt
-        assert "위 킬러 문장을 그대로 1회 포함" in prompt.anthropic_user_prompt
+        assert "위 킬러 문장의 핵심 사실" in prompt.anthropic_user_prompt
 
 
 # ── _select_examples_deterministically ───────────────────────────────────────
@@ -3951,7 +3955,7 @@ class TestBuildRetryPrompt:
     def test_fix_instruction_for_issue_matches_known_issue_keywords(self):
         obj = self._make_instance()
 
-        assert "여운이 남는 한 줄" in obj._fix_instruction_for_issue("CTA 위반")
+        assert "펀치라인" in obj._fix_instruction_for_issue("CTA 위반")
         assert "글이 너무 짧습니다" in obj._fix_instruction_for_issue("최소 글자 수 미달")
 
     def test_fix_instruction_for_issue_returns_empty_for_unknown_issue(self):
@@ -3965,7 +3969,7 @@ class TestBuildRetryPrompt:
         lines = obj._retry_feedback_issue_lines("CTA 위반")
 
         assert lines[0] == "  - CTA 위반"
-        assert any("수정 방법" in line and "여운이 남는 한 줄" in line for line in lines)
+        assert any("수정 방법" in line and "펀치라인" in line for line in lines)
         assert obj._retry_feedback_issue_lines("unknown issue") == ["  - unknown issue"]
 
     def test_retry_feedback_group_lines_include_platform_score_and_issues(self):
@@ -3977,7 +3981,7 @@ class TestBuildRetryPrompt:
 
         assert lines[0] == "\n❌ twitter (점수: 40/100):"
         assert "  - CTA 위반" in lines
-        assert any("수정 방법" in line and "여운이 남는 한 줄" in line for line in lines)
+        assert any("수정 방법" in line and "펀치라인" in line for line in lines)
         assert "  - unknown issue" in lines
 
     def test_retry_feedback_lines_include_platform_score_issues_and_known_fix(self):
@@ -3991,7 +3995,7 @@ class TestBuildRetryPrompt:
         assert "[이전 초안 품질 게이트 실패" in lines[2]
         assert "\n❌ twitter (점수: 40/100):" in lines
         assert "  - CTA 위반" in lines
-        assert any("수정 방법" in line and "여운이 남는 한 줄" in line for line in lines)
+        assert any("수정 방법" in line and "펀치라인" in line for line in lines)
         assert "  - unknown issue" in lines
 
     def test_retry_rewrite_instruction_lines_include_fixed_contract(self):

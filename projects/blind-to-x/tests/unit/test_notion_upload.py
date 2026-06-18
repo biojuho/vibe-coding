@@ -707,10 +707,12 @@ def test_build_review_brief_summarizes_best_of_n_selection_quality(mock_config):
     assert f"수정 플랜: {expected_edit_plan}" in memo
 
     blocks = uploader._build_summary_section_blocks({}, review_brief, analysis, "", drafts)
+    # 검토 요약 본문은 접힘 토글 안으로 이동 (2026-06-18 레이아웃 변경)
+    toggle = next(b for b in blocks if b.get("type") == "toggle")
     bullets = [
-        block["bulleted_list_item"]["rich_text"][0]["text"]["content"]
-        for block in blocks
-        if block.get("type") == "bulleted_list_item"
+        child["bulleted_list_item"]["rich_text"][0]["text"]["content"]
+        for child in toggle["toggle"]["children"]
+        if child.get("type") == "bulleted_list_item"
     ]
     assert f"선택 품질: {expected_summary}" in bullets
     assert f"수정 플랜: {expected_edit_plan}" in bullets
@@ -772,10 +774,12 @@ def test_build_review_brief_surfaces_provider_failure_triage(mock_config):
     assert expected_action in memo
 
     blocks = uploader._build_summary_section_blocks(post_data, review_brief, analysis, "", drafts)
+    # 검토 요약 본문은 접힘 토글 안으로 이동 (2026-06-18 레이아웃 변경)
+    toggle = next(b for b in blocks if b.get("type") == "toggle")
     bullets = [
-        block["bulleted_list_item"]["rich_text"][0]["text"]["content"]
-        for block in blocks
-        if block.get("type") == "bulleted_list_item"
+        child["bulleted_list_item"]["rich_text"][0]["text"]["content"]
+        for child in toggle["toggle"]["children"]
+        if child.get("type") == "bulleted_list_item"
     ]
     assert "Provider failure triage" in bullets
     assert expected_primary in bullets
@@ -908,10 +912,12 @@ def test_build_review_brief_skips_selection_quality_when_metadata_absent(mock_co
     assert "수정 플랜: 검수 후 게시: 첫 문장 훅, 근거 보존, 톤 자연스러움만 확인한 뒤 복사합니다." in memo
 
     blocks = uploader._build_summary_section_blocks({}, review_brief, analysis, "", drafts)
+    # 검토 요약 본문은 접힘 토글 안으로 이동 (2026-06-18 레이아웃 변경)
+    toggle = next(b for b in blocks if b.get("type") == "toggle")
     bullets = [
-        block["bulleted_list_item"]["rich_text"][0]["text"]["content"]
-        for block in blocks
-        if block.get("type") == "bulleted_list_item"
+        child["bulleted_list_item"]["rich_text"][0]["text"]["content"]
+        for child in toggle["toggle"]["children"]
+        if child.get("type") == "bulleted_list_item"
     ]
     assert not any(text.startswith("선택 품질:") for text in bullets)
     assert any(text.startswith("수정 플랜: 검수 후 게시") for text in bullets)
@@ -1072,9 +1078,15 @@ async def test_upload_surfaces_missing_draft_next_steps(mock_ensure_schema, mock
     assert "직접 쓰고 싶은 글감인지" in props["검토 포인트"]["rich_text"][0]["text"]["content"]
 
     children = uploader.client.pages.create.call_args.kwargs["children"]
-    callout_texts = [
-        block["callout"]["rich_text"][0]["text"]["content"] for block in children if block.get("type") == "callout"
-    ]
+    # 검토 요약 callout은 접힘 토글 안으로 이동했으므로 토글 children도 함께 훑는다.
+    callout_texts = []
+    for block in children:
+        if block.get("type") == "callout":
+            callout_texts.append(block["callout"]["rich_text"][0]["text"]["content"])
+        elif block.get("type") == "toggle":
+            for child in block["toggle"]["children"]:
+                if child.get("type") == "callout":
+                    callout_texts.append(child["callout"]["rich_text"][0]["text"]["content"])
     assert any("지금 할 일" in text and "규제 위반이 아니라" in text for text in callout_texts)
 
 
@@ -1186,56 +1198,75 @@ async def test_upload_groups_diagnostics_and_raw_content_into_toggles(mock_ensur
     assert result == ("https://notion.so/layout", "page_layout")
 
     children = uploader.client.pages.create.call_args.kwargs["children"]
-    heading_titles = [
-        block[block["type"]]["rich_text"][0]["text"]["content"]
-        for block in children
-        if block.get("type") in {"heading_2", "heading_3"}
-    ]
-    assert "검토 요약" in heading_titles
-    assert "X 업로드 카드" in heading_titles
-    assert "X 본문" in heading_titles
-    assert "진단 상세" in heading_titles
-    assert "원문" in heading_titles
 
-    top_level_bullets = [
-        block["bulleted_list_item"]["rich_text"][0]["text"]["content"]
-        for block in children
-        if block.get("type") == "bulleted_list_item"
-    ]
-    assert "권장 채널: X" in top_level_bullets
-    assert "X 가중 글자 수: 39/280자 (OK)" in top_level_bullets
-    assert any("업로드 순서: X 본문 복사" in text for text in top_level_bullets)
-    assert "결정: PUBLISH - all gates passed" in top_level_bullets
-    assert any("X Post URL" in text for text in top_level_bullets)
-    assert "에디토리얼 평균 점수: 8.62" in top_level_bullets
-    assert "품질 재시도: 1회" in top_level_bullets
+    def _heading_titles(blocks):
+        return [
+            block[block["type"]]["rich_text"][0]["text"]["content"]
+            for block in blocks
+            if block.get("type") in {"heading_1", "heading_2", "heading_3"}
+        ]
 
+    def _bullets(blocks):
+        return [
+            block["bulleted_list_item"]["rich_text"][0]["text"]["content"]
+            for block in blocks
+            if block.get("type") == "bulleted_list_item"
+        ]
+
+    top_headings = _heading_titles(children)
     toggles = {
         block["toggle"]["rich_text"][0]["text"]["content"]: block["toggle"]["children"]
         for block in children
         if block.get("type") == "toggle"
     }
-    assert "진단 펼치기" in toggles
-    assert "원문 펼치기" in toggles
 
-    diagnostic_children = toggles["진단 펼치기"]
-    diagnostic_headings = [
-        block[block["type"]]["rich_text"][0]["text"]["content"]
-        for block in diagnostic_children
-        if block.get("type") in {"heading_1", "heading_2", "heading_3"}
-    ]
+    # 2026-06-18 레이아웃: 첫 화면에는 'X 업로드 카드'와 '원문'만 펼침(토글 아님).
+    assert "X 업로드 카드" in top_headings
+    assert "X 본문" in top_headings
+    assert "원문" in top_headings
+    # 원문 본문은 토글이 아니라 최상위에 펼쳐져 있어야 한다.
+    assert "원문 스크린샷" in top_headings
+    assert "원문 내용" in top_headings
+    assert "원문 펼치기" not in toggles
+
+    # 진단·점수·검증·검토 요약은 접힘 토글 안으로 내려간다.
+    assert "검토 요약" in top_headings  # 토글을 여는 heading 자체는 노출
+    assert "검토 요약 펼치기" in toggles
+    assert "진단 상세" in top_headings
+    assert "진단 펼치기" in toggles
+
+    # 순서: X 업로드 카드/원문이 검토 요약 토글보다 먼저 나온다.
+    def _first_index(pred):
+        return next(i for i, block in enumerate(children) if pred(block))
+
+    def _is_h2(block, title):
+        return block.get("type") == "heading_2" and block["heading_2"]["rich_text"][0]["text"]["content"] == title
+
+    x_card_idx = _first_index(lambda b: _is_h2(b, "X 업로드 카드"))
+    source_idx = _first_index(lambda b: _is_h2(b, "원문"))
+    summary_toggle_idx = _first_index(
+        lambda b: b.get("type") == "toggle" and b["toggle"]["rich_text"][0]["text"]["content"] == "검토 요약 펼치기"
+    )
+    assert x_card_idx < summary_toggle_idx
+    assert source_idx < summary_toggle_idx
+
+    # X 게시 운영 정보(게시 결정·업로드 순서)는 최상위(X 카드)에 노출된다.
+    top_bullets = _bullets(children)
+    assert "X 가중 글자 수: 39/280자 (OK)" in top_bullets
+    assert any("업로드 순서: X 본문 복사" in text for text in top_bullets)
+    assert any("X Post URL" in text for text in top_bullets)
+    assert "결정: PUBLISH - all gates passed" in top_bullets
+
+    # 점수·검토 요약 정보는 '검토 요약' 토글 안으로 들어간다.
+    summary_bullets = _bullets(toggles["검토 요약 펼치기"])
+    assert "권장 채널: X" in summary_bullets
+    assert "에디토리얼 평균 점수: 8.62" in summary_bullets
+    assert "품질 재시도: 1회" in summary_bullets
+
+    diagnostic_headings = _heading_titles(toggles["진단 펼치기"])
     assert "콘텐츠 인텔리전스" in diagnostic_headings
     assert "품질 검증 리포트" in diagnostic_headings
     assert "규제 검증 리포트" in diagnostic_headings
-
-    raw_children = toggles["원문 펼치기"]
-    raw_headings = [
-        block[block["type"]]["rich_text"][0]["text"]["content"]
-        for block in raw_children
-        if block.get("type") in {"heading_1", "heading_2", "heading_3"}
-    ]
-    assert "원문 스크린샷" in raw_headings
-    assert "원문 내용" in raw_headings
 
 
 def test_x_upload_check_lines_use_weighted_count_for_korean_body(mock_config):

@@ -502,8 +502,8 @@ def test_prompt_includes_editorial_brief():
     assert "직장인 박탈감과 비교 심리를 바로 건드리는 연봉 글" in prompt
     assert "씁쓸하지만 공감" in prompt
     assert "이직 전후 체감, 댓글 반응" in prompt
-    # 새 톤(shorts 철학): selection_brief가 CTA 금지를 명시해야 함
-    assert "여운이 남는 한 줄" in prompt
+    # 쥬팍식(2026-06-18): selection_brief가 4단·CTA 금지·펀치라인을 명시해야 함
+    assert "펀치라인" in prompt
     assert "인플루언서 어휘" in prompt
     assert "아래 게시글을 기반으로 발행 가능한 초안을 작성하세요." in prompt.anthropic_system_prompt
     assert "[게시글 정보]" in prompt.anthropic_user_prompt
@@ -536,7 +536,8 @@ def test_prompt_includes_research_context_in_user_prompt_only():
 
     assert "[오토리서치 컨텍스트 - 반드시 반영]" in prompt.anthropic_user_prompt
     assert killer_sentence in prompt.anthropic_user_prompt
-    assert "가치 선언" in prompt.anthropic_user_prompt
+    # 쥬팍식: 가치 선언/동어반복은 강제가 아니라 금지로 명시됨
+    assert '"이건 ~가 아니라 ~입니다" 식 가치 선언' in prompt.anthropic_user_prompt
     assert killer_sentence not in prompt.anthropic_system_prompt
 
 
