@@ -28,6 +28,7 @@ whisper = [
 ]
 dev = [
   "pytest>=8.0.0",
+  "pytest-asyncio>=0.24.0",
   "pytest-cov>=6.0.0",
   "ruff>=0.11.0",
   "pre-commit>=4.0.0",
@@ -94,3 +95,28 @@ exclude_lines = [
   "if __name__",
   "pragma: no cover",
 ]
+
+# ── deptry: dependency hygiene (declared-vs-imported) ──────────────────────────
+# Run via: python execution/dependency_hygiene_audit.py --project shorts-maker-v2
+[tool.deptry]
+# Local helper module imported by the render pipeline (not a PyPI package).
+known_first_party = ["_rendering_helpers"]
+# The `dev` optional-dependencies group is tooling-only.
+pep621_dev_dependency_groups = ["dev"]
+# Archived v1 tests and the legacy ShortsFactory tree are not scanned.
+extend_exclude = ["archive", "ShortsFactory"]
+
+# google-genai is imported as `from google import genai` (module `google`).
+[tool.deptry.package_module_name_map]
+"google-genai" = ["google"]
+
+[tool.deptry.per_rule_ignores]
+# DEP001: optional voice/ML backends behind try/except (CosyVoice2,
+# Chatterbox, MeloTTS, OpenVoice, WhisperX, Torch) — opt-in, not hard deps.
+DEP001 = ["chatterbox", "cosyvoice", "melo", "openvoice", "torch", "torchaudio", "whisperx"]
+# DEP003: transitive imports accepted (provided via moviepy/openai/google).
+DEP003 = ["defusedxml", "httpx", "numpy", "pydantic", "tqdm"]
+# DEP004: pydub is an OPTIONAL audio-postprocess backend, imported only under
+# try/except in render/providers (graceful degradation), so keeping it in the
+# dev group is intentional rather than a production-required dependency.
+DEP004 = ["pydub"]

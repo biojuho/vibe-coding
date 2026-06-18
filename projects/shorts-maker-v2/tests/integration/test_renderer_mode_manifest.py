@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import yaml
@@ -8,6 +10,23 @@ import yaml
 from shorts_maker_v2.config import load_config
 from shorts_maker_v2.models import SceneAsset, ScenePlan
 from shorts_maker_v2.pipeline.orchestrator import PipelineOrchestrator
+
+
+@contextmanager
+def _passing_media_gates():
+    """Mock gate3/gate4 to pass.
+
+    The stub media here (tiny fake audio/image, 5s) cannot satisfy the real
+    media/duration gates, so these renderer-mode tests — whose intent is to
+    assert renderer bookkeeping on a *successful* run — must pass the gates.
+    The gate3-fail → degraded path is covered by ORC-G3-001 in the unit suite.
+    """
+    gate_pass = SimpleNamespace(verdict="pass", checks={"ok": True}, issues=[])
+    with (
+        patch("shorts_maker_v2.pipeline.orchestrator.QCStep.gate3_media", return_value=gate_pass),
+        patch("shorts_maker_v2.pipeline.orchestrator.QCStep.gate4_final", return_value=gate_pass),
+    ):
+        yield
 
 
 class StubScriptStep:
@@ -121,10 +140,13 @@ def _make_orchestrator(tmp_path: Path, *, renderer_mode: str) -> PipelineOrchest
 def test_auto_renderer_records_native_on_shorts_factory_failure(tmp_path: Path) -> None:
     orchestrator = _make_orchestrator(tmp_path, renderer_mode="auto")
 
-    with patch.object(
-        PipelineOrchestrator,
-        "_try_shorts_factory_render",
-        return_value=(False, "sf failed"),
+    with (
+        _passing_media_gates(),
+        patch.object(
+            PipelineOrchestrator,
+            "_try_shorts_factory_render",
+            return_value=(False, "sf failed"),
+        ),
     ):
         manifest = orchestrator.run(topic="테스트 주제", output_filename="fallback.mp4", channel="ai_tech")
 
@@ -141,10 +163,13 @@ def test_auto_renderer_records_shorts_factory_on_success(tmp_path: Path) -> None
         output_path.write_bytes(b"sf-mp4")
         return True, None
 
-    with patch.object(
-        PipelineOrchestrator,
-        "_try_shorts_factory_render",
-        side_effect=fake_sf_render,
+    with (
+        _passing_media_gates(),
+        patch.object(
+            PipelineOrchestrator,
+            "_try_shorts_factory_render",
+            side_effect=fake_sf_render,
+        ),
     ):
         manifest = orchestrator.run(topic="테스트 주제", output_filename="sf.mp4", channel="ai_tech")
 

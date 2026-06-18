@@ -403,7 +403,10 @@ def _run_coroutine(coro_factory) -> None:
         import concurrent.futures
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(asyncio.run, coro_factory())
+            # coro_factory() must be called inside the worker thread — coroutines are
+            # not thread-safe and creating one in thread A then running it in thread B
+            # is undefined behavior.
+            future = executor.submit(lambda: asyncio.run(coro_factory()))
             future.result()
 
 
