@@ -24,7 +24,7 @@ import shutil
 import sqlite3
 import subprocess
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -255,6 +255,89 @@ class PipelineWatchdog:
         self.checks.append(result)
         return result
 
+    # ── blind-to-x 실제 발행(Notion 업로드) 신선도 ──────────
+
+    def check_btx_upload_freshness(self, max_hours: float | None = None) -> Dict[str, Any]:
+        """blind-to-x가 최근 N시간 내에 Notion에 '실제로 발행'했는지 확인.
+
+        check_btx_last_run은 스케줄러가 돌았는지(로그 신선도 + 'Failures:' 라인)만
+        본다. 그래서 스케줄러는 매 4h 정상 실행되지만 스크랩 0건/품질게이트 전건
+        탈락 등으로 0건 발행되는 silent 장애(예: Playwright 브라우저 소실로 ~7일
+        무발행)를 놓친다. 발행 대상인 Notion DB의 최신 페이지 created_time을 직접
+        조회해 '마지막 실제 발행'으로부터 경과 시간을 측정한다.
+
+        임계값은 BTX_WATCHDOG_MAX_UPLOAD_SILENCE_HOURS 환경변수로 조정(기본 36h).
+        """
+        if max_hours is None:
+            try:
+                max_hours = float(os.getenv("BTX_WATCHDOG_MAX_UPLOAD_SILENCE_HOURS", "36") or 36)
+            except ValueError:
+                max_hours = 36.0
+
+        result = _check("btx_upload_freshness", STATUS_SKIP, "")
+        api_key = os.getenv("NOTION_API_KEY", "")
+        db_id = os.getenv("NOTION_DATABASE_ID", "")
+
+        if not api_key or not db_id:
+            result["detail"] = "NOTION_API_KEY/NOTION_DATABASE_ID 미설정 — 발행 신선도 점검 생략"
+            self.checks.append(result)
+            return result
+
+        try:
+            resp = requests.post(
+                f"https://api.notion.com/v1/databases/{db_id}/query",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Notion-Version": "2022-06-28",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "sorts": [{"timestamp": "created_time", "direction": "descending"}],
+                    "page_size": 1,
+                },
+                timeout=10,
+            )
+            if resp.status_code != 200:
+                result["status"] = STATUS_WARN
+                result["detail"] = f"Notion query HTTP {resp.status_code}"
+                self.checks.append(result)
+                return result
+
+            pages = resp.json().get("results", [])
+            if not pages:
+                result["status"] = STATUS_FAIL
+                result["detail"] = "Notion DB가 비어있습니다 (한 건도 발행된 적 없음)"
+                self.alerts.append("🚨 blind-to-x Notion DB에 발행물이 하나도 없습니다")
+                self.checks.append(result)
+                return result
+
+            created_raw = str(pages[0].get("created_time", "")).replace("Z", "+00:00")
+            latest = datetime.fromisoformat(created_raw)
+            age_hours = (datetime.now(timezone.utc) - latest).total_seconds() / 3600
+
+            if age_hours <= max_hours:
+                result["status"] = STATUS_OK
+                result["detail"] = f"마지막 발행 {age_hours:.1f}h 전 ✓ (임계 {max_hours:.0f}h)"
+            else:
+                result["status"] = STATUS_FAIL
+                result["detail"] = f"마지막 발행이 {age_hours:.0f}h 전입니다 (임계 {max_hours:.0f}h 초과)"
+                self.alerts.append(
+                    f"🚨 blind-to-x가 {age_hours:.0f}시간째 Notion에 발행하지 못하고 있습니다 "
+                    f"— 스케줄러는 돌지만 0건 발행. 스크랩/브라우저/품질게이트 점검 필요"
+                )
+        except requests.Timeout:
+            result["status"] = STATUS_WARN
+            result["detail"] = "Notion query timeout (10s)"
+        except requests.ConnectionError:
+            result["status"] = STATUS_WARN
+            result["detail"] = "Notion query connection failed"
+        except Exception as exc:
+            result["status"] = STATUS_WARN
+            result["detail"] = str(exc)[:200]
+
+        self.checks.append(result)
+        return result
+
     # ── Windows Task Scheduler ────────────────────────
 
     def check_windows_task(self, task_name: str = "BlindToX_Pipeline") -> Dict[str, Any]:
@@ -413,6 +496,7 @@ class PipelineWatchdog:
         self.check_btx_last_run()
         self.check_scheduler_health()
         self.check_notion_api()
+        self.check_btx_upload_freshness()
         self.check_windows_task()
         self.check_disk_space()
         self.check_telegram()

@@ -3,6 +3,7 @@
 import json
 import os
 import sqlite3
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -207,7 +208,84 @@ class TestCheckBtxLastRun:
         assert result["status"] == STATUS_RUNNING
 
 
+class TestCheckBtxUploadFreshness:
+    """발행 신선도 점검 — 스케줄러는 돌지만 0건 발행되는 silent 장애 탐지."""
+
+    @patch.dict(os.environ, {"NOTION_API_KEY": "", "NOTION_DATABASE_ID": ""}, clear=False)
+    def test_skip_without_config(self):
+        wd = PipelineWatchdog()
+        result = wd.check_btx_upload_freshness()
+        assert result["status"] == STATUS_SKIP
+
+    @patch("execution.pipeline_watchdog.requests.post")
+    @patch.dict(os.environ, {"NOTION_API_KEY": "k", "NOTION_DATABASE_ID": "db"})
+    def test_fresh_upload_ok(self, mock_post):
+        # Real Notion format uses a trailing 'Z'; exercise the Z→+00:00 path.
+        recent = (datetime.now(timezone.utc) - timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+        mock_post.return_value = MagicMock(
+            status_code=200,
+            json=lambda: {"results": [{"created_time": recent}]},
+        )
+        wd = PipelineWatchdog()
+        result = wd.check_btx_upload_freshness(max_hours=36)
+        assert result["status"] == STATUS_OK
+        assert not wd.alerts
+
+    @patch("execution.pipeline_watchdog.requests.post")
+    @patch.dict(os.environ, {"NOTION_API_KEY": "k", "NOTION_DATABASE_ID": "db"})
+    def test_stale_upload_fails_and_alerts(self, mock_post):
+        old = (datetime.now(timezone.utc) - timedelta(hours=100)).isoformat()
+        mock_post.return_value = MagicMock(
+            status_code=200,
+            json=lambda: {"results": [{"created_time": old}]},
+        )
+        wd = PipelineWatchdog()
+        result = wd.check_btx_upload_freshness(max_hours=36)
+        assert result["status"] == STATUS_FAIL
+        assert any("발행하지 못하고" in a for a in wd.alerts)
+
+    @patch("execution.pipeline_watchdog.requests.post")
+    @patch.dict(os.environ, {"NOTION_API_KEY": "k", "NOTION_DATABASE_ID": "db"})
+    def test_empty_db_fails(self, mock_post):
+        mock_post.return_value = MagicMock(status_code=200, json=lambda: {"results": []})
+        wd = PipelineWatchdog()
+        result = wd.check_btx_upload_freshness(max_hours=36)
+        assert result["status"] == STATUS_FAIL
+        assert wd.alerts
+
+    @patch("execution.pipeline_watchdog.requests.post")
+    @patch.dict(os.environ, {"NOTION_API_KEY": "k", "NOTION_DATABASE_ID": "db"})
+    def test_non_200_warns(self, mock_post):
+        mock_post.return_value = MagicMock(status_code=429, json=lambda: {})
+        wd = PipelineWatchdog()
+        result = wd.check_btx_upload_freshness(max_hours=36)
+        assert result["status"] == STATUS_WARN
+
+    @patch("execution.pipeline_watchdog.requests.post", side_effect=Exception("boom"))
+    @patch.dict(os.environ, {"NOTION_API_KEY": "k", "NOTION_DATABASE_ID": "db"})
+    def test_exception_warns(self, _):
+        wd = PipelineWatchdog()
+        result = wd.check_btx_upload_freshness(max_hours=36)
+        assert result["status"] == STATUS_WARN
+
+    @patch("execution.pipeline_watchdog.requests.post")
+    @patch.dict(
+        os.environ,
+        {"NOTION_API_KEY": "k", "NOTION_DATABASE_ID": "db", "BTX_WATCHDOG_MAX_UPLOAD_SILENCE_HOURS": "200"},
+    )
+    def test_env_threshold_override(self, mock_post):
+        old = (datetime.now(timezone.utc) - timedelta(hours=100)).isoformat()
+        mock_post.return_value = MagicMock(
+            status_code=200,
+            json=lambda: {"results": [{"created_time": old}]},
+        )
+        wd = PipelineWatchdog()
+        result = wd.check_btx_upload_freshness()  # no explicit arg → env threshold 200h
+        assert result["status"] == STATUS_OK  # 100h < 200h
+
+
 class TestRunAll:
+    @patch.object(PipelineWatchdog, "check_btx_upload_freshness", return_value=_check("btx_upload", STATUS_OK))
     @patch.object(PipelineWatchdog, "check_btx_last_run", return_value=_check("btx", STATUS_OK))
     @patch.object(PipelineWatchdog, "check_scheduler_health", return_value=_check("sched", STATUS_OK))
     @patch.object(PipelineWatchdog, "check_notion_api", return_value=_check("notion", STATUS_OK))
@@ -221,6 +299,7 @@ class TestRunAll:
         report = wd.run_all()
         assert report["overall"] == "OK"
 
+    @patch.object(PipelineWatchdog, "check_btx_upload_freshness")
     @patch.object(PipelineWatchdog, "check_btx_last_run")
     @patch.object(PipelineWatchdog, "check_scheduler_health")
     @patch.object(PipelineWatchdog, "check_notion_api")
@@ -229,12 +308,13 @@ class TestRunAll:
     @patch.object(PipelineWatchdog, "check_telegram")
     @patch.object(PipelineWatchdog, "check_backup_status")
     @patch.object(PipelineWatchdog, "_save_history")
-    def test_fail_overall(self, _save, _backup, _tg, _disk, _wt, _notion, _sched, _btx):
+    def test_fail_overall(self, _save, _backup, _tg, _disk, _wt, _notion, _sched, _btx, _upload):
         wd = PipelineWatchdog()
         # Simulate one FAIL check
         _btx.side_effect = lambda: wd.checks.append(_check("btx", STATUS_FAIL, "stale"))
         _sched.side_effect = lambda: wd.checks.append(_check("sched", STATUS_OK))
         _notion.side_effect = lambda: wd.checks.append(_check("notion", STATUS_OK))
+        _upload.side_effect = lambda: wd.checks.append(_check("upload", STATUS_OK))
         _wt.side_effect = lambda: wd.checks.append(_check("wt", STATUS_OK))
         _disk.side_effect = lambda: wd.checks.append(_check("disk", STATUS_OK))
         _tg.side_effect = lambda: wd.checks.append(_check("tg", STATUS_OK))
