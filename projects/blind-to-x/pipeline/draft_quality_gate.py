@@ -226,7 +226,8 @@ def _has_scene_anchor(text: str) -> bool:
 # pattern falls back to the historical hardcoded value below if YAML is
 # missing/malformed, so deleting the YAML section is a safe no-op.
 _GENERIC_CTA_REGEX_DEFAULT = (
-    r"(여러분 생각은|어떻게 생각|어떠신가요|여러분은 어떻게|여러분도 그렇게 생각|공감하시나요)\??"
+    r"(여러분 생각은|여러분은 어떻게|여러분도|어떻게 생각|어떠신가요|공감하시나요|"
+    r"공감하면|공감되면|다들 공감|너희 생각|너희도)\??"
 )
 _CLICHE_OPENING_REGEX_DEFAULT = (
     r"(오늘은 .*이야기해보|많은 .* 고민하고 있|현실적으로|결론적으로|요즘 사람들|한번 생각해봅시다)"
@@ -484,6 +485,64 @@ def _is_colorless_take(text: str, min_chars: int = 30) -> tuple[bool, str]:
     return False, ""
 
 
+# ── 쥬팍식 4단 구조 검출 (X 본문 전용, 구조 위반은 '경고') ──────────────
+# 사용자 지시(2026-06-18): X 본문은 훅 / 팩트 본문 / 요약 한 줄 / 느낌점 4단
+# 블록 구조. 공통 규칙 — 반말, '~다' 종결 금지, 추상어 동어반복 금지.
+# 하드룰(280자/CTA/금지어)은 기존 error 검사가 담당하고, 여기서는 구조 규칙만
+# warning 으로 추가한다.
+
+# 같은 추상어를 반복하거나 "X가 아니라 Y" 가치 선언으로 환원되는 동어반복.
+# 케이스1("아니라"+추상어)은 "아니라"로 강하게 앵커되므로 넓은 집합을 쓰고,
+# 케이스2(동어반복 카운트)는 복합어 오발(기준금리→'기준', 3차원→'차원')을 줄이려고
+# 표준 토큰 경계(앞: 한글 아님, 뒤: 조사/경계)로만 세고 합성어가 잦은 '차원'은 제외한다.
+_ABSTRACT_NOUNS: tuple[str, ...] = ("문제", "기준", "본질", "가치", "의미", "차원", "관점", "측면")
+_REPEATED_ABSTRACT_NOUNS: tuple[str, ...] = ("문제", "기준", "본질", "가치", "의미", "관점", "측면")
+# 추상어 뒤에 와도 단독 토큰으로 인정할 조사/경계 (한글 합성어 연결은 제외).
+_STANDALONE_AFTER = r"(?=$|[^가-힣]|[은는이가을를의에도만과와로으서])"
+
+
+def _count_text_blocks(text: str) -> int:
+    """빈 줄로 구분된 의미 블록 수를 센다 (4단 구조 근사)."""
+    return len([block for block in re.split(r"\n\s*\n", text.strip()) if block.strip()])
+
+
+def _iter_sentences_for_ending(text: str) -> list[str]:
+    """종결 어미 검사용으로 문장/줄 단위 분리."""
+    parts = re.split(r"(?<=[.!?。\n])\s+|\n+", text.strip())
+    return [p.strip() for p in parts if p.strip()]
+
+
+def _find_da_endings(text: str) -> int:
+    """'~다'로 끝나는 문어체 종결 문장 수 (구어체 ~음/~네/~지/~함 은 허용)."""
+    count = 0
+    for sentence in _iter_sentences_for_ending(text):
+        # 트레일링 따옴표·구두점 제거 후 '다'로 끝나는지 확인
+        cleaned = sentence.rstrip(" .!?\"'“”‘’)]）」』")
+        if re.search(r"[가-힣]다$", cleaned):
+            count += 1
+    return count
+
+
+def _count_standalone_noun(text: str, noun: str) -> int:
+    """합성어 부분문자열(기준금리 등)을 제외하고 단독 토큰 등장 횟수를 센다."""
+    pattern = rf"(?<![가-힣]){re.escape(noun)}{_STANDALONE_AFTER}"
+    return len(re.findall(pattern, text))
+
+
+def _find_abstract_repetition(text: str) -> str | None:
+    """추상어 동어반복·가치 선언형 추상화를 검출하면 사유, 없으면 None."""
+    # 1) "X 아니라 Y" + 추상어 → 가치 선언형 추상화 ("아니라"로 강하게 앵커)
+    for sentence in _iter_sentences_for_ending(text):
+        if "아니라" in sentence and any(noun in sentence for noun in _ABSTRACT_NOUNS):
+            return "'~가 아니라 ~' 가치 선언형 추상화 — 구체 숫자·고유명사로 바꿀 것"
+    # 2) 같은 추상어가 단독 토큰으로 2회 이상 반복 (합성어·고유명사 오발 방지)
+    for noun in _REPEATED_ABSTRACT_NOUNS:
+        hits = _count_standalone_noun(text, noun)
+        if hits >= 2:
+            return f"추상어 '{noun}' {hits}회 동어반복"
+    return None
+
+
 class DraftQualityGate:
     """LLM 생성 초안의 플랫폼별 품질 검증 게이트.
 
@@ -644,6 +703,45 @@ class DraftQualityGate:
                         f"<creator_take> 가 무색무취 — {reason}",
                         "warning",
                     )
+
+    def _add_jupak_structure_checks(self, result: QualityResult, platform: str, text: str) -> None:
+        """X 본문 쥬팍식 4단 구조·공통 규칙 검사 (구조 위반은 모두 'warning').
+
+        하드룰(280자/CTA/금지어)은 길이·소셜 스타일 검사가 error 로 잡고,
+        여기서는 4단 블록 구조·'~다' 종결·추상어 동어반복만 경고한다.
+        """
+        if platform != "twitter":
+            return
+
+        # 4단 블록 구조: 빈 줄로 구분된 블록이 3개 미만이면 구조 미흡 경고.
+        block_count = _count_text_blocks(text)
+        if block_count < 3:
+            result.add(
+                "4단 블록 구조",
+                False,
+                f"빈 줄 구분 블록 {block_count}개 — 훅 / 팩트 본문 / 요약 / 느낌점 4단으로 나눌 것",
+                "warning",
+            )
+
+        # '~다' 문어체 종결 금지 (구어체 반말 ~음/~네/~지/~함 사용).
+        da_endings = _find_da_endings(text)
+        if da_endings:
+            result.add(
+                "반말 종결",
+                False,
+                f"'~다' 문어체 종결 {da_endings}곳 — 구어체 반말(~음/~네/~지/~함)로 바꿀 것",
+                "warning",
+            )
+
+        # 추상어 동어반복·가치 선언형 추상화 금지.
+        abstract_reason = _find_abstract_repetition(text)
+        if abstract_reason:
+            result.add(
+                "추상어 동어반복",
+                False,
+                abstract_reason,
+                "warning",
+            )
 
     def _add_format_checks(self, result: QualityResult, rules: dict[str, Any], text: str) -> None:
         # ── 4. 해시태그 검증 ─────────────────────────────────────────
@@ -866,6 +964,7 @@ class DraftQualityGate:
         self._add_korean_ratio_check(result, rules, text)
         self._add_social_style_checks(result, rules, platform, text)
         self._add_creator_take_check(result, platform, text)
+        self._add_jupak_structure_checks(result, platform, text)
         self._add_format_checks(result, rules, text)
 
         sentences = self._quality_sentences(text)

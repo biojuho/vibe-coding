@@ -253,7 +253,7 @@ x_editorial_rules:
 # load, draft_quality_gate.py falls back to the historical hardcoded
 # constants — so deleting this section is safe (degrades to old behavior).
 quality_gate_patterns:
-  generic_cta_regex: '(여러분 생각은|어떻게 생각|어떠신가요|여러분은 어떻게|여러분도 그렇게 생각|공감하시나요)\??'
+  generic_cta_regex: '(여러분 생각은|여러분은 어떻게|여러분도|어떻게 생각|어떠신가요|공감하시나요|공감하면|공감되면|다들 공감|너희 생각|너희도)\??'
   cliche_opening_regex: '(오늘은 .*이야기해보|많은 .* 고민하고 있|현실적으로|결론적으로|요즘 사람들|한번 생각해봅시다)'
   closing_cta_regex: '(댓글로|저장해|공감하면|RT 부탁|리트윗 부탁|구독 부탁|팔로우 부탁|좋아요 부탁|한 수 알려|의견 알려|어떻게 생각|어떠신가요|공감되시면|아닐까요|아닐까\??$|않을까요|않을까\??$)'
   influencer_vocab:

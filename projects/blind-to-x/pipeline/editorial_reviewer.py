@@ -566,10 +566,14 @@ class EditorialReviewer:
             EditorialResult: 폴리시된 초안, 점수, 제안 등
         """
         if not self._providers:
-            logger.debug("Editorial review skipped: no LLM providers available")
+            # Surface the skip instead of silently degrading: on an all-provider
+            # outage the only LLM-based tone/comment-trigger review is bypassed, so
+            # the reviewer should know the drafts reached Notion unreviewed.
+            logger.warning("Editorial review skipped: no LLM providers available — drafts pass through unreviewed")
             return EditorialResult(
                 polished_drafts=dict(drafts),
                 original_drafts=dict(drafts),
+                suggestions=["에디토리얼 LLM 리뷰 건너뜀: 활성 프로바이더 없음 (톤·댓글 유발 점검 미적용)"],
             )
 
         result = EditorialResult(original_drafts={})

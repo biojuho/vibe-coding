@@ -1356,7 +1356,13 @@ class TestGenerateReviewStage:
         assert result is True
         assert ctx.result.get("components_loaded") is not None
 
-    def test_publish_repair_loop_fixes_quality_hold_and_logs_decisions(self):
+    def test_publish_repair_loop_routes_quality_hold_to_review_without_fabrication(self):
+        """A content-quality HOLD must NOT be patched with templated abstraction.
+
+        publish_repair now does mechanical fixes only \u2014 a quality-only hold with no
+        mechanical issue returns unchanged, so the loop marks it exhausted and the real
+        (human-reviewable) draft is kept instead of a fabricated value-frame.
+        """
         ctx = self._ctx_ready()
         ctx.post_data["quality_gate_scores"] = {"twitter": 70}
         ctx.post_data["research_context"] = {
@@ -1367,23 +1373,26 @@ class TestGenerateReviewStage:
             "universal_value": "\ud1f4\uadfc \ud6c4 \uc5f0\uacb0\ub418\uc9c0 \uc54a\uc744 \uad8c\ub9ac",
             "closure": "open",
         }
-        drafts = {"twitter": "\uc774 \uae00\uc740 \uadf8\ub0e5 \ud68c\uc0ac \uc598\uae30\ub2e4."}
+        original = "\uc774 \uae00\uc740 \uadf8\ub0e5 \ud68c\uc0ac \uc598\uae30\ub2e4."
+        drafts = {"twitter": original}
         mock_qg_instance = MagicMock()
-        mock_qg_instance.validate_all.return_value = {"twitter": MagicMock(score=95)}
-        mock_qg_instance.format_summary.return_value = "quality gate ok"
+        mock_qg_instance.validate_all.return_value = {"twitter": MagicMock(score=70)}
+        mock_qg_instance.format_summary.return_value = "quality gate"
 
         with patch("pipeline.draft_quality_gate.DraftQualityGate", return_value=mock_qg_instance):
-            repaired_drafts, quality_gate = _run_publish_repair_loop(ctx, drafts, None)
+            repaired_drafts, _quality_gate = _run_publish_repair_loop(ctx, drafts, None)
 
         assert repaired_drafts is drafts
-        assert quality_gate is mock_qg_instance
-        assert "\ud1f4\uadfc \ud6c4 \uc5f0\uacb0\ub418\uc9c0 \uc54a\uc744 \uad8c\ub9ac" in drafts["twitter"]
-        assert ctx.post_data["quality_gate_scores"] == {"twitter": 95}
-        assert ctx.post_data["publish_repair_attempts"][0]["repair"]["applied"] == ["ensure_value_frame"]
-        assert ctx.post_data["publish_repair_final_decision"]["action"] == "PUBLISH"
+        # no fabrication: draft unchanged, banned value-frame boilerplate absent
+        assert drafts["twitter"] == original
+        assert "\ud1f4\uadfc \ud6c4 \uc5f0\uacb0\ub418\uc9c0 \uc54a\uc744 \uad8c\ub9ac" not in drafts["twitter"]
+        assert "\uae30\uc900\uc740 \ub0a8\uc2b5\ub2c8\ub2e4" not in drafts["twitter"]
+        assert "\uc544\ub2c8\ub77c" not in drafts["twitter"]
+        # routed to human review instead of auto-patched
+        assert ctx.post_data["publish_repair_exhausted"] is True
+        assert ctx.post_data["publish_repair_attempts"][0]["repair"]["applied"] == []
         assert [entry["stage"] for entry in ctx.post_data["publish_decision_log"]] == [
             "generate_review.pre_repair.1",
-            "generate_review.post_repair.1",
         ]
 
     def test_publish_repair_helpers_are_graph_visible(self):
