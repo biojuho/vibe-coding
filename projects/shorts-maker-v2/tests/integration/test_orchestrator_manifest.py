@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import yaml
 
@@ -106,7 +108,23 @@ def test_orchestrator_writes_manifest(tmp_path: Path) -> None:
         render_step=StubRenderStep(),
     )
 
-    manifest = orchestrator.run(topic="테스트 주제", output_filename="sample.mp4")
+    # This test verifies the happy-path manifest is written to disk. The stub
+    # media (4-byte fake mp3, 5s) cannot satisfy the real media/duration gates,
+    # so mock gate3/gate4 to pass — mirroring the unit-test happy-path fixtures.
+    # The gate3-fail → degraded path is covered by ORC-G3-001 in the unit suite.
+    gate3_pass = SimpleNamespace(verdict="pass", checks={"ok": True}, issues=[])
+    gate4_pass = SimpleNamespace(verdict="pass", checks={"ok": True}, issues=[])
+    # Patch the QCStep class this orchestrator instance actually resolves at
+    # call time (run()'s module globals), not the sys.modules path string.
+    # Another suite test reloads/re-imports the orchestrator module under some
+    # hash-seed orderings, leaving a string-path patch targeting a different
+    # QCStep object than the instance uses → intermittent order-dependent flake.
+    qc_cls = type(orchestrator).run.__globals__["QCStep"]
+    with (
+        patch.object(qc_cls, "gate3_media", return_value=gate3_pass),
+        patch.object(qc_cls, "gate4_final", return_value=gate4_pass),
+    ):
+        manifest = orchestrator.run(topic="테스트 주제", output_filename="sample.mp4")
     assert manifest.status == "success"
     assert manifest.output_path.endswith("sample.mp4")
     assert manifest.estimated_cost_usd > 0

@@ -42,6 +42,23 @@ from shorts_maker_v2.pipeline.retention_autofix import RetentionAutoFixer
 # ── helpers ─────────────────────────────────────────────────────────────────
 
 
+def _gate_patches(orch, gate3, gate4):
+    """Patch gate3/gate4 on the QCStep class this orchestrator instance
+    actually resolves at call time (run()'s module globals), rather than the
+    ``shorts_maker_v2.pipeline.orchestrator.QCStep`` sys.modules path string.
+
+    Some suite tests reload/re-import the orchestrator module under certain
+    hash-seed orderings; a path-string patch would then target a different
+    QCStep object than the instance uses, producing an intermittent
+    order-dependent flake (see test_orchestrator_writes_manifest / ORC-G3-001).
+    """
+    qc_cls = type(orch).run.__globals__["QCStep"]
+    return (
+        patch.object(qc_cls, "gate3_media", return_value=gate3),
+        patch.object(qc_cls, "gate4_final", return_value=gate4),
+    )
+
+
 def _make_config_yaml(tmp_path: Path) -> Path:
     payload = {
         "project": {"language": "ko-KR", "default_scene_count": 1, "structure_validation": "off"},
@@ -617,7 +634,11 @@ class TestRunErrorPaths:
 
     def test_happy_path_success(self, tmp_path: Path):
         orch = self._make_orchestrator(tmp_path)
-        manifest = orch.run(topic="test topic", output_filename="test.mp4")
+        gate3_pass = SimpleNamespace(verdict="pass", checks={"ok": True}, issues=[])
+        gate4_pass = SimpleNamespace(verdict="pass", checks={"ok": True}, issues=[])
+        g3, g4 = _gate_patches(orch, gate3_pass, gate4_pass)
+        with g3, g4:
+            manifest = orch.run(topic="test topic", output_filename="test.mp4")
         assert manifest.status == "success"
         assert manifest.estimated_cost_usd > 0
         assert manifest.scene_count == 1
@@ -626,7 +647,11 @@ class TestRunErrorPaths:
 
     def test_step_timings_recorded(self, tmp_path: Path):
         orch = self._make_orchestrator(tmp_path)
-        manifest = orch.run(topic="timing test")
+        gate3_pass = SimpleNamespace(verdict="pass", checks={"ok": True}, issues=[])
+        gate4_pass = SimpleNamespace(verdict="pass", checks={"ok": True}, issues=[])
+        g3, g4 = _gate_patches(orch, gate3_pass, gate4_pass)
+        with g3, g4:
+            manifest = orch.run(topic="timing test")
         assert "script" in manifest.step_timings
         assert "media" in manifest.step_timings
         assert "render" in manifest.step_timings
@@ -1065,6 +1090,42 @@ def test_try_shorts_factory_delegates_to_render_step():
     assert ok is False
     assert err == "not installed"
     mock_adapter.assert_called_once()
+
+
+# ── ORC-G3-001: gate3 QC fail must appear in manifest.degraded_steps ─────────
+
+
+def test_gate3_qc_fail_appears_in_manifest_degraded_steps(tmp_path: Path):
+    """ORC-G3-001: gate3 미디어 QC 실패 시 manifest.degraded_steps에 기록돼야 한다.
+
+    이전 코드는 manifest.degraded_steps.append(...)를 사용했으나
+    line 1358에서 manifest.degraded_steps = degraded_steps로 덮어써 entry가 소실됐다.
+    수정 후 degraded_steps.append(...)를 사용해 올바르게 기록된다.
+    """
+    cfg = _load_cfg(tmp_path)
+    _set_frozen_attr(cfg.project, "structure_validation", "off")
+    orch = PipelineOrchestrator(
+        config=cfg,
+        base_dir=tmp_path,
+        script_step=StubScript(),
+        media_step=StubMedia(),
+        render_step=StubRender(),
+    )
+
+    gate3_fail = SimpleNamespace(
+        verdict="fail",
+        checks={"duration_ok": False},
+        issues=["TTS duration 5.0s not in [35,45]"],
+    )
+    gate4_pass = SimpleNamespace(verdict="pass", checks={"ok": True}, issues=[])
+
+    g3, g4 = _gate_patches(orch, gate3_fail, gate4_pass)
+    with g3, g4:
+        manifest = orch.run(topic="gate3 regression")
+
+    gate3_entries = [d for d in manifest.degraded_steps if d.get("step") == "gate3_media_qc"]
+    assert gate3_entries, f"gate3_media_qc not found in manifest.degraded_steps: {manifest.degraded_steps}"
+    assert "TTS duration" in gate3_entries[0]["message"]
 
 
 # ── renderer_mode="shorts_factory" without channel ──────────────────────────

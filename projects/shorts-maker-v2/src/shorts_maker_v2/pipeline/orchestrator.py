@@ -961,7 +961,7 @@ class PipelineOrchestrator:
                         llm_router=_llm_router_for_semantic,
                         min_score=self.config.project.semantic_qc_min_score,
                     )
-                    structure_outline_for_semantic = locals().get("structure_outline")
+                    structure_outline_for_semantic = structure_outline  # initialized to None at line 601
                     semantic_result = semantic_step.run(
                         scene_plans=scene_plans,
                         structure_outline=structure_outline_for_semantic,
@@ -1032,7 +1032,10 @@ class PipelineOrchestrator:
                     issues=gate3_report.issues,
                 )
                 status.fail("gate3_media_qc", detail="; ".join(gate3_report.issues[:2]))
-                manifest.degraded_steps.append(
+                # Write to local list — manifest.degraded_steps is overwritten at line 1358
+                # by `manifest.degraded_steps = degraded_steps`, so appending to
+                # manifest.degraded_steps here would silently drop this entry.
+                degraded_steps.append(
                     {
                         "step": "gate3_media_qc",
                         "message": "; ".join(gate3_report.issues[:3]),
@@ -1074,7 +1077,7 @@ class PipelineOrchestrator:
                     manifest=manifest,
                     scene_plans=scene_plans,
                     scene_assets=scene_assets,
-                    structure_outline=locals().get("structure_outline"),
+                    structure_outline=structure_outline,
                     degraded_steps=degraded_steps,
                     step_timings=step_timings,
                     jlog=jlog,
