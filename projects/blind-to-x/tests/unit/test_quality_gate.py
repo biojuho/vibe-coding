@@ -153,6 +153,18 @@ def test_forbidden_wildcard_expression_now_fires(mock_forbidden, mock_cliches):
     assert not any("forbidden_expression" in f for f in good.failures)
 
 
+@patch("pipeline.quality_gate._load_cliches")
+@patch("pipeline.quality_gate._load_forbidden")
+def test_cliche_wildcard_entry_now_counts_toward_overuse(mock_forbidden, mock_cliches):
+    # '~해본 사람 손' 같은 '~' 와일드카드 클리셰가 literal 매칭으로 죽어 누락 카운트되던 것 활성화.
+    mock_forbidden.return_value = []
+    mock_cliches.return_value = ["결론적으로", "주목할 만한", "~해본 사람 손"]
+    gate = QualityGate()
+    # 3개 모두 매칭 → cliche_overuse FAILURE (와일드카드가 안 잡혔으면 2개=warning에 그쳤음)
+    res = gate.check("결론적으로 주목할 만한 변화네. 야근 해본 사람 손 들어봐.", platform="twitter")
+    assert any("cliche_overuse" in f for f in res.failures)
+
+
 @patch("pipeline.quality_gate.get_rule_section")
 def test_repetition(mock_get_rule):
     mock_get_rule.return_value = {}

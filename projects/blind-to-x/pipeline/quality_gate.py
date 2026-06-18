@@ -170,8 +170,8 @@ class QualityGate:
                 return
 
     def _check_cliches(self, text: str, result: GateResult) -> None:
-        """클리셰 사용 감지."""
-        found = [c for c in self._cliches if c in text]
+        """클리셰 사용 감지 ('~'는 와일드카드 — _phrase_matches 참고)."""
+        found = [c for c in self._cliches if _phrase_matches(c, text)]
         if found:
             result.metrics["cliche_count"] = float(len(found))
             if len(found) >= 3:

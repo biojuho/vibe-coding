@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from pipeline.draft_contract import iter_publishable_drafts
+from pipeline.quality_gate import _phrase_matches  # '~' 와일드카드 인지 매칭 (단일 SoT)
 from pipeline.regulation_checker import x_weighted_character_count
 from pipeline.rules_loader import get_rule_section
 
@@ -814,7 +815,7 @@ class DraftQualityGate:
         # ── 8. 클리셰 검사 ─────────────────────────────────────────────
         cliches = _load_cliche_watchlist()
         if cliches:
-            matched_cliches = [c for c in cliches if c in text]
+            matched_cliches = [c for c in cliches if _phrase_matches(c, text)]
             if len(matched_cliches) >= 3:
                 result.add(
                     "클리셰 과다",
