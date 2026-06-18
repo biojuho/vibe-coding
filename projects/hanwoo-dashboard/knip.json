@@ -1,0 +1,15 @@
+{
+	"$schema": "https://unpkg.com/knip@5/schema.json",
+	"paths": {
+		"@/*": ["./src/*"]
+	},
+	"entry": [
+		"src/sw.js",
+		"scripts/*.mjs",
+		"prisma/seed*.js"
+	],
+	"ignore": [
+		"public/sw.js",
+		"public/workbox-*.js"
+	]
+}
