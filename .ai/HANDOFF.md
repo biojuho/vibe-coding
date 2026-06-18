@@ -6,6 +6,35 @@
 
 | Field | Value |
 |---|---|
+| Date | 2026-06-18 (hanwoo lint fix) |
+| Tool | Claude Code (Opus 4.8) |
+| Work | **hanwoo-dashboard React 19 lint 에러 7건 수정 (commit 5a9946c6, 10파일)** — 의존성 업그레이드(62685046)가 react-hooks 7.1.1로 surface한 기존 main lint red 정리. set-state-in-effect ×5(login/Inventory/Sales/Schedule/Diagnostics)는 `queueMicrotask` 디퍼([[react19_setstate_in_effect_rule]]) + Diagnostics는 기존 deferDiagnosticsTask 재사용. React Compiler memoization ×2(DashboardClient handleTabChange/handleQuickAction)는 useCallback deps에 안정 setter `setActiveTab` 추가. source-grep 테스트 4건(empty-state-wiring/home-market-copy/tab-header-accessibility/error-pages-wiring) 디퍼 패턴으로 정합화. **검증: eslint 0 errors(잔여 3건 의도된 exhaustive-deps isLoading 경고), node --test 2419 pass/0 fail.** 잔여 warning 3건은 isLoading 의도적 deps 제거(render loop 회피)라 미수정. |
+| Next Priorities | hanwoo 이제 lint+test green. next build는 CI(Postgres 서비스 필요)에서 검증. 의존성 업그레이드 보류 2건(eslint10/pnpm11)은 업스트림/CI 조정 대기. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-18 (쥬팍식 X 본문) |
+| Tool | Claude Code (Opus 4.8) |
+| Work | **blind-to-x X 본문 쥬팍식 4단 전환 (/goal)**. X 본문 = 훅(hot)/팩트본문(cold)/요약한줄(cold)/느낌점(hot,펀치라인) 4단 블록 강제. 3계층 동시 정비: ① 프롬프트 `rules/prompts.yaml` twitter.standard 재작성(thread 키 제거, draft_formats=standard만), system_role "여운/의견 안 밀기" 제거; `draft_prompts.py` `_build_twitter_block_from_request`(thread 분기 삭제→항상 standard), `_format_research_context_block`(가치선언/보편환원 강제→금지), selection_brief·fallback·CTA fix instruction 여운→펀치라인. ② 게이트 `draft_quality_gate.py` `_add_jupak_structure_checks`(twitter 한정, 4단블록·'~다'종결·추상어동어반복=**warning**; 280초과·CTA=기존 **error 차단**). ③ 노션 `notion/_upload.py` `_build_upload_children` 재정렬: X카드+원문만 펼침, 검토요약·보조채널·진단·부가산출물 접힘 토글. 지시문 `directives/x_content_curation.md` §4 쥬팍 4단으로 교체. 신규 `tests/unit/test_jupak_x_body.py`(10), 기존 13개 테스트 갱신. |
+| Verify | blind-to-x unit **3100 passed / 15 skipped / 0 failed** (maxfail 없이), ruff clean, project_qc_runner passed. 미커밋(사용자 커밋 미요청). |
+| Next Priorities | (1) 원하면 pathspec 한정 커밋(위 6파일+테스트, [[multi_tool_git_index_race]]). (2) "threads 없애"=X thread 포맷으로 해석 — Meta Threads SNS 채널 전체 제거 필요시 별도 확인. (3) 실제 LLM dry-run으로 4단 산출 확인 권장. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-18 (의존성 업그레이드) |
+| Tool | Claude Code |
+| Work | **/goal "최신버전 업그레이드" → 워크스페이스 전체 의존성 최신화 (commit 62685046, 12파일 pathspec 한정)**. Node 6개 매니페스트 + Python(blind-to-x) 핀 4건. **검증환경 발견**: 이 PC에서 `npm install`(full)은 정상(게임 from-scratch 236pkg/29s) — 한글경로 깨짐은 pnpm 전용. blind-to-x: anthropic 0.105→0.109, openai 2.41→2.43, aiohttp 3.13→3.14, bs4 4.14→4.15 + root uv.lock 재생성 + 4종 import-smoke green. word-chain(25t)/suika(63t) vitest+eslint+vite build green. hanwoo(2419t)/knowledge(73t+lint) green. root biome 2.5.0/turbo 2.9.18. pnpm-lock.yaml(프론트 CI 권위 lock, pnpm-workspace=projects/*) `--lockfile-only` 재생성(v9.0 유지). **CI 모델**: Python은 pyproject 직접 pip 설치(uv.lock 미사용), 프론트는 `pnpm install` 루트 lock(per-project package-lock.json은 Dependabot 전용 = 이중 lock). **보류**: eslint hanwoo/knowledge 9.39.4 유지(eslint-config-next 16의 ts-eslint 8.x가 eslint10 scopeManager.addGlobals 미지원→런타임 크래시 재현); pnpm 9→11 메이저(CI+lockfile 동시조정). |
+| Next Priorities | (1) **hanwoo lint 7건**(set-state-in-effect×5+memoization×2)은 react-hooks 7.1.1 기존 main 이슈 — `queueMicrotask`로 별도 수정. (2) push 후 CI(blind-to-x 3.12 pytest)로 Python 4핀 전체 검증. 상세 TASKS.md TODO 최상단. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-18 |
+| Tool | Claude Code |
+| Work | **blind-to-x "노션 발행 안 됨" 근본원인 = Playwright Chromium 바이너리 소실 (Notion 아님)**. `ms-playwright`가 ~06-11 비워져 매 스케줄 스크랩이 `BrowserUnavailableError: ...chromium_headless_shell-1208...`로 죽음 → 0 posts → 노션 업로드 0건, ~7일 silent(TELEGRAM_BOT_TOKEN 미설정이라 무알림). Notion 경로는 전부 정상(notion_doctor PASS / 격리 pages.create OK / 실제 `NotionUploader.upload()`+children OK) — red herring. 수리: `py -3 -m playwright install chromium`(글로벌 3.14/pw1.58→build1208) + 루트 `.venv`(3.11/pw1.60→build1223) 둘 다 설치. 자가치유: `run_scheduled.py`에 `build_preflight_tasks()` 추가(스크랩 전 idempotent `playwright install chromium`, non-fatal, sys.executable 기준) + 회귀테스트 `workspace/tests/test_auto_schedule_paths.py::test_run_scheduled_installs_playwright_browser_preflight`. 검증: 실제 `main.py --trending` 재실행 → Blind 15/Ppomppu 15 수집, 노션 카드 2건 업로드(요약 OK 2/FAIL 3 — 품질게이트 정상). |
+| Next Priorities | (1) 다음 스케줄 런(매 4h) 로그에서 "Uploading to Notion" 재확인. (2) 부수 미수정: NotebookLM enricher 1차 모델 `gemini-2.0-flash` 404(폐기)→claude 폴백되나 모델명 갱신 권장. (3) 7일 silent의 근인은 알림 부재 — TELEGRAM_BOT_TOKEN 설정 또는 watchdog가 "노션 업로드 N일 없음" 감지하도록 강화 검토. (4) `run_scheduled.py`+테스트 커밋 미실행(dirty 멀티툴 트리, main 브랜치) — 사용자 승인 시 pathspec 한정 커밋. |
+
+| Field | Value |
+|---|---|
 | Date | 2026-06-17 (5차) |
 | Tool | Claude Code |
 | Work | **자율 품질 루프 5차 — 렌더 파이프라인 7건 + hanwoo 4건 수정 (commits f9de0935, 341a4759)**. shorts-maker-v2: bookend clip.duration=None → min() TypeError (RC-BBC001). video clip.duration=None 시 with_duration() 미호출 (RS-BBC001). BGM 0.5초 미만 클립 루프 누락 (>= 0.5 조건 제거). all_clips 비었을 때 concat 전 조기 ValueError. zip(scene_plans, scene_assets) strict=False → True. zip(scene_roles, scene_durations) strict=False → True. 회귀 테스트 4건 (RC-BBC001, RS-BBC001, RS-BGM001, RA-SFX003). hanwoo-dashboard: cattle.js 이력 문자열 data.* → payload.* (3곳). useCattlePagination/useSalesPagination/useCursorPagination isLoading useCallback deps 제거. |
