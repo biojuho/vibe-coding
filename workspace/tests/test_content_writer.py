@@ -79,7 +79,7 @@ def test_write_with_gemini_uses_configured_model(monkeypatch) -> None:
 
     assert result == "# Gemini Title\nBody"
     assert calls["api_key"] == "gemini-key"
-    assert calls["model"] == "gemini-2.0-flash"
+    assert calls["model"] == "gemini-2.5-flash"
     assert "source text" in str(calls["contents"])
     assert calls["closed"] is True
 
