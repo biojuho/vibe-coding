@@ -65,7 +65,7 @@ export default function ActivityTimeline({ sessions }: ActivityTimelineProps) {
 					<div className="ml-4 border-l-2 border-slate-700/50 space-y-4 pl-6">
 						{entries.map((entry, idx) => (
 							<div
-								key={`${date}-${entry.tool}-${entry.summary.slice(0, 24)}-${idx}`}
+								key={`${date}-${entry.tool ?? ""}-${(entry.summary ?? "").slice(0, 24)}-${idx}`}
 								className="group relative p-5 bg-slate-900/40 border border-white/5 hover:border-indigo-500/20 rounded-xl transition-all duration-300"
 							>
 								{/* Timeline dot */}
@@ -74,7 +74,7 @@ export default function ActivityTimeline({ sessions }: ActivityTimelineProps) {
 								{/* Tool + verdict */}
 								<div className="flex items-center gap-2 mb-2">
 									<span
-										className={`text-xs px-2.5 py-1 rounded-full border ${getToolColor(entry.tool)}`}
+										className={`text-xs px-2.5 py-1 rounded-full border ${getToolColor(entry.tool ?? "")}`}
 									>
 										{entry.tool}
 									</span>

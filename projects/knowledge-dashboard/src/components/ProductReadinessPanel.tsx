@@ -383,43 +383,43 @@ export default function ProductReadinessPanel({
 								<div className="rounded-lg border border-white/5 bg-slate-950/35 p-3">
 									<p className="text-xs text-slate-400">QC</p>
 									<p className="mt-1 text-sm font-medium text-white">
-										{project.qc.status}
+										{project.qc?.status ?? "—"}
 									</p>
 									<p className="text-xs text-slate-400">
-										{project.qc.passed} 통과 / {project.qc.failed} 실패
+										{project.qc?.passed ?? 0} 통과 / {project.qc?.failed ?? 0} 실패
 									</p>
 									<QcFreshness qc={project.qc} />
 								</div>
 								<div className="rounded-lg border border-white/5 bg-slate-950/35 p-3">
 									<p className="text-xs text-slate-400">미해결 작업</p>
 									<p className="mt-1 text-sm font-medium text-white">
-										{project.tasks.length}
+										{project.tasks?.length ?? 0}
 									</p>
 									<p className="text-xs text-slate-400">
-										{project.tasks[0]?.owner || "담당자 없음"}
+										{project.tasks?.[0]?.owner || "담당자 없음"}
 									</p>
 								</div>
 								<div className="rounded-lg border border-white/5 bg-slate-950/35 p-3">
 									<p className="text-xs text-slate-400">변경된 파일</p>
 									<p className="mt-1 text-sm font-medium text-white">
-										{project.dirty_paths.length}
+										{project.dirty_paths?.length ?? 0}
 									</p>
 									<p className="truncate text-xs text-slate-400">
-										{project.dirty_paths[0] || "깨끗함"}
+										{project.dirty_paths?.[0] || "깨끗함"}
 									</p>
 								</div>
 								<div className="rounded-lg border border-white/5 bg-slate-950/35 p-3">
 									<p className="text-xs text-slate-400">문서</p>
 									<p className="mt-1 text-sm font-medium text-white">
-										{project.docs.filter((item) => item.present).length}/
-										{project.docs.length}
+										{(project.docs ?? []).filter((item) => item.present).length}/
+										{project.docs?.length ?? 0}
 									</p>
 									<p className="text-xs text-slate-400">필수 파일</p>
 								</div>
 							</div>
 
 							<ul className="mt-4 space-y-2">
-								{project.recommendations.map((recommendation) => (
+								{(project.recommendations ?? []).map((recommendation) => (
 									<li
 										key={recommendation}
 										className="flex gap-2 text-sm leading-6 text-slate-300"

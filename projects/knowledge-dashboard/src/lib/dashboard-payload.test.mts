@@ -74,7 +74,13 @@ test("isQaQcPayload enforces the fields the panel dereferences", () => {
 test("isProductReadinessPayload requires workspace_blockers array", () => {
 	const base = {
 		generated_at: "2026-06-04",
-		overall: { score: 90, state: "ready" },
+		overall: {
+			score: 90,
+			state: "ready",
+			project_count: 4,
+			blocked_count: 1,
+			workspace_blocker_count: 0,
+		},
 		projects: [],
 		next_actions: [],
 		workspace_blockers: [],
@@ -88,6 +94,11 @@ test("isProductReadinessPayload requires workspace_blockers array", () => {
 	assert.equal(
 		isProductReadinessPayload({ ...base, overall: "x" }),
 		false,
+	);
+	assert.equal(
+		isProductReadinessPayload({ ...base, overall: { score: 90, state: "ready" } }),
+		false,
+		"overall missing count fields must fail (renders them directly)",
 	);
 });
 
@@ -103,6 +114,26 @@ test("isSkillLintPayload validates summary object and issues array", () => {
 	assert.equal(
 		isSkillLintPayload({ generated_at: "x", summary: {}, issues: "no" }),
 		false,
+	);
+});
+
+test("KD-PLD002: isQaQcPayload requires ast_check.ok and ast_check.total as numbers", () => {
+	// QaQcPanel.tsx line 273 renders data.ast_check.ok/total directly.
+	// Missing or non-numeric values produce "/" string or NaN without this guard.
+	assert.equal(
+		isQaQcPayload({ ...validQaQc, ast_check: { total: 10, failures: [] } }),
+		false,
+		"missing ast_check.ok must fail",
+	);
+	assert.equal(
+		isQaQcPayload({ ...validQaQc, ast_check: { ok: 10, failures: [] } }),
+		false,
+		"missing ast_check.total must fail",
+	);
+	assert.equal(
+		isQaQcPayload({ ...validQaQc, ast_check: { ok: "ten", total: 10, failures: [] } }),
+		false,
+		"non-numeric ast_check.ok must fail",
 	);
 });
 

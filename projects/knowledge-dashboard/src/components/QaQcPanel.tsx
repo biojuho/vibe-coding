@@ -163,12 +163,14 @@ function InfraStatus({ infra }: { infra: Infrastructure }) {
 export default function QaQcPanel({ data }: QaQcPanelProps) {
 	// Bar chart data for project tests
 	const projectBarData = useMemo(() => {
-		return Object.entries(data.projects).map(([name, result]) => ({
-			name,
-			passed: result.passed,
-			failed: result.failed,
-			skipped: result.skipped,
-		}));
+		return Object.entries(data.projects)
+			.filter(([, result]) => result != null && typeof result === "object")
+			.map(([name, result]) => ({
+				name,
+				passed: result.passed ?? 0,
+				failed: result.failed ?? 0,
+				skipped: result.skipped ?? 0,
+			}));
 	}, [data.projects]);
 
 	// Trend data (if available)

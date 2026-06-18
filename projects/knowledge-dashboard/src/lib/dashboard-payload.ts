@@ -51,6 +51,7 @@ export function isQaQcPayload(value: unknown): value is QaQcData {
 	// ast_check.ok / .total / .failures[] are all dereferenced.
 	if (!isObject(value.ast_check)) return false;
 	if (!Array.isArray(value.ast_check.failures)) return false;
+	if (!isNumber(value.ast_check.ok) || !isNumber(value.ast_check.total)) return false;
 
 	// security_scan.status / .issues[] are dereferenced.
 	if (!isObject(value.security_scan)) return false;
@@ -65,15 +66,24 @@ export function isQaQcPayload(value: unknown): value is QaQcData {
 export function isProductReadinessPayload(
 	value: unknown,
 ): value is ProductReadinessData {
-	return (
-		isObject(value) &&
-		typeof value.generated_at === "string" &&
-		isObject(value.overall) &&
-		Array.isArray(value.projects) &&
-		Array.isArray(value.next_actions) &&
-		// The panel reads data.workspace_blockers.length unconditionally.
-		Array.isArray(value.workspace_blockers)
-	);
+	if (!isObject(value)) return false;
+	if (typeof value.generated_at !== "string") return false;
+	if (!isObject(value.overall)) return false;
+	// overall.score / project_count / blocked_count / workspace_blocker_count are
+	// rendered directly — validate them to prevent "undefined" strings and NaN CSS.
+	const overall = value.overall as Record<string, unknown>;
+	if (
+		!isNumber(overall.score) ||
+		!isNumber(overall.project_count) ||
+		!isNumber(overall.blocked_count) ||
+		!isNumber(overall.workspace_blocker_count)
+	)
+		return false;
+	if (!Array.isArray(value.projects)) return false;
+	if (!Array.isArray(value.next_actions)) return false;
+	// The panel reads data.workspace_blockers.length unconditionally.
+	if (!Array.isArray(value.workspace_blockers)) return false;
+	return true;
 }
 
 export function isSkillLintPayload(value: unknown): value is SkillLintData {
