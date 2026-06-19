@@ -45,7 +45,7 @@
 			"args": ["infrastructure/cloudinary-mcp/server.py"]
 		},
 		"code-review-graph": {
-			"command": "python",
+			"command": "python3.13",
 			"args": ["-m", "code_review_graph", "serve"],
 			"env": {
 				"PYTHONUTF8": "1"
