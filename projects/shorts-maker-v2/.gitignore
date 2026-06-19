@@ -17,6 +17,8 @@ MagicMock/
 !channel_profiles.yaml
 !package.json
 !tsconfig.json
+# Demo fixtures shipped with the package (used by ai_tech_shorts demo CLI + unit tests)
+!prompts/demo_*.json
 
 # MoviePy 임시 파일
 *TEMP_MPY_*.mp4
