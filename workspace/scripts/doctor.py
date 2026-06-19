@@ -16,7 +16,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List
 
-import _path_bootstrap
+try:
+    import _path_bootstrap  # running as a script: workspace/scripts is on sys.path
+except ModuleNotFoundError:  # imported as ``scripts.doctor`` (e.g. tests): workspace is on sys.path
+    from scripts import _path_bootstrap
 
 from path_contract import REPO_ROOT
 
